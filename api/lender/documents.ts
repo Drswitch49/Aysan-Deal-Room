@@ -1,5 +1,5 @@
-import { airtableFetch, TABLES, escapeFormulaString } from "../_utils/airtable";
-import { authenticateLender } from "./deals";
+import { airtableFetch, TABLES, escapeFormulaString } from "../_utils/airtable.js";
+import { authenticateLender } from "./deals.js";
 
 const SAFE_DOC_FIELDS = [
   "Deal_Ref", "Deal Ref", "Deal Reference",

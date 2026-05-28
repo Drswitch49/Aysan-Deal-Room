@@ -1,5 +1,5 @@
-import { airtableUpdate, TABLES } from "../_utils/airtable";
-import { authenticateAdmin } from "./lenders";
+import { airtableUpdate, TABLES } from "../_utils/airtable.js";
+import { authenticateAdmin } from "./lenders.js";
 
 function generatePassword(): string {
   const chars = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789!@#$%&*";

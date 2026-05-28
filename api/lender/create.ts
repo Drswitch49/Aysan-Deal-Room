@@ -1,4 +1,4 @@
-import { airtableCreate, escapeFormulaString, airtableFetch, TABLES } from "../_utils/airtable";
+import { airtableCreate, escapeFormulaString, airtableFetch, TABLES } from "../_utils/airtable.js";
 
 // Helper to generate a secure random password
 function generatePassword(): string {

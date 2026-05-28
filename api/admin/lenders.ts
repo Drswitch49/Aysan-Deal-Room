@@ -1,4 +1,4 @@
-import { airtableFetch, TABLES } from "../_utils/airtable";
+import { airtableFetch, TABLES } from "../_utils/airtable.js";
 
 // Helper to authenticate admin
 export function authenticateAdmin(req: any) {

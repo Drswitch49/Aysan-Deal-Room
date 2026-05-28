@@ -1,4 +1,4 @@
-import { airtableFetch, TABLES, escapeFormulaString } from "../_utils/airtable";
+import { airtableFetch, TABLES, escapeFormulaString } from "../_utils/airtable.js";
 
 export default async function handler(req: any, res: any) {
   if (req.method !== "POST") {

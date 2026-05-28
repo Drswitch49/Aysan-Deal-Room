@@ -1,5 +1,5 @@
-import { airtableFetch, TABLES, escapeFormulaString } from "../_utils/airtable";
-import { authenticateLender } from "./deals";
+import { airtableFetch, TABLES, escapeFormulaString } from "../_utils/airtable.js";
+import { authenticateLender } from "./deals.js";
 
 export default async function handler(req: any, res: any) {
   if (req.method !== "GET") {

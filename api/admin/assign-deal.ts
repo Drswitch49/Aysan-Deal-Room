@@ -1,5 +1,5 @@
-import { airtableCreate, airtableFetch, getTableSchema, escapeFormulaString, TABLES } from "../_utils/airtable";
-import { authenticateAdmin } from "./lenders";
+import { airtableCreate, airtableFetch, getTableSchema, escapeFormulaString, TABLES } from "../_utils/airtable.js";
+import { authenticateAdmin } from "./lenders.js";
 
 export default async function handler(req: any, res: any) {
   if (req.method !== "POST") {

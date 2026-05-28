@@ -1,4 +1,4 @@
-import { airtableFetch, TABLES, escapeFormulaString } from "../_utils/airtable";
+import { airtableFetch, TABLES, escapeFormulaString } from "../_utils/airtable.js";
 
 const SAFE_FIELDS = [
   "REF No.", "Ref No.", "Deal_Ref", "Deal Ref", "Deal Reference", "Deal Name",
