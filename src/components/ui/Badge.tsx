@@ -25,11 +25,11 @@ export function Badge({ children, tone = "slate" }: { children: ReactNode; tone?
   );
 }
 
-export function StatusBadge({ status }: { status: string }) {
-  const normalized = status.trim().toLowerCase();
+export function StatusBadge({ status }: { status?: string }) {
+  const normalized = (status || "").trim().toLowerCase();
   let tone: BadgeTone = "slate";
 
-  if (isSentToLender(status) || normalized.includes("approved") || normalized.includes("complete")) tone = "green";
+  if (isSentToLender(status || "") || normalized.includes("approved") || normalized.includes("complete")) tone = "green";
   if (normalized.includes("waiting") || normalized.includes("pending") || normalized.includes("expected")) tone = "amber";
   if (normalized.includes("missing") || normalized.includes("rejected")) tone = "red";
   if (normalized.includes("review")) tone = "blue";
