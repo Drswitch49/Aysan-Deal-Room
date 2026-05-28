@@ -26,8 +26,8 @@ export function AppLayout() {
           <div className="mt-8 rounded-xl border border-white/[0.06] bg-white/[0.02] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)] backdrop-blur-md">
             <p className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-acp-purple">Operating Model</p>
             <div className="mt-4 space-y-3.5">
-              <SideFact icon={<Database className="h-3.5 w-3.5" aria-hidden="true" />} label="Airtable Source" />
-              <SideFact icon={<Table2 className="h-3.5 w-3.5" aria-hidden="true" />} label="Read-Only Layer" />
+              <SideFact icon={<Database className="h-3.5 w-3.5" aria-hidden="true" />} label="Live Database Sync" />
+              <SideFact icon={<Table2 className="h-3.5 w-3.5" aria-hidden="true" />} label="Read-Only Access" />
               <SideFact icon={<LockKeyhole className="h-3.5 w-3.5" aria-hidden="true" />} label="Restricted Actions" />
             </div>
           </div>
@@ -42,7 +42,7 @@ export function AppLayout() {
                 Active Session
               </p>
               <p className="truncate text-[10px] font-extrabold uppercase tracking-wider text-slate-555">
-                Authorized VDR Node
+                Secure Deal Room Session
               </p>
             </div>
           </div>
@@ -61,8 +61,8 @@ export function AppLayout() {
               <p className="mt-1 text-xs font-bold text-slate-300 tracking-wide uppercase">Aysan Capital Partners Pipeline</p>
             </div>
             <div className="hidden items-center gap-2.5 md:flex">
-              <Pill icon={<Database className="h-3.5 w-3.5 text-acp-blue" aria-hidden="true" />} label="Airtable Pipeline" />
-              <Pill icon={<ShieldCheck className="h-3.5 w-3.5 text-acp-emerald" aria-hidden="true" />} label="Secure Display" />
+              <Pill icon={<Database className="h-3.5 w-3.5 text-acp-blue" aria-hidden="true" />} label="Active Pipeline" />
+              <Pill icon={<ShieldCheck className="h-3.5 w-3.5 text-acp-emerald" aria-hidden="true" />} label="Secure Access" />
             </div>
           </div>
         </header>
@@ -93,7 +93,7 @@ function BrandBlock({ compact = false }: { compact?: boolean }) {
           Aysan Capital
         </p>
         <p className="truncate text-[10px] font-extrabold uppercase tracking-[0.18em] text-acp-purple">
-          Operational Portal
+          Deal Room Portal
         </p>
       </div>
     </div>

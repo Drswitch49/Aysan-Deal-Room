@@ -124,14 +124,14 @@ export function DocumentChecklist({ documents, audience }: DocumentChecklistProp
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between pb-3 border-b border-white/5">
           <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-400 select-none">
             <Filter className="h-4 w-4 text-acp-purple" aria-hidden="true" />
-            Quick VDR Filters
+            Document Filters
           </div>
           {/* Live Search Bar */}
           <div className="relative w-full sm:max-w-xs">
             <Search className="absolute left-3.5 top-2.5 h-4 w-4 text-slate-400" />
             <input
               type="text"
-              placeholder="Search data room..."
+              placeholder="Search documents..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="h-10 w-full rounded-xl border border-white/[0.06] bg-white/5 pl-10 pr-8 text-xs font-semibold text-white placeholder-slate-500 outline-none transition-all duration-300 focus:border-acp-purple focus:ring-1 focus:ring-acp-purple shadow-sm"
@@ -153,7 +153,7 @@ export function DocumentChecklist({ documents, audience }: DocumentChecklistProp
           <span className="block text-[10px] font-extrabold uppercase tracking-widest text-slate-400">Filter by status</span>
           <div className="flex flex-wrap gap-1.5">
             <FilterPill
-              label="All Statuses"
+              label="All"
               active={statusFilter === "All"}
               count={visibleDocuments.length}
               onClick={() => setStatusFilter("All")}
@@ -175,7 +175,7 @@ export function DocumentChecklist({ documents, audience }: DocumentChecklistProp
           <span className="block text-[10px] font-extrabold uppercase tracking-widest text-slate-400">Filter by category</span>
           <div className="flex flex-wrap gap-1.5">
             <FilterPill
-              label="All Categories"
+              label="All"
               active={categoryFilter === "All"}
               count={visibleDocuments.length}
               onClick={() => setCategoryFilter("All")}
@@ -197,10 +197,10 @@ export function DocumentChecklist({ documents, audience }: DocumentChecklistProp
         <Table>
           <thead>
             <tr className="border-b border-white/5 bg-white/[0.01]">
-              <Th>VDR Ref</Th>
+              <Th>Index</Th>
               <Th>Document Name</Th>
               <Th>Category</Th>
-              <Th>Critical Status</Th>
+              <Th>Priority</Th>
               <Th>Status</Th>
               <Th>Date Received</Th>
               <Th className="text-right">Actions</Th>
@@ -243,7 +243,7 @@ export function DocumentChecklist({ documents, audience }: DocumentChecklistProp
                 </Td>
                 <Td>
                   {document.ablCritical ? (
-                    <Badge tone="amber">ABL Critical</Badge>
+                    <Badge tone="amber">High Priority</Badge>
                   ) : (
                     <span className="inline-flex items-center gap-1 text-xs font-semibold text-slate-400">
                       <ShieldAlert className="h-3.5 w-3.5 text-slate-500" aria-hidden="true" />
@@ -264,7 +264,7 @@ export function DocumentChecklist({ documents, audience }: DocumentChecklistProp
                     </ButtonLink>
                     {audience === "internal" || isSentToLender(document.status) ? (
                       <ButtonLink href={getDriveDownloadUrl(document.driveLink)} icon="download" variant="purple">
-                        Get
+                        Download
                       </ButtonLink>
                     ) : null}
                   </div>
@@ -298,7 +298,7 @@ export function DocumentChecklist({ documents, audience }: DocumentChecklistProp
             <div className="flex items-center justify-between px-6 py-5 border-b border-white/5">
               <div className="min-w-0">
                 <span className="font-mono text-xs font-bold text-slate-500 select-none">
-                  VDR Index {selectedDoc.indexRef}
+                  Document Index {selectedDoc.indexRef}
                 </span>
                 <h3 className="text-sm font-bold text-white truncate mt-1" title={selectedDoc.documentName}>
                   {selectedDoc.documentName}
@@ -338,20 +338,20 @@ export function DocumentChecklist({ documents, audience }: DocumentChecklistProp
                   <DetailRow icon={<Calendar className="h-4 w-4 text-acp-purple" />} label="Expected Date" value={formatDate(selectedDoc.expectedDate)} />
                 )}
                 {audience === "internal" && (
-                  <DetailRow icon={<User className="h-4 w-4 text-indigo-400" />} label="Airtable Source" value={selectedDoc.source || "Active Pipeline"} />
+                  <DetailRow icon={<User className="h-4 w-4 text-indigo-400" />} label="Database Source" value={selectedDoc.source || "Active Pipeline"} />
                 )}
                 <DetailRow 
                   icon={<ShieldAlert className="h-4 w-4 text-rose-500" />} 
-                  label="Leverage Risk Class" 
-                  value={selectedDoc.ablCritical ? "ABL Critical Audit" : "Standard Compliance Layer"} 
+                  label="Priority Class" 
+                  value={selectedDoc.ablCritical ? "High Priority" : "Standard"} 
                 />
               </div>
 
               {/* Internal notes */}
               <div className="space-y-2">
-                <h4 className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-slate-455">Internal Audit & Description</h4>
+                <h4 className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-slate-455">Internal Notes & Description</h4>
                 <div className="p-4 border border-white/10 bg-white/[0.02] rounded-2xl text-xs leading-relaxed text-slate-300 font-medium">
-                  {selectedDoc.internalNotes || "No internal descriptors are recorded in Airtable for this file. Click view to inspect the drive contents directly."}
+                  {selectedDoc.internalNotes || "No internal notes recorded for this file. Click view to inspect the file directly."}
                 </div>
               </div>
 
@@ -359,26 +359,26 @@ export function DocumentChecklist({ documents, audience }: DocumentChecklistProp
               <div className="space-y-3">
                 <h4 className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-slate-455 flex items-center gap-1.5">
                   <History className="h-4 w-4 text-slate-400" />
-                  Data Room Access Log
+                  Document History Log
                 </h4>
                 <div className="relative border-l border-white/10 pl-4 space-y-4 text-xs">
                   <LogItem 
                     date={selectedDoc.dateReceived || "2026-05-24"} 
-                    action="File Received and indexed" 
-                    user="Airtable Sync agent" 
+                    action="File received" 
+                    user="System Sync" 
                   />
                   {selectedDoc.ablCritical && (
                     <LogItem 
                       date={selectedDoc.dateReceived || "2026-05-24"} 
-                      action="Critical ABL status flagged" 
-                      user="Automated Compliance" 
+                      action="Flagged as critical" 
+                      user="System Compliance" 
                     />
                   )}
                   {isSentToLender(selectedDoc.status) && (
                     <LogItem 
                       date={selectedDoc.dateSentToLender || selectedDoc.dateReceived || "2026-05-25"} 
-                      action="Document approved for external release" 
-                      user="ACP Executive" 
+                      action="Document approved for release" 
+                      user="Deal Manager" 
                     />
                   )}
                 </div>

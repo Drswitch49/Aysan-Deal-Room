@@ -135,7 +135,7 @@ function UnlockedLenderPage({ dealRef }: { dealRef: string }) {
     <div className="space-y-8 animate-fade-in-up">
       <PageHeader 
         title={dealState.data.companyName || dealState.data.dealRef} 
-        eyebrow={`Lender Deal Room / ${dealState.data.dealRef}`} 
+        eyebrow={`Lender Portal / ${dealState.data.dealRef}`} 
       />
       
       {/* Private disclaimer */}
@@ -145,7 +145,7 @@ function UnlockedLenderPage({ dealRef }: { dealRef: string }) {
           <div>
             <h4 className="text-xs font-bold text-amber-200 uppercase tracking-wider">Confidential Investor Material</h4>
             <p className="mt-1 text-[11px] leading-relaxed text-slate-400">
-              The contents of this deal room are strictly private and subject to non-disclosure compliance guidelines. Unauthorized distribution, exporting, or printing of folders is restricted.
+              The contents of this portal are strictly private and subject to non-disclosure compliance guidelines. Unauthorized distribution or sharing is restricted.
             </p>
           </div>
         </div>
@@ -158,7 +158,7 @@ function UnlockedLenderPage({ dealRef }: { dealRef: string }) {
           <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/5 border border-white/10 text-acp-purple shadow-sm">
             <ShieldCheck className="h-5 w-5" aria-hidden="true" />
           </span>
-          <h2 className="text-sm font-bold uppercase tracking-wider text-white">Approved lender package</h2>
+          <h2 className="text-sm font-bold uppercase tracking-wider text-white">Approved Documents</h2>
         </div>
         <DocumentChecklist documents={approvedDocuments} audience="lender" />
       </section>

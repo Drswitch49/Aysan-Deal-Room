@@ -7,7 +7,7 @@ import { EmptyState } from "../ui/EmptyState";
 
 export function SubmissionTimeline({ entries }: { entries: SubmissionLogEntry[] }) {
   if (entries.length === 0) {
-    return <EmptyState title="No submission activity" message="Submission_Log has no entries for this deal." />;
+    return <EmptyState title="No submission activity" message="No submission history available for this deal." />;
   }
 
   return (

@@ -44,7 +44,7 @@ export function DealDetailPage() {
     <div className="space-y-6">
       <div>
         <BackLink />
-        <PageHeader title={dealState.data.companyName || dealState.data.dealRef} eyebrow={`Deal Room / ${dealState.data.dealRef}`}>
+        <PageHeader title={dealState.data.companyName || dealState.data.dealRef} eyebrow={`Deal Details / ${dealState.data.dealRef}`}>
           <Link
             to={`/lender/${encodeURIComponent(dealState.data.dealRef)}`}
             className="inline-flex h-9 items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-4 text-xs font-bold uppercase tracking-wider text-slate-300 shadow-sm transition-all duration-300 hover:border-acp-purple hover:text-white hover:bg-white/10 hover:shadow-glow-blue transform hover:-translate-y-0.5"
@@ -92,7 +92,7 @@ export function DealDetailPage() {
           <div className="flex items-center justify-between pb-3 border-b border-white/5">
             <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-350 select-none">
               <History className="h-4 w-4 text-acp-purple" />
-              Room Audit Trail
+              Recent Activity Log
             </div>
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
@@ -103,7 +103,7 @@ export function DealDetailPage() {
           {/* Room stats */}
           <div className="grid grid-cols-2 gap-3 bg-white/5 border border-white/[0.06] rounded-xl p-3 text-center">
             <div>
-              <span className="block text-[9px] font-extrabold uppercase tracking-wider text-slate-400">Index Files</span>
+              <span className="block text-[9px] font-extrabold uppercase tracking-wider text-slate-400">Files</span>
               <span className="block text-lg font-display italic text-white font-normal mt-0.5">
                 {documentState.data?.length ?? 0}
               </span>
@@ -120,27 +120,27 @@ export function DealDetailPage() {
             <div className="space-y-3.5">
               <ActivityItem 
                 icon={<Eye className="h-3.5 w-3.5 text-acp-blue" />}
-                action="Financial model view logged"
+                action="Financial model viewed"
                 time="3 hours ago"
-                user="External Reviewer (JPM)"
+                user="External Reviewer"
               />
               <ActivityItem 
                 icon={<ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />}
-                action="Passcode room unlocked"
+                action="Room unlocked"
                 time="6 hours ago"
-                user="Lender (Goldman Sachs)"
+                user="Lender Agent"
               />
               <ActivityItem 
                 icon={<Lock className="h-3.5 w-3.5 text-acp-purple" />}
-                action="Security hash generated"
+                action="Security check completed"
                 time="1 day ago"
-                user="System compliance"
+                user="System"
               />
               <ActivityItem 
                 icon={<FileText className="h-3.5 w-3.5 text-indigo-400" />}
                 action="3 documents uploaded"
                 time="2 days ago"
-                user="Sync webhook (Airtable)"
+                user="System Sync"
               />
             </div>
           </div>
@@ -150,10 +150,10 @@ export function DealDetailPage() {
             <div className="absolute -right-8 -bottom-8 h-20 w-20 rounded-full bg-white/[0.02] blur-xl pointer-events-none" />
             <div className="flex items-center gap-2">
               <Shield className="h-4 w-4 text-acp-purple animate-pulse-glow" />
-              <span className="text-[10px] font-extrabold uppercase tracking-widest text-white">VDR Certified</span>
+              <span className="text-[10px] font-extrabold uppercase tracking-widest text-white">Security Certified</span>
             </div>
             <p className="mt-2 text-[10px] leading-relaxed text-slate-400 font-medium">
-              Data room operations conform to Private Equity diligence disclosure standards. Full audit logging is active.
+              Document storage conforms to security guidelines. History logging is active.
             </p>
           </div>
         </aside>

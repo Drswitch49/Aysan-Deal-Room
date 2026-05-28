@@ -35,19 +35,19 @@ export function DealListPage() {
             />
             <MetricCard 
               icon={<FileWarning className="h-5 w-5" />} 
-              label="Outstanding documents" 
+              label="Pending documents" 
               value={outstandingCount} 
               iconBgClass="bg-[#8b5cf6]"
             />
             <MetricCard 
               icon={<Send className="h-5 w-5" />} 
-              label="Lender contacted" 
+              label="Lender Contact" 
               value={contactedCount} 
               iconBgClass="bg-[#ec4899]"
             />
             <MetricCard 
               icon={<Database className="h-5 w-5" />} 
-              label="Files Indexed" 
+              label="Total Documents" 
               value={activeDealCount * 12 + 4} 
               iconBgClass="bg-[#10b981]"
             />
@@ -97,19 +97,19 @@ export function DealListPage() {
                     </div>
 
                     <p className="mt-3.5 text-xs text-slate-400 font-medium line-clamp-2 leading-relaxed">
-                      Operational VDR room active for {deal.companyName || "diligence evaluation"}. Review checklists and vendor outline documents.
+                      Secure deal room active for {deal.companyName || "this transaction"}. Review documents and checklists.
                     </p>
 
                     <div className="mt-6 pt-4 border-t border-white/[0.04] flex items-center justify-between gap-4">
                       <div className="flex items-center gap-4">
                         <div className="text-left">
-                          <span className="block text-[8px] font-extrabold uppercase tracking-wider text-slate-500">Docs Left</span>
+                          <span className="block text-[8px] font-extrabold uppercase tracking-wider text-slate-500">Pending</span>
                           <span className="mt-0.5 block text-xs font-bold text-white">
                             {outstandingDocumentCount} files
                           </span>
                         </div>
                         <div className="text-left border-l border-white/[0.06] pl-4">
-                          <span className="block text-[8px] font-extrabold uppercase tracking-wider text-slate-500">Last Touch</span>
+                          <span className="block text-[8px] font-extrabold uppercase tracking-wider text-slate-500">Last Contact</span>
                           <span className="mt-0.5 block text-xs font-bold text-white">
                             {daysSinceLastLenderContact === null ? "No contact" : `${daysSinceLastLenderContact}d ago`}
                           </span>
@@ -158,19 +158,19 @@ function DealRoomHero() {
         <div className="max-w-xl">
           <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-[9px] font-extrabold uppercase tracking-[0.2em] text-white font-sans">
             <FolderOpen className="h-3.5 w-3.5" aria-hidden="true" />
-            Internal Deal Operations
+            Deal Operations
           </div>
           <h1 className="mt-5 font-heading text-4xl sm:text-[40px] font-black tracking-tight text-white uppercase leading-none">
-            Active Deal Operations
+            Active Deals
           </h1>
           <p className="mt-3.5 text-xs font-semibold leading-relaxed text-slate-100">
-            VDR operational dashboard for secure review of corporate private equity transactions, folders checklist compliance, and timeline audits.
+            Secure dashboard to review transactions, document checklists, and submission timelines.
           </p>
           <Link
             to="/deals"
             className="mt-6 inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-white px-5 text-xs font-black uppercase tracking-wider text-slate-950 shadow-md hover:bg-slate-100 transition-all transform hover:-translate-y-0.5 active:translate-y-0"
           >
-            Explore Pipeline
+            View Pipeline
           </Link>
         </div>
       </div>

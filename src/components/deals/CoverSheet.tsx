@@ -40,7 +40,7 @@ export function CoverSheet({ deal, audience }: CoverSheetProps) {
     <div className="grid gap-6 lg:grid-cols-[1fr_1.15fr]">
       {/* Company card */}
       <section className="rounded-2xl border border-white/[0.06] bg-[#0d0c1d] backdrop-blur-md p-6 shadow-premium-card hover:border-white/15 card-sheen transition-all duration-300">
-        <SectionTitle icon={<MapPin className="h-5 w-5" />} title="Company details" />
+        <SectionTitle icon={<MapPin className="h-5 w-5" />} title="Company Details" />
         <dl className="mt-6 grid gap-4 sm:grid-cols-2">
           <Field label="Company Name" value={deal.companyName} emphasis />
           <Field label="Location" value={deal.location} />
@@ -51,7 +51,7 @@ export function CoverSheet({ deal, audience }: CoverSheetProps) {
 
       {/* Transaction card */}
       <section className="rounded-2xl border border-white/[0.06] bg-[#0d0c1d] backdrop-blur-md p-6 shadow-premium-card hover:border-white/15 card-sheen transition-all duration-300">
-        <SectionTitle icon={<TrendingUp className="h-5 w-5" />} title="Transaction outline" />
+        <SectionTitle icon={<TrendingUp className="h-5 w-5" />} title="Transaction Overview" />
         <dl className="mt-6 grid gap-4 sm:grid-cols-2">
           <Field label="Enterprise Value (EV)" value={deal.ev} emphasis />
           <Field label="DSCR Base" value={deal.dscrBase} />
@@ -65,10 +65,10 @@ export function CoverSheet({ deal, audience }: CoverSheetProps) {
       {/* Capital Structure */}
       <section className="lg:col-span-2 space-y-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <SectionTitle icon={<Landmark className="h-5 w-5" />} title="Capital Structure Stack" />
+          <SectionTitle icon={<Landmark className="h-5 w-5" />} title="Funding & Capital Structure" />
           {audience === "lender" && (
             <span className="inline-flex items-center gap-1.5 rounded-full bg-white/5 border border-white/10 px-3 py-1 text-[10px] font-bold text-slate-400">
-              <HelpCircle className="h-3 w-3" /> Note: Amounts redacted for external review
+              <HelpCircle className="h-3 w-3" /> Note: Proportions shown, exact amounts hidden for confidentiality
             </span>
           )}
         </div>
@@ -76,7 +76,7 @@ export function CoverSheet({ deal, audience }: CoverSheetProps) {
         {/* Visual Stack Chart */}
         {capitalStructure.length > 0 && totalStackVal > 0 ? (
           <div className="rounded-2xl border border-white/[0.06] bg-[#0d0c1d] backdrop-blur-md p-6 shadow-premium-card card-sheen">
-            <h3 className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-slate-400 mb-4">Debt stack leverage proportion</h3>
+            <h3 className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-slate-400 mb-4">Funding breakdown</h3>
             <div className="h-4 w-full flex rounded-full overflow-hidden bg-white/5 border border-white/[0.06] shadow-inner">
               {stackWithValues.map((row) => {
                 const percentage = totalStackVal > 0 ? (row.parsedVal / totalStackVal) * 100 : 0;
