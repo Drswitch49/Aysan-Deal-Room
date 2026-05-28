@@ -36,9 +36,12 @@ export default async function handler(req: any, res: any) {
 
     // 3. Fetch deal assignments for this lender
     const lenderIdText = fields.Lender_ID;
-    const { lenderIdCol, statusCol } = await getAssignmentFields();
+    const { lenderIdCol, lenderIdLookupCol, statusCol } = await getAssignmentFields();
     
     let filterFormula = `OR({${lenderIdCol}} = '${lenderRecordId}', {${lenderIdCol}} = '${escapeFormulaString(lenderIdText)}')`;
+    if (lenderIdLookupCol) {
+      filterFormula = `OR(${filterFormula}, {${lenderIdLookupCol}} = '${escapeFormulaString(lenderIdText)}')`;
+    }
     if (statusCol) {
       filterFormula = `AND(${filterFormula}, {${statusCol}} = 'Active')`;
     }

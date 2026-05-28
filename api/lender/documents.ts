@@ -26,8 +26,11 @@ export default async function handler(req: any, res: any) {
     const lenderIdText = lender.normalizedFields.Lender_ID;
 
     // 2. Fetch lender assignments using dynamic fields
-    const { lenderIdCol, statusCol } = await getAssignmentFields();
+    const { lenderIdCol, lenderIdLookupCol, statusCol } = await getAssignmentFields();
     let filterFormula = `OR({${lenderIdCol}} = '${lenderRecordId}', {${lenderIdCol}} = '${escapeFormulaString(lenderIdText)}')`;
+    if (lenderIdLookupCol) {
+      filterFormula = `OR(${filterFormula}, {${lenderIdLookupCol}} = '${escapeFormulaString(lenderIdText)}')`;
+    }
     if (statusCol) {
       filterFormula = `AND(${filterFormula}, {${statusCol}} = 'Active')`;
     }

@@ -52,8 +52,12 @@ export default async function handler(req: any, res: any) {
     const dealRecordId = dealRecord.id;
 
     // 4. Check if an active assignment already exists to avoid duplicates
-    const { lenderIdCol, dealRefCol, statusCol } = await getAssignmentFields();
-    let filterFormula = `AND(OR({${lenderIdCol}} = '${lenderRecordId}', {${lenderIdCol}} = '${escapeFormulaString(lenderIdText)}'), OR({${dealRefCol}} = '${dealRecordId}', {${dealRefCol}} = '${escapeFormulaString(dealRef)}'))`;
+    const { lenderIdCol, lenderIdLookupCol, dealRefCol, statusCol } = await getAssignmentFields();
+    let lenderFilter = `OR({${lenderIdCol}} = '${lenderRecordId}', {${lenderIdCol}} = '${escapeFormulaString(lenderIdText)}')`;
+    if (lenderIdLookupCol) {
+      lenderFilter = `OR(${lenderFilter}, {${lenderIdLookupCol}} = '${escapeFormulaString(lenderIdText)}')`;
+    }
+    let filterFormula = `AND(${lenderFilter}, OR({${dealRefCol}} = '${dealRecordId}', {${dealRefCol}} = '${escapeFormulaString(dealRef)}'))`;
     if (statusCol) {
       filterFormula = `AND(${filterFormula}, {${statusCol}} = 'Active')`;
     }

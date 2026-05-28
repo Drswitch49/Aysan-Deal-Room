@@ -14,8 +14,11 @@ export default async function handler(req: any, res: any) {
     const companyName = lender.normalizedFields.Company_Name || "";
 
     // 2. Fetch lender assignments
-    const { lenderIdCol, statusCol } = await getAssignmentFields();
+    const { lenderIdCol, lenderIdLookupCol, statusCol } = await getAssignmentFields();
     let filterFormula = `OR({${lenderIdCol}} = '${lenderRecordId}', {${lenderIdCol}} = '${escapeFormulaString(lenderIdText)}')`;
+    if (lenderIdLookupCol) {
+      filterFormula = `OR(${filterFormula}, {${lenderIdLookupCol}} = '${escapeFormulaString(lenderIdText)}')`;
+    }
     if (statusCol) {
       filterFormula = `AND(${filterFormula}, {${statusCol}} = 'Active')`;
     }

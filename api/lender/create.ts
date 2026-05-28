@@ -62,6 +62,7 @@ export default async function handler(req: any, res: any) {
     const uniqueLenderId = "LND-" + Math.random().toString(36).substring(2, 8).toUpperCase();
 
     const fields = {
+      Name: companyName,
       Lender_ID: uniqueLenderId,
       Company_Name: companyName,
       Contact_Name: contactName || "",

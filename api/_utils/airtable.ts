@@ -298,10 +298,15 @@ export function normalizeAssignmentFields(fields: Record<string, any>): Record<s
   return normalized;
 }
 
-export async function getAssignmentFields(): Promise<{ lenderIdCol: string; dealRefCol: string; statusCol: string | null }> {
+export async function getAssignmentFields(): Promise<{ 
+  lenderIdCol: string; 
+  lenderIdLookupCol: string | null;
+  dealRefCol: string; 
+  statusCol: string | null 
+}> {
   const schema = await getTableSchema(TABLES.ASSIGNMENTS);
   if (!schema || !schema.fields) {
-    return { lenderIdCol: "Lender_ID", dealRefCol: "Deal_Ref", statusCol: "Status" };
+    return { lenderIdCol: "Lender_ID", lenderIdLookupCol: null, dealRefCol: "Deal_Ref", statusCol: "Status" };
   }
 
   const lendersSchema = await getTableSchema(TABLES.LENDERS);
@@ -318,6 +323,22 @@ export async function getAssignmentFields(): Promise<{ lenderIdCol: string; deal
     return clean === "lenderid" || clean === "lendersid";
   });
 
+  // Find lookup field for Lender ID
+  let lenderIdLookupField = null;
+  if (lenderIdField) {
+    lenderIdLookupField = schema.fields.find((f: any) => {
+      return f.type === "multipleLookupValues" && f.options?.recordLinkFieldId === lenderIdField.id;
+    });
+  }
+
+  // Fallback lookup detection if not matched by ID
+  if (!lenderIdLookupField) {
+    lenderIdLookupField = schema.fields.find((f: any) => {
+      const clean = f.name.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+      return clean.includes("lenderid") && clean.includes("from");
+    });
+  }
+
   const dealRefField = schema.fields.find((f: any) => {
     if (f.type === "multipleRecordLinks" && pipelineTableId && f.options?.linkedTableId === pipelineTableId) {
       return true;
@@ -330,6 +351,7 @@ export async function getAssignmentFields(): Promise<{ lenderIdCol: string; deal
 
   return {
     lenderIdCol: lenderIdField ? lenderIdField.name : "Lender_ID",
+    lenderIdLookupCol: lenderIdLookupField ? lenderIdLookupField.name : null,
     dealRefCol: dealRefField ? dealRefField.name : "Deal_Ref",
     statusCol: statusField ? statusField.name : null
   };
