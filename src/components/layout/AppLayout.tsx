@@ -1,22 +1,25 @@
 import type { ReactNode } from "react";
-import { Building2, Database, FolderOpen, LockKeyhole, ShieldCheck, Table2, Shield } from "lucide-react";
-import { NavLink, Outlet, useLocation, Link } from "react-router-dom";
+import { Building2, Database, FolderOpen, LockKeyhole, ShieldCheck, Table2, Shield, LogOut } from "lucide-react";
+import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { cx } from "../../utils/cx";
 
 export function AppLayout() {
   const location = useLocation();
-  const match = location.pathname.match(/\/(deals|lender)\/([^/]+)/);
-  const activeRef = match ? match[2] : null;
+
+  const handleLogout = () => {
+    sessionStorage.removeItem("admin_authenticated");
+    window.location.reload();
+  };
 
   return (
     <div className="min-h-screen text-slate-100 lg:grid lg:grid-cols-[284px_minmax(0,1fr)] bg-acp-ink">
       {/* Sidebar */}
-      <aside className="hidden min-h-screen border-r border-white/[0.06] bg-[#090816] text-white lg:block relative overflow-hidden">
+      <aside className="hidden h-screen sticky top-0 border-r border-white/[0.06] bg-[#090816] text-white lg:block relative overflow-hidden">
         {/* Subtle decorative glow in sidebar background */}
         <div className="absolute -left-12 -top-12 h-48 w-48 rounded-full bg-acp-purple/5 blur-3xl pointer-events-none" />
         <div className="absolute -right-20 bottom-10 h-64 w-64 rounded-full bg-acp-blue/5 blur-3xl pointer-events-none" />
 
-        <div className="sticky top-0 flex h-screen flex-col px-6 py-7 z-10">
+        <div className="flex h-full flex-col px-6 py-7 z-10">
           <BrandBlock />
 
           <nav className="mt-10 space-y-1.5">
@@ -33,18 +36,31 @@ export function AppLayout() {
             </div>
           </div>
 
-          {/* Active Session Card (replacing private profile card) */}
-          <div className="mt-auto flex items-center gap-3 pt-4 border-t border-white/[0.04]">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-acp-purple/10 border border-acp-purple/20 text-xs font-bold text-acp-purple shadow-sm">
-              <Shield className="h-4 w-4" aria-hidden="true" />
-            </div>
-            <div className="min-w-0">
-              <p className="truncate text-xs font-bold text-white tracking-wide">
-                Active Session
-              </p>
-              <p className="truncate text-[10px] font-extrabold uppercase tracking-wider text-slate-555">
-                Secure Deal Room Session
-              </p>
+          {/* Active Session Card with Logout Option */}
+          <div className="mt-auto pt-4 border-t border-white/[0.04]">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-acp-purple/10 border border-acp-purple/20 text-xs font-bold text-acp-purple shadow-sm">
+                  <Shield className="h-4 w-4" aria-hidden="true" />
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-xs font-bold text-white tracking-wide">
+                    Active Session
+                  </p>
+                  <p className="truncate text-[9px] font-extrabold uppercase tracking-wider text-slate-500">
+                    Secure Admin Panel
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={handleLogout}
+                className="h-8 w-8 flex items-center justify-center rounded-lg border border-white/10 bg-white/5 text-slate-400 hover:text-rose-450 hover:bg-rose-500/10 hover:border-rose-500/20 transition cursor-pointer"
+                title="Log Out Session"
+                type="button"
+              >
+                <LogOut className="h-4 w-4" aria-hidden="true" />
+              </button>
             </div>
           </div>
         </div>
