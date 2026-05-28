@@ -95,10 +95,7 @@ export default async function handler(req: any, res: any) {
         ? docDealRefs.some(id => dealIds.has(id))
         : dealIds.has(String(docDealRefs));
 
-      const status = String(doc.fields.Status || "").trim().toLowerCase();
-      const isSentToLender = status === "sent to lender";
-
-      return belongsToAssignedDeal && isSentToLender;
+      return belongsToAssignedDeal;
     });
 
     // 5. Redact fields on the server side

@@ -10,7 +10,6 @@ import {
 } from "../api/airtable";
 import type { DealDocument, PipelineDeal, SubmissionLogEntry } from "../types/deal";
 import { daysSince } from "../utils/fields";
-import { isSentToLender } from "../utils/security";
 import { useAsyncData } from "./useAsyncData";
 
 export type DealListRow = {
@@ -37,7 +36,7 @@ export function useDealListRows() {
 
       return {
         deal,
-        outstandingDocumentCount: dealDocuments.filter((doc) => !isSentToLender(doc.status)).length,
+        outstandingDocumentCount: dealDocuments.length,
         daysSinceLastLenderContact: daysSince(mostRecentSubmissionDate),
       };
     });

@@ -288,8 +288,7 @@ export async function getDocumentsForLender(ref: string): Promise<DealDocument[]
     return allDocs
       .filter(
         (doc) => 
-          doc.dealRef.toLowerCase() === deal.id.toLowerCase() && 
-          doc.status.trim().toLowerCase() === "sent to lender"
+          doc.dealRef.toLowerCase() === deal.id.toLowerCase()
       )
       .map((doc) => {
         if (!doc.driveLink && deal.dealFiles) {
