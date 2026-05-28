@@ -7,7 +7,7 @@ export default async function handler(req: any, res: any) {
   let tablesConstant: any = null;
 
   try {
-    const airtableModule = await import("./_utils/airtable");
+    const airtableModule = await import("./_utils/airtable.js");
     importSuccess = true;
     tablesConstant = airtableModule.TABLES;
   } catch (err: any) {
