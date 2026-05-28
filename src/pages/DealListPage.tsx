@@ -1,5 +1,5 @@
-import { useState, useMemo } from "react";
-import { BriefcaseBusiness, FolderOpen, FileWarning, Send, Database, Search } from "lucide-react";
+import { useState, useMemo, useEffect } from "react";
+import { BriefcaseBusiness, FolderOpen, FileWarning, Send, Database, Search, Users } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useDealListRows } from "../hooks/useDealRoomData";
@@ -8,15 +8,36 @@ import { EmptyState } from "../components/ui/EmptyState";
 import { ErrorState } from "../components/ui/ErrorState";
 import { LoadingState } from "../components/ui/LoadingState";
 import { cx } from "../utils/cx";
+import { fetchAdminLenders } from "../api/admin";
+
+const PIPELINE_STAGES = [
+  "Intro",
+  "IM Review",
+  "Information Requested",
+  "Offer Submitted",
+  "Seller Call",
+  "Killed"
+];
 
 export function DealListPage() {
   const { data, error, isLoading } = useDealListRows();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
+  const [viewMode, setViewMode] = useState<"pipeline" | "registry">("pipeline");
+  const [lendersCount, setLendersCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    fetchAdminLenders()
+      .then((lenders) => {
+        setLendersCount(lenders.length);
+      })
+      .catch((err) => {
+        console.error("Failed to fetch lenders count:", err);
+      });
+  }, []);
 
   const activeDealCount = data?.length ?? 0;
   const outstandingCount = data?.reduce((total, row) => total + row.outstandingDocumentCount, 0) ?? 0;
-  const contactedCount = data?.filter((row) => row.daysSinceLastLenderContact !== null).length ?? 0;
 
   const categories = useMemo(() => {
     if (!data) return [];
@@ -37,11 +58,29 @@ export function DealListPage() {
     ];
   }, [data]);
 
+  const pipelineStages = useMemo(() => {
+    const stagesSet = new Set(PIPELINE_STAGES.map(s => s.toLowerCase()));
+    const finalStages = [...PIPELINE_STAGES];
+    
+    if (data) {
+      data.forEach(({ deal }) => {
+        const status = deal.status;
+        if (status && !stagesSet.has(status.toLowerCase())) {
+          finalStages.push(status);
+          stagesSet.add(status.toLowerCase());
+        }
+      });
+    }
+    return finalStages;
+  }, [data]);
+
   const filteredData = useMemo(() => {
     if (!data) return [];
 
     let result = data;
-    if (selectedCategory !== "All") {
+    
+    // In registry mode, we apply the category pill filter
+    if (viewMode === "registry" && selectedCategory !== "All") {
       result = data.filter(({ deal }) => {
         const status = deal.status || "";
         return status.toLowerCase() === selectedCategory.toLowerCase();
@@ -63,11 +102,27 @@ export function DealListPage() {
              sector.includes(query) ||
              location.includes(query);
     });
-  }, [data, selectedCategory, searchQuery]);
+  }, [data, selectedCategory, searchQuery, viewMode]);
 
-  const handleViewAllDeals = () => {
-    setSearchQuery("");
-    setSelectedCategory("All");
+  const stageDeals = useMemo(() => {
+    const map: Record<string, typeof filteredData> = {};
+    pipelineStages.forEach(stage => {
+      map[stage] = filteredData.filter(({ deal }) => 
+        (deal.status || "Unknown").toLowerCase() === stage.toLowerCase()
+      );
+    });
+    return map;
+  }, [filteredData, pipelineStages]);
+
+  const handleToggleViewMode = () => {
+    const nextMode = viewMode === "pipeline" ? "registry" : "pipeline";
+    setViewMode(nextMode);
+    
+    if (nextMode === "pipeline") {
+      setSearchQuery("");
+      setSelectedCategory("All");
+    }
+    
     setTimeout(() => {
       const element = document.getElementById("pipeline-registry");
       if (element) {
@@ -78,7 +133,7 @@ export function DealListPage() {
 
   return (
     <div className="space-y-8 animate-fade-in-up">
-      <DealRoomHero onViewAllDeals={handleViewAllDeals} />
+      <DealRoomHero viewMode={viewMode} onToggleViewMode={handleToggleViewMode} />
 
       {isLoading ? <LoadingState /> : null}
       {error ? <ErrorState error={error} /> : null}
@@ -88,7 +143,7 @@ export function DealListPage() {
 
       {!isLoading && !error && data && data.length > 0 ? (
         <div className="space-y-6">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <MetricCard 
               icon={<BriefcaseBusiness className="h-5 w-5" />} 
               label="Active deals" 
@@ -96,22 +151,16 @@ export function DealListPage() {
               iconBgClass="bg-[#5b5ef0]"
             />
             <MetricCard 
+              icon={<Users className="h-5 w-5" />} 
+              label="Registered Lenders" 
+              value={lendersCount !== null ? lendersCount : "..."} 
+              iconBgClass="bg-[#ec4899]"
+            />
+            <MetricCard 
               icon={<FileWarning className="h-5 w-5" />} 
               label="Pending documents" 
               value={outstandingCount} 
               iconBgClass="bg-[#8b5cf6]"
-            />
-            <MetricCard 
-              icon={<Send className="h-5 w-5" />} 
-              label="Lender Contact" 
-              value={contactedCount} 
-              iconBgClass="bg-[#ec4899]"
-            />
-            <MetricCard 
-              icon={<Database className="h-5 w-5" />} 
-              label="Total Documents" 
-              value={activeDealCount * 12 + 4} 
-              iconBgClass="bg-[#10b981]"
             />
           </div>
 
@@ -125,124 +174,268 @@ export function DealListPage() {
                   </span>
                 </div>
                 
-                <div className="relative w-full sm:max-w-xs">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                  <input
-                    type="text"
-                    placeholder="Search deals..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="h-9 w-full rounded-xl border border-white/10 bg-[#0d0c1d] pl-9 pr-4 text-xs text-white placeholder-slate-500 outline-none transition-all duration-300 focus:border-acp-purple focus:ring-1 focus:ring-acp-purple"
-                  />
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full sm:w-auto">
+                  {/* View Mode Segment Switch */}
+                  <div className="inline-flex rounded-xl border border-white/5 bg-[#0d0c1d] p-1 shadow-inner self-start sm:self-auto">
+                    <button
+                      onClick={() => {
+                        setViewMode("pipeline");
+                        setSearchQuery("");
+                      }}
+                      className={cx(
+                        "px-3.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all duration-300 cursor-pointer",
+                        viewMode === "pipeline"
+                          ? "bg-white/10 text-white shadow-sm"
+                          : "text-slate-450 hover:text-white"
+                      )}
+                      type="button"
+                    >
+                      Pipeline
+                    </button>
+                    <button
+                      onClick={() => setViewMode("registry")}
+                      className={cx(
+                        "px-3.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all duration-300 cursor-pointer",
+                        viewMode === "registry"
+                          ? "bg-white/10 text-white shadow-sm"
+                          : "text-slate-450 hover:text-white"
+                      )}
+                      type="button"
+                    >
+                      Registry
+                    </button>
+                  </div>
+
+                  <div className="relative w-full sm:max-w-xs">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="text"
+                      placeholder="Search deals..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="h-9 w-full rounded-xl border border-white/10 bg-[#0d0c1d] pl-9 pr-4 text-xs text-white placeholder-slate-500 outline-none transition-all duration-300 focus:border-acp-purple focus:ring-1 focus:ring-acp-purple"
+                    />
+                  </div>
                 </div>
               </div>
 
-              {/* Dynamic Status Category Pills */}
-              <div className="flex flex-wrap gap-2 py-1">
-                {categories.map((category) => {
-                  const isActive = selectedCategory === category.name;
-                  return (
-                    <button
-                      key={category.name}
-                      onClick={() => setSelectedCategory(category.name)}
-                      className={cx(
-                        "inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all duration-200 border cursor-pointer",
-                        isActive
-                          ? "bg-gradient-to-r from-[#5b5ef0] to-[#8b5cf6] text-white border-transparent shadow-[0_4px_12px_rgba(139,92,246,0.15)] scale-[1.02]"
-                          : "bg-[#0d0c1d] hover:bg-[#15132d] text-slate-400 hover:text-white border-white/[0.06] hover:border-white/12"
-                      )}
-                    >
-                      <span>{category.name}</span>
-                      <span
+              {/* Dynamic Status Category Pills - Only show in Registry mode */}
+              {viewMode === "registry" && (
+                <div className="flex flex-wrap gap-2 py-1">
+                  {categories.map((category) => {
+                    const isActive = selectedCategory === category.name;
+                    return (
+                      <button
+                        key={category.name}
+                        onClick={() => setSelectedCategory(category.name)}
                         className={cx(
-                          "inline-flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[9px] font-black",
-                          isActive ? "bg-white/20 text-white" : "bg-white/5 text-slate-500"
+                          "inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all duration-200 border cursor-pointer",
+                          isActive
+                            ? "bg-gradient-to-r from-[#5b5ef0] to-[#8b5cf6] text-white border-transparent shadow-[0_4px_12px_rgba(139,92,246,0.15)] scale-[1.02]"
+                            : "bg-[#0d0c1d] hover:bg-[#15132d] text-slate-400 hover:text-white border-white/[0.06] hover:border-white/12"
                         )}
                       >
-                        {category.count}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
+                        <span>{category.name}</span>
+                        <span
+                          className={cx(
+                            "inline-flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[9px] font-black",
+                            isActive ? "bg-white/20 text-white" : "bg-white/5 text-slate-500"
+                          )}
+                        >
+                          {category.count}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
-            {filteredData.length === 0 ? (
-              <div className="rounded-2xl border border-white/[0.06] bg-[#0d0c1d] p-12 text-center shadow-premium-card card-sheen">
-                <Search className="mx-auto h-8 w-8 text-slate-500 mb-3" />
-                <p className="text-xs font-bold text-slate-350">No matching deals found</p>
-                <p className="text-[10px] text-slate-450 mt-1">Try resetting your search query.</p>
+            {viewMode === "pipeline" ? (
+              /* Pipeline (Kanban) View */
+              <div className="overflow-x-auto pb-4 custom-scrollbar scroll-smooth">
+                <div className="flex gap-4 min-w-[1200px] items-start">
+                  {pipelineStages.map((stage) => {
+                    const dealsInStage = stageDeals[stage] || [];
+                    
+                    let stageTheme = {
+                      border: "border-t-blue-500",
+                      bg: "bg-blue-500/10",
+                      text: "text-blue-400"
+                    };
+                    if (stage.toLowerCase() === "im review") {
+                      stageTheme = { border: "border-t-indigo-500", bg: "bg-indigo-500/10", text: "text-indigo-400" };
+                    } else if (stage.toLowerCase() === "information requested") {
+                      stageTheme = { border: "border-t-amber-500", bg: "bg-amber-500/10", text: "text-amber-400" };
+                    } else if (stage.toLowerCase() === "offer submitted") {
+                      stageTheme = { border: "border-t-emerald-500", bg: "bg-emerald-500/10", text: "text-emerald-400" };
+                    } else if (stage.toLowerCase() === "seller call") {
+                      stageTheme = { border: "border-t-pink-500", bg: "bg-pink-500/10", text: "text-pink-400" };
+                    } else if (stage.toLowerCase() === "killed") {
+                      stageTheme = { border: "border-t-rose-500", bg: "bg-rose-500/10", text: "text-rose-400" };
+                    }
+
+                    return (
+                      <div
+                        key={stage}
+                        className={cx(
+                          "flex-1 min-w-[280px] max-w-[320px] rounded-2xl border border-white/[0.06] bg-[#0d0c1d]/65 backdrop-blur-md p-4 space-y-4 shadow-sm border-t-2",
+                          stageTheme.border
+                        )}
+                      >
+                        <div className="flex items-center justify-between pb-2 border-b border-white/[0.04]">
+                          <span className="text-[10px] font-black uppercase tracking-wider text-white truncate max-w-[180px]">
+                            {stage}
+                          </span>
+                          <span className={cx("rounded-full px-2 py-0.5 text-[10px] font-bold", stageTheme.bg, stageTheme.text)}>
+                            {dealsInStage.length}
+                          </span>
+                        </div>
+
+                        <div className="space-y-3 max-h-[550px] overflow-y-auto pr-1 custom-scrollbar">
+                          {dealsInStage.length === 0 ? (
+                            <div className="rounded-xl border border-dashed border-white/5 p-6 text-center text-[10px] text-slate-500">
+                              No deals in this stage
+                            </div>
+                          ) : (
+                            dealsInStage.map(({ deal, outstandingDocumentCount, daysSinceLastLenderContact }) => {
+                              const execName = deal.lenderAssigned || "Executive Manager";
+                              const execInitials = execName.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
+                              
+                              const brokerName = deal.broker || "Sponsor Broker";
+                              const brokerInitials = brokerName.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
+
+                              return (
+                                <Link
+                                  key={deal.id}
+                                  to={`/deals/${encodeURIComponent(deal.dealRef)}`}
+                                  className="group block relative overflow-hidden rounded-xl border border-white/[0.04] bg-[#0c1122]/40 p-4 shadow-sm transition-all duration-300 hover:border-acp-purple/30 hover:bg-[#0c1122]/80 hover:-translate-y-0.5 card-sheen"
+                                >
+                                  <div className="min-w-0">
+                                    <span className="text-[9px] font-bold uppercase tracking-wider text-acp-purple">
+                                      {deal.dealRef || "Missing Ref"}
+                                    </span>
+                                    <h4 className="mt-1 text-xs font-bold text-white tracking-wide truncate group-hover:text-acp-purple transition-colors">
+                                      {deal.companyName || "Not specified"}
+                                    </h4>
+                                    <p className="mt-1 text-[10px] text-slate-450 truncate">
+                                      {deal.sector || "General"} • {deal.location || "UK"}
+                                    </p>
+                                  </div>
+
+                                  <div className="mt-3.5 pt-2.5 border-t border-white/[0.04] flex items-center justify-between gap-2">
+                                    <div className="flex gap-2.5 text-[9px] text-slate-400 font-semibold">
+                                      <div>
+                                        <span className="text-slate-500">Files:</span> <span className="text-white font-bold">{outstandingDocumentCount}</span>
+                                      </div>
+                                      <div className="border-l border-white/5 pl-2.5">
+                                        <span className="text-slate-500">Contact:</span> <span className="text-white font-bold">{daysSinceLastLenderContact === null ? "None" : `${daysSinceLastLenderContact}d`}</span>
+                                      </div>
+                                    </div>
+
+                                    {/* Overlapping avatars */}
+                                    <div className="flex -space-x-1 overflow-hidden">
+                                      <div 
+                                        className="inline-flex h-5.5 w-5.5 items-center justify-center rounded-full bg-blue-500/10 border border-blue-500/20 text-[8px] font-bold text-blue-400 shadow-sm"
+                                        title={`Assigned Executive: ${execName}`}
+                                      >
+                                        {execInitials}
+                                      </div>
+                                      <div 
+                                        className="inline-flex h-5.5 w-5.5 items-center justify-center rounded-full bg-acp-purple/10 border border-acp-purple/20 text-[8px] font-bold text-acp-purple shadow-sm"
+                                        title={`Sponsoring Broker: ${brokerName}`}
+                                      >
+                                        {brokerInitials}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </Link>
+                              );
+                            })
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             ) : (
-              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                {filteredData.map(({ deal, outstandingDocumentCount, daysSinceLastLenderContact }) => {
-                  // Generate initials from assigned names
-                  const execName = deal.lenderAssigned || "Executive Manager";
-                  const execInitials = execName.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
-                  
-                  const brokerName = deal.broker || "Sponsor Broker";
-                  const brokerInitials = brokerName.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
+              /* Registry (Grid) View */
+              filteredData.length === 0 ? (
+                <div className="rounded-2xl border border-white/[0.06] bg-[#0d0c1d] p-12 text-center shadow-premium-card card-sheen">
+                  <Search className="mx-auto h-8 w-8 text-slate-500 mb-3" />
+                  <p className="text-xs font-bold text-slate-350">No matching deals found</p>
+                  <p className="text-[10px] text-slate-450 mt-1">Try resetting your search query.</p>
+                </div>
+              ) : (
+                <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                  {filteredData.map(({ deal, outstandingDocumentCount, daysSinceLastLenderContact }) => {
+                    const execName = deal.lenderAssigned || "Executive Manager";
+                    const execInitials = execName.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
+                    
+                    const brokerName = deal.broker || "Sponsor Broker";
+                    const brokerInitials = brokerName.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
 
-                  return (
-                    <Link
-                      key={deal.id}
-                      to={`/deals/${encodeURIComponent(deal.dealRef)}`}
-                      className="group block relative overflow-hidden rounded-2xl border border-white/[0.06] bg-[#0d0c1d] backdrop-blur-md p-6 shadow-premium-card transition-all duration-300 hover:border-acp-purple/40 hover:bg-[#0d0c1d]/90 hover:shadow-[0_12px_30px_rgba(139,92,246,0.06)] hover:-translate-y-0.5 card-sheen"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <span className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-acp-purple">
-                            {deal.dealRef || "Missing Ref"}
-                          </span>
-                          <h3 className="mt-1 text-sm font-semibold text-white tracking-wide truncate group-hover:text-acp-purple transition-colors">
-                            {deal.companyName || "Not specified"}
-                          </h3>
-                        </div>
-                        <div className="shrink-0">
-                          <StatusBadge status={deal.status} />
-                        </div>
-                      </div>
-
-                      <p className="mt-3.5 text-xs text-slate-400 font-medium line-clamp-2 leading-relaxed">
-                        Secure deal room active for {deal.companyName || "this transaction"}. Review documents and checklists.
-                      </p>
-
-                      <div className="mt-6 pt-4 border-t border-white/[0.04] flex items-center justify-between gap-4">
-                        <div className="flex items-center gap-4">
-                          <div className="text-left">
-                            <span className="block text-[8px] font-extrabold uppercase tracking-wider text-slate-500">Pending</span>
-                            <span className="mt-0.5 block text-xs font-bold text-white">
-                              {outstandingDocumentCount} files
+                    return (
+                      <Link
+                        key={deal.id}
+                        to={`/deals/${encodeURIComponent(deal.dealRef)}`}
+                        className="group block relative overflow-hidden rounded-2xl border border-white/[0.06] bg-[#0d0c1d] backdrop-blur-md p-6 shadow-premium-card transition-all duration-300 hover:border-acp-purple/40 hover:bg-[#0d0c1d]/90 hover:shadow-[0_12px_30px_rgba(139,92,246,0.06)] hover:-translate-y-0.5 card-sheen"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <span className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-acp-purple">
+                              {deal.dealRef || "Missing Ref"}
                             </span>
+                            <h3 className="mt-1 text-sm font-semibold text-white tracking-wide truncate group-hover:text-acp-purple transition-colors">
+                              {deal.companyName || "Not specified"}
+                            </h3>
                           </div>
-                          <div className="text-left border-l border-white/[0.06] pl-4">
-                            <span className="block text-[8px] font-extrabold uppercase tracking-wider text-slate-500">Last Contact</span>
-                            <span className="mt-0.5 block text-xs font-bold text-white">
-                              {daysSinceLastLenderContact === null ? "No contact" : `${daysSinceLastLenderContact}d ago`}
-                            </span>
+                          <div className="shrink-0">
+                            <StatusBadge status={deal.status} />
                           </div>
                         </div>
 
-                        {/* Overlapping team avatar circles */}
-                        <div className="flex -space-x-1.5 overflow-hidden">
-                          <div 
-                            className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-blue-500/10 border border-blue-500/20 text-[9px] font-bold text-blue-400 shadow-sm"
-                            title={`Assigned Executive: ${execName}`}
-                          >
-                            {execInitials}
+                        <p className="mt-3.5 text-xs text-slate-400 font-medium line-clamp-2 leading-relaxed">
+                          Secure deal room active for {deal.companyName || "this transaction"}. Review documents and checklists.
+                        </p>
+
+                        <div className="mt-6 pt-4 border-t border-white/[0.04] flex items-center justify-between gap-4">
+                          <div className="flex items-center gap-4">
+                            <div className="text-left">
+                              <span className="block text-[8px] font-extrabold uppercase tracking-wider text-slate-500">Pending</span>
+                              <span className="mt-0.5 block text-xs font-bold text-white">
+                                {outstandingDocumentCount} files
+                              </span>
+                            </div>
+                            <div className="text-left border-l border-white/[0.06] pl-4">
+                              <span className="block text-[8px] font-extrabold uppercase tracking-wider text-slate-500">Last Contact</span>
+                              <span className="mt-0.5 block text-xs font-bold text-white">
+                                {daysSinceLastLenderContact === null ? "No contact" : `${daysSinceLastLenderContact}d ago`}
+                              </span>
+                            </div>
                           </div>
-                          <div 
-                            className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-acp-purple/10 border border-acp-purple/20 text-[9px] font-bold text-acp-purple shadow-sm"
-                            title={`Sponsoring Broker: ${brokerName}`}
-                          >
-                            {brokerInitials}
+
+                          <div className="flex -space-x-1.5 overflow-hidden">
+                            <div 
+                              className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-blue-500/10 border border-blue-500/20 text-[9px] font-bold text-blue-400 shadow-sm"
+                              title={`Assigned Executive: ${execName}`}
+                            >
+                              {execInitials}
+                            </div>
+                            <div 
+                              className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-acp-purple/10 border border-acp-purple/20 text-[9px] font-bold text-acp-purple shadow-sm"
+                              title={`Sponsoring Broker: ${brokerName}`}
+                              >
+                              {brokerInitials}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </Link>
-                  );
-                })}
-              </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )
             )}
           </div>
         </div>
@@ -251,13 +444,17 @@ export function DealListPage() {
   );
 }
 
-function DealRoomHero({ onViewAllDeals }: { onViewAllDeals: () => void }) {
+function DealRoomHero({ 
+  viewMode, 
+  onToggleViewMode 
+}: { 
+  viewMode: "pipeline" | "registry"; 
+  onToggleViewMode: () => void; 
+}) {
   return (
     <section className="relative overflow-hidden rounded-2xl border border-white/[0.08] bg-gradient-to-r from-[#5b5ef0] to-[#b372f8] text-white shadow-[0_20px_50px_rgba(139,92,246,0.15)] card-sheen">
-      {/* Premium ambient glows */}
       <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-white/10 blur-[40px] pointer-events-none" />
       
-      {/* Watermark folder icon in background */}
       <div className="absolute right-12 top-1/2 -translate-y-1/2 opacity-10 pointer-events-none hidden lg:block">
         <FolderOpen className="h-32 w-32 text-white" strokeWidth={1} />
       </div>
@@ -275,17 +472,16 @@ function DealRoomHero({ onViewAllDeals }: { onViewAllDeals: () => void }) {
             Secure dashboard to review transactions, document checklists, and submission timelines.
           </p>
           <button
-            onClick={onViewAllDeals}
+            onClick={onToggleViewMode}
             className="mt-6 inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-white px-5 text-xs font-black uppercase tracking-wider text-slate-950 shadow-md hover:bg-slate-100 transition-all transform hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
           >
-            View All Deals
+            {viewMode === "pipeline" ? "View All Deals" : "View Pipeline"}
           </button>
         </div>
       </div>
     </section>
   );
 }
-
 
 function MetricCard({ 
   icon, 

@@ -1,6 +1,6 @@
-import { ArrowLeft, ClipboardList, FileText, Send, ShieldCheck, Eye, History, Shield, Lock } from "lucide-react";
+import { ArrowLeft, ClipboardList, FileText, Send, ShieldCheck, Eye, History, Shield, Lock, UserPlus, Check, X, KeyRound, Copy } from "lucide-react";
 import type { ComponentType } from "react";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
 import { CoverSheet } from "../components/deals/CoverSheet";
 import { DocumentChecklist } from "../components/deals/DocumentChecklist";
@@ -10,6 +10,7 @@ import { LoadingState } from "../components/ui/LoadingState";
 import { PageHeader } from "../components/ui/PageHeader";
 import { useDeal, useDealDocuments, useSubmissionLog } from "../hooks/useDealRoomData";
 import { cx } from "../utils/cx";
+import { fetchAdminLenders, createLender, assignDealToLender } from "../api/admin";
 
 type TabId = "cover" | "documents" | "submissions";
 
@@ -29,6 +30,107 @@ export function DealDetailPage() {
   const isLoading = dealState.isLoading || documentState.isLoading || submissionState.isLoading;
   const error = dealState.error ?? documentState.error ?? submissionState.error;
 
+  // Add Lender Modal states
+  const [isAddLenderOpen, setIsAddLenderOpen] = useState(false);
+  const [allLenders, setAllLenders] = useState<any[]>([]);
+  const [isLoadingLenders, setIsLoadingLenders] = useState(false);
+  const [selectedLenderId, setSelectedLenderId] = useState("");
+  const [assignmentSuccess, setAssignmentSuccess] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  
+  // Create New Lender states
+  const [isCreatingNew, setIsCreatingNew] = useState(false);
+  const [newCompanyName, setNewCompanyName] = useState("");
+  const [newContactName, setNewContactName] = useState("");
+  const [newEmail, setNewEmail] = useState("");
+  const [newPhone, setNewPhone] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [createdLenderDetails, setCreatedLenderDetails] = useState<{ url: string; pass: string; company: string } | null>(null);
+  
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const openAddLenderModal = async () => {
+    setIsAddLenderOpen(true);
+    setAssignmentSuccess(false);
+    setErrorMessage("");
+    setCreatedLenderDetails(null);
+    setSelectedLenderId("");
+    setIsLoadingLenders(true);
+    try {
+      const list = await fetchAdminLenders();
+      setAllLenders(list);
+    } catch (err: any) {
+      console.error(err);
+      setErrorMessage(err.message || "Failed to load lenders list.");
+    } finally {
+      setIsLoadingLenders(false);
+    }
+  };
+
+  const handleCopy = (text: string, id: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const handleAssignExisting = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedLenderId) return;
+    setSubmitting(true);
+    setErrorMessage("");
+    setAssignmentSuccess(false);
+    try {
+      await assignDealToLender(selectedLenderId, decodedRef);
+      setAssignmentSuccess(true);
+      setTimeout(() => {
+        setIsAddLenderOpen(false);
+        setAssignmentSuccess(false);
+      }, 1500);
+    } catch (err: any) {
+      console.error(err);
+      setErrorMessage(err.message || "Failed to assign deal.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleCreateAndAssign = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCompanyName.trim()) return;
+    setSubmitting(true);
+    setErrorMessage("");
+    setAssignmentSuccess(false);
+    try {
+      const created = await createLender({
+        companyName: newCompanyName,
+        contactName: newContactName,
+        email: newEmail,
+        phone: newPhone,
+        status: "Active"
+      });
+      
+      await assignDealToLender(created.id, decodedRef);
+      
+      const portalUrl = `${window.location.origin}/portal/${created.Portal_Slug}`;
+      setCreatedLenderDetails({
+        url: portalUrl,
+        pass: created.Portal_Password || "",
+        company: created.Company_Name
+      });
+      
+      setNewCompanyName("");
+      setNewContactName("");
+      setNewEmail("");
+      setNewPhone("");
+      setAssignmentSuccess(true);
+    } catch (err: any) {
+      console.error(err);
+      setErrorMessage(err.message || "Failed to create and assign lender.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   if (isLoading) return <LoadingState />;
   if (error) return <ErrorState error={error} />;
   if (!dealState.data) {
@@ -45,13 +147,13 @@ export function DealDetailPage() {
       <div>
         <BackLink />
         <PageHeader title={dealState.data.companyName || dealState.data.dealRef} eyebrow={`Deal Details / ${dealState.data.dealRef}`}>
-          <Link
-            to={`/lender/${encodeURIComponent(dealState.data.dealRef)}`}
-            className="inline-flex h-9 items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-4 text-xs font-bold uppercase tracking-wider text-slate-300 shadow-sm transition-all duration-300 hover:border-acp-purple hover:text-white hover:bg-white/10 hover:shadow-glow-blue transform hover:-translate-y-0.5"
+          <button
+            onClick={openAddLenderModal}
+            className="inline-flex h-9 items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-4 text-xs font-bold uppercase tracking-wider text-slate-300 shadow-sm transition-all duration-300 hover:border-acp-purple hover:text-white hover:bg-white/10 hover:shadow-glow-blue transform hover:-translate-y-0.5 cursor-pointer"
           >
-            <ShieldCheck className="h-4 w-4 text-acp-purple" aria-hidden="true" />
-            Lender View
-          </Link>
+            <UserPlus className="h-4 w-4 text-acp-purple" aria-hidden="true" />
+            Add Lender
+          </button>
         </PageHeader>
       </div>
 
@@ -158,6 +260,201 @@ export function DealDetailPage() {
           </div>
         </aside>
       </div>
+
+      {/* Add Lender Modal Overlay */}
+      {isAddLenderOpen && (
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0d0c1d] p-6 shadow-2xl relative animate-scale-in">
+            <button
+              onClick={() => setIsAddLenderOpen(false)}
+              className="absolute right-4 top-4 text-slate-400 hover:text-white cursor-pointer"
+              type="button"
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            {createdLenderDetails ? (
+              <div className="space-y-4">
+                <div className="flex flex-col items-center text-center">
+                  <span className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 mb-3">
+                    <Check className="h-6 w-6" />
+                  </span>
+                  <h3 className="text-base font-bold text-white uppercase tracking-wider">Lender Link Success!</h3>
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    {createdLenderDetails.company} is now linked to this deal. Copy credentials below:
+                  </p>
+                </div>
+
+                <div className="space-y-3.5 mt-5">
+                  <div>
+                    <label className="block text-[8px] font-extrabold uppercase tracking-wider text-slate-500">Portal Access Link</label>
+                    <div className="mt-1.5 flex items-center gap-2">
+                      <input
+                        type="text"
+                        readOnly
+                        value={createdLenderDetails.url}
+                        className="h-9 flex-1 rounded-xl border border-white/10 bg-white/5 px-3 text-[11px] text-slate-350 outline-none"
+                      />
+                      <button
+                        onClick={() => handleCopy(createdLenderDetails.url, "url")}
+                        className="h-9 w-9 shrink-0 flex items-center justify-center rounded-xl bg-white/5 border border-white/10 hover:border-white/20 text-slate-400 hover:text-white cursor-pointer"
+                        type="button"
+                      >
+                        {copiedId === "url" ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[8px] font-extrabold uppercase tracking-wider text-slate-500">Portal Passcode</label>
+                    <div className="mt-1.5 flex items-center gap-2">
+                      <input
+                        type="text"
+                        readOnly
+                        value={createdLenderDetails.pass}
+                        className="h-9 flex-1 rounded-xl border border-white/10 bg-white/5 px-3 text-[11px] font-mono text-slate-350 outline-none"
+                      />
+                      <button
+                        onClick={() => handleCopy(createdLenderDetails.pass, "pass")}
+                        className="h-9 w-9 shrink-0 flex items-center justify-center rounded-xl bg-white/5 border border-white/10 hover:border-white/20 text-slate-400 hover:text-white cursor-pointer"
+                        type="button"
+                      >
+                        {copiedId === "pass" ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setIsAddLenderOpen(false)}
+                  className="mt-6 w-full h-10 rounded-xl bg-white text-slate-950 font-black text-xs uppercase tracking-wider hover:bg-slate-100 transition cursor-pointer"
+                  type="button"
+                >
+                  Done
+                </button>
+              </div>
+            ) : (
+              <div>
+                <div className="mb-4 flex items-center justify-between border-b border-white/5 pb-2">
+                  <h3 className="text-sm font-bold text-white uppercase tracking-wider">
+                    {isCreatingNew ? "Create & Link Lender" : "Link Existing Lender"}
+                  </h3>
+                  <button
+                    onClick={() => {
+                      setIsCreatingNew(!isCreatingNew);
+                      setErrorMessage("");
+                      setAssignmentSuccess(false);
+                    }}
+                    className="text-[10px] font-black uppercase tracking-wider text-acp-purple hover:underline cursor-pointer"
+                    type="button"
+                  >
+                    {isCreatingNew ? "Use Existing" : "Create New"}
+                  </button>
+                </div>
+
+                {errorMessage && (
+                  <div className="mb-4 rounded-xl border border-rose-500/20 bg-rose-500/10 p-3 text-xs text-rose-400 font-medium">
+                    {errorMessage}
+                  </div>
+                )}
+
+                {assignmentSuccess && (
+                  <div className="mb-4 rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3 text-xs text-emerald-400 font-medium flex items-center gap-2">
+                    <Check className="h-4 w-4" /> Assigned successfully!
+                  </div>
+                )}
+
+                {isCreatingNew ? (
+                  <form onSubmit={handleCreateAndAssign} className="space-y-4">
+                    <div>
+                      <label className="block text-[9px] font-extrabold uppercase tracking-wider text-slate-400">Company Name</label>
+                      <input
+                        type="text"
+                        required
+                        value={newCompanyName}
+                        onChange={(e) => setNewCompanyName(e.target.value)}
+                        placeholder="e.g. OakNorth Bank"
+                        className="mt-1.5 h-10 w-full rounded-xl border border-white/10 bg-white/5 px-3 text-xs text-white placeholder-slate-600 outline-none focus:border-acp-purple"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[9px] font-extrabold uppercase tracking-wider text-slate-400">Contact Name</label>
+                      <input
+                        type="text"
+                        value={newContactName}
+                        onChange={(e) => setNewContactName(e.target.value)}
+                        placeholder="e.g. John Smith"
+                        className="mt-1.5 h-10 w-full rounded-xl border border-white/10 bg-white/5 px-3 text-xs text-white placeholder-slate-600 outline-none focus:border-acp-purple"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[9px] font-extrabold uppercase tracking-wider text-slate-400">Email Address</label>
+                        <input
+                          type="email"
+                          value={newEmail}
+                          onChange={(e) => setNewEmail(e.target.value)}
+                          placeholder="e.g. jsmith@oaknorth.com"
+                          className="mt-1.5 h-10 w-full rounded-xl border border-white/10 bg-white/5 px-3 text-xs text-white placeholder-slate-600 outline-none focus:border-acp-purple"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[9px] font-extrabold uppercase tracking-wider text-slate-400">Phone Number</label>
+                        <input
+                          type="text"
+                          value={newPhone}
+                          onChange={(e) => setNewPhone(e.target.value)}
+                          placeholder="e.g. +44 7700 900077"
+                          className="mt-1.5 h-10 w-full rounded-xl border border-white/10 bg-white/5 px-3 text-xs text-white placeholder-slate-600 outline-none focus:border-acp-purple"
+                        />
+                      </div>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={submitting}
+                      className="mt-2 w-full h-10 rounded-xl bg-gradient-to-r from-[#5b5ef0] to-[#8b5cf6] text-white font-black text-xs uppercase tracking-wider hover:opacity-90 transition disabled:opacity-50 flex items-center justify-center cursor-pointer"
+                    >
+                      {submitting ? "Creating & Assigning..." : "Create & Assign"}
+                    </button>
+                  </form>
+                ) : (
+                  <form onSubmit={handleAssignExisting} className="space-y-4">
+                    <div>
+                      <label className="block text-[9px] font-extrabold uppercase tracking-wider text-slate-400">Select Lender</label>
+                      {isLoadingLenders ? (
+                        <div className="mt-1.5 text-xs text-slate-450 animate-pulse">Loading lenders...</div>
+                      ) : (
+                        <select
+                          required
+                          value={selectedLenderId}
+                          onChange={(e) => setSelectedLenderId(e.target.value)}
+                          className="mt-1.5 h-10 w-full rounded-xl border border-white/10 bg-[#0d0c1d] px-3 text-xs text-white outline-none focus:border-acp-purple cursor-pointer"
+                        >
+                          <option value="">-- Select an existing lender --</option>
+                          {allLenders.map((lender) => (
+                            <option key={lender.id} value={lender.id}>
+                              {lender.Company_Name} {lender.Contact_Name ? `(${lender.Contact_Name})` : ""}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={submitting || !selectedLenderId || isLoadingLenders}
+                      className="mt-4 w-full h-10 rounded-xl bg-gradient-to-r from-[#5b5ef0] to-[#8b5cf6] text-white font-black text-xs uppercase tracking-wider hover:opacity-90 transition disabled:opacity-50 flex items-center justify-center cursor-pointer"
+                    >
+                      {submitting ? "Assigning..." : "Assign Lender"}
+                    </button>
+                  </form>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
