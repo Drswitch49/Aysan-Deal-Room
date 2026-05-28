@@ -157,8 +157,8 @@ export function DealListPage() {
               iconBgClass="bg-[#ec4899]"
             />
             <MetricCard 
-              icon={<FileWarning className="h-5 w-5" />} 
-              label="Pending documents" 
+              icon={<FolderOpen className="h-5 w-5" />} 
+              label="Total indexed documents" 
               value={outstandingCount} 
               iconBgClass="bg-[#8b5cf6]"
             />
@@ -403,7 +403,7 @@ export function DealListPage() {
                         <div className="mt-6 pt-4 border-t border-white/[0.04] flex items-center justify-between gap-4">
                           <div className="flex items-center gap-4">
                             <div className="text-left">
-                              <span className="block text-[8px] font-extrabold uppercase tracking-wider text-slate-500">Pending</span>
+                              <span className="block text-[8px] font-extrabold uppercase tracking-wider text-slate-500">Total Indexed</span>
                               <span className="mt-0.5 block text-xs font-bold text-white">
                                 {outstandingDocumentCount} files
                               </span>

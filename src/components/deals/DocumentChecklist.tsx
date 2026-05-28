@@ -36,8 +36,8 @@ export function DocumentChecklist({ documents, audience }: DocumentChecklistProp
   const [selectedDoc, setSelectedDoc] = useState<(DealDocument & { indexRef: string }) | null>(null);
 
   const visibleDocuments = useMemo(
-    () => (audience === "lender" ? documents.filter((doc) => isSentToLender(doc.status)) : documents),
-    [audience, documents],
+    () => documents,
+    [documents],
   );
 
   const statuses = uniqueSorted(visibleDocuments.map((doc) => doc.status));
@@ -262,11 +262,9 @@ export function DocumentChecklist({ documents, audience }: DocumentChecklistProp
                     <ButtonLink href={getDriveViewUrl(document.driveLink)} icon="view">
                       View
                     </ButtonLink>
-                    {audience === "internal" || isSentToLender(document.status) ? (
-                      <ButtonLink href={getDriveDownloadUrl(document.driveLink)} icon="download" variant="purple">
-                        Download
-                      </ButtonLink>
-                    ) : null}
+                    <ButtonLink href={getDriveDownloadUrl(document.driveLink)} icon="download" variant="purple">
+                      Download
+                    </ButtonLink>
                   </div>
                 </Td>
               </tr>
