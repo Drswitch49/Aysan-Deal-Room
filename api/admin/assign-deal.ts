@@ -1,4 +1,4 @@
-import { airtableCreate, airtableFetch, airtableFetchRecord, getTableSchema, escapeFormulaString, TABLES } from "../_utils/airtable.js";
+import { airtableCreate, airtableFetch, airtableFetchRecord, getTableSchema, escapeFormulaString, TABLES, getAssignmentFields } from "../_utils/airtable.js";
 import { authenticateAdmin } from "./lenders.js";
 
 export default async function handler(req: any, res: any) {
@@ -33,8 +33,14 @@ export default async function handler(req: any, res: any) {
     const dealRecordId = dealRecord.id;
 
     // 4. Check if an active assignment already exists to avoid duplicates
+    const { lenderIdCol, dealRefCol, statusCol } = await getAssignmentFields();
+    let filterFormula = `AND(OR({${lenderIdCol}} = '${lenderRecordId}', {${lenderIdCol}} = '${escapeFormulaString(lenderIdText)}'), OR({${dealRefCol}} = '${dealRecordId}', {${dealRefCol}} = '${escapeFormulaString(dealRef)}'))`;
+    if (statusCol) {
+      filterFormula = `AND(${filterFormula}, {${statusCol}} = 'Active')`;
+    }
+
     const existingAsg = await airtableFetch(TABLES.ASSIGNMENTS, {
-      filterByFormula: `AND(OR({Lender_ID} = '${lenderRecordId}', {Lender_ID} = '${escapeFormulaString(lenderIdText)}'), OR({Deal_Ref} = '${dealRecordId}', {Deal_Ref} = '${escapeFormulaString(dealRef)}'), {Status} = 'Active')`,
+      filterByFormula: filterFormula,
       maxRecords: 1
     });
 

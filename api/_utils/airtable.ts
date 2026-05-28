@@ -289,3 +289,21 @@ export function normalizeAssignmentFields(fields: Record<string, any>): Record<s
   return normalized;
 }
 
+export async function getAssignmentFields(): Promise<{ lenderIdCol: string; dealRefCol: string; statusCol: string | null }> {
+  const schema = await getTableSchema(TABLES.ASSIGNMENTS);
+  if (!schema || !schema.fields) {
+    return { lenderIdCol: "Lender_ID", dealRefCol: "Deal_Ref", statusCol: "Status" };
+  }
+
+  const lenderIdField = schema.fields.find((f: any) => f.name.replace(/[^a-zA-Z0-9]/g, "").toLowerCase() === "lenderid");
+  const dealRefField = schema.fields.find((f: any) => f.name.replace(/[^a-zA-Z0-9]/g, "").toLowerCase() === "dealref");
+  const statusField = schema.fields.find((f: any) => f.name.replace(/[^a-zA-Z0-9]/g, "").toLowerCase() === "status");
+
+  return {
+    lenderIdCol: lenderIdField ? lenderIdField.name : "Lender_ID",
+    dealRefCol: dealRefField ? dealRefField.name : "Deal_Ref",
+    statusCol: statusField ? statusField.name : null
+  };
+}
+
+

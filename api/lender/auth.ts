@@ -1,4 +1,4 @@
-import { airtableFetch, airtableFetchRecord, TABLES, escapeFormulaString, normalizeLenderFields } from "../_utils/airtable.js";
+import { airtableFetch, airtableFetchRecord, TABLES, escapeFormulaString, normalizeLenderFields, getAssignmentFields } from "../_utils/airtable.js";
 
 export default async function handler(req: any, res: any) {
   if (req.method !== "POST") {
@@ -36,8 +36,15 @@ export default async function handler(req: any, res: any) {
 
     // 3. Fetch deal assignments for this lender
     const lenderIdText = fields.Lender_ID;
+    const { lenderIdCol, statusCol } = await getAssignmentFields();
+    
+    let filterFormula = `OR({${lenderIdCol}} = '${lenderRecordId}', {${lenderIdCol}} = '${escapeFormulaString(lenderIdText)}')`;
+    if (statusCol) {
+      filterFormula = `AND(${filterFormula}, {${statusCol}} = 'Active')`;
+    }
+
     const assignmentsData = await airtableFetch(TABLES.ASSIGNMENTS, {
-      filterByFormula: `AND(OR({Lender_ID} = '${lenderRecordId}', {Lender_ID} = '${escapeFormulaString(lenderIdText)}'), {Status} = 'Active')`
+      filterByFormula: filterFormula
     });
 
     // 4. Resolve Deal Reference values (e.g. "KBS 159237")

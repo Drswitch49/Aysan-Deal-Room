@@ -1,4 +1,4 @@
-import { airtableFetch, TABLES, escapeFormulaString } from "../_utils/airtable.js";
+import { airtableFetch, TABLES, escapeFormulaString, getAssignmentFields } from "../_utils/airtable.js";
 import { authenticateLender } from "./deals.js";
 
 export default async function handler(req: any, res: any) {
@@ -14,8 +14,14 @@ export default async function handler(req: any, res: any) {
     const companyName = lender.normalizedFields.Company_Name || "";
 
     // 2. Fetch lender assignments
+    const { lenderIdCol, statusCol } = await getAssignmentFields();
+    let filterFormula = `OR({${lenderIdCol}} = '${lenderRecordId}', {${lenderIdCol}} = '${escapeFormulaString(lenderIdText)}')`;
+    if (statusCol) {
+      filterFormula = `AND(${filterFormula}, {${statusCol}} = 'Active')`;
+    }
+
     const assignmentsData = await airtableFetch(TABLES.ASSIGNMENTS, {
-      filterByFormula: `AND(OR({Lender_ID} = '${lenderRecordId}', {Lender_ID} = '${escapeFormulaString(lenderIdText)}'), {Status} = 'Active')`
+      filterByFormula: filterFormula
     });
 
     if (!assignmentsData.records || assignmentsData.records.length === 0) {
