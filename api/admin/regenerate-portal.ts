@@ -1,4 +1,4 @@
-import { airtableFetch, airtableUpdate, airtableFetchRecord, escapeFormulaString, TABLES } from "../_utils/airtable.js";
+import { airtableFetch, airtableUpdate, airtableFetchRecord, escapeFormulaString, TABLES, normalizeLenderFields } from "../_utils/airtable.js";
 import { authenticateAdmin } from "./lenders.js";
 
 async function generateUniqueSlug(companyName: string): Promise<string> {
