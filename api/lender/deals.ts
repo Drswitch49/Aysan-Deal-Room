@@ -1,4 +1,4 @@
-import { airtableFetch, TABLES, escapeFormulaString } from "../_utils/airtable.js";
+import { airtableFetch, TABLES, escapeFormulaString, normalizeLenderFields } from "../_utils/airtable.js";
 
 const SAFE_FIELDS = [
   "REF No.", "Ref No.", "Deal_Ref", "Deal Ref", "Deal Reference", "Deal Name",
@@ -40,15 +40,20 @@ export async function authenticateLender(req: any): Promise<any> {
   }
 
   const lender = data.records[0];
-  if (lender.fields.Portal_Password !== password) {
+  const normFields = normalizeLenderFields(lender.fields);
+  if (normFields.Portal_Password !== password) {
     throw new Error("Invalid passcode.");
   }
 
-  if (lender.fields.Status !== "Active") {
+  if (normFields.Status !== "Active") {
     throw new Error("Lender account is inactive.");
   }
 
-  return lender;
+  // Attach normalized fields so helpers don't have to re-normalize
+  return {
+    ...lender,
+    normalizedFields: normFields
+  };
 }
 
 export default async function handler(req: any, res: any) {
@@ -60,7 +65,7 @@ export default async function handler(req: any, res: any) {
     // 1. Authenticate lender
     const lender = await authenticateLender(req);
     const lenderRecordId = lender.id;
-    const lenderIdText = lender.fields.Lender_ID;
+    const lenderIdText = lender.normalizedFields.Lender_ID;
 
     // 2. Fetch assignments
     const assignmentsData = await airtableFetch(TABLES.ASSIGNMENTS, {

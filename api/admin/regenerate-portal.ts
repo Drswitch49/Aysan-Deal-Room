@@ -38,7 +38,8 @@ export default async function handler(req: any, res: any) {
 
     // 2. Fetch lender details to get Company Name
     const lenderData = await airtableFetchRecord(TABLES.LENDERS, lenderRecordId);
-    const companyName = lenderData.fields.Company_Name;
+    const normFields = normalizeLenderFields(lenderData.fields);
+    const companyName = normFields.Company_Name;
 
     if (!companyName) {
       return res.status(400).json({ error: "Lender record does not contain a company name" });

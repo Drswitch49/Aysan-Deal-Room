@@ -215,3 +215,77 @@ export async function getTableSchema(tableName: string): Promise<any> {
   }
   return null;
 }
+
+const LENDER_FIELD_MAPPING: Record<string, string> = {
+  lenderid: "Lender_ID",
+  companyname: "Company_Name",
+  contactname: "Contact_Name",
+  email: "Email",
+  phone: "Phone",
+  portalslug: "Portal_Slug",
+  portalpassword: "Portal_Password",
+  status: "Status",
+  createdat: "Created_At"
+};
+
+export function normalizeLenderFields(fields: Record<string, any>): Record<string, any> {
+  if (!fields) return {};
+  const normalized: Record<string, any> = {};
+  
+  // Set defaults for expected keys
+  normalized.Lender_ID = "";
+  normalized.Company_Name = "";
+  normalized.Contact_Name = "";
+  normalized.Email = "";
+  normalized.Phone = "";
+  normalized.Portal_Slug = "";
+  normalized.Portal_Password = "";
+  normalized.Status = "Active";
+  normalized.Created_At = "";
+
+  Object.keys(fields).forEach(key => {
+    const cleanKey = key.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+    const targetKey = LENDER_FIELD_MAPPING[cleanKey];
+    if (targetKey) {
+      normalized[targetKey] = fields[key];
+    } else {
+      normalized[key] = fields[key];
+    }
+  });
+
+  return normalized;
+}
+
+const ASSIGNMENT_FIELD_MAPPING: Record<string, string> = {
+  assignmentid: "Assignment_ID",
+  lenderid: "Lender_ID",
+  dealref: "Deal_Ref",
+  assignedat: "Assigned_At",
+  assignedby: "Assigned_By",
+  status: "Status"
+};
+
+export function normalizeAssignmentFields(fields: Record<string, any>): Record<string, any> {
+  if (!fields) return {};
+  const normalized: Record<string, any> = {};
+  
+  normalized.Assignment_ID = "";
+  normalized.Lender_ID = "";
+  normalized.Deal_Ref = "";
+  normalized.Assigned_At = "";
+  normalized.Assigned_By = "";
+  normalized.Status = "Active";
+
+  Object.keys(fields).forEach(key => {
+    const cleanKey = key.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+    const targetKey = ASSIGNMENT_FIELD_MAPPING[cleanKey];
+    if (targetKey) {
+      normalized[targetKey] = fields[key];
+    } else {
+      normalized[key] = fields[key];
+    }
+  });
+
+  return normalized;
+}
+

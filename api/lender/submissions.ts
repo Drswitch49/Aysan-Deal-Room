@@ -10,8 +10,8 @@ export default async function handler(req: any, res: any) {
     // 1. Authenticate lender
     const lender = await authenticateLender(req);
     const lenderRecordId = lender.id;
-    const lenderIdText = lender.fields.Lender_ID;
-    const companyName = lender.fields.Company_Name || "";
+    const lenderIdText = lender.normalizedFields.Lender_ID;
+    const companyName = lender.normalizedFields.Company_Name || "";
 
     // 2. Fetch lender assignments
     const assignmentsData = await airtableFetch(TABLES.ASSIGNMENTS, {

@@ -1,4 +1,4 @@
-import { airtableFetch, TABLES } from "../_utils/airtable.js";
+import { airtableFetch, TABLES, normalizeLenderFields, normalizeAssignmentFields } from "../_utils/airtable.js";
 
 // Helper to authenticate admin
 export function authenticateAdmin(req: any) {
@@ -38,10 +38,11 @@ export default async function handler(req: any, res: any) {
     const lenderToDealsMap = new Map<string, Array<{ assignmentId: string; dealRef: string; assignedAt: string }>>();
     
     assignmentsRes.records.forEach((rec: any) => {
-      const lenderRefs = rec.fields.Lender_ID;
-      const dealRefs = rec.fields.Deal_Ref;
-      const assignedAt = rec.fields.Assigned_At || rec.createdTime;
-      const status = rec.fields.Status || "Active";
+      const normFields = normalizeAssignmentFields(rec.fields);
+      const lenderRefs = normFields.Lender_ID;
+      const dealRefs = normFields.Deal_Ref;
+      const assignedAt = normFields.Assigned_At || rec.createdTime;
+      const status = normFields.Status || "Active";
 
       if (status !== "Active" || !lenderRefs || !dealRefs) return;
 
@@ -75,7 +76,8 @@ export default async function handler(req: any, res: any) {
 
     // 5. Build Lenders payload
     const lenders = lendersRes.records.map((rec: any) => {
-      const lenderIdText = rec.fields.Lender_ID || "";
+      const normFields = normalizeLenderFields(rec.fields);
+      const lenderIdText = normFields.Lender_ID || "";
       
       // Find assignments by record ID or by text ID
       const byRecordId = lenderToDealsMap.get(rec.id) || [];
@@ -94,7 +96,7 @@ export default async function handler(req: any, res: any) {
 
       return {
         id: rec.id,
-        ...rec.fields,
+        ...normFields,
         assignments
       };
     });

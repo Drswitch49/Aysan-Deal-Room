@@ -22,7 +22,8 @@ export default async function handler(req: any, res: any) {
     }
 
     const lenderRecord = lendersData.records[0];
-    const { fields, id: lenderRecordId } = lenderRecord;
+    const lenderRecordId = lenderRecord.id;
+    const fields = normalizeLenderFields(lenderRecord.fields);
 
     // 2. Validate password and status
     if (fields.Portal_Password !== password) {

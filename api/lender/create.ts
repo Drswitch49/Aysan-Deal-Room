@@ -1,4 +1,4 @@
-import { airtableCreate, escapeFormulaString, airtableFetch, TABLES } from "../_utils/airtable.js";
+import { airtableCreate, escapeFormulaString, airtableFetch, TABLES, normalizeLenderFields } from "../_utils/airtable.js";
 
 // Helper to generate a secure random password
 function generatePassword(): string {
@@ -77,7 +77,7 @@ export default async function handler(req: any, res: any) {
     
     return res.status(200).json({
       id: record.id,
-      ...record.fields
+      ...normalizeLenderFields(record.fields)
     });
   } catch (err: any) {
     return res.status(err.status || 500).json({ error: err.message, type: err.type });
