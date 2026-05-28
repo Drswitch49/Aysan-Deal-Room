@@ -131,7 +131,14 @@ export async function getDocumentsForDeal(ref: string): Promise<DealDocument[]> 
     const deal = await getDealByRef(ref);
     if (!deal) return [];
     const allDocs = await getAllDocuments();
-    return allDocs.filter((doc) => doc.dealRef.toLowerCase() === deal.id.toLowerCase());
+    return allDocs
+      .filter((doc) => doc.dealRef.toLowerCase() === deal.id.toLowerCase())
+      .map((doc) => {
+        if (!doc.driveLink && deal.dealFiles) {
+          return { ...doc, driveLink: deal.dealFiles };
+        }
+        return doc;
+      });
   } catch (error) {
     if (isMissingTableError(error)) return [];
     throw error;
@@ -191,7 +198,8 @@ const SAFE_PIPELINE_FIELDS = [
   "Senior_Debt", "Senior Debt", "Senior Debt Amount",
   "Sub_Debt", "Sub Debt", "Subordinated Debt",
   "Equity", "Equity Amount",
-  "Seller_Note", "Seller Note"
+  "Seller_Note", "Seller Note",
+  "Deal Files", "Deal_Files", "deal_files", "Deal Link", "Drive_Link", "Drive Link"
 ];
 
 let cachedSchema: any = null;
@@ -268,7 +276,7 @@ export async function getDealByRefForLender(ref: string): Promise<PipelineDeal |
 
 export async function getDocumentsForLender(ref: string): Promise<DealDocument[]> {
   try {
-    const deal = await getDealByRef(ref);
+    const deal = await getDealByRefForLender(ref);
     if (!deal) return [];
 
     const projectedFields = await getExistFields(config.documentsTable, SAFE_DOCUMENT_FIELDS);
@@ -277,11 +285,18 @@ export async function getDocumentsForLender(ref: string): Promise<DealDocument[]
     });
 
     const allDocs = response.records.map((record) => mapDocument(record.id, record.fields));
-    return allDocs.filter(
-      (doc) => 
-        doc.dealRef.toLowerCase() === deal.id.toLowerCase() && 
-        doc.status.trim().toLowerCase() === "sent to lender"
-    );
+    return allDocs
+      .filter(
+        (doc) => 
+          doc.dealRef.toLowerCase() === deal.id.toLowerCase() && 
+          doc.status.trim().toLowerCase() === "sent to lender"
+      )
+      .map((doc) => {
+        if (!doc.driveLink && deal.dealFiles) {
+          return { ...doc, driveLink: deal.dealFiles };
+        }
+        return doc;
+      });
   } catch (error) {
     if (isMissingTableError(error)) return [];
     throw error;
@@ -307,6 +322,7 @@ function mapPipelineDeal(id: string, fields: RawAirtableFields): PipelineDeal {
     ),
     capitalStructure: buildCapitalStructure(fields),
     rawFields: fields,
+    dealFiles: asUrl(firstField(fields, ["Deal Files", "Deal_Files", "deal_files", "Deal Link", "Drive_Link", "Drive Link", "Link", "link"])),
   };
 }
 

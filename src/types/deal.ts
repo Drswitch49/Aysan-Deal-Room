@@ -16,6 +16,7 @@ export type PipelineDeal = {
   postCompletionRoles: string;
   capitalStructure: CapitalStructureRow[];
   rawFields: RawAirtableFields;
+  dealFiles: string;
 };
 
 export type CapitalStructureRow = {
