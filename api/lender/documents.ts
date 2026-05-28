@@ -1,4 +1,4 @@
-import { airtableFetch, TABLES, escapeFormulaString } from "../_utils/airtable.js";
+import { airtableFetch, TABLES, escapeFormulaString, getAssignmentFields, getTableSchema } from "../_utils/airtable.js";
 import { authenticateLender } from "./deals.js";
 
 const SAFE_DOC_FIELDS = [
@@ -25,16 +25,39 @@ export default async function handler(req: any, res: any) {
     const lenderRecordId = lender.id;
     const lenderIdText = lender.normalizedFields.Lender_ID;
 
-    // 2. Fetch lender assignments
+    // 2. Fetch lender assignments using dynamic fields
+    const { lenderIdCol, statusCol } = await getAssignmentFields();
+    let filterFormula = `OR({${lenderIdCol}} = '${lenderRecordId}', {${lenderIdCol}} = '${escapeFormulaString(lenderIdText)}')`;
+    if (statusCol) {
+      filterFormula = `AND(${filterFormula}, {${statusCol}} = 'Active')`;
+    }
+
     const assignmentsData = await airtableFetch(TABLES.ASSIGNMENTS, {
-      filterByFormula: `AND(OR({Lender_ID} = '${lenderRecordId}', {Lender_ID} = '${escapeFormulaString(lenderIdText)}'), {Status} = 'Active')`
+      filterByFormula: filterFormula
     });
 
     if (!assignmentsData.records || assignmentsData.records.length === 0) {
       return res.status(200).json([]);
     }
 
-    // Resolve assigned deal IDs
+    // Resolve assigned deal IDs. Fetch pipeline schema first to dynamically construct queries.
+    const pipelineSchema = await getTableSchema(TABLES.PIPELINE);
+    const getPipelineFilterFormula = (dealRef: string) => {
+      if (pipelineSchema && pipelineSchema.fields) {
+        const formulas: string[] = [];
+        pipelineSchema.fields.forEach((f: any) => {
+          const cleanName = f.name.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+          if (["refno", "dealref", "dealreference", "dealname"].includes(cleanName)) {
+            formulas.push(`{${f.name}} = '${escapeFormulaString(dealRef)}'`);
+          }
+        });
+        if (formulas.length > 0) {
+          return formulas.length === 1 ? formulas[0] : `OR(${formulas.join(", ")})`;
+        }
+      }
+      return `OR({REF No.} = '${escapeFormulaString(dealRef)}', {Deal_Ref} = '${escapeFormulaString(dealRef)}')`;
+    };
+
     const dealIds = new Set<string>();
     for (const record of assignmentsData.records) {
       const dealRefVal = record.fields.Deal_Ref;
@@ -44,8 +67,9 @@ export default async function handler(req: any, res: any) {
         } else {
           // If it's a string, we need to find its record ID from Pipeline table
           try {
+            const pipeFormula = getPipelineFilterFormula(String(dealRefVal));
             const pipeData = await airtableFetch(TABLES.PIPELINE, {
-              filterByFormula: `OR({REF No.} = '${escapeFormulaString(String(dealRefVal))}', {Deal_Ref} = '${escapeFormulaString(String(dealRefVal))}')`,
+              filterByFormula: pipeFormula,
               maxRecords: 1
             });
             if (pipeData.records?.[0]) {

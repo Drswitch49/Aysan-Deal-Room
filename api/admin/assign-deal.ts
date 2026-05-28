@@ -19,9 +19,28 @@ export default async function handler(req: any, res: any) {
     const lenderData = await airtableFetchRecord(TABLES.LENDERS, lenderRecordId);
     const lenderIdText = lenderData.fields.Lender_ID;
 
-    // 3. Fetch deal details to get its record ID
+    // 3. Fetch deal details using safe dynamic field resolution based on pipeline schema
+    const pipelineSchema = await getTableSchema(TABLES.PIPELINE);
+    let pipeFilterFormula = "";
+    if (pipelineSchema && pipelineSchema.fields) {
+      const formulas: string[] = [];
+      pipelineSchema.fields.forEach((f: any) => {
+        const cleanName = f.name.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+        if (["refno", "dealref", "dealreference", "dealname"].includes(cleanName)) {
+          formulas.push(`{${f.name}} = '${escapeFormulaString(dealRef)}'`);
+        }
+      });
+      if (formulas.length > 0) {
+        pipeFilterFormula = formulas.length === 1 ? formulas[0] : `OR(${formulas.join(", ")})`;
+      } else {
+        pipeFilterFormula = `{REF No.} = '${escapeFormulaString(dealRef)}'`;
+      }
+    } else {
+      pipeFilterFormula = `OR({REF No.} = '${escapeFormulaString(dealRef)}', {Deal_Ref} = '${escapeFormulaString(dealRef)}')`;
+    }
+
     const dealsData = await airtableFetch(TABLES.PIPELINE, {
-      filterByFormula: `OR({REF No.} = '${escapeFormulaString(dealRef)}', {Deal_Ref} = '${escapeFormulaString(dealRef)}')`,
+      filterByFormula: pipeFilterFormula,
       maxRecords: 1
     });
 
