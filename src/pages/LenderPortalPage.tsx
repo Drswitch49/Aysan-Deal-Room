@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useParams, Navigate } from "react-router-dom";
 import { 
   Building2, Database, ShieldCheck, LockKeyhole, Landmark, 
-  LogOut, FolderOpen, Files, History, AlertCircle, Copy, Check
+  LogOut, Files, History, Menu, X
 } from "lucide-react";
 import { 
   loginLender, fetchLenderDeals, fetchLenderDocuments, fetchLenderSubmissions 
@@ -14,7 +14,6 @@ import { LoadingState } from "../components/ui/LoadingState";
 import { ErrorState } from "../components/ui/ErrorState";
 import { EmptyState } from "../components/ui/EmptyState";
 import type { PipelineDeal, DealDocument, SubmissionLogEntry } from "../types/deal";
-import { cx } from "../utils/cx";
 
 export function LenderPortalPage() {
   const { portalSlug } = useParams<{ portalSlug: string }>();
@@ -30,6 +29,7 @@ export function LenderPortalPage() {
   const [logs, setLogs] = useState<SubmissionLogEntry[]>([]);
   const [selectedDeal, setSelectedDeal] = useState<PipelineDeal | null>(null);
   const [lenderProfile, setLenderProfile] = useState<any>(null);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     if (!portalSlug) return;
@@ -255,15 +255,110 @@ export function LenderPortalPage() {
         </div>
       </aside>
 
+      {/* Mobile Drawer Navigation */}
+      {isMobileMenuOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden flex">
+          {/* Backdrop */}
+          <div 
+            className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm transition-opacity duration-300"
+            onClick={() => setIsMobileMenuOpen(false)}
+          />
+          
+          {/* Drawer Sidebar */}
+          <aside className="relative flex w-[284px] max-w-[85vw] flex-col border-r border-white/[0.06] bg-[#090816] text-white h-full px-6 py-7 shadow-2xl animate-slide-in-left overflow-hidden">
+            {/* Ambient glows matching styling */}
+            <div className="absolute -left-12 -top-12 h-48 w-48 rounded-full bg-acp-purple/5 blur-3xl pointer-events-none" />
+            <div className="absolute -right-20 bottom-10 h-64 w-64 rounded-full bg-acp-blue/5 blur-3xl pointer-events-none" />
+
+            <div className="flex h-full flex-col z-10">
+              {/* Header inside drawer */}
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="flex shrink-0 h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#8b5cf6]/20 to-[#5b5ef0]/20 text-white shadow-md border border-[#8b5cf6]/30">
+                    <Building2 className="h-5 w-5 text-white" aria-hidden="true" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate font-heading text-sm font-black tracking-tight text-white uppercase">
+                      Aysan Capital
+                    </p>
+                    <p className="truncate text-[9px] font-extrabold uppercase tracking-[0.18em] text-acp-purple">
+                      Investor Relations
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="h-8 w-8 flex items-center justify-center rounded-lg border border-white/10 bg-white/5 text-slate-400 hover:text-white transition cursor-pointer"
+                  aria-label="Close menu"
+                  type="button"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              {/* Profile Card */}
+              {lenderProfile && (
+                <div className="mt-10 rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 shadow-sm backdrop-blur-md">
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-acp-purple/10 text-acp-purple text-xs font-bold border border-acp-purple/20">
+                      {lenderProfile.Company_Name.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate text-xs font-bold text-white leading-none">{lenderProfile.Company_Name}</p>
+                      <p className="truncate text-[9px] font-semibold text-slate-450 mt-1 uppercase">Lender Portal Node</p>
+                    </div>
+                  </div>
+                  <div className="mt-4 pt-3.5 border-t border-white/[0.04] space-y-2 text-[10px] text-slate-400 font-medium leading-relaxed">
+                    {lenderProfile.Contact_Name && <div>Contact: {lenderProfile.Contact_Name}</div>}
+                    {lenderProfile.Email && <div>Email: {lenderProfile.Email}</div>}
+                  </div>
+                </div>
+              )}
+
+              {/* Status Box */}
+              <div className="mt-6 space-y-3.5">
+                <div className="flex items-center gap-3 text-xs font-semibold text-slate-350">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/[0.03] border border-white/5 text-acp-purple/80">
+                    <Database className="h-3.5 w-3.5" />
+                  </span>
+                  <span>Secure Session Active</span>
+                </div>
+              </div>
+
+              {/* Logout Button */}
+              <button
+                onClick={() => {
+                  setIsMobileMenuOpen(false);
+                  handleLogout();
+                }}
+                className="mt-auto inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 text-xs font-bold uppercase tracking-wider text-slate-300 hover:bg-white/10 transition"
+              >
+                <LogOut className="h-4 w-4" />
+                Exit Portal
+              </button>
+            </div>
+          </aside>
+        </div>
+      )}
+
       {/* Main Content Area */}
       <div className="min-w-0 flex flex-col min-h-screen relative z-10">
         <header className="sticky top-0 z-20 border-b border-white/[0.06] bg-[#060814]/45 backdrop-blur-md shadow-soft">
           <div className="flex items-center justify-between gap-4 px-6 py-4 sm:px-8">
-            <div className="lg:hidden flex items-center gap-2">
-              <div className="h-8 w-8 flex items-center justify-center rounded bg-gradient-to-br from-acp-purple/20 to-acp-blue/20 border border-acp-purple/35 text-white">
+            <div className="lg:hidden flex shrink-0 items-center gap-2 min-w-0">
+              <button
+                onClick={() => setIsMobileMenuOpen(true)}
+                className="h-9 w-9 flex shrink-0 items-center justify-center rounded-xl bg-white/10 border border-white/15 text-white hover:bg-white/20 transition cursor-pointer mr-1"
+                title="Open menu"
+                type="button"
+              >
+                <Menu className="h-5 w-5 text-white" />
+              </button>
+              <div className="h-8 w-8 flex items-center justify-center rounded bg-gradient-to-br from-acp-purple/20 to-acp-blue/20 border border-acp-purple/35 text-white shrink-0">
                 <Building2 className="h-4 w-4" />
               </div>
-              <p className="font-heading text-xs font-black uppercase text-white tracking-wider">Lender Portal</p>
+              <p className="font-heading text-xs font-black uppercase text-white tracking-wider truncate">Lender Portal</p>
             </div>
 
             <div className="hidden min-w-0 lg:block">
@@ -272,7 +367,7 @@ export function LenderPortalPage() {
             </div>
 
             <div className="flex items-center gap-3">
-              <span className="inline-flex h-8 items-center gap-2 rounded-full border border-white/10 bg-white/[0.02] px-3.5 text-xs font-bold text-slate-300">
+              <span className="hidden md:inline-flex h-8 items-center gap-2 rounded-full border border-white/10 bg-white/[0.02] px-3.5 text-xs font-bold text-slate-300">
                 <ShieldCheck className="h-3.5 w-3.5 text-acp-emerald" />
                 Lender-Safe Sandbox
               </span>
