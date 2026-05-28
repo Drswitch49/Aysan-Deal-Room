@@ -194,20 +194,64 @@ const SAFE_PIPELINE_FIELDS = [
   "Seller_Note", "Seller Note"
 ];
 
+let cachedSchema: any = null;
+
+async function fetchSchema(): Promise<any> {
+  if (cachedSchema) return cachedSchema;
+  assertAirtableConfig();
+
+  const response = await fetch(`${AIRTABLE_API_ROOT}/meta/bases/${config.airtableBaseId}/tables`, {
+    headers: {
+      Authorization: `Bearer ${config.airtableApiKey}`,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch schema metadata: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  cachedSchema = data;
+  return data;
+}
+
 async function getExistFields(tableName: string, safeFields: string[]): Promise<string[]> {
   try {
+    const schema = await fetchSchema();
+    const table = schema.tables.find(
+      (t: any) =>
+        t.name.toLowerCase() === tableName.toLowerCase() ||
+        t.name.toLowerCase().replace(/_/g, " ") === tableName.toLowerCase().replace(/_/g, " ") ||
+        t.name.toLowerCase().replace(/ /g, "_") === tableName.toLowerCase().replace(/ /g, "_")
+    );
+    if (table) {
+      const existingFieldNames = table.fields.map((f: any) => f.name);
+      const matched = safeFields.filter((f) => existingFieldNames.includes(f));
+      if (matched.length > 0) return matched;
+    }
+  } catch (metaError) {
+    console.warn("Airtable Metadata API not available, falling back to record scanning:", metaError);
+  }
+
+  try {
     const response = await fetchAirtablePage<RawAirtableFields>(
-      buildTableUrl(tableName) + "&maxRecords=1"
+      buildTableUrl(tableName) + "&maxRecords=100"
     );
     if (response.records.length === 0) {
       return safeFields.slice(0, 5);
     }
-    const recordFields = Object.keys(response.records[0].fields);
-    return safeFields.filter((f) => recordFields.includes(f));
+    const allKeys = new Set<string>();
+    for (const record of response.records) {
+      for (const key of Object.keys(record.fields)) {
+        allKeys.add(key);
+      }
+    }
+    return safeFields.filter((f) => allKeys.has(f));
   } catch {
     return safeFields.slice(0, 5);
   }
 }
+
 
 export async function getDealByRefForLender(ref: string): Promise<PipelineDeal | null> {
   try {
