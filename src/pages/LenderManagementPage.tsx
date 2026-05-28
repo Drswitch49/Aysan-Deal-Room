@@ -65,6 +65,7 @@ export function LenderManagementPage() {
   const [expandedLenderIds, setExpandedLenderIds] = useState<Record<string, boolean>>({});
   const [dealSearchQuery, setDealSearchQuery] = useState("");
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
 
   const toggleLenderExpanded = (lenderId: string) => {
     setExpandedLenderIds((prev) => ({
@@ -231,6 +232,7 @@ export function LenderManagementPage() {
   function closeDeleteModal() {
     setIsDeleteConfirmOpen(false);
     setSelectedLender(null);
+    setDeleteConfirmText("");
   }
 
   // Metrics Calculations
@@ -768,6 +770,19 @@ export function LenderManagementPage() {
                 </p>
               </div>
 
+              <div className="text-left space-y-1.5">
+                <label className="block text-[9px] font-extrabold uppercase tracking-wider text-slate-400">
+                  Type company name to confirm
+                </label>
+                <input
+                  type="text"
+                  value={deleteConfirmText}
+                  onChange={(e) => setDeleteConfirmText(e.target.value)}
+                  placeholder={selectedLender.Company_Name}
+                  className="h-10 w-full rounded-xl border border-white/10 bg-[#06050e] px-3 text-xs text-white placeholder-slate-600 outline-none focus:border-rose-500 transition-all"
+                />
+              </div>
+
               <div className="flex gap-3 pt-2">
                 <button
                   onClick={closeDeleteModal}
@@ -778,7 +793,7 @@ export function LenderManagementPage() {
                 </button>
                 <button
                   onClick={handleDeleteLender}
-                  disabled={submitting}
+                  disabled={submitting || deleteConfirmText.trim() !== selectedLender.Company_Name.trim()}
                   className="flex-1 inline-flex h-10 items-center justify-center rounded-xl bg-rose-500 text-xs font-bold uppercase tracking-wider text-white hover:bg-rose-600 disabled:opacity-40 cursor-pointer"
                   type="button"
                 >
