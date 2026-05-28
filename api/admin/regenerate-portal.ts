@@ -1,4 +1,4 @@
-import { airtableFetch, airtableUpdate, escapeFormulaString, TABLES } from "../_utils/airtable.js";
+import { airtableFetch, airtableUpdate, airtableFetchRecord, escapeFormulaString, TABLES } from "../_utils/airtable.js";
 import { authenticateAdmin } from "./lenders.js";
 
 async function generateUniqueSlug(companyName: string): Promise<string> {
@@ -37,7 +37,7 @@ export default async function handler(req: any, res: any) {
     }
 
     // 2. Fetch lender details to get Company Name
-    const lenderData = await airtableFetch(TABLES.LENDERS + `/${lenderRecordId}`);
+    const lenderData = await airtableFetchRecord(TABLES.LENDERS, lenderRecordId);
     const companyName = lenderData.fields.Company_Name;
 
     if (!companyName) {

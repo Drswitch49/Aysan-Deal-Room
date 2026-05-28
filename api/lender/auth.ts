@@ -1,4 +1,4 @@
-import { airtableFetch, TABLES, escapeFormulaString } from "../_utils/airtable.js";
+import { airtableFetch, airtableFetchRecord, TABLES, escapeFormulaString } from "../_utils/airtable.js";
 
 export default async function handler(req: any, res: any) {
   if (req.method !== "POST") {
@@ -53,7 +53,7 @@ export default async function handler(req: any, res: any) {
             // Let's resolve the deal record from Active_Pipeline
             for (const dId of dealRefVal) {
               try {
-                const dealData = await airtableFetch(TABLES.PIPELINE + `/${dId}`);
+                const dealData = await airtableFetchRecord(TABLES.PIPELINE, dId);
                 const refNo = dealData.fields["REF No."] || dealData.fields.Deal_Ref || dealData.fields.dealRef || dealData.fields["Deal Name"];
                 if (refNo) assignedDealRefs.push(String(refNo));
               } catch {}

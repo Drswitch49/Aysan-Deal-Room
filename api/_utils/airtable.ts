@@ -89,6 +89,22 @@ export async function airtableFetch(table: string, params: Record<string, any> =
   return handleResponse(response, table);
 }
 
+export async function airtableFetchRecord(table: string, recordId: string) {
+  if (!apiKey || !baseId) {
+    throw new Error("Missing Airtable environment configuration.");
+  }
+
+  const url = `${AIRTABLE_API_ROOT}/${baseId}/${encodeURIComponent(table)}/${recordId}`;
+  const response = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json"
+    }
+  });
+
+  return handleResponse(response, table);
+}
+
 export async function filterFieldsBySchema(tableName: string, fields: Record<string, any>): Promise<Record<string, any>> {
   const schema = await getTableSchema(tableName);
   if (!schema || !schema.fields) {

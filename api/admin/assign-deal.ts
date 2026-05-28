@@ -1,4 +1,4 @@
-import { airtableCreate, airtableFetch, getTableSchema, escapeFormulaString, TABLES } from "../_utils/airtable.js";
+import { airtableCreate, airtableFetch, airtableFetchRecord, getTableSchema, escapeFormulaString, TABLES } from "../_utils/airtable.js";
 import { authenticateAdmin } from "./lenders.js";
 
 export default async function handler(req: any, res: any) {
@@ -16,7 +16,7 @@ export default async function handler(req: any, res: any) {
     }
 
     // 2. Fetch lender details to get their text Lender_ID
-    const lenderData = await airtableFetch(TABLES.LENDERS + `/${lenderRecordId}`);
+    const lenderData = await airtableFetchRecord(TABLES.LENDERS, lenderRecordId);
     const lenderIdText = lenderData.fields.Lender_ID;
 
     // 3. Fetch deal details to get its record ID
