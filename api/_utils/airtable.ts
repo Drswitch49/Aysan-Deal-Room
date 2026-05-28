@@ -120,7 +120,13 @@ export async function filterFieldsBySchema(tableName: string, fields: Record<str
     // Find matching field in the schema
     const matchingField = schema.fields.find((f: any) => {
       const cleanFieldName = f.name.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
-      return cleanFieldName === cleanKey;
+      return cleanFieldName === cleanKey || 
+             (cleanKey === "lenderid" && cleanFieldName === "lendersid") ||
+             (cleanKey === "lendersid" && cleanFieldName === "lenderid") ||
+             (cleanKey === "dealref" && cleanFieldName === "dealrefs") ||
+             (cleanKey === "dealrefs" && cleanFieldName === "dealref") ||
+             (cleanKey === "phone" && cleanFieldName === "phonenumber") ||
+             (cleanKey === "phonenumber" && cleanFieldName === "phone");
     });
 
     if (matchingField) {
@@ -222,6 +228,7 @@ const LENDER_FIELD_MAPPING: Record<string, string> = {
   contactname: "Contact_Name",
   email: "Email",
   phone: "Phone",
+  phonenumber: "Phone",
   portalslug: "Portal_Slug",
   portalpassword: "Portal_Password",
   status: "Status",
@@ -259,7 +266,9 @@ export function normalizeLenderFields(fields: Record<string, any>): Record<strin
 const ASSIGNMENT_FIELD_MAPPING: Record<string, string> = {
   assignmentid: "Assignment_ID",
   lenderid: "Lender_ID",
+  lendersid: "Lender_ID",
   dealref: "Deal_Ref",
+  dealrefs: "Deal_Ref",
   assignedat: "Assigned_At",
   assignedby: "Assigned_By",
   status: "Status"
@@ -295,8 +304,28 @@ export async function getAssignmentFields(): Promise<{ lenderIdCol: string; deal
     return { lenderIdCol: "Lender_ID", dealRefCol: "Deal_Ref", statusCol: "Status" };
   }
 
-  const lenderIdField = schema.fields.find((f: any) => f.name.replace(/[^a-zA-Z0-9]/g, "").toLowerCase() === "lenderid");
-  const dealRefField = schema.fields.find((f: any) => f.name.replace(/[^a-zA-Z0-9]/g, "").toLowerCase() === "dealref");
+  const lendersSchema = await getTableSchema(TABLES.LENDERS);
+  const pipelineSchema = await getTableSchema(TABLES.PIPELINE);
+
+  const lendersTableId = lendersSchema?.id;
+  const pipelineTableId = pipelineSchema?.id;
+
+  const lenderIdField = schema.fields.find((f: any) => {
+    if (f.type === "multipleRecordLinks" && lendersTableId && f.options?.linkedTableId === lendersTableId) {
+      return true;
+    }
+    const clean = f.name.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+    return clean === "lenderid" || clean === "lendersid";
+  });
+
+  const dealRefField = schema.fields.find((f: any) => {
+    if (f.type === "multipleRecordLinks" && pipelineTableId && f.options?.linkedTableId === pipelineTableId) {
+      return true;
+    }
+    const clean = f.name.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+    return clean === "dealref" || clean === "dealrefs" || clean === "dealreference";
+  });
+
   const statusField = schema.fields.find((f: any) => f.name.replace(/[^a-zA-Z0-9]/g, "").toLowerCase() === "status");
 
   return {

@@ -77,19 +77,41 @@ export default async function handler(req: any, res: any) {
     };
 
     if (schema) {
-      const lenderField = schema.fields.find((f: any) => f.name === "Lender_ID");
-      const dealField = schema.fields.find((f: any) => f.name === "Deal_Ref");
+      const lendersSchema = await getTableSchema(TABLES.LENDERS);
+      const pipelineSchema = await getTableSchema(TABLES.PIPELINE);
+
+      const lendersTableId = lendersSchema?.id;
+      const pipelineTableId = pipelineSchema?.id;
+
+      const lenderField = schema.fields.find((f: any) => {
+        if (f.type === "multipleRecordLinks" && lendersTableId && f.options?.linkedTableId === lendersTableId) {
+          return true;
+        }
+        const clean = f.name.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+        return clean === "lenderid" || clean === "lendersid";
+      });
+
+      const dealField = schema.fields.find((f: any) => {
+        if (f.type === "multipleRecordLinks" && pipelineTableId && f.options?.linkedTableId === pipelineTableId) {
+          return true;
+        }
+        const clean = f.name.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+        return clean === "dealref" || clean === "dealrefs" || clean === "dealreference";
+      });
+
+      const lenderKey = lenderField ? lenderField.name : "Lender_ID";
+      const dealKey = dealField ? dealField.name : "Deal_Ref";
 
       if (lenderField?.type === "multipleRecordLinks") {
-        fieldsToWrite.Lender_ID = [lenderRecordId];
+        fieldsToWrite[lenderKey] = [lenderRecordId];
       } else {
-        fieldsToWrite.Lender_ID = lenderIdText;
+        fieldsToWrite[lenderKey] = lenderIdText;
       }
 
       if (dealField?.type === "multipleRecordLinks") {
-        fieldsToWrite.Deal_Ref = [dealRecordId];
+        fieldsToWrite[dealKey] = [dealRecordId];
       } else {
-        fieldsToWrite.Deal_Ref = dealRef;
+        fieldsToWrite[dealKey] = dealRef;
       }
     } else {
       // Default fallback
