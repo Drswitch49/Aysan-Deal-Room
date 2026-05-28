@@ -21,8 +21,8 @@ export function ErrorState({ error }: { error: Error }) {
             <AlertTriangle className="h-4 w-4" aria-hidden="true" />
           </span>
           <div>
-            <p className="text-sm font-semibold text-white">Unable to load Airtable data</p>
-            <p className="text-xs font-medium text-rose-350">The display layer could not complete the read request.</p>
+            <p className="text-sm font-semibold text-white">Unable to load database data</p>
+            <p className="text-xs font-medium text-rose-350">The data layer could not complete the read request.</p>
           </div>
         </div>
       </div>
@@ -38,7 +38,7 @@ function AirtablePermissionState({ message }: { message: string }) {
         <div className="flex items-center justify-between gap-4">
           <div>
             <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">Connection Status</p>
-            <p className="mt-1 text-sm font-semibold text-white">Airtable base found, record layer blocked</p>
+            <p className="mt-1 text-sm font-semibold text-white">Database connection verified, access restricted</p>
           </div>
           <span className="rounded-md border border-amber-500/20 bg-amber-500/10 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.12em] text-amber-400">
             Action Required
@@ -53,20 +53,19 @@ function AirtablePermissionState({ message }: { message: string }) {
               <KeyRound className="h-5 w-5 text-acp-purple" aria-hidden="true" />
             </span>
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-100/80">Airtable Permission</p>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-100/80">Database Permission</p>
               <h2 className="mt-2 text-2xl font-semibold leading-tight tracking-normal">Record access is not enabled</h2>
             </div>
           </div>
 
           <p className="mt-6 max-w-2xl text-sm leading-7 text-blue-50/80">
-            The app can identify the Airtable base, but the current personal access token cannot read records from the
-            pipeline table. Update the token scopes and reload the deal room.
+            The application can verify the database connection, but permissions restrict reading records. Please check the access settings and reload.
           </p>
 
           <div className="mt-7 grid gap-3 sm:grid-cols-3">
             <ReadOnlyFact icon={<Database className="h-4 w-4" />} label="Base detected" />
             <ReadOnlyFact icon={<Table2 className="h-4 w-4" />} label="Table blocked" />
-            <ReadOnlyFact icon={<AlertTriangle className="h-4 w-4" />} label="403 from Airtable" />
+            <ReadOnlyFact icon={<AlertTriangle className="h-4 w-4" />} label="Access Denied (403)" />
           </div>
         </div>
 
@@ -92,7 +91,7 @@ function AirtablePermissionState({ message }: { message: string }) {
           </div>
 
           <div className="mt-4 rounded-lg border border-white/10 bg-white/5 px-4 py-3">
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Airtable response</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Database response</p>
             <p className="mt-1 break-words text-sm leading-6 text-slate-305">{message}</p>
           </div>
         </div>
@@ -119,14 +118,13 @@ function AirtableConfigState({ message }: { message: string }) {
               <Database className="h-5 w-5 text-acp-purple" aria-hidden="true" />
             </span>
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-100/80">Airtable Connection</p>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-100/80">Database Connection</p>
               <h2 className="mt-1 text-2xl font-semibold tracking-normal">Connect the source of truth</h2>
             </div>
           </div>
 
           <p className="mt-6 max-w-2xl text-sm leading-7 text-blue-50/80">
-            ACP Deal Room is ready. Add the Airtable environment variables and the interface will render live pipeline,
-            document, and submission data on reload.
+            ACP Deal Room is ready. Please configure the database environment variables to load live pipeline, document, and timeline data.
           </p>
 
           <div className="mt-7 grid gap-3 sm:grid-cols-3">

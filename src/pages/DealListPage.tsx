@@ -21,7 +21,7 @@ export function DealListPage() {
       {isLoading ? <LoadingState /> : null}
       {error ? <ErrorState error={error} /> : null}
       {!isLoading && !error && data?.length === 0 ? (
-        <EmptyState title="No active deals" message="Active Pipeline has no rows available to display." />
+        <EmptyState title="No active deals" message="No active deals are available to display." />
       ) : null}
 
       {!isLoading && !error && data && data.length > 0 ? (

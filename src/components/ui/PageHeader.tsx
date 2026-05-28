@@ -25,7 +25,7 @@ export function PageHeader({
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
             </span>
             <p className="text-[10px] font-bold uppercase tracking-wider text-slate-300">
-              Airtable Source Connected
+              Database Connected
             </p>
           </div>
         </div>

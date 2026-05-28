@@ -89,7 +89,7 @@ export function DocumentChecklist({ documents, audience }: DocumentChecklistProp
   const progress = visibleDocuments.length > 0 ? (releasedCount / visibleDocuments.length) * 100 : 0;
 
   if (visibleDocuments.length === 0) {
-    return <EmptyState title="No approved documents" message="Airtable has no Sent to Lender documents for this deal." />;
+    return <EmptyState title="No approved documents" message="No approved documents are available for this deal." />;
   }
 
   return (
@@ -387,24 +387,21 @@ export function DocumentChecklist({ documents, audience }: DocumentChecklistProp
 
             {/* Drawer Actions */}
             <div className="p-6 border-t border-white/5 bg-white/[0.01] grid grid-cols-2 gap-3.5">
-              <a
+              <ButtonLink
                 href={getDriveViewUrl(selectedDoc.driveLink)}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 text-xs font-bold uppercase tracking-wider text-slate-200 shadow-sm hover:bg-white/10 transition-colors"
+                icon="view"
+                className="h-11 w-full"
               >
-                <ExternalLink className="h-4 w-4" />
                 View File
-              </a>
-              <a
+              </ButtonLink>
+              <ButtonLink
                 href={getDriveDownloadUrl(selectedDoc.driveLink)}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-acp-purple to-acp-purple-dark text-xs font-bold uppercase tracking-wider text-white shadow-md hover:shadow-glow-purple transition-all"
+                icon="download"
+                variant="purple"
+                className="h-11 w-full"
               >
-                <Download className="h-4 w-4" />
                 Download
-              </a>
+              </ButtonLink>
             </div>
           </>
         )}

@@ -7,19 +7,34 @@ type ButtonLinkProps = AnchorHTMLAttributes<HTMLAnchorElement> & {
   variant?: "primary" | "secondary" | "purple";
 };
 
-export function ButtonLink({ children, className, icon, variant = "secondary", ...props }: ButtonLinkProps) {
+export function ButtonLink({ children, className, icon, variant = "secondary", href, ...props }: ButtonLinkProps) {
   const Icon = icon === "download" ? Download : ExternalLink;
+  const hasHref = href && href.trim() !== "";
+
+  if (!hasHref) {
+    return (
+      <span
+        className={cx(
+          "inline-flex min-h-9 items-center justify-center gap-2 rounded-lg px-3.5 text-xs font-bold uppercase tracking-wider shadow-sm border border-white/5 bg-white/[0.02] text-slate-500 opacity-40 cursor-not-allowed select-none",
+          className
+        )}
+      >
+        {icon ? <Icon className="h-3.5 w-3.5" aria-hidden="true" /> : null}
+        {children}
+      </span>
+    );
+  }
 
   return (
     <a
+      href={href}
       className={cx(
-        "inline-flex min-h-9 items-center justify-center gap-2 rounded-lg px-3.5 text-xs font-bold uppercase tracking-wider shadow-sm transition-all duration-300 transform hover:-translate-y-0.5 active:translate-y-0",
+        "inline-flex min-h-9 items-center justify-center gap-2 rounded-lg px-3.5 text-xs font-bold uppercase tracking-wider shadow-sm transition-all duration-300 transform hover:-translate-y-0.5 active:translate-y-0 cursor-pointer",
         variant === "primary"
           ? "bg-gradient-to-r from-acp-blue to-acp-cobalt text-white hover:shadow-glow-blue border border-transparent"
           : variant === "purple"
             ? "bg-gradient-to-r from-acp-purple to-acp-purple-dark text-white hover:shadow-glow-purple border border-transparent"
             : "border border-white/10 bg-white/5 text-slate-300 hover:border-white/20 hover:bg-white/10 hover:text-white",
-        props.href ? "cursor-pointer" : "pointer-events-none opacity-40",
         className,
       )}
       target="_blank"

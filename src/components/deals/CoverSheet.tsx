@@ -162,7 +162,7 @@ export function CoverSheet({ deal, audience }: CoverSheetProps) {
           </Table>
         ) : (
           <div className="rounded-2xl border border-dashed border-white/10 bg-white/5 p-8 text-center text-sm text-slate-400 shadow-soft">
-            No capital structure data is available in Airtable for this deal.
+            No capital structure data is available for this deal.
           </div>
         )}
       </section>
