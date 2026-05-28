@@ -21,6 +21,7 @@ export function AppLayout() {
 
           <nav className="mt-10 space-y-1.5">
             <SideNavItem to="/deals" icon={<FolderOpen className="h-4 w-4" aria-hidden="true" />} label="Active Deals" />
+            <SideNavItem to="/admin/lenders" icon={<Building2 className="h-4 w-4" aria-hidden="true" />} label="Lenders" />
           </nav>
 
           <div className="mt-8 rounded-xl border border-white/[0.06] bg-white/[0.02] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)] backdrop-blur-md">

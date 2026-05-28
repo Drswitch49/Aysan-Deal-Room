@@ -2,23 +2,37 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { Navigate, RouterProvider, createBrowserRouter } from "react-router-dom";
 import { AppLayout } from "./components/layout/AppLayout";
+import { AdminGuard } from "./components/layout/AdminGuard";
 import { DealDetailPage } from "./pages/DealDetailPage";
 import { DealListPage } from "./pages/DealListPage";
-import { LenderDealPage } from "./pages/LenderDealPage";
+import { LenderManagementPage } from "./pages/LenderManagementPage";
+import { LenderPortalPage } from "./pages/LenderPortalPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import "./styles.css";
 
 const router = createBrowserRouter([
   {
     path: "/",
-    element: <AppLayout />,
+    element: (
+      <AdminGuard>
+        <AppLayout />
+      </AdminGuard>
+    ),
     children: [
       { index: true, element: <Navigate to="/deals" replace /> },
       { path: "deals", element: <DealListPage /> },
       { path: "deals/:ref", element: <DealDetailPage /> },
-      { path: "lender/:ref", element: <LenderDealPage /> },
+      { path: "admin/lenders", element: <LenderManagementPage /> },
       { path: "*", element: <NotFoundPage /> },
     ],
+  },
+  {
+    path: "portal/:portalSlug",
+    element: <LenderPortalPage />,
+  },
+  {
+    path: "*",
+    element: <NotFoundPage />,
   },
 ]);
 
