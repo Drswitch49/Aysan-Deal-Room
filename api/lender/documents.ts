@@ -43,42 +43,34 @@ export default async function handler(req: any, res: any) {
       return res.status(200).json([]);
     }
 
-    // Resolve assigned deal IDs. Fetch pipeline schema first to dynamically construct queries.
-    const pipelineSchema = await getTableSchema(TABLES.PIPELINE);
-    const getPipelineFilterFormula = (dealRef: string) => {
-      if (pipelineSchema && pipelineSchema.fields) {
-        const formulas: string[] = [];
-        pipelineSchema.fields.forEach((f: any) => {
-          const cleanName = f.name.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
-          if (["refno", "dealref", "dealreference", "dealname"].includes(cleanName)) {
-            formulas.push(`{${f.name}} = '${escapeFormulaString(dealRef)}'`);
-          }
-        });
-        if (formulas.length > 0) {
-          return formulas.length === 1 ? formulas[0] : `OR(${formulas.join(", ")})`;
-        }
-      }
-      return `OR({REF No.} = '${escapeFormulaString(dealRef)}', {Deal_Ref} = '${escapeFormulaString(dealRef)}')`;
-    };
+    // Resolve assigned deals and their associated file links
+    const pipelineData = await airtableFetch(TABLES.PIPELINE);
+    const pipelineRecords = pipelineData.records || [];
 
     const dealIds = new Set<string>();
+    const dealFilesMap = new Map<string, string>();
+    const refToRecordMap = new Map<string, string>();
+
+    pipelineRecords.forEach((rec: any) => {
+      const refNo = rec.fields["REF No."] || rec.fields.Deal_Ref || rec.fields.dealRef || rec.fields["Deal Name"] || rec.fields.REF_No;
+      if (refNo) {
+        refToRecordMap.set(String(refNo).toLowerCase(), rec.id);
+      }
+      
+      const dealFiles = rec.fields["Deal Files"] || rec.fields.Deal_Files || rec.fields.deal_files || rec.fields["Deal Link"] || rec.fields.Drive_Link || rec.fields["Drive Link"] || rec.fields.Link || rec.fields.link || "";
+      if (dealFiles) {
+        dealFilesMap.set(rec.id, String(dealFiles));
+      }
+    });
+
     for (const record of assignmentsData.records) {
       const dealRefVal = record.fields.Deal_Ref;
       if (dealRefVal) {
         if (Array.isArray(dealRefVal)) {
           dealRefVal.forEach(id => dealIds.add(id));
         } else {
-          // If it's a string, we need to find its record ID from Pipeline table
-          try {
-            const pipeFormula = getPipelineFilterFormula(String(dealRefVal));
-            const pipeData = await airtableFetch(TABLES.PIPELINE, {
-              filterByFormula: pipeFormula,
-              maxRecords: 1
-            });
-            if (pipeData.records?.[0]) {
-              dealIds.add(pipeData.records[0].id);
-            }
-          } catch {}
+          const matchedId = refToRecordMap.get(String(dealRefVal).toLowerCase()) || dealRefVal;
+          dealIds.add(matchedId);
         }
       }
     }
@@ -88,7 +80,6 @@ export default async function handler(req: any, res: any) {
 
     // 4. Filter:
     // - Must belong to one of the assigned deals (matching by dealRef linked record ID)
-    // - Status must be "Sent to Lender" (case insensitive)
     const approvedDocs = documentsData.records.filter((doc: any) => {
       const docDealRefs = doc.fields.Deal_Ref || [];
       const belongsToAssignedDeal = Array.isArray(docDealRefs) 
@@ -98,7 +89,7 @@ export default async function handler(req: any, res: any) {
       return belongsToAssignedDeal;
     });
 
-    // 5. Redact fields on the server side
+    // 5. Redact fields and inject populated / fallback Drive_Link field
     const safeDocs = approvedDocs.map((doc: any) => {
       const fields: Record<string, any> = {};
       Object.keys(doc.fields).forEach(key => {
@@ -106,6 +97,28 @@ export default async function handler(req: any, res: any) {
           fields[key] = doc.fields[key];
         }
       });
+
+      // Find if we already have a drive link in the safe fields
+      const existingLinkKey = Object.keys(fields).find(k => 
+        ["drive link", "Drive Link", "Drive_Link", "drive_link", "Link", "link"].includes(k)
+      );
+      
+      let linkValue = existingLinkKey ? fields[existingLinkKey] : "";
+      if (!linkValue) {
+        // Fallback to deal files link
+        const docDealRefs = doc.fields.Deal_Ref || [];
+        const matchedDealId = Array.isArray(docDealRefs) 
+          ? docDealRefs.find(id => dealFilesMap.has(id))
+          : (dealFilesMap.has(String(docDealRefs)) ? String(docDealRefs) : undefined);
+        
+        if (matchedDealId) {
+          linkValue = dealFilesMap.get(matchedDealId) || "";
+        }
+      }
+
+      // Ensure Drive_Link is explicitly provided for mapping on the client side
+      fields["Drive_Link"] = linkValue;
+
       return {
         id: doc.id,
         fields
