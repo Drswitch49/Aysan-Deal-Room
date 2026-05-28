@@ -1,4 +1,5 @@
-import { BriefcaseBusiness, FolderOpen, FileWarning, Send, Database } from "lucide-react";
+import { useState, useMemo } from "react";
+import { BriefcaseBusiness, FolderOpen, FileWarning, Send, Database, Search } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useDealListRows } from "../hooks/useDealRoomData";
@@ -10,9 +11,30 @@ import { cx } from "../utils/cx";
 
 export function DealListPage() {
   const { data, error, isLoading } = useDealListRows();
+  const [searchQuery, setSearchQuery] = useState("");
+
   const activeDealCount = data?.length ?? 0;
   const outstandingCount = data?.reduce((total, row) => total + row.outstandingDocumentCount, 0) ?? 0;
   const contactedCount = data?.filter((row) => row.daysSinceLastLenderContact !== null).length ?? 0;
+
+  const filteredData = useMemo(() => {
+    if (!data) return [];
+    if (!searchQuery.trim()) return data;
+    const query = searchQuery.toLowerCase().trim();
+    return data.filter(({ deal }) => {
+      const dealRef = String(deal.dealRef || "").toLowerCase();
+      const companyName = String(deal.companyName || "").toLowerCase();
+      const status = String(deal.status || "").toLowerCase();
+      const sector = String(deal.sector || "").toLowerCase();
+      const location = String(deal.location || "").toLowerCase();
+      
+      return dealRef.includes(query) || 
+             companyName.includes(query) || 
+             status.includes(query) ||
+             sector.includes(query) ||
+             location.includes(query);
+    });
+  }, [data, searchQuery]);
 
   return (
     <div className="space-y-8 animate-fade-in-up">
@@ -54,88 +76,103 @@ export function DealListPage() {
           </div>
 
           <div>
-            <div className="mb-5 flex items-center justify-between">
+            <div className="mb-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div className="flex items-center gap-3">
                 <h2 className="text-sm font-black uppercase tracking-wider text-white">Pipeline Registry</h2>
-                <span className="rounded-full bg-white/5 border border-white/10 px-2.5 py-0.5 text-[10px] font-bold text-slate-400">{data.length} Results</span>
+                <span className="rounded-full bg-white/5 border border-white/10 px-2.5 py-0.5 text-[10px] font-bold text-slate-400">
+                  {filteredData.length} {filteredData.length === 1 ? "Result" : "Results"}
+                </span>
               </div>
-              <Link 
-                to="/deals" 
-                className="rounded-full bg-[#8b5cf6] hover:bg-[#7c3aed] text-white px-4 py-1.5 text-[10px] font-black uppercase tracking-widest transition-colors duration-300 shadow-md shadow-[#8b5cf6]/20"
-              >
-                View All
-              </Link>
+              
+              <div className="relative w-full sm:max-w-xs">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search deals..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="h-9 w-full rounded-xl border border-white/10 bg-[#0d0c1d] pl-9 pr-4 text-xs text-white placeholder-slate-500 outline-none transition-all duration-300 focus:border-acp-purple focus:ring-1 focus:ring-acp-purple"
+                />
+              </div>
             </div>
 
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {data.map(({ deal, outstandingDocumentCount, daysSinceLastLenderContact }) => {
-                // Generate initials from assigned names
-                const execName = deal.lenderAssigned || "Executive Manager";
-                const execInitials = execName.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
-                
-                const brokerName = deal.broker || "Sponsor Broker";
-                const brokerInitials = brokerName.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
+            {filteredData.length === 0 ? (
+              <div className="rounded-2xl border border-white/[0.06] bg-[#0d0c1d] p-12 text-center shadow-premium-card card-sheen">
+                <Search className="mx-auto h-8 w-8 text-slate-500 mb-3" />
+                <p className="text-xs font-bold text-slate-350">No matching deals found</p>
+                <p className="text-[10px] text-slate-450 mt-1">Try resetting your search query.</p>
+              </div>
+            ) : (
+              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                {filteredData.map(({ deal, outstandingDocumentCount, daysSinceLastLenderContact }) => {
+                  // Generate initials from assigned names
+                  const execName = deal.lenderAssigned || "Executive Manager";
+                  const execInitials = execName.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
+                  
+                  const brokerName = deal.broker || "Sponsor Broker";
+                  const brokerInitials = brokerName.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
 
-                return (
-                  <Link
-                    key={deal.id}
-                    to={`/deals/${encodeURIComponent(deal.dealRef)}`}
-                    className="group block relative overflow-hidden rounded-2xl border border-white/[0.06] bg-[#0d0c1d] backdrop-blur-md p-6 shadow-premium-card transition-all duration-300 hover:border-acp-purple/40 hover:bg-[#0d0c1d]/90 hover:shadow-[0_12px_30px_rgba(139,92,246,0.06)] hover:-translate-y-0.5 card-sheen"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <span className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-acp-purple">
-                          {deal.dealRef || "Missing Ref"}
-                        </span>
-                        <h3 className="mt-1 text-sm font-semibold text-white tracking-wide truncate group-hover:text-acp-purple transition-colors">
-                          {deal.companyName || "Not specified"}
-                        </h3>
-                      </div>
-                      <div className="shrink-0">
-                        <StatusBadge status={deal.status} />
-                      </div>
-                    </div>
-
-                    <p className="mt-3.5 text-xs text-slate-400 font-medium line-clamp-2 leading-relaxed">
-                      Secure deal room active for {deal.companyName || "this transaction"}. Review documents and checklists.
-                    </p>
-
-                    <div className="mt-6 pt-4 border-t border-white/[0.04] flex items-center justify-between gap-4">
-                      <div className="flex items-center gap-4">
-                        <div className="text-left">
-                          <span className="block text-[8px] font-extrabold uppercase tracking-wider text-slate-500">Pending</span>
-                          <span className="mt-0.5 block text-xs font-bold text-white">
-                            {outstandingDocumentCount} files
+                  return (
+                    <Link
+                      key={deal.id}
+                      to={`/deals/${encodeURIComponent(deal.dealRef)}`}
+                      className="group block relative overflow-hidden rounded-2xl border border-white/[0.06] bg-[#0d0c1d] backdrop-blur-md p-6 shadow-premium-card transition-all duration-300 hover:border-acp-purple/40 hover:bg-[#0d0c1d]/90 hover:shadow-[0_12px_30px_rgba(139,92,246,0.06)] hover:-translate-y-0.5 card-sheen"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <span className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-acp-purple">
+                            {deal.dealRef || "Missing Ref"}
                           </span>
+                          <h3 className="mt-1 text-sm font-semibold text-white tracking-wide truncate group-hover:text-acp-purple transition-colors">
+                            {deal.companyName || "Not specified"}
+                          </h3>
                         </div>
-                        <div className="text-left border-l border-white/[0.06] pl-4">
-                          <span className="block text-[8px] font-extrabold uppercase tracking-wider text-slate-500">Last Contact</span>
-                          <span className="mt-0.5 block text-xs font-bold text-white">
-                            {daysSinceLastLenderContact === null ? "No contact" : `${daysSinceLastLenderContact}d ago`}
-                          </span>
+                        <div className="shrink-0">
+                          <StatusBadge status={deal.status} />
                         </div>
                       </div>
 
-                      {/* Overlapping team avatar circles */}
-                      <div className="flex -space-x-1.5 overflow-hidden">
-                        <div 
-                          className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-blue-500/10 border border-blue-500/20 text-[9px] font-bold text-blue-400 shadow-sm"
-                          title={`Assigned Executive: ${execName}`}
-                        >
-                          {execInitials}
+                      <p className="mt-3.5 text-xs text-slate-400 font-medium line-clamp-2 leading-relaxed">
+                        Secure deal room active for {deal.companyName || "this transaction"}. Review documents and checklists.
+                      </p>
+
+                      <div className="mt-6 pt-4 border-t border-white/[0.04] flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-4">
+                          <div className="text-left">
+                            <span className="block text-[8px] font-extrabold uppercase tracking-wider text-slate-500">Pending</span>
+                            <span className="mt-0.5 block text-xs font-bold text-white">
+                              {outstandingDocumentCount} files
+                            </span>
+                          </div>
+                          <div className="text-left border-l border-white/[0.06] pl-4">
+                            <span className="block text-[8px] font-extrabold uppercase tracking-wider text-slate-500">Last Contact</span>
+                            <span className="mt-0.5 block text-xs font-bold text-white">
+                              {daysSinceLastLenderContact === null ? "No contact" : `${daysSinceLastLenderContact}d ago`}
+                            </span>
+                          </div>
                         </div>
-                        <div 
-                          className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-acp-purple/10 border border-acp-purple/20 text-[9px] font-bold text-acp-purple shadow-sm"
-                          title={`Sponsoring Broker: ${brokerName}`}
-                        >
-                          {brokerInitials}
+
+                        {/* Overlapping team avatar circles */}
+                        <div className="flex -space-x-1.5 overflow-hidden">
+                          <div 
+                            className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-blue-500/10 border border-blue-500/20 text-[9px] font-bold text-blue-400 shadow-sm"
+                            title={`Assigned Executive: ${execName}`}
+                          >
+                            {execInitials}
+                          </div>
+                          <div 
+                            className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-acp-purple/10 border border-acp-purple/20 text-[9px] font-bold text-acp-purple shadow-sm"
+                            title={`Sponsoring Broker: ${brokerName}`}
+                          >
+                            {brokerInitials}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </Link>
-                );
-              })}
-            </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       ) : null}
