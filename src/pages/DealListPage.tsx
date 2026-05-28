@@ -12,33 +12,73 @@ import { cx } from "../utils/cx";
 export function DealListPage() {
   const { data, error, isLoading } = useDealListRows();
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("All");
 
   const activeDealCount = data?.length ?? 0;
   const outstandingCount = data?.reduce((total, row) => total + row.outstandingDocumentCount, 0) ?? 0;
   const contactedCount = data?.filter((row) => row.daysSinceLastLenderContact !== null).length ?? 0;
 
+  const categories = useMemo(() => {
+    if (!data) return [];
+    const counts: Record<string, number> = {};
+    data.forEach(({ deal }) => {
+      const status = deal.status || "Unknown";
+      counts[status] = (counts[status] || 0) + 1;
+    });
+
+    const uniqueStatuses = Object.keys(counts).sort();
+
+    return [
+      { name: "All", count: data.length },
+      ...uniqueStatuses.map((status) => ({
+        name: status,
+        count: counts[status],
+      })),
+    ];
+  }, [data]);
+
   const filteredData = useMemo(() => {
     if (!data) return [];
-    if (!searchQuery.trim()) return data;
+
+    let result = data;
+    if (selectedCategory !== "All") {
+      result = data.filter(({ deal }) => {
+        const status = deal.status || "";
+        return status.toLowerCase() === selectedCategory.toLowerCase();
+      });
+    }
+
+    if (!searchQuery.trim()) return result;
     const query = searchQuery.toLowerCase().trim();
-    return data.filter(({ deal }) => {
+    return result.filter(({ deal }) => {
       const dealRef = String(deal.dealRef || "").toLowerCase();
       const companyName = String(deal.companyName || "").toLowerCase();
       const status = String(deal.status || "").toLowerCase();
       const sector = String(deal.sector || "").toLowerCase();
       const location = String(deal.location || "").toLowerCase();
-      
-      return dealRef.includes(query) || 
-             companyName.includes(query) || 
+
+      return dealRef.includes(query) ||
+             companyName.includes(query) ||
              status.includes(query) ||
              sector.includes(query) ||
              location.includes(query);
     });
-  }, [data, searchQuery]);
+  }, [data, selectedCategory, searchQuery]);
+
+  const handleViewAllDeals = () => {
+    setSearchQuery("");
+    setSelectedCategory("All");
+    setTimeout(() => {
+      const element = document.getElementById("pipeline-registry");
+      if (element) {
+        element.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }, 100);
+  };
 
   return (
     <div className="space-y-8 animate-fade-in-up">
-      <DealRoomHero />
+      <DealRoomHero onViewAllDeals={handleViewAllDeals} />
 
       {isLoading ? <LoadingState /> : null}
       {error ? <ErrorState error={error} /> : null}
@@ -75,24 +115,55 @@ export function DealListPage() {
             />
           </div>
 
-          <div>
-            <div className="mb-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <h2 className="text-sm font-black uppercase tracking-wider text-white">Pipeline Registry</h2>
-                <span className="rounded-full bg-white/5 border border-white/10 px-2.5 py-0.5 text-[10px] font-bold text-slate-400">
-                  {filteredData.length} {filteredData.length === 1 ? "Result" : "Results"}
-                </span>
+          <div id="pipeline-registry" className="scroll-mt-6">
+            <div className="mb-6 flex flex-col gap-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <h2 className="text-sm font-black uppercase tracking-wider text-white">Pipeline Registry</h2>
+                  <span className="rounded-full bg-white/5 border border-white/10 px-2.5 py-0.5 text-[10px] font-bold text-slate-400">
+                    {filteredData.length} {filteredData.length === 1 ? "Result" : "Results"}
+                  </span>
+                </div>
+                
+                <div className="relative w-full sm:max-w-xs">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Search deals..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="h-9 w-full rounded-xl border border-white/10 bg-[#0d0c1d] pl-9 pr-4 text-xs text-white placeholder-slate-500 outline-none transition-all duration-300 focus:border-acp-purple focus:ring-1 focus:ring-acp-purple"
+                  />
+                </div>
               </div>
-              
-              <div className="relative w-full sm:max-w-xs">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                <input
-                  type="text"
-                  placeholder="Search deals..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="h-9 w-full rounded-xl border border-white/10 bg-[#0d0c1d] pl-9 pr-4 text-xs text-white placeholder-slate-500 outline-none transition-all duration-300 focus:border-acp-purple focus:ring-1 focus:ring-acp-purple"
-                />
+
+              {/* Dynamic Status Category Pills */}
+              <div className="flex flex-wrap gap-2 py-1">
+                {categories.map((category) => {
+                  const isActive = selectedCategory === category.name;
+                  return (
+                    <button
+                      key={category.name}
+                      onClick={() => setSelectedCategory(category.name)}
+                      className={cx(
+                        "inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all duration-200 border cursor-pointer",
+                        isActive
+                          ? "bg-gradient-to-r from-[#5b5ef0] to-[#8b5cf6] text-white border-transparent shadow-[0_4px_12px_rgba(139,92,246,0.15)] scale-[1.02]"
+                          : "bg-[#0d0c1d] hover:bg-[#15132d] text-slate-400 hover:text-white border-white/[0.06] hover:border-white/12"
+                      )}
+                    >
+                      <span>{category.name}</span>
+                      <span
+                        className={cx(
+                          "inline-flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[9px] font-black",
+                          isActive ? "bg-white/20 text-white" : "bg-white/5 text-slate-500"
+                        )}
+                      >
+                        {category.count}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -180,7 +251,7 @@ export function DealListPage() {
   );
 }
 
-function DealRoomHero() {
+function DealRoomHero({ onViewAllDeals }: { onViewAllDeals: () => void }) {
   return (
     <section className="relative overflow-hidden rounded-2xl border border-white/[0.08] bg-gradient-to-r from-[#5b5ef0] to-[#b372f8] text-white shadow-[0_20px_50px_rgba(139,92,246,0.15)] card-sheen">
       {/* Premium ambient glows */}
@@ -203,12 +274,12 @@ function DealRoomHero() {
           <p className="mt-3.5 text-xs font-semibold leading-relaxed text-slate-100">
             Secure dashboard to review transactions, document checklists, and submission timelines.
           </p>
-          <Link
-            to="/deals"
-            className="mt-6 inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-white px-5 text-xs font-black uppercase tracking-wider text-slate-950 shadow-md hover:bg-slate-100 transition-all transform hover:-translate-y-0.5 active:translate-y-0"
+          <button
+            onClick={onViewAllDeals}
+            className="mt-6 inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-white px-5 text-xs font-black uppercase tracking-wider text-slate-950 shadow-md hover:bg-slate-100 transition-all transform hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
           >
-            View Pipeline
-          </Link>
+            View All Deals
+          </button>
         </div>
       </div>
     </section>
