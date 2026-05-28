@@ -101,3 +101,18 @@ export async function regenerateLenderPortal(lenderRecordId: string) {
 
   return response.json();
 }
+
+export async function deleteLender(lenderRecordId: string) {
+  const response = await fetch("/api/admin/delete-lender", {
+    method: "POST",
+    headers: getAdminHeaders(),
+    body: JSON.stringify({ lenderRecordId })
+  });
+
+  if (!response.ok) {
+    const err = await response.json();
+    throw new Error(err.error || "Failed to delete lender");
+  }
+
+  return response.json();
+}

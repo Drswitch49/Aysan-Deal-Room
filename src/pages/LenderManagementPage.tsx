@@ -10,7 +10,7 @@ import { StatusBadge } from "../components/ui/Badge";
 import { Table, Td, Th } from "../components/ui/Table";
 import { 
   fetchAdminLenders, createLender, assignDealToLender, 
-  removeDealAssignment, resetLenderPassword, regenerateLenderPortal 
+  removeDealAssignment, resetLenderPassword, regenerateLenderPortal, deleteLender 
 } from "../api/admin";
 import { getDeals } from "../api/airtable";
 import type { PipelineDeal } from "../types/deal";
@@ -64,6 +64,7 @@ export function LenderManagementPage() {
   // Collapsed Assigned Deals & Searchable Deals modal
   const [expandedLenderIds, setExpandedLenderIds] = useState<Record<string, boolean>>({});
   const [dealSearchQuery, setDealSearchQuery] = useState("");
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
 
   const toggleLenderExpanded = (lenderId: string) => {
     setExpandedLenderIds((prev) => ({
@@ -208,6 +209,27 @@ export function LenderManagementPage() {
   function closeResetModal() {
     setIsResetConfirmOpen(false);
     setNewResetPassword(null);
+    setSelectedLender(null);
+  }
+
+  async function handleDeleteLender() {
+    if (!selectedLender) return;
+    setSubmitting(true);
+    try {
+      await deleteLender(selectedLender.id);
+      setIsDeleteConfirmOpen(false);
+      setSelectedLender(null);
+      const updated = await fetchAdminLenders();
+      setLenders(updated);
+    } catch (err: any) {
+      alert(err.message || "Error deleting lender");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  function closeDeleteModal() {
+    setIsDeleteConfirmOpen(false);
     setSelectedLender(null);
   }
 
@@ -400,7 +422,7 @@ export function LenderManagementPage() {
                             setSelectedLender(lender);
                             setIsResetConfirmOpen(true);
                           }}
-                          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 text-[10px] font-bold uppercase tracking-wider text-slate-300 hover:bg-white/10 transition"
+                          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 text-[10px] font-bold uppercase tracking-wider text-slate-300 hover:bg-white/10 transition cursor-pointer"
                         >
                           <RotateCcw className="h-3 w-3" />
                           Reset Pass
@@ -408,10 +430,21 @@ export function LenderManagementPage() {
                         {/* Regenerate Slug */}
                         <button
                           onClick={() => handleRegeneratePortal(lender.id)}
-                          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 text-[10px] font-bold uppercase tracking-wider text-slate-300 hover:bg-white/10 transition"
+                          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 text-[10px] font-bold uppercase tracking-wider text-slate-300 hover:bg-white/10 transition cursor-pointer"
                         >
                           <Link2 className="h-3 w-3" />
                           New Link
+                        </button>
+                        {/* Delete Lender */}
+                        <button
+                          onClick={() => {
+                            setSelectedLender(lender);
+                            setIsDeleteConfirmOpen(true);
+                          }}
+                          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-rose-500/20 bg-rose-500/5 px-3 text-[10px] font-bold uppercase tracking-wider text-rose-450 hover:bg-rose-500/10 hover:border-rose-500/30 transition cursor-pointer"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                          Delete
                         </button>
                       </div>
                     </Td>
@@ -708,6 +741,51 @@ export function LenderManagementPage() {
                 </button>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 4: DELETE LENDER CONFIRMATION */}
+      {isDeleteConfirmOpen && selectedLender && (
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0d0c1d] p-6 shadow-2xl relative text-center animate-scale-in">
+            <button
+              onClick={closeDeleteModal}
+              className="absolute right-4 top-4 text-slate-450 hover:text-white cursor-pointer"
+              type="button"
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            <div className="space-y-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/20 mx-auto">
+                <Trash2 className="h-6 w-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white uppercase tracking-wider">Delete Lender?</h3>
+                <p className="text-xs text-slate-400 mt-1">
+                  Are you sure you want to delete <strong>{selectedLender.Company_Name}</strong>? This will permanently remove their portal access and all active deal assignments in Airtable.
+                </p>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={closeDeleteModal}
+                  className="flex-1 inline-flex h-10 items-center justify-center rounded-xl bg-white/5 border border-white/10 text-xs font-bold uppercase tracking-wider text-white hover:bg-white/10 cursor-pointer"
+                  type="button"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeleteLender}
+                  disabled={submitting}
+                  className="flex-1 inline-flex h-10 items-center justify-center rounded-xl bg-rose-500 text-xs font-bold uppercase tracking-wider text-white hover:bg-rose-600 disabled:opacity-40 cursor-pointer"
+                  type="button"
+                >
+                  {submitting ? "Deleting..." : "Confirm Delete"}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
