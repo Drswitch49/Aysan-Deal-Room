@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Building2, Database, FolderOpen, LockKeyhole, ShieldCheck, Table2, Volume2, Music, Settings, Bell, Shield } from "lucide-react";
+import { Building2, Database, FolderOpen, LockKeyhole, ShieldCheck, Table2, Shield } from "lucide-react";
 import { NavLink, Outlet, useLocation, Link } from "react-router-dom";
 import { cx } from "../../utils/cx";
 
@@ -63,13 +63,6 @@ export function AppLayout() {
             <div className="hidden items-center gap-2.5 md:flex">
               <Pill icon={<Database className="h-3.5 w-3.5 text-acp-blue" aria-hidden="true" />} label="Airtable Pipeline" />
               <Pill icon={<ShieldCheck className="h-3.5 w-3.5 text-acp-emerald" aria-hidden="true" />} label="Secure Display" />
-              <span className="w-px bg-white/10 h-5 mx-1" />
-              <div className="flex items-center gap-2">
-                <HeaderButton icon={<Volume2 className="h-4 w-4" />} />
-                <HeaderButton icon={<Music className="h-4 w-4" />} />
-                <HeaderButton icon={<Settings className="h-4 w-4" />} />
-                <HeaderButton icon={<Bell className="h-4 w-4" />} badge />
-              </div>
             </div>
           </div>
         </header>
@@ -83,22 +76,6 @@ export function AppLayout() {
   );
 }
 
-function HeaderButton({ icon, badge = false }: { icon: ReactNode; badge?: boolean }) {
-  return (
-    <button
-      type="button"
-      className="flex h-9 w-9 items-center justify-center rounded-full border border-white/[0.06] bg-[#0c1122]/40 text-slate-400 hover:text-white hover:border-white/15 transition-all duration-300 relative shadow-sm hover:scale-105 active:scale-95"
-    >
-      {icon}
-      {badge && (
-        <span className="absolute top-1.5 right-1.5 flex h-2 w-2">
-          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-acp-purple opacity-75" />
-          <span className="relative inline-flex rounded-full h-2 w-2 bg-acp-purple" />
-        </span>
-      )}
-    </button>
-  );
-}
 
 function BrandBlock({ compact = false }: { compact?: boolean }) {
   return (
