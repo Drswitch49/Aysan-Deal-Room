@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { 
   Building2, Users, Link2, KeyRound, Copy, Check, ShieldCheck, 
-  RotateCcw, Trash2, UserPlus, X, ChevronRight, Ban, CheckCircle, ExternalLink 
+  RotateCcw, Trash2, UserPlus, X, ChevronRight, Ban, CheckCircle, ExternalLink, Search 
 } from "lucide-react";
 import { PageHeader } from "../components/ui/PageHeader";
 import { LoadingState } from "../components/ui/LoadingState";
@@ -60,6 +60,17 @@ export function LenderManagementPage() {
   const [newPhone, setNewPhone] = useState("");
   const [selectedDealRef, setSelectedDealRef] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  // Collapsed Assigned Deals & Searchable Deals modal
+  const [expandedLenderIds, setExpandedLenderIds] = useState<Record<string, boolean>>({});
+  const [dealSearchQuery, setDealSearchQuery] = useState("");
+
+  const toggleLenderExpanded = (lenderId: string) => {
+    setExpandedLenderIds((prev) => ({
+      ...prev,
+      [lenderId]: !prev[lenderId],
+    }));
+  };
 
   useEffect(() => {
     loadData();
@@ -325,27 +336,53 @@ export function LenderManagementPage() {
                     <Td className="min-w-[260px]">
                       {/* List of deals */}
                       <div className="flex flex-wrap gap-1.5 max-w-[320px]">
-                        {lender.assignments.map((asg) => (
+                        {(expandedLenderIds[lender.id]
+                          ? lender.assignments
+                          : lender.assignments.slice(0, 3)
+                        ).map((asg) => (
                           <span
                             key={asg.assignmentId}
-                            className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[10px] font-semibold text-slate-350"
+                            className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[10px] font-semibold text-slate-355"
                           >
                             {asg.dealRef}
                             <button
                               onClick={() => handleRemoveAssignment(asg.assignmentId)}
-                              className="text-slate-500 hover:text-rose-400 transition"
+                              className="text-slate-500 hover:text-rose-400 transition cursor-pointer"
                               title="Revoke access"
                             >
                               <X className="h-3 w-3" />
                             </button>
                           </span>
                         ))}
+
+                        {/* Expand (+N more) button */}
+                        {!expandedLenderIds[lender.id] && lender.assignments.length > 3 && (
+                          <button
+                            onClick={() => toggleLenderExpanded(lender.id)}
+                            className="inline-flex items-center gap-1 rounded-full border border-acp-purple/20 bg-acp-purple/5 px-2 py-0.5 text-[10px] font-black text-acp-purple hover:bg-acp-purple/10 hover:border-acp-purple/30 transition cursor-pointer"
+                          >
+                            +{lender.assignments.length - 3}
+                          </button>
+                        )}
+
+                        {/* Collapse (Show less) button */}
+                        {expandedLenderIds[lender.id] && lender.assignments.length > 3 && (
+                          <button
+                            onClick={() => toggleLenderExpanded(lender.id)}
+                            className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-semibold text-slate-400 hover:text-white transition cursor-pointer"
+                          >
+                            Show Less
+                          </button>
+                        )}
+
                         <button
                           onClick={() => {
                             setSelectedLender(lender);
+                            setDealSearchQuery("");
+                            setSelectedDealRef("");
                             setIsAssignModalOpen(true);
                           }}
-                          className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-acp-purple/10 border border-acp-purple/20 text-acp-purple hover:bg-acp-purple hover:text-white transition"
+                          className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-acp-purple/10 border border-acp-purple/20 text-acp-purple hover:bg-acp-purple hover:text-white transition cursor-pointer"
                           title="Assign deal"
                         >
                           +
@@ -510,13 +547,13 @@ export function LenderManagementPage() {
       {/* MODAL 2: ASSIGN DEALS */}
       {isAssignModalOpen && selectedLender && (
         <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0d0c1d] p-6 shadow-2xl relative">
+          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0d0c1d] p-6 shadow-2xl relative animate-scale-in">
             <button
               onClick={() => {
                 setIsAssignModalOpen(false);
                 setSelectedLender(null);
               }}
-              className="absolute right-4 top-4 text-slate-450 hover:text-white"
+              className="absolute right-4 top-4 text-slate-450 hover:text-white cursor-pointer"
             >
               <X className="h-5 w-5" />
             </button>
@@ -525,30 +562,77 @@ export function LenderManagementPage() {
               <h3 className="text-base font-bold text-white uppercase tracking-wider mb-1">Assign Deal</h3>
               <p className="text-xs text-slate-400">Grant portal review access to {selectedLender.Company_Name}.</p>
 
-              <div>
+              <div className="space-y-2">
                 <label className="block text-[9px] font-extrabold uppercase tracking-wider text-slate-400">Select Acquisition Deal</label>
-                <select
-                  required
-                  value={selectedDealRef}
-                  onChange={(e) => setSelectedDealRef(e.target.value)}
-                  className="mt-1.5 h-11 w-full rounded-xl border border-white/10 bg-[#06050e] px-3 text-xs text-white outline-none focus:border-acp-purple cursor-pointer"
-                >
-                  <option value="">-- Choose Deal --</option>
+                
+                {/* Search Bar Input */}
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-450" />
+                  <input
+                    type="text"
+                    placeholder="Search by Deal ID or Company Name..."
+                    value={dealSearchQuery}
+                    onChange={(e) => setDealSearchQuery(e.target.value)}
+                    className="h-10 w-full rounded-xl border border-white/10 bg-[#06050e] pl-9 pr-4 text-xs text-white placeholder-slate-600 outline-none transition-all duration-300 focus:border-acp-purple focus:ring-1 focus:ring-acp-purple"
+                  />
+                </div>
+
+                {/* Custom Searchable Scroll Container */}
+                <div className="max-h-48 overflow-y-auto rounded-xl border border-white/10 bg-[#06050e] divide-y divide-white/[0.04] custom-scrollbar">
                   {deals
                     // Filter out deals already assigned to this lender
                     .filter(deal => !selectedLender.assignments.some(a => a.dealRef === deal.dealRef))
-                    .map(deal => (
-                      <option key={deal.id} value={deal.dealRef}>
-                        {deal.dealRef} — {deal.companyName}
-                      </option>
-                    ))}
-                </select>
+                    // Filter by search query
+                    .filter(deal => {
+                      if (!dealSearchQuery.trim()) return true;
+                      const q = dealSearchQuery.toLowerCase();
+                      const refStr = String(deal.dealRef || "").toLowerCase();
+                      const company = String(deal.companyName || "").toLowerCase();
+                      return refStr.includes(q) || company.includes(q);
+                    })
+                    .map(deal => {
+                      const isSelected = selectedDealRef === deal.dealRef;
+                      return (
+                        <button
+                          key={deal.id}
+                          type="button"
+                          onClick={() => setSelectedDealRef(deal.dealRef)}
+                          className={cx(
+                            "w-full text-left px-3 py-2.5 text-xs transition-colors flex items-center justify-between cursor-pointer",
+                            isSelected 
+                              ? "bg-acp-purple/10 text-white font-bold" 
+                              : "text-slate-300 hover:bg-white/5"
+                          )}
+                        >
+                          <div className="min-w-0">
+                            <span className="font-semibold text-white">{deal.dealRef}</span>
+                            <span className="text-slate-450 ml-2">— {deal.companyName || "Not specified"}</span>
+                          </div>
+                          {isSelected && <Check className="h-4 w-4 text-acp-purple shrink-0" />}
+                        </button>
+                      );
+                    })}
+
+                  {deals
+                    .filter(deal => !selectedLender.assignments.some(a => a.dealRef === deal.dealRef))
+                    .filter(deal => {
+                      if (!dealSearchQuery.trim()) return true;
+                      const q = dealSearchQuery.toLowerCase();
+                      const refStr = String(deal.dealRef || "").toLowerCase();
+                      const company = String(deal.companyName || "").toLowerCase();
+                      return refStr.includes(q) || company.includes(q);
+                    }).length === 0 && (
+                      <div className="p-4 text-center text-xs text-slate-500">
+                        No assignable deals found
+                      </div>
+                    )}
+                </div>
               </div>
 
               <button
                 type="submit"
                 disabled={submitting || !selectedDealRef}
-                className="w-full inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-acp-purple to-acp-purple-dark text-xs font-bold uppercase tracking-wider text-white shadow-md hover:shadow-glow-purple disabled:opacity-40"
+                className="w-full inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-acp-purple to-acp-purple-dark text-xs font-bold uppercase tracking-wider text-white shadow-md hover:shadow-glow-purple disabled:opacity-40 cursor-pointer"
               >
                 {submitting ? "Assigning..." : "Assign Access"}
               </button>
