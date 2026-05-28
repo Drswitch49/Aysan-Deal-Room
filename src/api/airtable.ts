@@ -238,7 +238,7 @@ async function getExistFields(tableName: string, safeFields: string[]): Promise<
       buildTableUrl(tableName) + "&maxRecords=100"
     );
     if (response.records.length === 0) {
-      return safeFields.slice(0, 5);
+      return [];
     }
     const allKeys = new Set<string>();
     for (const record of response.records) {
@@ -248,7 +248,7 @@ async function getExistFields(tableName: string, safeFields: string[]): Promise<
     }
     return safeFields.filter((f) => allKeys.has(f));
   } catch {
-    return safeFields.slice(0, 5);
+    return [];
   }
 }
 
