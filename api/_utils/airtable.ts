@@ -89,10 +89,40 @@ export async function airtableFetch(table: string, params: Record<string, any> =
   return handleResponse(response, table);
 }
 
+export async function filterFieldsBySchema(tableName: string, fields: Record<string, any>): Promise<Record<string, any>> {
+  const schema = await getTableSchema(tableName);
+  if (!schema || !schema.fields) {
+    return fields;
+  }
+
+  const filtered: Record<string, any> = {};
+
+  Object.keys(fields).forEach(key => {
+    // Normalise key by converting to lowercase and removing spaces/underscores/hyphens
+    const cleanKey = key.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+    
+    // Find matching field in the schema
+    const matchingField = schema.fields.find((f: any) => {
+      const cleanFieldName = f.name.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+      return cleanFieldName === cleanKey;
+    });
+
+    if (matchingField) {
+      filtered[matchingField.name] = fields[key];
+    } else {
+      console.warn(`Field '${key}' not found in schema for table '${tableName}', omitting.`);
+    }
+  });
+
+  return filtered;
+}
+
 export async function airtableCreate(table: string, fields: Record<string, any>) {
   if (!apiKey || !baseId) {
     throw new Error("Missing Airtable environment configuration.");
   }
+
+  const filteredFields = await filterFieldsBySchema(table, fields);
 
   const url = `${AIRTABLE_API_ROOT}/${baseId}/${encodeURIComponent(table)}`;
   const response = await fetch(url, {
@@ -101,7 +131,7 @@ export async function airtableCreate(table: string, fields: Record<string, any>)
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json"
     },
-    body: JSON.stringify({ fields })
+    body: JSON.stringify({ fields: filteredFields })
   });
 
   return handleResponse(response, table);
@@ -112,6 +142,8 @@ export async function airtableUpdate(table: string, id: string, fields: Record<s
     throw new Error("Missing Airtable environment configuration.");
   }
 
+  const filteredFields = await filterFieldsBySchema(table, fields);
+
   const url = `${AIRTABLE_API_ROOT}/${baseId}/${encodeURIComponent(table)}/${id}`;
   const response = await fetch(url, {
     method: "PATCH",
@@ -119,7 +151,7 @@ export async function airtableUpdate(table: string, id: string, fields: Record<s
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json"
     },
-    body: JSON.stringify({ fields })
+    body: JSON.stringify({ fields: filteredFields })
   });
 
   return handleResponse(response, table);
