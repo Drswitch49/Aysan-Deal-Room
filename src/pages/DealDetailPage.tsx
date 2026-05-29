@@ -159,9 +159,9 @@ export function DealDetailPage() {
       </div>
 
       {/* Main Two-Column Layout */}
-      <div className="grid gap-6 lg:grid-cols-[1fr_360px] items-start animate-fade-in-up">
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px] items-start animate-fade-in-up">
         {/* Workspace Column */}
-        <div className="space-y-5">
+        <div className="space-y-5 w-full min-w-0">
           <div className="flex gap-1.5 overflow-x-auto rounded-xl border border-white/[0.06] bg-[#0d0c1d] p-1.5 shadow-inner backdrop-blur-md">
             {tabs.map((tab) => (
               <button
