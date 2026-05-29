@@ -159,7 +159,10 @@ export function DealDetailPage() {
       </div>
 
       {/* Main Two-Column Layout */}
-      <div className="grid gap-6 items-start lg:grid-cols-[minmax(0,1fr)_360px] animate-fade-in-up">
+      <div className={cx(
+        "grid gap-6 items-start animate-fade-in-up",
+        activeTab === "documents" ? "grid-cols-1" : "lg:grid-cols-[minmax(0,1fr)_360px]"
+      )}>
         {/* Workspace Column */}
         <div className="space-y-5 w-full min-w-0">
           <div className="flex gap-1.5 overflow-x-auto rounded-xl border border-white/[0.06] bg-[#0d0c1d] p-1.5 shadow-inner backdrop-blur-md">
@@ -195,75 +198,77 @@ export function DealDetailPage() {
         </div>
 
         {/* VDR Audit Activity Column */}
-        <aside className="rounded-2xl border border-white/[0.06] bg-[#0d0c1d] backdrop-blur-md p-6 shadow-premium-card space-y-6 card-sheen">
-          <div className="flex items-center justify-between pb-3 border-b border-white/5">
-            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-350 select-none">
-              <History className="h-4 w-4 text-acp-purple" />
-              Recent Activity Log
-            </div>
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-            </span>
-          </div>
-
-          {/* Room stats */}
-          <div className="grid grid-cols-2 gap-3 bg-white/5 border border-white/[0.06] rounded-xl p-3 text-center">
-            <div>
-              <span className="block text-[9px] font-extrabold uppercase tracking-wider text-slate-400">Files</span>
-              <span className="block text-lg font-display italic text-white font-normal mt-0.5">
-                {documentState.data?.length ?? 0}
+        {activeTab !== "documents" && (
+          <aside className="rounded-2xl border border-white/[0.06] bg-[#0d0c1d] backdrop-blur-md p-6 shadow-premium-card space-y-6 card-sheen">
+            <div className="flex items-center justify-between pb-3 border-b border-white/5">
+              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-350 select-none">
+                <History className="h-4 w-4 text-acp-purple" />
+                Recent Activity Log
+              </div>
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
               </span>
             </div>
-            <div>
-              <span className="block text-[9px] font-extrabold uppercase tracking-wider text-slate-400">Total Views</span>
-              <span className="block text-lg font-display italic text-white font-normal mt-0.5">142</span>
-            </div>
-          </div>
 
-          {/* Access Logs */}
-          <div className="space-y-4">
-            <h4 className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-slate-400">Recent Activity</h4>
-            <div className="space-y-3.5">
-              <ActivityItem 
-                icon={<Eye className="h-3.5 w-3.5 text-acp-blue" />}
-                action="Financial model viewed"
-                time="3 hours ago"
-                user="External Reviewer"
-              />
-              <ActivityItem 
-                icon={<ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />}
-                action="Room unlocked"
-                time="6 hours ago"
-                user="Lender Agent"
-              />
-              <ActivityItem 
-                icon={<Lock className="h-3.5 w-3.5 text-acp-purple" />}
-                action="Security check completed"
-                time="1 day ago"
-                user="System"
-              />
-              <ActivityItem 
-                icon={<FileText className="h-3.5 w-3.5 text-indigo-400" />}
-                action="3 documents uploaded"
-                time="2 days ago"
-                user="System Sync"
-              />
+            {/* Room stats */}
+            <div className="grid grid-cols-2 gap-3 bg-white/5 border border-white/[0.06] rounded-xl p-3 text-center">
+              <div>
+                <span className="block text-[9px] font-extrabold uppercase tracking-wider text-slate-400">Files</span>
+                <span className="block text-lg font-display italic text-white font-normal mt-0.5">
+                  {documentState.data?.length ?? 0}
+                </span>
+              </div>
+              <div>
+                <span className="block text-[9px] font-extrabold uppercase tracking-wider text-slate-400">Total Views</span>
+                <span className="block text-lg font-display italic text-white font-normal mt-0.5">142</span>
+              </div>
             </div>
-          </div>
 
-          {/* Security Compliance Block */}
-          <div className="rounded-xl border border-white/8 bg-acp-navy p-4 text-white relative overflow-hidden shadow-inner">
-            <div className="absolute -right-8 -bottom-8 h-20 w-20 rounded-full bg-white/[0.02] blur-xl pointer-events-none" />
-            <div className="flex items-center gap-2">
-              <Shield className="h-4 w-4 text-acp-purple animate-pulse-glow" />
-              <span className="text-[10px] font-extrabold uppercase tracking-widest text-white">Security Certified</span>
+            {/* Access Logs */}
+            <div className="space-y-4">
+              <h4 className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-slate-400">Recent Activity</h4>
+              <div className="space-y-3.5">
+                <ActivityItem 
+                  icon={<Eye className="h-3.5 w-3.5 text-acp-blue" />}
+                  action="Financial model viewed"
+                  time="3 hours ago"
+                  user="External Reviewer"
+                />
+                <ActivityItem 
+                  icon={<ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />}
+                  action="Room unlocked"
+                  time="6 hours ago"
+                  user="Lender Agent"
+                />
+                <ActivityItem 
+                  icon={<Lock className="h-3.5 w-3.5 text-acp-purple" />}
+                  action="Security check completed"
+                  time="1 day ago"
+                  user="System"
+                />
+                <ActivityItem 
+                  icon={<FileText className="h-3.5 w-3.5 text-indigo-400" />}
+                  action="3 documents uploaded"
+                  time="2 days ago"
+                  user="System Sync"
+                />
+              </div>
             </div>
-            <p className="mt-2 text-[10px] leading-relaxed text-slate-400 font-medium">
-              Document storage conforms to security guidelines. History logging is active.
-            </p>
-          </div>
-        </aside>
+
+            {/* Security Compliance Block */}
+            <div className="rounded-xl border border-white/8 bg-acp-navy p-4 text-white relative overflow-hidden shadow-inner">
+              <div className="absolute -right-8 -bottom-8 h-20 w-20 rounded-full bg-white/[0.02] blur-xl pointer-events-none" />
+              <div className="flex items-center gap-2">
+                <Shield className="h-4 w-4 text-acp-purple animate-pulse-glow" />
+                <span className="text-[10px] font-extrabold uppercase tracking-widest text-white">Security Certified</span>
+              </div>
+              <p className="mt-2 text-[10px] leading-relaxed text-slate-400 font-medium">
+                Document storage conforms to security guidelines. History logging is active.
+              </p>
+            </div>
+          </aside>
+        )}
       </div>
 
       {/* Add Lender Modal Overlay */}
