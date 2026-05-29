@@ -382,7 +382,7 @@ export function DealListPage() {
                         <p className="text-xs text-slate-500 font-medium py-1">No deals in this stage</p>
                       ) : (
                         <div className="space-y-4">
-                          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                          <div className="flex flex-wrap gap-4">
                             {visibleDeals.map(({ deal, outstandingDocumentCount, daysSinceLastLenderContact }) => {
                               const execName = deal.lenderAssigned || "Executive Manager";
                               const execInitials = execName.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
@@ -394,7 +394,7 @@ export function DealListPage() {
                                 <Link
                                   key={deal.id}
                                   to={`/deals/${encodeURIComponent(deal.dealRef)}`}
-                                  className="group block relative overflow-hidden rounded-xl border border-white/[0.04] bg-[#0c1122]/40 p-4 shadow-sm transition-all duration-300 hover:border-acp-purple/30 hover:bg-[#0c1122]/80 hover:-translate-y-0.5 card-sheen"
+                                  className="group block relative overflow-hidden rounded-xl border border-white/[0.04] bg-[#0c1122]/40 p-4 shadow-sm transition-all duration-300 hover:border-acp-purple/30 hover:bg-[#0c1122]/80 hover:-translate-y-0.5 card-sheen flex-1 min-w-[280px]"
                                 >
                                   <div className="min-w-0">
                                     <span className="text-[9px] font-bold uppercase tracking-wider text-acp-purple">
