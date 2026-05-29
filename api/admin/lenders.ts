@@ -93,31 +93,36 @@ export default async function handler(req: any, res: any) {
     });
 
     // 5. Build Lenders payload
-    const lenders = lendersRes.records.map((rec: any) => {
-      const normFields = normalizeLenderFields(rec.fields);
-      const lenderIdText = normFields.Lender_ID || "";
-      
-      // Find assignments by record ID or by text ID
-      const byRecordId = lenderToDealsMap.get(rec.id) || [];
-      const byTextId = lenderIdText ? (lenderToDealsMap.get(lenderIdText) || []) : [];
-      
-      // Deduplicate deal assignments
-      const seenDeals = new Set<string>();
-      const assignments: Array<{ assignmentId: string; dealRef: string; assignedAt: string }> = [];
+    const lenders = lendersRes.records
+      .filter((rec: any) => {
+        const normFields = normalizeLenderFields(rec.fields);
+        return normFields.Lender_ID !== "admin";
+      })
+      .map((rec: any) => {
+        const normFields = normalizeLenderFields(rec.fields);
+        const lenderIdText = normFields.Lender_ID || "";
+        
+        // Find assignments by record ID or by text ID
+        const byRecordId = lenderToDealsMap.get(rec.id) || [];
+        const byTextId = lenderIdText ? (lenderToDealsMap.get(lenderIdText) || []) : [];
+        
+        // Deduplicate deal assignments
+        const seenDeals = new Set<string>();
+        const assignments: Array<{ assignmentId: string; dealRef: string; assignedAt: string }> = [];
 
-      [...byRecordId, ...byTextId].forEach(asg => {
-        if (!seenDeals.has(asg.dealRef)) {
-          seenDeals.add(asg.dealRef);
-          assignments.push(asg);
-        }
+        [...byRecordId, ...byTextId].forEach(asg => {
+          if (!seenDeals.has(asg.dealRef)) {
+            seenDeals.add(asg.dealRef);
+            assignments.push(asg);
+          }
+        });
+
+        return {
+          id: rec.id,
+          ...normFields,
+          assignments
+        };
       });
-
-      return {
-        id: rec.id,
-        ...normFields,
-        assignments
-      };
-    });
 
     return res.status(200).json(lenders);
   } catch (err: any) {
