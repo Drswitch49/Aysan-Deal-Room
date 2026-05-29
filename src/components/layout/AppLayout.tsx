@@ -1,11 +1,13 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
-import { Building2, Database, FolderOpen, LockKeyhole, ShieldCheck, Table2, Shield, LogOut, Menu, X } from "lucide-react";
+import { Building2, Database, FolderOpen, LockKeyhole, ShieldCheck, Table2, Shield, LogOut, Menu, X, Key } from "lucide-react";
 import { NavLink, Outlet } from "react-router-dom";
 import { cx } from "../../utils/cx";
+import { changeAdminPassword } from "../../api/admin";
 
 export function AppLayout() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
 
   const handleLogout = () => {
     sessionStorage.removeItem("admin_authenticated");
@@ -54,14 +56,24 @@ export function AppLayout() {
                 </div>
               </div>
 
-              <button
-                onClick={handleLogout}
-                className="h-8 w-8 flex items-center justify-center rounded-lg border border-white/10 bg-white/5 text-slate-400 hover:text-rose-450 hover:bg-rose-500/10 hover:border-rose-500/20 transition cursor-pointer"
-                title="Log Out Session"
-                type="button"
-              >
-                <LogOut className="h-4 w-4" aria-hidden="true" />
-              </button>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  onClick={() => setIsChangePasswordOpen(true)}
+                  className="h-8 w-8 flex items-center justify-center rounded-lg border border-white/10 bg-white/5 text-slate-400 hover:text-acp-bronze hover:bg-acp-bronze/10 hover:border-acp-bronze/20 transition cursor-pointer"
+                  title="Change Admin Passcode"
+                  type="button"
+                >
+                  <Key className="h-4 w-4" aria-hidden="true" />
+                </button>
+                <button
+                  onClick={handleLogout}
+                  className="h-8 w-8 flex items-center justify-center rounded-lg border border-white/10 bg-white/5 text-slate-400 hover:text-rose-450 hover:bg-rose-500/10 hover:border-rose-500/20 transition cursor-pointer"
+                  title="Log Out Session"
+                  type="button"
+                >
+                  <LogOut className="h-4 w-4" aria-hidden="true" />
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -126,17 +138,30 @@ export function AppLayout() {
                     </div>
                   </div>
 
-                  <button
-                    onClick={() => {
-                      setIsMobileMenuOpen(false);
-                      handleLogout();
-                    }}
-                    className="h-8 w-8 flex items-center justify-center rounded-lg border border-white/10 bg-white/5 text-slate-400 hover:text-rose-450 hover:bg-rose-500/10 hover:border-rose-500/20 transition cursor-pointer"
-                    title="Log Out Session"
-                    type="button"
-                  >
-                    <LogOut className="h-4 w-4" aria-hidden="true" />
-                  </button>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      onClick={() => {
+                        setIsMobileMenuOpen(false);
+                        setIsChangePasswordOpen(true);
+                      }}
+                      className="h-8 w-8 flex items-center justify-center rounded-lg border border-white/10 bg-white/5 text-slate-400 hover:text-acp-bronze hover:bg-acp-bronze/10 hover:border-acp-bronze/20 transition cursor-pointer"
+                      title="Change Admin Passcode"
+                      type="button"
+                    >
+                      <Key className="h-4 w-4" aria-hidden="true" />
+                    </button>
+                    <button
+                      onClick={() => {
+                        setIsMobileMenuOpen(false);
+                        handleLogout();
+                      }}
+                      className="h-8 w-8 flex items-center justify-center rounded-lg border border-white/10 bg-white/5 text-slate-400 hover:text-rose-450 hover:bg-rose-500/10 hover:border-rose-500/20 transition cursor-pointer"
+                      title="Log Out Session"
+                      type="button"
+                    >
+                      <LogOut className="h-4 w-4" aria-hidden="true" />
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -174,7 +199,139 @@ export function AppLayout() {
             <Outlet />
           </div>
         </main>
+        <ChangePasswordModal 
+          isOpen={isChangePasswordOpen} 
+          onClose={() => setIsChangePasswordOpen(false)} 
+        />
       </div>
+    </div>
+  );
+}
+
+function ChangePasswordModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  if (!isOpen) return null;
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setSuccess(false);
+
+    if (!newPassword || newPassword.trim() === "") {
+      setError("Password cannot be empty.");
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await changeAdminPassword(newPassword);
+      setSuccess(true);
+      sessionStorage.setItem("admin_passcode", newPassword); // Update active session passcode
+      setNewPassword("");
+      setConfirmPassword("");
+      setTimeout(() => {
+        onClose();
+        setSuccess(false);
+      }, 1500);
+    } catch (err: any) {
+      setError(err.message || "Failed to update passcode.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {/* Backdrop */}
+      <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={onClose} />
+      
+      {/* Modal Card */}
+      <form 
+        onSubmit={handleSubmit}
+        className="relative z-10 w-full max-w-sm rounded-2xl border border-white/10 bg-[#0D0D0E] p-6 shadow-2xl backdrop-blur-xl animate-fade-in-up"
+      >
+        <div className="flex items-center justify-between pb-4 border-b border-white/5">
+          <h3 className="font-display text-lg text-white font-normal italic tracking-wide">
+            Change Admin Passcode
+          </h3>
+          <button 
+            type="button" 
+            onClick={onClose} 
+            className="text-slate-400 hover:text-white transition"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="mt-5 space-y-4">
+          {error && (
+            <div className="rounded-lg border border-rose-500/10 bg-rose-500/5 p-3 text-center text-xs font-semibold text-rose-400">
+              {error}
+            </div>
+          )}
+
+          {success && (
+            <div className="rounded-lg border border-emerald-500/10 bg-emerald-500/5 p-3 text-center text-xs font-semibold text-acp-emerald">
+              Passcode successfully updated!
+            </div>
+          )}
+
+          <div className="space-y-1.5">
+            <label className="block text-[9px] font-extrabold uppercase tracking-wider text-slate-400">
+              New Passcode
+            </label>
+            <input
+              type="password"
+              required
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="••••••••"
+              className="h-10 w-full rounded-xl border border-white/10 bg-white/5 px-3 text-xs text-white placeholder-slate-650 outline-none focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze transition"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="block text-[9px] font-extrabold uppercase tracking-wider text-slate-400">
+              Confirm New Passcode
+            </label>
+            <input
+              type="password"
+              required
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="••••••••"
+              className="h-10 w-full rounded-xl border border-white/10 bg-white/5 px-3 text-xs text-white placeholder-slate-650 outline-none focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze transition"
+            />
+          </div>
+        </div>
+
+        <div className="mt-6 flex justify-end gap-2.5">
+          <button
+            type="button"
+            onClick={onClose}
+            className="h-9 px-4 rounded-xl border border-white/10 text-slate-350 text-xs font-bold uppercase tracking-wider hover:bg-white/5 transition"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={isSubmitting || success}
+            className="h-9 px-4 rounded-xl bg-gradient-to-r from-acp-bronze to-acp-bronze-dark text-white text-xs font-bold uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none hover:shadow-glow-bronze transition cursor-pointer"
+          >
+            {isSubmitting ? "Updating..." : "Update Passcode"}
+          </button>
+        </div>
+      </form>
     </div>
   );
 }

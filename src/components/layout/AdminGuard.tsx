@@ -10,6 +10,7 @@ export function AdminGuard({ children }: AdminGuardProps) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isAuthorized, setIsAuthorized] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
 
   useEffect(() => {
     const isAuthed = sessionStorage.getItem("admin_authenticated");
@@ -18,16 +19,41 @@ export function AdminGuard({ children }: AdminGuardProps) {
     }
   }, []);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (isVerifying) return;
+    setIsVerifying(true);
+    setError("");
+
     const requiredPass = config.lenderRoomPassword || "acp-deal-room";
 
     if (password === requiredPass) {
       sessionStorage.setItem("admin_authenticated", "true");
+      sessionStorage.setItem("admin_passcode", password);
       setIsAuthorized(true);
       setError("");
-    } else {
-      setError("Incorrect administrator password.");
+      setIsVerifying(false);
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/admin/lenders", {
+        headers: {
+          "x-admin-passcode": password
+        }
+      });
+      if (response.ok) {
+        sessionStorage.setItem("admin_authenticated", "true");
+        sessionStorage.setItem("admin_passcode", password);
+        setIsAuthorized(true);
+        setError("");
+      } else {
+        setError("Incorrect administrator password.");
+      }
+    } catch (err) {
+      setError("Failed to connect. Please verify your connection.");
+    } finally {
+      setIsVerifying(false);
     }
   }
 
@@ -95,10 +121,11 @@ export function AdminGuard({ children }: AdminGuardProps) {
 
           <button
             type="submit"
-            className="w-full inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-acp-bronze to-acp-bronze-dark px-4 text-xs font-bold uppercase tracking-wider text-white shadow-md hover:shadow-glow-bronze transition-all duration-300 transform hover:-translate-y-0.5"
+            disabled={isVerifying}
+            className="w-full inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-acp-bronze to-acp-bronze-dark px-4 text-xs font-bold uppercase tracking-wider text-white shadow-md hover:shadow-glow-bronze transition-all duration-300 transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <ShieldCheck className="h-4 w-4" aria-hidden="true" />
-            Verify and Access
+            {isVerifying ? "Verifying..." : "Verify and Access"}
           </button>
         </div>
       </form>

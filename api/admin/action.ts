@@ -49,7 +49,7 @@ export default async function handler(req: any, res: any) {
 
   try {
     // 1. Authenticate Admin
-    authenticateAdmin(req);
+    await authenticateAdmin(req);
 
     const { action } = req.body || {};
     if (!action) {
@@ -209,6 +209,33 @@ export default async function handler(req: any, res: any) {
         };
         const result = await airtableCreate(TABLES.DOCUMENTS, fields);
         return res.status(200).json({ success: true, result });
+      }
+
+      case "change-admin-password": {
+        const { newPassword } = req.body;
+        if (!newPassword || newPassword.trim() === "") {
+          return res.status(400).json({ error: "New password is required" });
+        }
+
+        const adminRecords = await airtableFetch(TABLES.LENDERS, {
+          filterByFormula: `{Lender_ID} = 'admin'`,
+          maxRecords: 1
+        });
+
+        if (adminRecords.records && adminRecords.records.length > 0) {
+          await airtableUpdate(TABLES.LENDERS, adminRecords.records[0].id, {
+            Portal_Password: newPassword
+          });
+        } else {
+          await airtableCreate(TABLES.LENDERS, {
+            Lender_ID: "admin",
+            Company_Name: "Admin Settings",
+            Portal_Password: newPassword,
+            Status: "Active"
+          });
+        }
+
+        return res.status(200).json({ success: true, message: "Admin passcode successfully updated." });
       }
 
       default:

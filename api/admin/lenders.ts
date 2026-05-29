@@ -1,12 +1,30 @@
 import { airtableFetch, TABLES, normalizeLenderFields, normalizeAssignmentFields } from "../_utils/airtable.js";
 
 // Helper to authenticate admin
-export function authenticateAdmin(req: any) {
+export async function authenticateAdmin(req: any) {
   const adminPasscode = req.headers["x-admin-passcode"];
   const requiredPass = process.env.VITE_LENDER_ROOM_PASSWORD || "acp-deal-room";
-  if (adminPasscode !== requiredPass) {
-    throw new Error("Unauthorized admin request");
+  
+  if (adminPasscode === requiredPass) {
+    return;
   }
+
+  try {
+    const adminRecords = await airtableFetch(TABLES.LENDERS, {
+      filterByFormula: `{Lender_ID} = 'admin'`,
+      maxRecords: 1
+    });
+    if (adminRecords.records && adminRecords.records.length > 0) {
+      const dbPassword = adminRecords.records[0].fields.Portal_Password;
+      if (dbPassword && adminPasscode === dbPassword) {
+        return;
+      }
+    }
+  } catch (err) {
+    console.error("Failed to check custom admin password in Airtable:", err);
+  }
+
+  throw new Error("Unauthorized admin request");
 }
 
 export default async function handler(req: any, res: any) {
@@ -16,7 +34,7 @@ export default async function handler(req: any, res: any) {
 
   try {
     // 1. Validate admin auth
-    authenticateAdmin(req);
+    await authenticateAdmin(req);
 
     // 2. Fetch Lenders, Assignments, and Deals in parallel
     const [lendersRes, assignmentsRes, pipelineRes] = await Promise.all([

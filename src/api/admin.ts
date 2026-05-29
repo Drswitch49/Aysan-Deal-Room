@@ -1,7 +1,8 @@
 import { config } from "../config/env";
 
 const getAdminHeaders = () => {
-  const adminPasscode = config.lenderRoomPassword || "acp-deal-room";
+  const sessionPasscode = sessionStorage.getItem("admin_passcode");
+  const adminPasscode = sessionPasscode || config.lenderRoomPassword || "acp-deal-room";
   return {
     "Content-Type": "application/json",
     "x-admin-passcode": adminPasscode
@@ -149,6 +150,21 @@ export async function createAdminDocument(data: {
   if (!response.ok) {
     const err = await response.json();
     throw new Error(err.error || "Failed to create document");
+  }
+
+  return response.json();
+}
+
+export async function changeAdminPassword(newPassword: string) {
+  const response = await fetch("/api/admin/action", {
+    method: "POST",
+    headers: getAdminHeaders(),
+    body: JSON.stringify({ action: "change-admin-password", newPassword })
+  });
+
+  if (!response.ok) {
+    const err = await response.json();
+    throw new Error(err.error || "Failed to update admin passcode");
   }
 
   return response.json();
