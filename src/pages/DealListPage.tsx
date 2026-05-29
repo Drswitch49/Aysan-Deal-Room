@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { BriefcaseBusiness, FolderOpen, FileWarning, Send, Database, Search, Users } from "lucide-react";
+import { BriefcaseBusiness, FolderOpen, FileWarning, Send, Database, Search, Users, Plus, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useDealListRows } from "../hooks/useDealRoomData";
@@ -8,7 +8,7 @@ import { EmptyState } from "../components/ui/EmptyState";
 import { ErrorState } from "../components/ui/ErrorState";
 import { LoadingState } from "../components/ui/LoadingState";
 import { cx } from "../utils/cx";
-import { fetchAdminLenders } from "../api/admin";
+import { fetchAdminLenders, createAdminDeal } from "../api/admin";
 
 const PIPELINE_STAGES = [
   "Intro",
@@ -20,11 +20,29 @@ const PIPELINE_STAGES = [
 ];
 
 export function DealListPage() {
-  const { data, error, isLoading } = useDealListRows();
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const { data, error, isLoading } = useDealListRows(refreshTrigger);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [viewMode, setViewMode] = useState<"pipeline" | "registry">("pipeline");
   const [lendersCount, setLendersCount] = useState<number | null>(null);
+
+  // Card folding state
+  const [expandedStages, setExpandedStages] = useState<Record<string, boolean>>({});
+
+  // Create Deal states
+  const [isCreateDealOpen, setIsCreateDealOpen] = useState(false);
+  const [newCompanyName, setNewCompanyName] = useState("");
+  const [newDealRef, setNewDealRef] = useState("");
+  const [newStage, setNewStage] = useState("Intro");
+  const [newSector, setNewSector] = useState("");
+  const [newLocation, setNewLocation] = useState("");
+  const [newBroker, setNewBroker] = useState("");
+  const [newDealFiles, setNewDealFiles] = useState("");
+  const [customSector, setCustomSector] = useState("");
+  const [isSubmittingDeal, setIsSubmittingDeal] = useState(false);
+  const [dealErrorMessage, setDealErrorMessage] = useState("");
+
 
   useEffect(() => {
     fetchAdminLenders()
@@ -35,6 +53,51 @@ export function DealListPage() {
         console.error("Failed to fetch lenders count:", err);
       });
   }, []);
+
+  const uniqueSectors = useMemo(() => {
+    if (!data) return [];
+    const sectors = data.map(({ deal }) => deal.sector).filter(Boolean);
+    return Array.from(new Set(sectors)).sort();
+  }, [data]);
+
+  const handleCreateDeal = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCompanyName.trim()) {
+      setDealErrorMessage("Company name is required.");
+      return;
+    }
+    setIsSubmittingDeal(true);
+    setDealErrorMessage("");
+    try {
+      const sectorToWrite = newSector === "__custom__" ? customSector : newSector;
+      
+      await createAdminDeal({
+        companyName: newCompanyName.trim(),
+        dealRef: newDealRef.trim() || undefined,
+        stage: newStage,
+        sector: sectorToWrite.trim() || undefined,
+        location: newLocation.trim() || undefined,
+        broker: newBroker.trim() || undefined,
+        dealFiles: newDealFiles.trim() || undefined
+      });
+      
+      setNewCompanyName("");
+      setNewDealRef("");
+      setNewStage("Intro");
+      setNewSector("");
+      setCustomSector("");
+      setNewLocation("");
+      setNewBroker("");
+      setNewDealFiles("");
+      setIsCreateDealOpen(false);
+      setRefreshTrigger(prev => prev + 1);
+    } catch (err: any) {
+      console.error(err);
+      setDealErrorMessage(err.message || "Failed to create deal.");
+    } finally {
+      setIsSubmittingDeal(false);
+    }
+  };
 
   const activeDealCount = data?.length ?? 0;
   const outstandingCount = data?.reduce((total, row) => total + row.outstandingDocumentCount, 0) ?? 0;
@@ -62,14 +125,22 @@ export function DealListPage() {
     const stagesSet = new Set(PIPELINE_STAGES.map(s => s.toLowerCase()));
     const finalStages = [...PIPELINE_STAGES];
     
+    let hasUnknown = false;
     if (data) {
       data.forEach(({ deal }) => {
         const status = deal.status;
-        if (status && !stagesSet.has(status.toLowerCase())) {
-          finalStages.push(status);
-          stagesSet.add(status.toLowerCase());
+        if (status) {
+          if (!stagesSet.has(status.toLowerCase())) {
+            finalStages.push(status);
+            stagesSet.add(status.toLowerCase());
+          }
+        } else {
+          hasUnknown = true;
         }
       });
+    }
+    if (hasUnknown) {
+      finalStages.push("Unknown");
     }
     return finalStages;
   }, [data]);
@@ -175,6 +246,15 @@ export function DealListPage() {
                 </div>
                 
                 <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full sm:w-auto">
+                  <button
+                    onClick={() => setIsCreateDealOpen(true)}
+                    className="inline-flex h-9 items-center gap-2 rounded-xl bg-gradient-to-r from-acp-purple to-acp-purple-dark px-4 text-xs font-bold uppercase tracking-wider text-white shadow-md hover:shadow-glow-purple cursor-pointer transition-all duration-300 self-start sm:self-auto"
+                    type="button"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Add Deal
+                  </button>
+
                   {/* View Mode Segment Switch */}
                   <div className="inline-flex rounded-xl border border-white/5 bg-[#0d0c1d] p-1 shadow-inner self-start sm:self-auto">
                     <button
@@ -256,6 +336,8 @@ export function DealListPage() {
               <div className="space-y-6">
                 {pipelineStages.map((stage) => {
                   const dealsInStage = stageDeals[stage] || [];
+                  const isExpanded = !!expandedStages[stage];
+                  const visibleDeals = isExpanded ? dealsInStage : dealsInStage.slice(0, 2);
                   
                   let stageTheme = {
                     border: "border-l-blue-500",
@@ -299,61 +381,74 @@ export function DealListPage() {
                       {dealsInStage.length === 0 ? (
                         <p className="text-xs text-slate-500 font-medium py-1">No deals in this stage</p>
                       ) : (
-                        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                          {dealsInStage.map(({ deal, outstandingDocumentCount, daysSinceLastLenderContact }) => {
-                            const execName = deal.lenderAssigned || "Executive Manager";
-                            const execInitials = execName.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
-                            
-                            const brokerName = deal.broker || "Sponsor Broker";
-                            const brokerInitials = brokerName.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
+                        <div className="space-y-4">
+                          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                            {visibleDeals.map(({ deal, outstandingDocumentCount, daysSinceLastLenderContact }) => {
+                              const execName = deal.lenderAssigned || "Executive Manager";
+                              const execInitials = execName.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
+                              
+                              const brokerName = deal.broker || "Sponsor Broker";
+                              const brokerInitials = brokerName.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
 
-                            return (
-                              <Link
-                                key={deal.id}
-                                to={`/deals/${encodeURIComponent(deal.dealRef)}`}
-                                className="group block relative overflow-hidden rounded-xl border border-white/[0.04] bg-[#0c1122]/40 p-4 shadow-sm transition-all duration-300 hover:border-acp-purple/30 hover:bg-[#0c1122]/80 hover:-translate-y-0.5 card-sheen"
+                              return (
+                                <Link
+                                  key={deal.id}
+                                  to={`/deals/${encodeURIComponent(deal.dealRef)}`}
+                                  className="group block relative overflow-hidden rounded-xl border border-white/[0.04] bg-[#0c1122]/40 p-4 shadow-sm transition-all duration-300 hover:border-acp-purple/30 hover:bg-[#0c1122]/80 hover:-translate-y-0.5 card-sheen"
+                                >
+                                  <div className="min-w-0">
+                                    <span className="text-[9px] font-bold uppercase tracking-wider text-acp-purple">
+                                      {deal.dealRef || "Missing Ref"}
+                                    </span>
+                                    <h4 className="mt-1 text-xs font-bold text-white tracking-wide truncate group-hover:text-acp-purple transition-colors">
+                                      {deal.companyName || "Not specified"}
+                                    </h4>
+                                    <p className="mt-1 text-[10px] text-slate-450 truncate">
+                                      {deal.sector || "General"} • {deal.location || "UK"}
+                                    </p>
+                                  </div>
+
+                                  <div className="mt-3.5 pt-2.5 border-t border-white/[0.04] flex items-center justify-between gap-2">
+                                    <div className="flex gap-2.5 text-[9px] text-slate-400 font-semibold">
+                                      <div>
+                                        <span className="text-slate-500">Files:</span> <span className="text-white font-bold">{outstandingDocumentCount}</span>
+                                      </div>
+                                      <div className="border-l border-white/5 pl-2.5">
+                                        <span className="text-slate-500">Contact:</span> <span className="text-white font-bold">{daysSinceLastLenderContact === null ? "None" : `${daysSinceLastLenderContact}d`}</span>
+                                      </div>
+                                    </div>
+
+                                    {/* Overlapping avatars */}
+                                    <div className="flex -space-x-1 overflow-hidden">
+                                      <div 
+                                        className="inline-flex h-5.5 w-5.5 items-center justify-center rounded-full bg-blue-500/10 border border-blue-500/20 text-[8px] font-bold text-blue-400 shadow-sm"
+                                        title={`Assigned Executive: ${execName}`}
+                                      >
+                                        {execInitials}
+                                      </div>
+                                      <div 
+                                        className="inline-flex h-5.5 w-5.5 items-center justify-center rounded-full bg-acp-purple/10 border border-acp-purple/20 text-[8px] font-bold text-acp-purple shadow-sm"
+                                        title={`Sponsoring Broker: ${brokerName}`}
+                                      >
+                                        {brokerInitials}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </Link>
+                              );
+                            })}
+                          </div>
+                          {dealsInStage.length > 2 && (
+                            <div className="flex justify-start">
+                              <button
+                                type="button"
+                                onClick={() => setExpandedStages(prev => ({ ...prev, [stage]: !prev[stage] }))}
+                                className="inline-flex h-8 items-center justify-center gap-1.5 rounded-xl bg-white/5 border border-white/10 px-3 text-[10px] font-black uppercase tracking-wider text-slate-350 hover:bg-white/10 hover:text-white cursor-pointer transition-all duration-200"
                               >
-                                <div className="min-w-0">
-                                  <span className="text-[9px] font-bold uppercase tracking-wider text-acp-purple">
-                                    {deal.dealRef || "Missing Ref"}
-                                  </span>
-                                  <h4 className="mt-1 text-xs font-bold text-white tracking-wide truncate group-hover:text-acp-purple transition-colors">
-                                    {deal.companyName || "Not specified"}
-                                  </h4>
-                                  <p className="mt-1 text-[10px] text-slate-450 truncate">
-                                    {deal.sector || "General"} • {deal.location || "UK"}
-                                  </p>
-                                </div>
-
-                                <div className="mt-3.5 pt-2.5 border-t border-white/[0.04] flex items-center justify-between gap-2">
-                                  <div className="flex gap-2.5 text-[9px] text-slate-400 font-semibold">
-                                    <div>
-                                      <span className="text-slate-500">Files:</span> <span className="text-white font-bold">{outstandingDocumentCount}</span>
-                                    </div>
-                                    <div className="border-l border-white/5 pl-2.5">
-                                      <span className="text-slate-500">Contact:</span> <span className="text-white font-bold">{daysSinceLastLenderContact === null ? "None" : `${daysSinceLastLenderContact}d`}</span>
-                                    </div>
-                                  </div>
-
-                                  {/* Overlapping avatars */}
-                                  <div className="flex -space-x-1 overflow-hidden">
-                                    <div 
-                                      className="inline-flex h-5.5 w-5.5 items-center justify-center rounded-full bg-blue-500/10 border border-blue-500/20 text-[8px] font-bold text-blue-400 shadow-sm"
-                                      title={`Assigned Executive: ${execName}`}
-                                    >
-                                      {execInitials}
-                                    </div>
-                                    <div 
-                                      className="inline-flex h-5.5 w-5.5 items-center justify-center rounded-full bg-acp-purple/10 border border-acp-purple/20 text-[8px] font-bold text-acp-purple shadow-sm"
-                                      title={`Sponsoring Broker: ${brokerName}`}
-                                    >
-                                      {brokerInitials}
-                                    </div>
-                                  </div>
-                                </div>
-                              </Link>
-                            );
-                          })}
+                                {isExpanded ? "Show Less" : `View More (${dealsInStage.length - 2} more)`}
+                              </button>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -441,9 +536,181 @@ export function DealListPage() {
           </div>
         </div>
       ) : null}
+
+      {/* Create Deal Modal Overlay */}
+      {isCreateDealOpen && (
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-lg rounded-2xl border border-white/10 bg-[#0d0c1d] p-6 shadow-2xl relative animate-scale-in max-h-[90vh] overflow-y-auto">
+            <button
+              onClick={() => setIsCreateDealOpen(false)}
+              className="absolute right-4 top-4 text-slate-400 hover:text-white cursor-pointer"
+              type="button"
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            <h3 className="text-base font-bold text-white uppercase tracking-wider mb-5 flex items-center gap-2">
+              <BriefcaseBusiness className="h-5 w-5 text-acp-purple" />
+              Add New Pipeline Deal
+            </h3>
+
+            {dealErrorMessage && (
+              <div className="mb-4 rounded-xl border border-rose-500/20 bg-rose-500/5 p-4 text-xs font-semibold text-rose-400 flex items-start gap-2">
+                <FileWarning className="h-4 w-4 shrink-0 mt-0.5" />
+                <span>{dealErrorMessage}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleCreateDeal} className="space-y-4 text-xs font-semibold">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <label className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+                    Company Name <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={newCompanyName}
+                    onChange={(e) => setNewCompanyName(e.target.value)}
+                    placeholder="e.g. Acme Corp"
+                    className="h-9 w-full rounded-xl border border-white/10 bg-[#0d0c1d] px-3 text-white placeholder-slate-650 outline-none focus:border-acp-purple focus:ring-1 focus:ring-acp-purple transition-all"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+                    Reference Number
+                  </label>
+                  <input
+                    type="text"
+                    value={newDealRef}
+                    onChange={(e) => setNewDealRef(e.target.value)}
+                    placeholder="e.g. ACP-101 (optional)"
+                    className="h-9 w-full rounded-xl border border-white/10 bg-[#0d0c1d] px-3 text-white placeholder-slate-650 outline-none focus:border-acp-purple focus:ring-1 focus:ring-acp-purple transition-all"
+                  />
+                </div>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <label className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+                    Pipeline Stage
+                  </label>
+                  <select
+                    value={newStage}
+                    onChange={(e) => setNewStage(e.target.value)}
+                    className="h-9 w-full rounded-xl border border-white/10 bg-[#0d0c1d] px-3 text-white outline-none focus:border-acp-purple focus:ring-1 focus:ring-acp-purple transition-all cursor-pointer"
+                  >
+                    {PIPELINE_STAGES.map((stage) => (
+                      <option key={stage} value={stage} className="bg-[#0d0c1d] text-white">
+                        {stage}
+                      </option>
+                    ))}
+                    <option value="Unknown" className="bg-[#0d0c1d] text-white">Unknown</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+                    Sector
+                  </label>
+                  <select
+                    value={newSector}
+                    onChange={(e) => setNewSector(e.target.value)}
+                    className="h-9 w-full rounded-xl border border-white/10 bg-[#0d0c1d] px-3 text-white outline-none focus:border-acp-purple focus:ring-1 focus:ring-acp-purple transition-all cursor-pointer"
+                  >
+                    <option value="" className="bg-[#0d0c1d] text-slate-450">Select Sector (optional)</option>
+                    {uniqueSectors.map((sector) => (
+                      <option key={sector} value={sector} className="bg-[#0d0c1d] text-white">
+                        {sector}
+                      </option>
+                    ))}
+                    <option value="__custom__" className="bg-[#0d0c1d] text-acp-purple font-bold">+ Add Custom Sector...</option>
+                  </select>
+                </div>
+              </div>
+
+              {newSector === "__custom__" && (
+                <div className="space-y-1.5 animate-fade-in-up">
+                  <label className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+                    Custom Sector Name
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={customSector}
+                    onChange={(e) => setCustomSector(e.target.value)}
+                    placeholder="e.g. AI Technology"
+                    className="h-9 w-full rounded-xl border border-white/10 bg-[#0d0c1d] px-3 text-white placeholder-slate-650 outline-none focus:border-acp-purple focus:ring-1 focus:ring-acp-purple transition-all"
+                  />
+                </div>
+              )}
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <label className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+                    HQ Location
+                  </label>
+                  <input
+                    type="text"
+                    value={newLocation}
+                    onChange={(e) => setNewLocation(e.target.value)}
+                    placeholder="e.g. London, UK"
+                    className="h-9 w-full rounded-xl border border-white/10 bg-[#0d0c1d] px-3 text-white placeholder-slate-650 outline-none focus:border-acp-purple focus:ring-1 focus:ring-acp-purple transition-all"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+                    Sponsoring Broker
+                  </label>
+                  <input
+                    type="text"
+                    value={newBroker}
+                    onChange={(e) => setNewBroker(e.target.value)}
+                    placeholder="e.g. John Doe Brokerage"
+                    className="h-9 w-full rounded-xl border border-white/10 bg-[#0d0c1d] px-3 text-white placeholder-slate-650 outline-none focus:border-acp-purple focus:ring-1 focus:ring-acp-purple transition-all"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+                  Deal Shared Files Link (Google Drive URL)
+                </label>
+                <input
+                  type="url"
+                  value={newDealFiles}
+                  onChange={(e) => setNewDealFiles(e.target.value)}
+                  placeholder="https://drive.google.com/..."
+                  className="h-9 w-full rounded-xl border border-white/10 bg-[#0d0c1d] px-3 text-white placeholder-slate-650 outline-none focus:border-acp-purple focus:ring-1 focus:ring-acp-purple transition-all"
+                />
+              </div>
+
+              <div className="pt-4 border-t border-white/5 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsCreateDealOpen(false)}
+                  className="h-10 px-4 rounded-xl border border-white/10 text-slate-300 text-xs font-bold uppercase tracking-wider hover:bg-white/5 cursor-pointer transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingDeal}
+                  className="h-10 px-5 rounded-xl bg-gradient-to-r from-acp-purple to-acp-purple-dark text-white text-xs font-bold uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none hover:shadow-glow-purple cursor-pointer transition-all"
+                >
+                  {isSubmittingDeal ? "Adding..." : "Add Deal"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
 
 function DealRoomHero({ 
   viewMode, 

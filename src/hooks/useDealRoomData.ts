@@ -22,7 +22,7 @@ export function useDeals() {
   return useAsyncData<PipelineDeal[]>(() => getDeals(), []);
 }
 
-export function useDealListRows() {
+export function useDealListRows(refreshTrigger?: number) {
   return useAsyncData<DealListRow[]>(async () => {
     const [deals, documents, submissions] = await Promise.all([getDeals(), getAllDocuments(), getAllSubmissionLog()]);
 
@@ -40,7 +40,7 @@ export function useDealListRows() {
         daysSinceLastLenderContact: daysSince(mostRecentSubmissionDate),
       };
     });
-  }, []);
+  }, [refreshTrigger]);
 }
 
 export function useDeal(ref: string | undefined) {

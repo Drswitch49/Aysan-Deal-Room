@@ -132,3 +132,49 @@ export async function updateAdminDocuments(updates: Array<{ id: string; fields: 
   return response.json();
 }
 
+export async function createAdminDocument(data: {
+  documentName: string;
+  category: string;
+  status: string;
+  driveLink?: string;
+  dealId: string;
+  ablCritical?: boolean;
+}) {
+  const response = await fetch("/api/admin/create-document", {
+    method: "POST",
+    headers: getAdminHeaders(),
+    body: JSON.stringify(data)
+  });
+
+  if (!response.ok) {
+    const err = await response.json();
+    throw new Error(err.error || "Failed to create document");
+  }
+
+  return response.json();
+}
+
+export async function createAdminDeal(data: {
+  companyName: string;
+  dealRef?: string;
+  stage?: string;
+  sector?: string;
+  location?: string;
+  broker?: string;
+  dealFiles?: string;
+}) {
+  const response = await fetch("/api/admin/create-deal", {
+    method: "POST",
+    headers: getAdminHeaders(),
+    body: JSON.stringify(data)
+  });
+
+  if (!response.ok) {
+    const err = await response.json();
+    throw new Error(err.error || "Failed to create deal");
+  }
+
+  return response.json();
+}
+
+

@@ -1,7 +1,7 @@
-import { Filter, Files, ShieldAlert, FileText, FileSpreadsheet, FileArchive, CheckCircle2, Search, X, Calendar, User, History, Download, ExternalLink } from "lucide-react";
+import { Filter, Files, ShieldAlert, FileText, FileSpreadsheet, FileArchive, CheckCircle2, Search, X, Calendar, User, History, Download, ExternalLink, Plus, FileWarning } from "lucide-react";
 import { useMemo, useState, useEffect } from "react";
 import type { DealDocument } from "../../types/deal";
-import { updateAdminDocuments } from "../../api/admin";
+import { updateAdminDocuments, createAdminDocument } from "../../api/admin";
 import { getDriveDownloadUrl, getDriveViewUrl } from "../../utils/drive";
 import { formatDate, uniqueSorted } from "../../utils/fields";
 import { isSentToLender } from "../../utils/security";
@@ -16,6 +16,7 @@ type DocumentChecklistProps = {
   documents: DealDocument[];
   audience: "internal" | "lender";
   onRefresh?: () => void;
+  dealId?: string;
 };
 
 // Maps document categories or extensions to premium lucide icons
@@ -31,7 +32,7 @@ function getDocIcon(name: string = "", category: string = "") {
   return <FileText className="h-4 w-4 text-acp-blue" />;
 }
 
-export function DocumentChecklist({ documents, audience, onRefresh }: DocumentChecklistProps) {
+export function DocumentChecklist({ documents, audience, onRefresh, dealId }: DocumentChecklistProps) {
   const [statusFilter, setStatusFilter] = useState("All");
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
@@ -42,6 +43,18 @@ export function DocumentChecklist({ documents, audience, onRefresh }: DocumentCh
   const [isBatchUpdating, setIsBatchUpdating] = useState(false);
   const [draftLink, setDraftLink] = useState("");
   const [isSavingLink, setIsSavingLink] = useState(false);
+
+  // Create document states
+  const [isAddDocOpen, setIsAddDocOpen] = useState(false);
+  const [newDocName, setNewDocName] = useState("");
+  const [newDocCategory, setNewDocCategory] = useState("Financials");
+  const [customCategory, setCustomCategory] = useState("");
+  const [newDocStatus, setNewDocStatus] = useState("Outstanding");
+  const [newDocLink, setNewDocLink] = useState("");
+  const [newDocCritical, setNewDocCritical] = useState(false);
+  const [isSubmittingDoc, setIsSubmittingDoc] = useState(false);
+  const [docErrorMessage, setDocErrorMessage] = useState("");
+
 
   // Synchronise draft link when drawer selection changes
   useEffect(() => {
@@ -88,6 +101,52 @@ export function DocumentChecklist({ documents, audience, onRefresh }: DocumentCh
       setIsSavingLink(false);
     }
   };
+
+  const handleCreateDocument = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newDocName.trim()) {
+      setDocErrorMessage("Document name is required.");
+      return;
+    }
+    if (!dealId) {
+      setDocErrorMessage("Deal ID is missing.");
+      return;
+    }
+    setIsSubmittingDoc(true);
+    setDocErrorMessage("");
+    try {
+      const categoryToWrite = newDocCategory === "__custom__" ? customCategory : newDocCategory;
+      if (!categoryToWrite.trim()) {
+        setDocErrorMessage("Category is required.");
+        setIsSubmittingDoc(false);
+        return;
+      }
+
+      await createAdminDocument({
+        documentName: newDocName.trim(),
+        category: categoryToWrite.trim(),
+        status: newDocStatus,
+        driveLink: newDocLink.trim() || undefined,
+        dealId,
+        ablCritical: newDocCritical
+      });
+
+      setNewDocName("");
+      setNewDocCategory("Financials");
+      setCustomCategory("");
+      setNewDocStatus("Outstanding");
+      setNewDocLink("");
+      setNewDocCritical(false);
+      setIsAddDocOpen(false);
+      if (onRefresh) onRefresh();
+    } catch (err: any) {
+      console.error(err);
+      setDocErrorMessage(err.message || "Failed to create document.");
+    } finally {
+      setIsSubmittingDoc(false);
+    }
+  };
+
 
   const handleDocActionClick = (e: React.MouseEvent, doc: DealDocument, action: "view" | "download") => {
     if (!doc.driveLink || doc.driveLink.trim() === "") {
@@ -226,25 +285,39 @@ export function DocumentChecklist({ documents, audience, onRefresh }: DocumentCh
             <Filter className="h-4 w-4 text-acp-purple" aria-hidden="true" />
             Document Filters
           </div>
-          {/* Live Search Bar */}
-          <div className="relative w-full sm:max-w-xs">
-            <Search className="absolute left-3.5 top-2.5 h-4 w-4 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Search documents..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-10 w-full rounded-xl border border-white/[0.06] bg-white/5 pl-10 pr-8 text-xs font-semibold text-white placeholder-slate-500 outline-none transition-all duration-300 focus:border-acp-purple focus:ring-1 focus:ring-acp-purple shadow-sm"
-            />
-            {searchQuery && (
+          
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
+            {audience === "internal" && (
               <button
                 type="button"
-                onClick={() => setSearchQuery("")}
-                className="absolute right-2.5 top-2.5 text-slate-400 hover:text-white"
+                onClick={() => setIsAddDocOpen(true)}
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-acp-purple to-acp-purple-dark px-4 text-xs font-bold uppercase tracking-wider text-white shadow-md hover:shadow-glow-purple cursor-pointer transition-all duration-300 self-start sm:self-auto shrink-0"
               >
-                <X className="h-4 w-4" />
+                <Plus className="h-4 w-4" />
+                Add Document
               </button>
             )}
+            
+            {/* Live Search Bar */}
+            <div className="relative w-full sm:max-w-xs">
+              <Search className="absolute left-3.5 top-2.5 h-4 w-4 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search documents..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="h-10 w-full rounded-xl border border-white/[0.06] bg-white/5 pl-10 pr-8 text-xs font-semibold text-white placeholder-slate-500 outline-none transition-all duration-300 focus:border-acp-purple focus:ring-1 focus:ring-acp-purple shadow-sm"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-2.5 top-2.5 text-slate-400 hover:text-white"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
           </div>
         </div>
         
@@ -608,6 +681,146 @@ export function DocumentChecklist({ documents, audience, onRefresh }: DocumentCh
           </>
         )}
       </div>
+
+      {/* Add Document Modal Overlay */}
+      {isAddDocOpen && (
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-[#0d0c1d] p-6 shadow-2xl relative animate-scale-in max-h-[90vh] overflow-y-auto">
+            <button
+              onClick={() => setIsAddDocOpen(false)}
+              className="absolute right-4 top-4 text-slate-400 hover:text-white cursor-pointer"
+              type="button"
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            <h3 className="text-base font-bold text-white uppercase tracking-wider mb-5 flex items-center gap-2">
+              <Files className="h-5 w-5 text-acp-purple" />
+              Add Document to Deal
+            </h3>
+
+            {docErrorMessage && (
+              <div className="mb-4 rounded-xl border border-rose-500/20 bg-rose-500/5 p-4 text-xs font-semibold text-rose-400 flex items-start gap-2">
+                <FileWarning className="h-4 w-4 shrink-0 mt-0.5" />
+                <span>{docErrorMessage}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleCreateDocument} className="space-y-4 text-xs font-semibold">
+              <div className="space-y-1.5">
+                <label className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+                  Document Name <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={newDocName}
+                  onChange={(e) => setNewDocName(e.target.value)}
+                  placeholder="e.g. FY25 Management Accounts"
+                  className="h-9 w-full rounded-xl border border-white/10 bg-[#0d0c1d] px-3 text-white placeholder-slate-650 outline-none focus:border-acp-purple focus:ring-1 focus:ring-acp-purple transition-all"
+                />
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <label className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+                    Category
+                  </label>
+                  <select
+                    value={newDocCategory}
+                    onChange={(e) => setNewDocCategory(e.target.value)}
+                    className="h-9 w-full rounded-xl border border-white/10 bg-[#0d0c1d] px-3 text-white outline-none focus:border-acp-purple focus:ring-1 focus:ring-acp-purple transition-all cursor-pointer"
+                  >
+                    <option value="Financials" className="bg-[#0d0c1d] text-white">Financials</option>
+                    <option value="Legal" className="bg-[#0d0c1d] text-white">Legal</option>
+                    <option value="Compliance" className="bg-[#0d0c1d] text-white">Compliance</option>
+                    <option value="Insurance" className="bg-[#0d0c1d] text-white">Insurance</option>
+                    <option value="Tax" className="bg-[#0d0c1d] text-white">Tax</option>
+                    <option value="Operations" className="bg-[#0d0c1d] text-white">Operations</option>
+                    {categories.filter(c => !["Financials", "Legal", "Compliance", "Insurance", "Tax", "Operations"].includes(c)).map((cat) => (
+                      <option key={cat} value={cat} className="bg-[#0d0c1d] text-white">{cat}</option>
+                    ))}
+                    <option value="__custom__" className="bg-[#0d0c1d] text-acp-purple font-bold">+ Create New Category...</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+                    Review Status
+                  </label>
+                  <select
+                    value={newDocStatus}
+                    onChange={(e) => setNewDocStatus(e.target.value)}
+                    className="h-9 w-full rounded-xl border border-white/10 bg-[#0d0c1d] px-3 text-white outline-none focus:border-acp-purple focus:ring-1 focus:ring-acp-purple transition-all cursor-pointer"
+                  >
+                    <option value="Outstanding" className="bg-[#0d0c1d] text-white">Outstanding</option>
+                    <option value="Sent to Lender" className="bg-[#0d0c1d] text-white">Sent to Lender</option>
+                  </select>
+                </div>
+              </div>
+
+              {newDocCategory === "__custom__" && (
+                <div className="space-y-1.5 animate-fade-in-up">
+                  <label className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+                    Custom Category Name
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={customCategory}
+                    onChange={(e) => setCustomCategory(e.target.value)}
+                    placeholder="e.g. Board Minutes"
+                    className="h-9 w-full rounded-xl border border-white/10 bg-[#0d0c1d] px-3 text-white placeholder-slate-650 outline-none focus:border-acp-purple focus:ring-1 focus:ring-acp-purple transition-all"
+                  />
+                </div>
+              )}
+
+              <div className="space-y-1.5">
+                <label className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+                  Google Drive or File Link
+                </label>
+                <input
+                  type="url"
+                  value={newDocLink}
+                  onChange={(e) => setNewDocLink(e.target.value)}
+                  placeholder="https://drive.google.com/..."
+                  className="h-9 w-full rounded-xl border border-white/10 bg-[#0d0c1d] px-3 text-white placeholder-slate-650 outline-none focus:border-acp-purple focus:ring-1 focus:ring-acp-purple transition-all"
+                />
+              </div>
+
+              <div className="flex items-center gap-2 pt-1">
+                <input
+                  type="checkbox"
+                  id="new-doc-critical"
+                  checked={newDocCritical}
+                  onChange={(e) => setNewDocCritical(e.target.checked)}
+                  className="rounded border-white/10 bg-white/5 text-acp-purple focus:ring-acp-purple cursor-pointer h-4 w-4"
+                />
+                <label htmlFor="new-doc-critical" className="text-slate-350 font-bold cursor-pointer select-none">
+                  High Priority / ABL Critical
+                </label>
+              </div>
+
+              <div className="pt-4 border-t border-white/5 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsAddDocOpen(false)}
+                  className="h-10 px-4 rounded-xl border border-white/10 text-slate-300 text-xs font-bold uppercase tracking-wider hover:bg-white/5 cursor-pointer transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingDoc}
+                  className="h-10 px-5 rounded-xl bg-gradient-to-r from-acp-purple to-acp-purple-dark text-white text-xs font-bold uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none hover:shadow-glow-purple cursor-pointer transition-all"
+                >
+                  {isSubmittingDoc ? "Adding..." : "Add Document"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

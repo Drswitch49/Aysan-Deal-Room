@@ -190,6 +190,7 @@ export function DealDetailPage() {
               <DocumentChecklist
                 documents={documentState.data ?? []}
                 audience="internal"
+                dealId={dealState.data.id}
                 onRefresh={() => setRefreshTrigger((prev) => prev + 1)}
               />
             ) : null}
