@@ -5,11 +5,11 @@ export function ProgressBar({ value, label }: { value: number; label: string }) 
     <div className="w-full">
       <div className="mb-2.5 flex items-center justify-between gap-4 text-xs font-bold uppercase tracking-wider text-slate-500">
         <span>{label}</span>
-        <span className="font-semibold text-acp-blue">{Math.round(boundedValue)}%</span>
+        <span className="font-semibold text-acp-bronze">{Math.round(boundedValue)}%</span>
       </div>
       <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100/80 border border-slate-200/50 shadow-inner">
         <div 
-          className="h-full rounded-full bg-gradient-to-r from-acp-blue via-indigo-500 to-acp-emerald relative shadow-[0_0_8px_rgba(37,99,235,0.3)] transition-all duration-1000 ease-out" 
+          className="h-full rounded-full bg-gradient-to-r from-acp-bronze via-acp-bronze to-acp-emerald relative shadow-[0_0_8px_rgba(197,160,89,0.3)] transition-all duration-1000 ease-out" 
           style={{ width: `${boundedValue}%` }}
         >
           {boundedValue > 0 && boundedValue < 100 && (
@@ -55,7 +55,7 @@ export function ProgressRing({ value, size = 64, strokeWidth = 5 }: { value: num
         />
         <defs>
           <linearGradient id="progressRingGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#2563eb" />
+            <stop offset="0%" stopColor="#C5A059" />
             <stop offset="50%" stopColor="#6366f1" />
             <stop offset="100%" stopColor="#10b981" />
           </linearGradient>

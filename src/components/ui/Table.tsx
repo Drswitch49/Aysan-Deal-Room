@@ -13,7 +13,7 @@ export function Table({ children, className = "" }: { children: ReactNode; class
 export function Th({ children, className = "", ...props }: { children: ReactNode } & ThHTMLAttributes<HTMLTableCellElement>) {
   return (
     <th 
-      className={`px-6 py-4 text-left text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400 select-none border-b border-white/5 bg-[#0d0c1d] sticky top-0 z-10 ${className}`}
+      className={`px-6 py-4 text-left text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400 select-none border-b border-white/5 bg-[#0D0D0E] sticky top-0 z-10 ${className}`}
       {...props}
     >
       {children}

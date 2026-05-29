@@ -150,9 +150,9 @@ export function DealDetailPage() {
         <PageHeader title={dealState.data.companyName || dealState.data.dealRef} eyebrow={`Deal Details / ${dealState.data.dealRef}`}>
           <button
             onClick={openAddLenderModal}
-            className="inline-flex h-9 items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-4 text-xs font-bold uppercase tracking-wider text-slate-300 shadow-sm transition-all duration-300 hover:border-acp-purple hover:text-white hover:bg-white/10 hover:shadow-glow-blue transform hover:-translate-y-0.5 cursor-pointer"
+            className="inline-flex h-9 items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-4 text-xs font-bold uppercase tracking-wider text-slate-300 shadow-sm transition-all duration-300 hover:border-acp-bronze hover:text-white hover:bg-white/10 hover:shadow-glow-blue transform hover:-translate-y-0.5 cursor-pointer"
           >
-            <UserPlus className="h-4 w-4 text-acp-purple" aria-hidden="true" />
+            <UserPlus className="h-4 w-4 text-acp-bronze" aria-hidden="true" />
             Add Lender
           </button>
         </PageHeader>
@@ -165,14 +165,14 @@ export function DealDetailPage() {
       )}>
         {/* Workspace Column */}
         <div className="space-y-5 w-full min-w-0">
-          <div className="flex gap-1.5 overflow-x-auto rounded-xl border border-white/[0.06] bg-[#0d0c1d] p-1.5 shadow-inner backdrop-blur-md">
+          <div className="flex gap-1.5 overflow-x-auto rounded-xl border border-white/[0.06] bg-[#0D0D0E] p-1.5 shadow-inner backdrop-blur-md">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 className={cx(
                   "inline-flex min-h-9 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-4 text-xs font-extrabold uppercase tracking-wider transition-all duration-300 flex-1 sm:flex-initial",
                   activeTab === tab.id
-                    ? "bg-gradient-to-r from-acp-purple to-acp-purple-dark text-white shadow-md shadow-glow-purple-card"
+                    ? "bg-gradient-to-r from-acp-bronze to-acp-bronze-dark text-white shadow-md shadow-glow-purple-card"
                     : "text-slate-400 hover:bg-white/5 hover:text-white",
                 )}
                 onClick={() => setActiveTab(tab.id)}
@@ -200,10 +200,10 @@ export function DealDetailPage() {
 
         {/* VDR Audit Activity Column */}
         {activeTab !== "documents" && (
-          <aside className="rounded-2xl border border-white/[0.06] bg-[#0d0c1d] backdrop-blur-md p-6 shadow-premium-card space-y-6 card-sheen">
+          <aside className="rounded-2xl border border-white/[0.06] bg-[#0D0D0E] backdrop-blur-md p-6 shadow-premium-card space-y-6 card-sheen">
             <div className="flex items-center justify-between pb-3 border-b border-white/5">
               <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-350 select-none">
-                <History className="h-4 w-4 text-acp-purple" />
+                <History className="h-4 w-4 text-acp-bronze" />
                 Recent Activity Log
               </div>
               <span className="relative flex h-2 w-2">
@@ -231,7 +231,7 @@ export function DealDetailPage() {
               <h4 className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-slate-400">Recent Activity</h4>
               <div className="space-y-3.5">
                 <ActivityItem 
-                  icon={<Eye className="h-3.5 w-3.5 text-acp-blue" />}
+                  icon={<Eye className="h-3.5 w-3.5 text-acp-bronze" />}
                   action="Financial model viewed"
                   time="3 hours ago"
                   user="External Reviewer"
@@ -243,7 +243,7 @@ export function DealDetailPage() {
                   user="Lender Agent"
                 />
                 <ActivityItem 
-                  icon={<Lock className="h-3.5 w-3.5 text-acp-purple" />}
+                  icon={<Lock className="h-3.5 w-3.5 text-acp-bronze" />}
                   action="Security check completed"
                   time="1 day ago"
                   user="System"
@@ -261,7 +261,7 @@ export function DealDetailPage() {
             <div className="rounded-xl border border-white/8 bg-acp-navy p-4 text-white relative overflow-hidden shadow-inner">
               <div className="absolute -right-8 -bottom-8 h-20 w-20 rounded-full bg-white/[0.02] blur-xl pointer-events-none" />
               <div className="flex items-center gap-2">
-                <Shield className="h-4 w-4 text-acp-purple animate-pulse-glow" />
+                <Shield className="h-4 w-4 text-acp-bronze animate-pulse-glow" />
                 <span className="text-[10px] font-extrabold uppercase tracking-widest text-white">Security Certified</span>
               </div>
               <p className="mt-2 text-[10px] leading-relaxed text-slate-400 font-medium">
@@ -275,7 +275,7 @@ export function DealDetailPage() {
       {/* Add Lender Modal Overlay */}
       {isAddLenderOpen && (
         <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0d0c1d] p-6 shadow-2xl relative animate-scale-in">
+          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0D0D0E] p-6 shadow-2xl relative animate-scale-in">
             <button
               onClick={() => setIsAddLenderOpen(false)}
               className="absolute right-4 top-4 text-slate-400 hover:text-white cursor-pointer"
@@ -356,7 +356,7 @@ export function DealDetailPage() {
                       setErrorMessage("");
                       setAssignmentSuccess(false);
                     }}
-                    className="text-[10px] font-black uppercase tracking-wider text-acp-purple hover:underline cursor-pointer"
+                    className="text-[10px] font-black uppercase tracking-wider text-acp-bronze hover:underline cursor-pointer"
                     type="button"
                   >
                     {isCreatingNew ? "Use Existing" : "Create New"}
@@ -385,7 +385,7 @@ export function DealDetailPage() {
                         value={newCompanyName}
                         onChange={(e) => setNewCompanyName(e.target.value)}
                         placeholder="e.g. OakNorth Bank"
-                        className="mt-1.5 h-10 w-full rounded-xl border border-white/10 bg-white/5 px-3 text-xs text-white placeholder-slate-600 outline-none focus:border-acp-purple"
+                        className="mt-1.5 h-10 w-full rounded-xl border border-white/10 bg-white/5 px-3 text-xs text-white placeholder-slate-600 outline-none focus:border-acp-bronze"
                       />
                     </div>
                     <div>
@@ -395,7 +395,7 @@ export function DealDetailPage() {
                         value={newContactName}
                         onChange={(e) => setNewContactName(e.target.value)}
                         placeholder="e.g. John Smith"
-                        className="mt-1.5 h-10 w-full rounded-xl border border-white/10 bg-white/5 px-3 text-xs text-white placeholder-slate-600 outline-none focus:border-acp-purple"
+                        className="mt-1.5 h-10 w-full rounded-xl border border-white/10 bg-white/5 px-3 text-xs text-white placeholder-slate-600 outline-none focus:border-acp-bronze"
                       />
                     </div>
                     <div className="grid grid-cols-2 gap-3">
@@ -406,7 +406,7 @@ export function DealDetailPage() {
                           value={newEmail}
                           onChange={(e) => setNewEmail(e.target.value)}
                           placeholder="e.g. jsmith@oaknorth.com"
-                          className="mt-1.5 h-10 w-full rounded-xl border border-white/10 bg-white/5 px-3 text-xs text-white placeholder-slate-600 outline-none focus:border-acp-purple"
+                          className="mt-1.5 h-10 w-full rounded-xl border border-white/10 bg-white/5 px-3 text-xs text-white placeholder-slate-600 outline-none focus:border-acp-bronze"
                         />
                       </div>
                       <div>
@@ -416,7 +416,7 @@ export function DealDetailPage() {
                           value={newPhone}
                           onChange={(e) => setNewPhone(e.target.value)}
                           placeholder="e.g. +44 7700 900077"
-                          className="mt-1.5 h-10 w-full rounded-xl border border-white/10 bg-white/5 px-3 text-xs text-white placeholder-slate-600 outline-none focus:border-acp-purple"
+                          className="mt-1.5 h-10 w-full rounded-xl border border-white/10 bg-white/5 px-3 text-xs text-white placeholder-slate-600 outline-none focus:border-acp-bronze"
                         />
                       </div>
                     </div>
@@ -424,7 +424,7 @@ export function DealDetailPage() {
                     <button
                       type="submit"
                       disabled={submitting}
-                      className="mt-2 w-full h-10 rounded-xl bg-gradient-to-r from-[#5b5ef0] to-[#8b5cf6] text-white font-black text-xs uppercase tracking-wider hover:opacity-90 transition disabled:opacity-50 flex items-center justify-center cursor-pointer"
+                      className="mt-2 w-full h-10 rounded-xl bg-gradient-to-r from-[#C5A059] to-[#C5A059] text-white font-black text-xs uppercase tracking-wider hover:opacity-90 transition disabled:opacity-50 flex items-center justify-center cursor-pointer"
                     >
                       {submitting ? "Creating & Assigning..." : "Create & Assign"}
                     </button>
@@ -440,7 +440,7 @@ export function DealDetailPage() {
                           required
                           value={selectedLenderId}
                           onChange={(e) => setSelectedLenderId(e.target.value)}
-                          className="mt-1.5 h-10 w-full rounded-xl border border-white/10 bg-[#0d0c1d] px-3 text-xs text-white outline-none focus:border-acp-purple cursor-pointer"
+                          className="mt-1.5 h-10 w-full rounded-xl border border-white/10 bg-[#0D0D0E] px-3 text-xs text-white outline-none focus:border-acp-bronze cursor-pointer"
                         >
                           <option value="">-- Select an existing lender --</option>
                           {allLenders.map((lender) => (
@@ -455,7 +455,7 @@ export function DealDetailPage() {
                     <button
                       type="submit"
                       disabled={submitting || !selectedLenderId || isLoadingLenders}
-                      className="mt-4 w-full h-10 rounded-xl bg-gradient-to-r from-[#5b5ef0] to-[#8b5cf6] text-white font-black text-xs uppercase tracking-wider hover:opacity-90 transition disabled:opacity-50 flex items-center justify-center cursor-pointer"
+                      className="mt-4 w-full h-10 rounded-xl bg-gradient-to-r from-[#C5A059] to-[#C5A059] text-white font-black text-xs uppercase tracking-wider hover:opacity-90 transition disabled:opacity-50 flex items-center justify-center cursor-pointer"
                     >
                       {submitting ? "Assigning..." : "Assign Lender"}
                     </button>
@@ -474,7 +474,7 @@ function BackLink() {
   return (
     <Link 
       to="/deals" 
-      className="group mb-5 inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-400 hover:text-acp-purple transition-colors duration-300"
+      className="group mb-5 inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-400 hover:text-acp-bronze transition-colors duration-300"
     >
       <ArrowLeft className="h-3.5 w-3.5 transition-transform duration-300 group-hover:-translate-x-1" aria-hidden="true" />
       Back to Pipeline

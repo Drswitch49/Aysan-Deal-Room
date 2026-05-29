@@ -245,7 +245,7 @@ export function LenderManagementPage() {
       <PageHeader title="Lender Portals" eyebrow="System Management">
         <button
           onClick={() => setIsAddModalOpen(true)}
-          className="inline-flex h-9 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-acp-purple to-acp-purple-dark px-4 text-xs font-bold uppercase tracking-wider text-white shadow-md hover:shadow-glow-purple transition-all duration-300 transform hover:-translate-y-0.5"
+          className="inline-flex h-9 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-acp-bronze to-acp-bronze-dark px-4 text-xs font-bold uppercase tracking-wider text-white shadow-md hover:shadow-glow-bronze transition-all duration-300 transform hover:-translate-y-0.5"
         >
           <UserPlus className="h-4 w-4" />
           Create Lender
@@ -254,8 +254,8 @@ export function LenderManagementPage() {
 
       {/* Metrics Row */}
       <div className="grid gap-4 sm:grid-cols-3">
-        <div className="rounded-2xl border border-white/[0.06] bg-[#0d0c1d] p-5 shadow-premium-card card-sheen flex items-center gap-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#5b5ef0]/15 text-[#5b5ef0] border border-[#5b5ef0]/20">
+        <div className="rounded-2xl border border-white/[0.06] bg-[#0D0D0E] p-5 shadow-premium-card card-sheen flex items-center gap-4">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#C5A059]/15 text-[#C5A059] border border-[#C5A059]/20">
             <Users className="h-5 w-5" />
           </div>
           <div>
@@ -263,8 +263,8 @@ export function LenderManagementPage() {
             <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Total Registered Lenders</p>
           </div>
         </div>
-        <div className="rounded-2xl border border-white/[0.06] bg-[#0d0c1d] p-5 shadow-premium-card card-sheen flex items-center gap-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-acp-purple/15 text-acp-purple border border-acp-purple/20">
+        <div className="rounded-2xl border border-white/[0.06] bg-[#0D0D0E] p-5 shadow-premium-card card-sheen flex items-center gap-4">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-acp-bronze/15 text-acp-bronze border border-acp-bronze/20">
             <ShieldCheck className="h-5 w-5" />
           </div>
           <div>
@@ -272,7 +272,7 @@ export function LenderManagementPage() {
             <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Active Portals</p>
           </div>
         </div>
-        <div className="rounded-2xl border border-white/[0.06] bg-[#0d0c1d] p-5 shadow-premium-card card-sheen flex items-center gap-4">
+        <div className="rounded-2xl border border-white/[0.06] bg-[#0D0D0E] p-5 shadow-premium-card card-sheen flex items-center gap-4">
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#10b981]/15 text-[#10b981] border border-[#10b981]/20">
             <Building2 className="h-5 w-5" />
           </div>
@@ -297,7 +297,7 @@ export function LenderManagementPage() {
       ) : null}
 
       {!isLoading && !error && lenders.length > 0 ? (
-        <div className="rounded-2xl border border-white/[0.06] bg-[#0d0c1d] p-6 shadow-premium-card card-sheen">
+        <div className="rounded-2xl border border-white/[0.06] bg-[#0D0D0E] p-6 shadow-premium-card card-sheen">
           <div className="mb-4">
             <h3 className="text-sm font-bold uppercase tracking-wider text-white">Lender Registry</h3>
           </div>
@@ -343,7 +343,7 @@ export function LenderManagementPage() {
                       {/* Password Row */}
                       <div className="mt-2 flex items-center gap-2">
                         <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-white/5 border border-white/5 text-[10px] font-mono text-slate-300">
-                          <KeyRound className="h-3 w-3 text-acp-purple" />
+                          <KeyRound className="h-3 w-3 text-acp-bronze" />
                           <span>Passcode: <b>{lender.Portal_Password || "Redacted"}</b></span>
                         </div>
                         {lender.Portal_Password && (
@@ -383,7 +383,7 @@ export function LenderManagementPage() {
                         {!expandedLenderIds[lender.id] && lender.assignments.length > 3 && (
                           <button
                             onClick={() => toggleLenderExpanded(lender.id)}
-                            className="inline-flex items-center gap-1 rounded-full border border-acp-purple/20 bg-acp-purple/5 px-2 py-0.5 text-[10px] font-black text-acp-purple hover:bg-acp-purple/10 hover:border-acp-purple/30 transition cursor-pointer"
+                            className="inline-flex items-center gap-1 rounded-full border border-acp-bronze/20 bg-acp-bronze/5 px-2 py-0.5 text-[10px] font-black text-acp-bronze hover:bg-acp-bronze/10 hover:border-acp-bronze/30 transition cursor-pointer"
                           >
                             +{lender.assignments.length - 3}
                           </button>
@@ -406,7 +406,7 @@ export function LenderManagementPage() {
                             setSelectedDealRef("");
                             setIsAssignModalOpen(true);
                           }}
-                          className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-acp-purple/10 border border-acp-purple/20 text-acp-purple hover:bg-acp-purple hover:text-white transition cursor-pointer"
+                          className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-acp-bronze/10 border border-acp-bronze/20 text-acp-bronze hover:bg-acp-bronze hover:text-white transition cursor-pointer"
                           title="Assign deal"
                         >
                           +
@@ -461,7 +461,7 @@ export function LenderManagementPage() {
       {/* MODAL 1: ADD LENDER */}
       {isAddModalOpen && (
         <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0d0c1d] p-6 shadow-2xl relative">
+          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0D0D0E] p-6 shadow-2xl relative">
             <button
               onClick={closeAddModal}
               className="absolute right-4 top-4 text-slate-450 hover:text-white"
@@ -481,7 +481,7 @@ export function LenderManagementPage() {
                     value={newCompanyName}
                     onChange={(e) => setNewCompanyName(e.target.value)}
                     placeholder="e.g. Moorfields Capital"
-                    className="mt-1.5 h-10 w-full rounded-xl border border-white/10 bg-white/5 px-3 text-xs text-white placeholder-slate-600 outline-none focus:border-acp-purple"
+                    className="mt-1.5 h-10 w-full rounded-xl border border-white/10 bg-white/5 px-3 text-xs text-white placeholder-slate-600 outline-none focus:border-acp-bronze"
                   />
                 </div>
 
@@ -492,7 +492,7 @@ export function LenderManagementPage() {
                     value={newContactName}
                     onChange={(e) => setNewContactName(e.target.value)}
                     placeholder="e.g. Jane Doe"
-                    className="mt-1.5 h-10 w-full rounded-xl border border-white/10 bg-white/5 px-3 text-xs text-white placeholder-slate-600 outline-none focus:border-acp-purple"
+                    className="mt-1.5 h-10 w-full rounded-xl border border-white/10 bg-white/5 px-3 text-xs text-white placeholder-slate-600 outline-none focus:border-acp-bronze"
                   />
                 </div>
 
@@ -504,7 +504,7 @@ export function LenderManagementPage() {
                       value={newEmail}
                       onChange={(e) => setNewEmail(e.target.value)}
                       placeholder="e.g. contact@moorfields.com"
-                      className="mt-1.5 h-10 w-full rounded-xl border border-white/10 bg-white/5 px-3 text-xs text-white placeholder-slate-600 outline-none focus:border-acp-purple"
+                      className="mt-1.5 h-10 w-full rounded-xl border border-white/10 bg-white/5 px-3 text-xs text-white placeholder-slate-600 outline-none focus:border-acp-bronze"
                     />
                   </div>
                   <div>
@@ -514,7 +514,7 @@ export function LenderManagementPage() {
                       value={newPhone}
                       onChange={(e) => setNewPhone(e.target.value)}
                       placeholder="e.g. +44 20 7946 0958"
-                      className="mt-1.5 h-10 w-full rounded-xl border border-white/10 bg-white/5 px-3 text-xs text-white placeholder-slate-600 outline-none focus:border-acp-purple"
+                      className="mt-1.5 h-10 w-full rounded-xl border border-white/10 bg-white/5 px-3 text-xs text-white placeholder-slate-600 outline-none focus:border-acp-bronze"
                     />
                   </div>
                 </div>
@@ -522,7 +522,7 @@ export function LenderManagementPage() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="w-full inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-acp-purple to-acp-purple-dark text-xs font-bold uppercase tracking-wider text-white shadow-md hover:shadow-glow-purple disabled:opacity-40"
+                  className="w-full inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-acp-bronze to-acp-bronze-dark text-xs font-bold uppercase tracking-wider text-white shadow-md hover:shadow-glow-bronze disabled:opacity-40"
                 >
                   {submitting ? "Creating..." : "Generate Portal Access"}
                 </button>
@@ -556,7 +556,7 @@ export function LenderManagementPage() {
                   <div>
                     <span className="block text-[9px] font-extrabold uppercase tracking-wider text-slate-450">Temporary Passcode</span>
                     <div className="flex items-center gap-2 mt-1">
-                      <span className="text-[12px] font-mono font-bold text-acp-purple">{createdLenderDetails.pass}</span>
+                      <span className="text-[12px] font-mono font-bold text-acp-bronze">{createdLenderDetails.pass}</span>
                       <button
                         onClick={() => handleCopy(createdLenderDetails.pass, "modal-pass")}
                         className="h-6 w-6 flex items-center justify-center rounded bg-white/5 text-slate-355 hover:text-white"
@@ -582,7 +582,7 @@ export function LenderManagementPage() {
       {/* MODAL 2: ASSIGN DEALS */}
       {isAssignModalOpen && selectedLender && (
         <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0d0c1d] p-6 shadow-2xl relative animate-scale-in">
+          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0D0D0E] p-6 shadow-2xl relative animate-scale-in">
             <button
               onClick={() => {
                 setIsAssignModalOpen(false);
@@ -608,12 +608,12 @@ export function LenderManagementPage() {
                     placeholder="Search by Deal ID or Company Name..."
                     value={dealSearchQuery}
                     onChange={(e) => setDealSearchQuery(e.target.value)}
-                    className="h-10 w-full rounded-xl border border-white/10 bg-[#06050e] pl-9 pr-4 text-xs text-white placeholder-slate-600 outline-none transition-all duration-300 focus:border-acp-purple focus:ring-1 focus:ring-acp-purple"
+                    className="h-10 w-full rounded-xl border border-white/10 bg-[#0A0A0B] pl-9 pr-4 text-xs text-white placeholder-slate-600 outline-none transition-all duration-300 focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze"
                   />
                 </div>
 
                 {/* Custom Searchable Scroll Container */}
-                <div className="max-h-48 overflow-y-auto rounded-xl border border-white/10 bg-[#06050e] divide-y divide-white/[0.04] custom-scrollbar">
+                <div className="max-h-48 overflow-y-auto rounded-xl border border-white/10 bg-[#0A0A0B] divide-y divide-white/[0.04] custom-scrollbar">
                   {deals
                     // Filter out deals already assigned to this lender
                     .filter(deal => !selectedLender.assignments.some(a => a.dealRef === deal.dealRef))
@@ -635,7 +635,7 @@ export function LenderManagementPage() {
                           className={cx(
                             "w-full text-left px-3 py-2.5 text-xs transition-colors flex items-center justify-between cursor-pointer",
                             isSelected 
-                              ? "bg-acp-purple/10 text-white font-bold" 
+                              ? "bg-acp-bronze/10 text-white font-bold" 
                               : "text-slate-300 hover:bg-white/5"
                           )}
                         >
@@ -643,7 +643,7 @@ export function LenderManagementPage() {
                             <span className="font-semibold text-white">{deal.dealRef}</span>
                             <span className="text-slate-450 ml-2">— {deal.companyName || "Not specified"}</span>
                           </div>
-                          {isSelected && <Check className="h-4 w-4 text-acp-purple shrink-0" />}
+                          {isSelected && <Check className="h-4 w-4 text-acp-bronze shrink-0" />}
                         </button>
                       );
                     })}
@@ -667,7 +667,7 @@ export function LenderManagementPage() {
               <button
                 type="submit"
                 disabled={submitting || !selectedDealRef}
-                className="w-full inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-acp-purple to-acp-purple-dark text-xs font-bold uppercase tracking-wider text-white shadow-md hover:shadow-glow-purple disabled:opacity-40 cursor-pointer"
+                className="w-full inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-acp-bronze to-acp-bronze-dark text-xs font-bold uppercase tracking-wider text-white shadow-md hover:shadow-glow-bronze disabled:opacity-40 cursor-pointer"
               >
                 {submitting ? "Assigning..." : "Assign Access"}
               </button>
@@ -679,7 +679,7 @@ export function LenderManagementPage() {
       {/* MODAL 3: PASSWORD RESET CONFIRMATION */}
       {isResetConfirmOpen && selectedLender && (
         <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0d0c1d] p-6 shadow-2xl relative text-center">
+          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0D0D0E] p-6 shadow-2xl relative text-center">
             <button
               onClick={closeResetModal}
               className="absolute right-4 top-4 text-slate-450 hover:text-white"
@@ -725,7 +725,7 @@ export function LenderManagementPage() {
                 <div className="bg-white/5 border border-white/10 rounded-xl p-4 text-left">
                   <span className="block text-[9px] font-extrabold uppercase tracking-wider text-slate-450">New Passcode</span>
                   <div className="flex items-center gap-2 mt-1">
-                    <span className="text-[12px] font-mono font-bold text-acp-purple">{newResetPassword}</span>
+                    <span className="text-[12px] font-mono font-bold text-acp-bronze">{newResetPassword}</span>
                     <button
                       onClick={() => handleCopy(newResetPassword, "modal-reset-pass")}
                       className="h-6 w-6 flex items-center justify-center rounded bg-white/5 text-slate-355 hover:text-white"
@@ -750,7 +750,7 @@ export function LenderManagementPage() {
       {/* MODAL 4: DELETE LENDER CONFIRMATION */}
       {isDeleteConfirmOpen && selectedLender && (
         <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0d0c1d] p-6 shadow-2xl relative text-center animate-scale-in">
+          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0D0D0E] p-6 shadow-2xl relative text-center animate-scale-in">
             <button
               onClick={closeDeleteModal}
               className="absolute right-4 top-4 text-slate-450 hover:text-white cursor-pointer"
@@ -779,7 +779,7 @@ export function LenderManagementPage() {
                   value={deleteConfirmText}
                   onChange={(e) => setDeleteConfirmText(e.target.value)}
                   placeholder={selectedLender.Company_Name}
-                  className="h-10 w-full rounded-xl border border-white/10 bg-[#06050e] px-3 text-xs text-white placeholder-slate-600 outline-none focus:border-rose-500 transition-all"
+                  className="h-10 w-full rounded-xl border border-white/10 bg-[#0A0A0B] px-3 text-xs text-white placeholder-slate-600 outline-none focus:border-rose-500 transition-all"
                 />
               </div>
 

@@ -44,8 +44,8 @@ function PasswordGate({ dealRef, onUnlock }: { dealRef: string; onUnlock: () => 
     <div className="min-h-[80vh] flex items-center justify-center relative overflow-hidden px-4 py-8 animate-fade-in-up">
       {/* Premium dark mesh backdrop */}
       <div className="absolute inset-0 bg-acp-ink rounded-3xl border border-white/5" />
-      <div className="absolute -left-20 -top-20 h-64 w-64 rounded-full bg-acp-blue/10 blur-[80px] pointer-events-none" />
-      <div className="absolute -right-20 -bottom-20 h-64 w-64 rounded-full bg-acp-purple/5 blur-[85px] pointer-events-none" />
+      <div className="absolute -left-20 -top-20 h-64 w-64 rounded-full bg-acp-bronze/10 blur-[80px] pointer-events-none" />
+      <div className="absolute -right-20 -bottom-20 h-64 w-64 rounded-full bg-acp-bronze/5 blur-[85px] pointer-events-none" />
 
       <form 
         onSubmit={handleSubmit} 
@@ -55,17 +55,17 @@ function PasswordGate({ dealRef, onUnlock }: { dealRef: string; onUnlock: () => 
           {/* Rotating vault dial graphic around lock icon */}
           <div className="relative mb-6 flex items-center justify-center h-24 w-24">
             <svg 
-              className="absolute inset-0 h-full w-full text-acp-purple/20 animate-[spin_24s_linear_infinite]" 
+              className="absolute inset-0 h-full w-full text-acp-bronze/20 animate-[spin_24s_linear_infinite]" 
               viewBox="0 0 100 100"
               style={{ transform: `rotate(${password.length * 15}deg)`, transition: "transform 0.4s ease-out" }}
             >
               <circle cx="50" cy="50" r="45" stroke="currentColor" strokeWidth="1.2" strokeDasharray="6 4" fill="none" />
               <circle cx="50" cy="50" r="38" stroke="currentColor" strokeWidth="0.6" strokeDasharray="2 12" fill="none" />
             </svg>
-            <div className="relative z-10 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-acp-purple to-acp-purple-dark text-white shadow-lg border border-white/10 group">
+            <div className="relative z-10 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-acp-bronze to-acp-bronze-dark text-white shadow-lg border border-white/10 group">
               <LockKeyhole className="h-6 w-6 transition-transform duration-500 group-hover:scale-110" aria-hidden="true" />
               {password.length > 0 && (
-                <span className="absolute inset-0 rounded-2xl animate-ping bg-acp-purple/20 opacity-30 pointer-events-none" />
+                <span className="absolute inset-0 rounded-2xl animate-ping bg-acp-bronze/20 opacity-30 pointer-events-none" />
               )}
             </div>
           </div>
@@ -73,7 +73,7 @@ function PasswordGate({ dealRef, onUnlock }: { dealRef: string; onUnlock: () => 
           <h2 className="font-display text-2xl text-white font-normal italic tracking-wide">
             Aysan Capital Partners
           </h2>
-          <p className="mt-1 text-[10px] font-extrabold uppercase tracking-[0.2em] text-acp-purple">
+          <p className="mt-1 text-[10px] font-extrabold uppercase tracking-[0.2em] text-acp-bronze">
             Secure Lender Portal
           </p>
           <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-white/5 px-3 py-1 text-[10px] font-bold text-slate-400 border border-white/5">
@@ -98,7 +98,7 @@ function PasswordGate({ dealRef, onUnlock }: { dealRef: string; onUnlock: () => 
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               placeholder="••••••••"
-              className="mt-2.5 h-11 w-full rounded-xl border border-white/10 bg-white/5 px-4 text-sm text-white placeholder-slate-600 outline-none transition-all duration-300 focus:border-acp-purple focus:ring-1 focus:ring-acp-purple"
+              className="mt-2.5 h-11 w-full rounded-xl border border-white/10 bg-white/5 px-4 text-sm text-white placeholder-slate-600 outline-none transition-all duration-300 focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze"
               autoComplete="current-password"
             />
           </div>
@@ -109,7 +109,7 @@ function PasswordGate({ dealRef, onUnlock }: { dealRef: string; onUnlock: () => 
 
           <button
             type="submit"
-            className="w-full inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-acp-purple to-acp-purple-dark px-4 text-xs font-bold uppercase tracking-wider text-white shadow-md hover:shadow-glow-purple transition-all duration-300 transform hover:-translate-y-0.5"
+            className="w-full inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-acp-bronze to-acp-bronze-dark px-4 text-xs font-bold uppercase tracking-wider text-white shadow-md hover:shadow-glow-bronze transition-all duration-300 transform hover:-translate-y-0.5"
           >
             <ShieldCheck className="h-4 w-4" aria-hidden="true" />
             Verify and Access
@@ -141,7 +141,7 @@ function UnlockedLenderPage({ dealRef }: { dealRef: string }) {
       {/* Private disclaimer */}
       <div className="rounded-2xl border border-amber-500/20 bg-amber-500/5 px-6 py-4 shadow-sm">
         <div className="flex items-start gap-3">
-          <Landmark className="h-5 w-5 text-acp-purple mt-0.5" />
+          <Landmark className="h-5 w-5 text-acp-bronze mt-0.5" />
           <div>
             <h4 className="text-xs font-bold text-amber-200 uppercase tracking-wider">Confidential Investor Material</h4>
             <p className="mt-1 text-[11px] leading-relaxed text-slate-400">
@@ -155,7 +155,7 @@ function UnlockedLenderPage({ dealRef }: { dealRef: string }) {
       
       <section className="space-y-4">
         <div className="flex items-center gap-3">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/5 border border-white/10 text-acp-purple shadow-sm">
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/5 border border-white/10 text-acp-bronze shadow-sm">
             <ShieldCheck className="h-5 w-5" aria-hidden="true" />
           </span>
           <h2 className="text-sm font-bold uppercase tracking-wider text-white">Approved Documents</h2>

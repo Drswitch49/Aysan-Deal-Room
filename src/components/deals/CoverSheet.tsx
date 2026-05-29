@@ -12,9 +12,9 @@ type CoverSheetProps = {
 
 // Colors for visual debt stack segment colors
 const STACK_COLORS: Record<string, { bg: string; text: string; dot: string }> = {
-  "Senior Debt": { bg: "bg-acp-blue", text: "text-acp-blue", dot: "bg-acp-blue" },
+  "Senior Debt": { bg: "bg-acp-bronze", text: "text-acp-bronze", dot: "bg-acp-bronze" },
   "Subordinated Debt": { bg: "bg-indigo-500", text: "text-indigo-600", dot: "bg-indigo-500" },
-  "Equity": { bg: "bg-acp-purple", text: "text-acp-purple-dark", dot: "bg-acp-purple" },
+  "Equity": { bg: "bg-acp-bronze", text: "text-acp-bronze-dark", dot: "bg-acp-bronze" },
   "Seller Note": { bg: "bg-rose-500", text: "text-rose-600", dot: "bg-rose-500" },
 };
 
@@ -39,7 +39,7 @@ export function CoverSheet({ deal, audience }: CoverSheetProps) {
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_1.15fr]">
       {/* Company card */}
-      <section className="rounded-2xl border border-white/[0.06] bg-[#0d0c1d] backdrop-blur-md p-6 shadow-premium-card hover:border-white/15 card-sheen transition-all duration-300">
+      <section className="rounded-2xl border border-white/[0.06] bg-[#0D0D0E] backdrop-blur-md p-6 shadow-premium-card hover:border-white/15 card-sheen transition-all duration-300">
         <SectionTitle icon={<MapPin className="h-5 w-5" />} title="Company Details" />
         <dl className="mt-6 grid gap-4 sm:grid-cols-2">
           <Field label="Company Name" value={deal.companyName} emphasis />
@@ -50,7 +50,7 @@ export function CoverSheet({ deal, audience }: CoverSheetProps) {
       </section>
 
       {/* Transaction card */}
-      <section className="rounded-2xl border border-white/[0.06] bg-[#0d0c1d] backdrop-blur-md p-6 shadow-premium-card hover:border-white/15 card-sheen transition-all duration-300">
+      <section className="rounded-2xl border border-white/[0.06] bg-[#0D0D0E] backdrop-blur-md p-6 shadow-premium-card hover:border-white/15 card-sheen transition-all duration-300">
         <SectionTitle icon={<TrendingUp className="h-5 w-5" />} title="Transaction Overview" />
         <dl className="mt-6 grid gap-4 sm:grid-cols-2">
           <Field label="Enterprise Value (EV)" value={deal.ev} emphasis />
@@ -75,7 +75,7 @@ export function CoverSheet({ deal, audience }: CoverSheetProps) {
 
         {/* Visual Stack Chart */}
         {capitalStructure.length > 0 && totalStackVal > 0 ? (
-          <div className="rounded-2xl border border-white/[0.06] bg-[#0d0c1d] backdrop-blur-md p-6 shadow-premium-card card-sheen">
+          <div className="rounded-2xl border border-white/[0.06] bg-[#0D0D0E] backdrop-blur-md p-6 shadow-premium-card card-sheen">
             <h3 className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-slate-400 mb-4">Funding breakdown</h3>
             <div className="h-4 w-full flex rounded-full overflow-hidden bg-white/5 border border-white/[0.06] shadow-inner">
               {stackWithValues.map((row) => {
@@ -173,7 +173,7 @@ export function CoverSheet({ deal, audience }: CoverSheetProps) {
 function SectionTitle({ icon, title }: { icon: ReactNode; title: string }) {
   return (
     <div className="flex items-center gap-2.5">
-      <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/5 border border-white/[0.06] text-acp-purple shadow-sm">
+      <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/5 border border-white/[0.06] text-acp-bronze shadow-sm">
         {icon}
       </span>
       <h2 className="text-sm font-bold uppercase tracking-wider text-white">{title}</h2>

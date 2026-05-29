@@ -14,7 +14,7 @@ export function PageHeader({
       <div className="grid gap-5 px-6 py-6 sm:px-8 lg:grid-cols-[1fr_auto] lg:items-end">
         <div className="min-w-0">
           {eyebrow ? (
-            <p className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-acp-purple">{eyebrow}</p>
+            <p className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-acp-bronze">{eyebrow}</p>
           ) : null}
           <h1 className="mt-2 truncate font-heading text-3xl sm:text-4xl text-white font-black tracking-tight uppercase">
             {title}
@@ -31,7 +31,7 @@ export function PageHeader({
         </div>
         {children ? <div className="flex flex-wrap items-center gap-2.5">{children}</div> : null}
       </div>
-      <div className="h-0.5 bg-gradient-to-r from-acp-blue via-acp-purple to-transparent opacity-80" />
+      <div className="h-0.5 bg-gradient-to-r from-acp-bronze via-acp-bronze to-transparent opacity-80" />
     </div>
   );
 }

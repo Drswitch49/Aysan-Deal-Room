@@ -161,19 +161,19 @@ export function DealListPage() {
               icon={<BriefcaseBusiness className="h-5 w-5" />} 
               label="Active deals" 
               value={activeDealCount} 
-              iconBgClass="bg-[#5b5ef0]"
+              iconBgClass="bg-[#C5A059]"
             />
             <MetricCard 
               icon={<Users className="h-5 w-5" />} 
               label="Registered Lenders" 
               value={lendersCount !== null ? lendersCount : "..."} 
-              iconBgClass="bg-[#ec4899]"
+              iconBgClass="bg-[#C5A059]"
             />
             <MetricCard 
               icon={<FolderOpen className="h-5 w-5" />} 
               label="Total indexed documents" 
               value={outstandingCount} 
-              iconBgClass="bg-[#8b5cf6]"
+              iconBgClass="bg-[#C5A059]"
             />
           </div>
 
@@ -190,7 +190,7 @@ export function DealListPage() {
                 <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full sm:w-auto">
 
                   {/* View Mode Segment Switch */}
-                  <div className="inline-flex rounded-xl border border-white/5 bg-[#0d0c1d] p-1 shadow-inner self-start sm:self-auto">
+                  <div className="inline-flex rounded-xl border border-white/5 bg-[#0D0D0E] p-1 shadow-inner self-start sm:self-auto">
                     <button
                       onClick={() => {
                         setViewMode("pipeline");
@@ -227,7 +227,7 @@ export function DealListPage() {
                       placeholder="Search deals..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="h-9 w-full rounded-xl border border-white/10 bg-[#0d0c1d] pl-9 pr-4 text-xs text-white placeholder-slate-500 outline-none transition-all duration-300 focus:border-acp-purple focus:ring-1 focus:ring-acp-purple"
+                      className="h-9 w-full rounded-xl border border-white/10 bg-[#0d0c1d] pl-9 pr-4 text-xs text-white placeholder-slate-500 outline-none transition-all duration-300 focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze"
                     />
                   </div>
                 </div>
@@ -245,8 +245,8 @@ export function DealListPage() {
                         className={cx(
                           "inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all duration-200 border cursor-pointer",
                           isActive
-                            ? "bg-gradient-to-r from-[#5b5ef0] to-[#8b5cf6] text-white border-transparent shadow-[0_4px_12px_rgba(139,92,246,0.15)] scale-[1.02]"
-                            : "bg-[#0d0c1d] hover:bg-[#15132d] text-slate-400 hover:text-white border-white/[0.06] hover:border-white/12"
+                            ? "bg-gradient-to-r from-[#C5A059] to-[#C5A059] text-white border-transparent shadow-[0_4px_12px_rgba(197,160,89,0.15)] scale-[1.02]"
+                            : "bg-[#0D0D0E] hover:bg-[#15132d] text-slate-400 hover:text-white border-white/[0.06] hover:border-white/12"
                         )}
                       >
                         <span>{category.name}</span>
@@ -290,14 +290,14 @@ export function DealListPage() {
                     stageTheme = { border: "border-l-rose-500", bg: "bg-rose-500/10", text: "text-rose-400" };
                   } else {
                     // Fallback for new stages/statuses added dynamically
-                    stageTheme = { border: "border-l-acp-purple", bg: "bg-acp-purple/10", text: "text-acp-purple" };
+                    stageTheme = { border: "border-l-acp-bronze", bg: "bg-acp-bronze/10", text: "text-acp-bronze" };
                   }
 
                   return (
                     <div
                       key={stage}
                       className={cx(
-                        "rounded-2xl border border-white/[0.06] bg-[#0d0c1d]/65 backdrop-blur-md p-5 space-y-4 shadow-sm border-l-4",
+                        "rounded-2xl border border-white/[0.06] bg-[#0D0D0E]/65 backdrop-blur-md p-5 space-y-4 shadow-sm border-l-4",
                         stageTheme.border
                       )}
                     >
@@ -328,13 +328,13 @@ export function DealListPage() {
                                 <Link
                                   key={deal.id}
                                   to={`/deals/${encodeURIComponent(deal.dealRef)}`}
-                                  className="group block relative overflow-hidden rounded-xl border border-white/[0.04] bg-[#0c1122]/40 p-4 shadow-sm transition-all duration-300 hover:border-acp-purple/30 hover:bg-[#0c1122]/80 hover:-translate-y-0.5 card-sheen flex-1 min-w-[280px]"
+                                  className="group block relative overflow-hidden rounded-xl border border-white/[0.04] bg-[#0c1122]/40 p-4 shadow-sm transition-all duration-300 hover:border-acp-bronze/30 hover:bg-[#0c1122]/80 hover:-translate-y-0.5 card-sheen flex-1 min-w-[280px]"
                                 >
                                   <div className="min-w-0">
-                                    <span className="text-[9px] font-bold uppercase tracking-wider text-acp-purple">
+                                    <span className="text-[9px] font-bold uppercase tracking-wider text-acp-bronze">
                                       {deal.dealRef || "Missing Ref"}
                                     </span>
-                                    <h4 className="mt-1 text-xs font-bold text-white tracking-wide truncate group-hover:text-acp-purple transition-colors">
+                                    <h4 className="mt-1 text-xs font-bold text-white tracking-wide truncate group-hover:text-acp-bronze transition-colors">
                                       {deal.companyName || "Not specified"}
                                     </h4>
                                     <p className="mt-1 text-[10px] text-slate-450 truncate">
@@ -361,7 +361,7 @@ export function DealListPage() {
                                         {execInitials}
                                       </div>
                                       <div 
-                                        className="inline-flex h-5.5 w-5.5 items-center justify-center rounded-full bg-acp-purple/10 border border-acp-purple/20 text-[8px] font-bold text-acp-purple shadow-sm"
+                                        className="inline-flex h-5.5 w-5.5 items-center justify-center rounded-full bg-acp-bronze/10 border border-acp-bronze/20 text-[8px] font-bold text-acp-bronze shadow-sm"
                                         title={`Sponsoring Broker: ${brokerName}`}
                                       >
                                         {brokerInitials}
@@ -392,7 +392,7 @@ export function DealListPage() {
             ) : (
               /* Registry (Grid) View */
               filteredData.length === 0 ? (
-                <div className="rounded-2xl border border-white/[0.06] bg-[#0d0c1d] p-12 text-center shadow-premium-card card-sheen">
+                <div className="rounded-2xl border border-white/[0.06] bg-[#0D0D0E] p-12 text-center shadow-premium-card card-sheen">
                   <Search className="mx-auto h-8 w-8 text-slate-500 mb-3" />
                   <p className="text-xs font-bold text-slate-350">No matching deals found</p>
                   <p className="text-[10px] text-slate-450 mt-1">Try resetting your search query.</p>
@@ -410,14 +410,14 @@ export function DealListPage() {
                       <Link
                         key={deal.id}
                         to={`/deals/${encodeURIComponent(deal.dealRef)}`}
-                        className="group block relative overflow-hidden rounded-2xl border border-white/[0.06] bg-[#0d0c1d] backdrop-blur-md p-6 shadow-premium-card transition-all duration-300 hover:border-acp-purple/40 hover:bg-[#0d0c1d]/90 hover:shadow-[0_12px_30px_rgba(139,92,246,0.06)] hover:-translate-y-0.5 card-sheen"
+                        className="group block relative overflow-hidden rounded-2xl border border-white/[0.06] bg-[#0d0c1d] backdrop-blur-md p-6 shadow-premium-card transition-all duration-300 hover:border-acp-bronze/40 hover:bg-[#0D0D0E]/90 hover:shadow-[0_12px_30px_rgba(197,160,89,0.06)] hover:-translate-y-0.5 card-sheen"
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
-                            <span className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-acp-purple">
+                            <span className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-acp-bronze">
                               {deal.dealRef || "Missing Ref"}
                             </span>
-                            <h3 className="mt-1 text-sm font-semibold text-white tracking-wide truncate group-hover:text-acp-purple transition-colors">
+                            <h3 className="mt-1 text-sm font-semibold text-white tracking-wide truncate group-hover:text-acp-bronze transition-colors">
                               {deal.companyName || "Not specified"}
                             </h3>
                           </div>
@@ -454,7 +454,7 @@ export function DealListPage() {
                               {execInitials}
                             </div>
                             <div 
-                              className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-acp-purple/10 border border-acp-purple/20 text-[9px] font-bold text-acp-purple shadow-sm"
+                              className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-acp-bronze/10 border border-acp-bronze/20 text-[9px] font-bold text-acp-bronze shadow-sm"
                               title={`Sponsoring Broker: ${brokerName}`}
                               >
                               {brokerInitials}
@@ -483,7 +483,7 @@ function DealRoomHero({
   onToggleViewMode: () => void; 
 }) {
   return (
-    <section className="relative overflow-hidden rounded-2xl border border-white/[0.08] bg-gradient-to-r from-[#5b5ef0] to-[#b372f8] text-white shadow-[0_20px_50px_rgba(139,92,246,0.15)] card-sheen">
+    <section className="relative overflow-hidden rounded-2xl border border-white/[0.08] bg-gradient-to-r from-[#C5A059] to-[#A8873F] text-white shadow-[0_20px_50px_rgba(197,160,89,0.15)] card-sheen">
       <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-white/10 blur-[40px] pointer-events-none" />
       
       <div className="absolute right-12 top-1/2 -translate-y-1/2 opacity-10 pointer-events-none hidden lg:block">
@@ -526,7 +526,7 @@ function MetricCard({
   iconBgClass: string; 
 }) {
   return (
-    <div className="rounded-2xl border border-white/[0.06] bg-[#0d0c1d] p-5 shadow-premium-card transition-all duration-300 hover:border-white/15 hover:bg-[#0c1122]/60 hover:-translate-y-0.5 group card-sheen">
+    <div className="rounded-2xl border border-white/[0.06] bg-[#0D0D0E] p-5 shadow-premium-card transition-all duration-300 hover:border-white/15 hover:bg-[#0c1122]/60 hover:-translate-y-0.5 group card-sheen">
       <div className="flex items-center gap-4">
         <div className={cx("flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-white shadow-md transition-transform duration-300 group-hover:scale-105", iconBgClass)}>
           {icon}

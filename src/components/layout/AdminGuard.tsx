@@ -36,25 +36,25 @@ export function AdminGuard({ children }: AdminGuardProps) {
   }
 
   return (
-    <div className="min-h-screen bg-[#06050e] flex items-center justify-center p-4 relative overflow-hidden">
+    <div className="min-h-screen bg-[#0A0A0B] flex items-center justify-center p-4 relative overflow-hidden">
       {/* Decorative ambient glows */}
-      <div className="absolute -left-20 -top-20 h-80 w-80 rounded-full bg-acp-purple/5 blur-[100px] pointer-events-none" />
-      <div className="absolute -right-20 -bottom-20 h-80 w-80 rounded-full bg-acp-blue/5 blur-[100px] pointer-events-none" />
+      <div className="absolute -left-20 -top-20 h-80 w-80 rounded-full bg-acp-bronze/5 blur-[100px] pointer-events-none" />
+      <div className="absolute -right-20 -bottom-20 h-80 w-80 rounded-full bg-acp-bronze/5 blur-[100px] pointer-events-none" />
 
       <form
         onSubmit={handleSubmit}
-        className="w-full max-w-md relative z-10 rounded-2xl border border-white/10 bg-[#0d0c1d] backdrop-blur-xl p-8 shadow-2xl card-sheen"
+        className="w-full max-w-md relative z-10 rounded-2xl border border-white/10 bg-[#0D0D0E] backdrop-blur-xl p-8 shadow-2xl card-sheen"
       >
         <div className="flex flex-col items-center text-center">
           <div className="relative mb-6 flex items-center justify-center h-20 w-20">
             <svg
-              className="absolute inset-0 h-full w-full text-acp-purple/20 animate-[spin_30s_linear_infinite]"
+              className="absolute inset-0 h-full w-full text-acp-bronze/20 animate-[spin_30s_linear_infinite]"
               viewBox="0 0 100 100"
               style={{ transform: `rotate(${password.length * 12}deg)`, transition: "transform 0.4s ease-out" }}
             >
               <circle cx="50" cy="50" r="45" stroke="currentColor" strokeWidth="1" strokeDasharray="6 4" fill="none" />
             </svg>
-            <div className="relative z-10 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-acp-purple to-acp-purple-dark text-white shadow-lg border border-white/10">
+            <div className="relative z-10 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-acp-bronze to-acp-bronze-dark text-white shadow-lg border border-white/10">
               <LockKeyhole className="h-5 w-5" aria-hidden="true" />
             </div>
           </div>
@@ -62,7 +62,7 @@ export function AdminGuard({ children }: AdminGuardProps) {
           <h2 className="font-display text-2xl text-white font-normal italic tracking-wide">
             Aysan Capital Partners
           </h2>
-          <p className="mt-1 text-[10px] font-extrabold uppercase tracking-[0.2em] text-acp-purple">
+          <p className="mt-1 text-[10px] font-extrabold uppercase tracking-[0.2em] text-acp-bronze">
             Admin Control Panel
           </p>
         </div>
@@ -84,7 +84,7 @@ export function AdminGuard({ children }: AdminGuardProps) {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
-              className="mt-2.5 h-11 w-full rounded-xl border border-white/10 bg-white/5 px-4 text-sm text-white placeholder-slate-650 outline-none transition-all duration-300 focus:border-acp-purple focus:ring-1 focus:ring-acp-purple"
+              className="mt-2.5 h-11 w-full rounded-xl border border-white/10 bg-white/5 px-4 text-sm text-white placeholder-slate-650 outline-none transition-all duration-300 focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze"
               autoComplete="current-password"
             />
           </div>
@@ -95,7 +95,7 @@ export function AdminGuard({ children }: AdminGuardProps) {
 
           <button
             type="submit"
-            className="w-full inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-acp-purple to-acp-purple-dark px-4 text-xs font-bold uppercase tracking-wider text-white shadow-md hover:shadow-glow-purple transition-all duration-300 transform hover:-translate-y-0.5"
+            className="w-full inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-acp-bronze to-acp-bronze-dark px-4 text-xs font-bold uppercase tracking-wider text-white shadow-md hover:shadow-glow-bronze transition-all duration-300 transform hover:-translate-y-0.5"
           >
             <ShieldCheck className="h-4 w-4" aria-hidden="true" />
             Verify and Access

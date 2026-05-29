@@ -50,7 +50,7 @@ function AirtablePermissionState({ message }: { message: string }) {
         <div className="bg-acp-navy px-6 py-7 text-white sm:px-8">
           <div className="flex items-start gap-4">
             <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-white/15 bg-white/10">
-              <KeyRound className="h-5 w-5 text-acp-purple" aria-hidden="true" />
+              <KeyRound className="h-5 w-5 text-acp-bronze" aria-hidden="true" />
             </span>
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-100/80">Database Permission</p>
@@ -115,7 +115,7 @@ function AirtableConfigState({ message }: { message: string }) {
         <div className="bg-acp-navy px-6 py-7 text-white sm:px-8">
           <div className="flex items-center gap-3">
             <span className="flex h-11 w-11 items-center justify-center rounded-md border border-white/15 bg-white/10">
-              <Database className="h-5 w-5 text-acp-purple" aria-hidden="true" />
+              <Database className="h-5 w-5 text-acp-bronze" aria-hidden="true" />
             </span>
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-100/80">Database Connection</p>

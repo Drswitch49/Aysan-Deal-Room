@@ -5,7 +5,7 @@ export function NotFoundPage() {
   return (
     <div>
       <PageHeader title="Page not found" eyebrow="ACP Deal Room" />
-      <Link className="text-sm font-medium text-acp-purple hover:text-white transition-colors" to="/deals">
+      <Link className="text-sm font-medium text-acp-bronze hover:text-white transition-colors" to="/deals">
         Return to deals
       </Link>
     </div>
