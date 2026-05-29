@@ -170,4 +170,23 @@ export async function changeAdminPassword(newPassword: string) {
   return response.json();
 }
 
+export async function resetAdminPassword(masterPasscode: string, newPassword: string) {
+  const response = await fetch("/api/admin/action", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-admin-passcode": masterPasscode
+    },
+    body: JSON.stringify({ action: "change-admin-password", newPassword })
+  });
+
+  if (!response.ok) {
+    const err = await response.json();
+    throw new Error(err.error || "Failed to reset admin passcode");
+  }
+
+  return response.json();
+}
+
+
 
