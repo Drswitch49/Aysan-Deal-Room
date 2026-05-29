@@ -4,7 +4,7 @@ export function Table({ children }: { children: ReactNode }) {
   return (
     <div className="overflow-hidden rounded-xl border border-white/10 bg-acp-card backdrop-blur-md shadow-premium-card w-full">
       <div className="overflow-x-auto w-full">
-        <table className="min-w-full divide-y divide-white/5 text-sm">{children}</table>
+        <table className="w-full min-w-full divide-y divide-white/5 text-sm">{children}</table>
       </div>
     </div>
   );

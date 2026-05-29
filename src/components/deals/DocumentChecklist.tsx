@@ -348,7 +348,7 @@ export function DocumentChecklist({ documents, audience, onRefresh }: DocumentCh
                 </Th>
               )}
               <Th>Index</Th>
-              <Th>Document Name</Th>
+              <Th className="w-full">Document Name</Th>
               <Th>Category</Th>
               <Th>Priority</Th>
               <Th>Status</Th>
@@ -379,7 +379,7 @@ export function DocumentChecklist({ documents, audience, onRefresh }: DocumentCh
                 <Td className="font-mono text-xs font-bold text-slate-500 select-none">
                   {document.indexRef}
                 </Td>
-                <Td className="min-w-64 max-w-sm">
+                <Td className="w-full min-w-64">
                   <div className="flex items-start gap-3">
                     <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/5 border border-white/[0.06] shadow-sm">
                       {getDocIcon(document.documentName, document.category)}
