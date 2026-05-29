@@ -89,6 +89,22 @@ export function DocumentChecklist({ documents, audience, onRefresh }: DocumentCh
     }
   };
 
+  const handleDocActionClick = (e: React.MouseEvent, doc: DealDocument, action: "view" | "download") => {
+    if (!doc.driveLink || doc.driveLink.trim() === "") {
+      e.preventDefault();
+      e.stopPropagation();
+      if (audience === "internal") {
+        alert(
+          `No link has been uploaded for "${doc.documentName || "this document"}" yet.\n\nPlease select the document row, then paste a Google Drive or file URL in the "Document Link Management" section in the right drawer.`
+        );
+      } else {
+        alert(
+          `The document "${doc.documentName || "this document"}" is not yet available for view or download.\n\nPlease contact your Deal Manager to request access.`
+        );
+      }
+    }
+  };
+
   const visibleDocuments = useMemo(
     () => documents,
     [documents],
@@ -403,10 +419,19 @@ export function DocumentChecklist({ documents, audience, onRefresh }: DocumentCh
                 </Td>
                 <Td className="text-right" onClick={(e) => e.stopPropagation()}>
                   <div className="flex justify-end gap-2">
-                    <ButtonLink href={getDriveViewUrl(document.driveLink)} icon="view">
+                    <ButtonLink 
+                      href={getDriveViewUrl(document.driveLink)} 
+                      icon="view"
+                      onClick={(e) => handleDocActionClick(e, document, "view")}
+                    >
                       View
                     </ButtonLink>
-                    <ButtonLink href={getDriveDownloadUrl(document.driveLink)} icon="download" variant="purple">
+                    <ButtonLink 
+                      href={getDriveDownloadUrl(document.driveLink)} 
+                      icon="download" 
+                      variant="purple"
+                      onClick={(e) => handleDocActionClick(e, document, "download")}
+                    >
                       Download
                     </ButtonLink>
                   </div>
@@ -566,6 +591,7 @@ export function DocumentChecklist({ documents, audience, onRefresh }: DocumentCh
                 href={getDriveViewUrl(selectedDoc.driveLink)}
                 icon="view"
                 className="h-11 w-full"
+                onClick={(e) => handleDocActionClick(e, selectedDoc, "view")}
               >
                 View File
               </ButtonLink>
@@ -574,6 +600,7 @@ export function DocumentChecklist({ documents, audience, onRefresh }: DocumentCh
                 icon="download"
                 variant="purple"
                 className="h-11 w-full"
+                onClick={(e) => handleDocActionClick(e, selectedDoc, "download")}
               >
                 Download
               </ButtonLink>
