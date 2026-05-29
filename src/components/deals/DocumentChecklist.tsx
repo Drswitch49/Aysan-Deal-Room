@@ -504,6 +504,7 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
                       icon="download" 
                       variant="purple"
                       onClick={(e) => handleDocActionClick(e, document, "download")}
+                      download
                     >
                       Download
                     </ButtonLink>
@@ -674,6 +675,7 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
                 variant="purple"
                 className="h-11 w-full"
                 onClick={(e) => handleDocActionClick(e, selectedDoc, "download")}
+                download
               >
                 Download
               </ButtonLink>
