@@ -253,111 +253,112 @@ export function DealListPage() {
 
             {viewMode === "pipeline" ? (
               /* Pipeline (Kanban) View */
-              <div className="overflow-x-auto pb-4 custom-scrollbar scroll-smooth">
-                <div className="flex gap-4 min-w-[1200px] items-start">
-                  {pipelineStages.map((stage) => {
-                    const dealsInStage = stageDeals[stage] || [];
-                    
-                    let stageTheme = {
-                      border: "border-t-blue-500",
-                      bg: "bg-blue-500/10",
-                      text: "text-blue-400"
-                    };
-                    if (stage.toLowerCase() === "im review") {
-                      stageTheme = { border: "border-t-indigo-500", bg: "bg-indigo-500/10", text: "text-indigo-400" };
-                    } else if (stage.toLowerCase() === "information requested") {
-                      stageTheme = { border: "border-t-amber-500", bg: "bg-amber-500/10", text: "text-amber-400" };
-                    } else if (stage.toLowerCase() === "offer submitted") {
-                      stageTheme = { border: "border-t-emerald-500", bg: "bg-emerald-500/10", text: "text-emerald-400" };
-                    } else if (stage.toLowerCase() === "seller call") {
-                      stageTheme = { border: "border-t-pink-500", bg: "bg-pink-500/10", text: "text-pink-400" };
-                    } else if (stage.toLowerCase() === "killed") {
-                      stageTheme = { border: "border-t-rose-500", bg: "bg-rose-500/10", text: "text-rose-400" };
-                    }
+              <div className="space-y-6">
+                {pipelineStages.map((stage) => {
+                  const dealsInStage = stageDeals[stage] || [];
+                  
+                  let stageTheme = {
+                    border: "border-l-blue-500",
+                    bg: "bg-blue-500/10",
+                    text: "text-blue-400"
+                  };
+                  if (stage.toLowerCase() === "im review") {
+                    stageTheme = { border: "border-l-indigo-500", bg: "bg-indigo-500/10", text: "text-indigo-400" };
+                  } else if (stage.toLowerCase() === "information requested") {
+                    stageTheme = { border: "border-l-amber-500", bg: "bg-amber-500/10", text: "text-amber-400" };
+                  } else if (stage.toLowerCase() === "offer submitted") {
+                    stageTheme = { border: "border-l-emerald-500", bg: "bg-emerald-500/10", text: "text-emerald-400" };
+                  } else if (stage.toLowerCase() === "seller call") {
+                    stageTheme = { border: "border-l-pink-500", bg: "bg-pink-500/10", text: "text-pink-400" };
+                  } else if (stage.toLowerCase() === "killed") {
+                    stageTheme = { border: "border-l-rose-500", bg: "bg-rose-500/10", text: "text-rose-400" };
+                  } else {
+                    // Fallback for new stages/statuses added dynamically
+                    stageTheme = { border: "border-l-acp-purple", bg: "bg-acp-purple/10", text: "text-acp-purple" };
+                  }
 
-                    return (
-                      <div
-                        key={stage}
-                        className={cx(
-                          "flex-1 min-w-[280px] max-w-[320px] rounded-2xl border border-white/[0.06] bg-[#0d0c1d]/65 backdrop-blur-md p-4 space-y-4 shadow-sm border-t-2",
-                          stageTheme.border
-                        )}
-                      >
-                        <div className="flex items-center justify-between pb-2 border-b border-white/[0.04]">
-                          <span className="text-[10px] font-black uppercase tracking-wider text-white truncate max-w-[180px]">
+                  return (
+                    <div
+                      key={stage}
+                      className={cx(
+                        "rounded-2xl border border-white/[0.06] bg-[#0d0c1d]/65 backdrop-blur-md p-5 space-y-4 shadow-sm border-l-4",
+                        stageTheme.border
+                      )}
+                    >
+                      <div className="flex items-center justify-between pb-2 border-b border-white/[0.04]">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-black uppercase tracking-wider text-white">
                             {stage}
                           </span>
-                          <span className={cx("rounded-full px-2 py-0.5 text-[10px] font-bold", stageTheme.bg, stageTheme.text)}>
-                            {dealsInStage.length}
+                          <span className={cx("rounded-full px-2.5 py-0.5 text-[10px] font-bold", stageTheme.bg, stageTheme.text)}>
+                            {dealsInStage.length} {dealsInStage.length === 1 ? "deal" : "deals"}
                           </span>
                         </div>
-
-                        <div className="space-y-3 max-h-[550px] overflow-y-auto pr-1 custom-scrollbar">
-                          {dealsInStage.length === 0 ? (
-                            <div className="rounded-xl border border-dashed border-white/5 p-6 text-center text-[10px] text-slate-500">
-                              No deals in this stage
-                            </div>
-                          ) : (
-                            dealsInStage.map(({ deal, outstandingDocumentCount, daysSinceLastLenderContact }) => {
-                              const execName = deal.lenderAssigned || "Executive Manager";
-                              const execInitials = execName.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
-                              
-                              const brokerName = deal.broker || "Sponsor Broker";
-                              const brokerInitials = brokerName.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
-
-                              return (
-                                <Link
-                                  key={deal.id}
-                                  to={`/deals/${encodeURIComponent(deal.dealRef)}`}
-                                  className="group block relative overflow-hidden rounded-xl border border-white/[0.04] bg-[#0c1122]/40 p-4 shadow-sm transition-all duration-300 hover:border-acp-purple/30 hover:bg-[#0c1122]/80 hover:-translate-y-0.5 card-sheen"
-                                >
-                                  <div className="min-w-0">
-                                    <span className="text-[9px] font-bold uppercase tracking-wider text-acp-purple">
-                                      {deal.dealRef || "Missing Ref"}
-                                    </span>
-                                    <h4 className="mt-1 text-xs font-bold text-white tracking-wide truncate group-hover:text-acp-purple transition-colors">
-                                      {deal.companyName || "Not specified"}
-                                    </h4>
-                                    <p className="mt-1 text-[10px] text-slate-450 truncate">
-                                      {deal.sector || "General"} • {deal.location || "UK"}
-                                    </p>
-                                  </div>
-
-                                  <div className="mt-3.5 pt-2.5 border-t border-white/[0.04] flex items-center justify-between gap-2">
-                                    <div className="flex gap-2.5 text-[9px] text-slate-400 font-semibold">
-                                      <div>
-                                        <span className="text-slate-500">Files:</span> <span className="text-white font-bold">{outstandingDocumentCount}</span>
-                                      </div>
-                                      <div className="border-l border-white/5 pl-2.5">
-                                        <span className="text-slate-500">Contact:</span> <span className="text-white font-bold">{daysSinceLastLenderContact === null ? "None" : `${daysSinceLastLenderContact}d`}</span>
-                                      </div>
-                                    </div>
-
-                                    {/* Overlapping avatars */}
-                                    <div className="flex -space-x-1 overflow-hidden">
-                                      <div 
-                                        className="inline-flex h-5.5 w-5.5 items-center justify-center rounded-full bg-blue-500/10 border border-blue-500/20 text-[8px] font-bold text-blue-400 shadow-sm"
-                                        title={`Assigned Executive: ${execName}`}
-                                      >
-                                        {execInitials}
-                                      </div>
-                                      <div 
-                                        className="inline-flex h-5.5 w-5.5 items-center justify-center rounded-full bg-acp-purple/10 border border-acp-purple/20 text-[8px] font-bold text-acp-purple shadow-sm"
-                                        title={`Sponsoring Broker: ${brokerName}`}
-                                      >
-                                        {brokerInitials}
-                                      </div>
-                                    </div>
-                                  </div>
-                                </Link>
-                              );
-                            })
-                          )}
-                        </div>
                       </div>
-                    );
-                  })}
-                </div>
+
+                      {dealsInStage.length === 0 ? (
+                        <p className="text-xs text-slate-500 font-medium py-1">No deals in this stage</p>
+                      ) : (
+                        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                          {dealsInStage.map(({ deal, outstandingDocumentCount, daysSinceLastLenderContact }) => {
+                            const execName = deal.lenderAssigned || "Executive Manager";
+                            const execInitials = execName.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
+                            
+                            const brokerName = deal.broker || "Sponsor Broker";
+                            const brokerInitials = brokerName.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
+
+                            return (
+                              <Link
+                                key={deal.id}
+                                to={`/deals/${encodeURIComponent(deal.dealRef)}`}
+                                className="group block relative overflow-hidden rounded-xl border border-white/[0.04] bg-[#0c1122]/40 p-4 shadow-sm transition-all duration-300 hover:border-acp-purple/30 hover:bg-[#0c1122]/80 hover:-translate-y-0.5 card-sheen"
+                              >
+                                <div className="min-w-0">
+                                  <span className="text-[9px] font-bold uppercase tracking-wider text-acp-purple">
+                                    {deal.dealRef || "Missing Ref"}
+                                  </span>
+                                  <h4 className="mt-1 text-xs font-bold text-white tracking-wide truncate group-hover:text-acp-purple transition-colors">
+                                    {deal.companyName || "Not specified"}
+                                  </h4>
+                                  <p className="mt-1 text-[10px] text-slate-450 truncate">
+                                    {deal.sector || "General"} • {deal.location || "UK"}
+                                  </p>
+                                </div>
+
+                                <div className="mt-3.5 pt-2.5 border-t border-white/[0.04] flex items-center justify-between gap-2">
+                                  <div className="flex gap-2.5 text-[9px] text-slate-400 font-semibold">
+                                    <div>
+                                      <span className="text-slate-500">Files:</span> <span className="text-white font-bold">{outstandingDocumentCount}</span>
+                                    </div>
+                                    <div className="border-l border-white/5 pl-2.5">
+                                      <span className="text-slate-500">Contact:</span> <span className="text-white font-bold">{daysSinceLastLenderContact === null ? "None" : `${daysSinceLastLenderContact}d`}</span>
+                                    </div>
+                                  </div>
+
+                                  {/* Overlapping avatars */}
+                                  <div className="flex -space-x-1 overflow-hidden">
+                                    <div 
+                                      className="inline-flex h-5.5 w-5.5 items-center justify-center rounded-full bg-blue-500/10 border border-blue-500/20 text-[8px] font-bold text-blue-400 shadow-sm"
+                                      title={`Assigned Executive: ${execName}`}
+                                    >
+                                      {execInitials}
+                                    </div>
+                                    <div 
+                                      className="inline-flex h-5.5 w-5.5 items-center justify-center rounded-full bg-acp-purple/10 border border-acp-purple/20 text-[8px] font-bold text-acp-purple shadow-sm"
+                                      title={`Sponsoring Broker: ${brokerName}`}
+                                    >
+                                      {brokerInitials}
+                                    </div>
+                                  </div>
+                                </div>
+                              </Link>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             ) : (
               /* Registry (Grid) View */
