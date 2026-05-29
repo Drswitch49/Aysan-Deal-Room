@@ -1,6 +1,7 @@
 import { Filter, Files, ShieldAlert, FileText, FileSpreadsheet, FileArchive, CheckCircle2, Search, X, Calendar, User, History, Download, ExternalLink } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import type { DealDocument } from "../../types/deal";
+import { updateAdminDocuments } from "../../api/admin";
 import { getDriveDownloadUrl, getDriveViewUrl } from "../../utils/drive";
 import { formatDate, uniqueSorted } from "../../utils/fields";
 import { isSentToLender } from "../../utils/security";
@@ -14,6 +15,7 @@ import { cx } from "../../utils/cx";
 type DocumentChecklistProps = {
   documents: DealDocument[];
   audience: "internal" | "lender";
+  onRefresh?: () => void;
 };
 
 // Maps document categories or extensions to premium lucide icons
@@ -29,11 +31,63 @@ function getDocIcon(name: string = "", category: string = "") {
   return <FileText className="h-4 w-4 text-acp-blue" />;
 }
 
-export function DocumentChecklist({ documents, audience }: DocumentChecklistProps) {
+export function DocumentChecklist({ documents, audience, onRefresh }: DocumentChecklistProps) {
   const [statusFilter, setStatusFilter] = useState("All");
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedDoc, setSelectedDoc] = useState<(DealDocument & { indexRef: string }) | null>(null);
+
+  // Multi-select and Link Editor states
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isBatchUpdating, setIsBatchUpdating] = useState(false);
+  const [draftLink, setDraftLink] = useState("");
+  const [isSavingLink, setIsSavingLink] = useState(false);
+
+  // Synchronise draft link when drawer selection changes
+  useEffect(() => {
+    if (selectedDoc) {
+      setDraftLink(selectedDoc.driveLink || "");
+    }
+  }, [selectedDoc]);
+
+  const handleBatchStatusUpdate = async (status: string) => {
+    if (selectedIds.size === 0) return;
+    setIsBatchUpdating(true);
+    try {
+      const updates = Array.from(selectedIds).map((id) => ({
+        id,
+        fields: { Status: status },
+      }));
+      await updateAdminDocuments(updates);
+      setSelectedIds(new Set());
+      if (onRefresh) onRefresh();
+    } catch (err) {
+      console.error("Batch status update failed:", err);
+      alert(err instanceof Error ? err.message : "Failed to update documents");
+    } finally {
+      setIsBatchUpdating(false);
+    }
+  };
+
+  const handleSaveLink = async () => {
+    if (!selectedDoc) return;
+    setIsSavingLink(true);
+    try {
+      await updateAdminDocuments([
+        {
+          id: selectedDoc.id,
+          fields: { Drive_Link: draftLink },
+        },
+      ]);
+      setSelectedDoc((prev) => (prev ? { ...prev, driveLink: draftLink } : null));
+      if (onRefresh) onRefresh();
+    } catch (err) {
+      console.error("Failed to save document link:", err);
+      alert(err instanceof Error ? err.message : "Failed to save link");
+    } finally {
+      setIsSavingLink(false);
+    }
+  };
 
   const visibleDocuments = useMemo(
     () => documents,
@@ -84,6 +138,36 @@ export function DocumentChecklist({ documents, audience }: DocumentChecklistProp
       return statusMatches && categoryMatches && searchMatches;
     });
   }, [indexedDocuments, statusFilter, categoryFilter, searchQuery]);
+
+  // Select/Deselect all visible filtered documents
+  const isAllSelected = useMemo(() => {
+    if (filteredDocuments.length === 0) return false;
+    return filteredDocuments.every((doc) => selectedIds.has(doc.id));
+  }, [filteredDocuments, selectedIds]);
+
+  const handleSelectAllToggle = () => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (isAllSelected) {
+        filteredDocuments.forEach((doc) => next.delete(doc.id));
+      } else {
+        filteredDocuments.forEach((doc) => next.add(doc.id));
+      }
+      return next;
+    });
+  };
+
+  const handleSelectToggle = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
 
   const releasedCount = visibleDocuments.filter((doc) => isSentToLender(doc.status)).length;
   const progress = visibleDocuments.length > 0 ? (releasedCount / visibleDocuments.length) * 100 : 0;
@@ -193,10 +277,60 @@ export function DocumentChecklist({ documents, audience }: DocumentChecklistProp
         </div>
       </div>
 
+      {/* Batch Approval Action Deck */}
+      {audience === "internal" && selectedIds.size > 0 && (
+        <div className="rounded-2xl border border-acp-purple/20 bg-acp-purple/5 p-5 shadow-soft flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 animate-fade-in-up">
+          <div className="flex items-center gap-3">
+            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-acp-purple/15 border border-acp-purple/30 text-xs font-bold text-white shadow-sm">
+              {selectedIds.size}
+            </span>
+            <span className="text-xs font-bold text-slate-200">
+              {selectedIds.size === 1 ? "document" : "documents"} selected for approval actions
+            </span>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={() => handleBatchStatusUpdate("Sent to Lender")}
+              disabled={isBatchUpdating}
+              className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 px-4 text-xs font-bold uppercase tracking-wider text-white shadow-md hover:shadow-glow-emerald disabled:opacity-40 cursor-pointer transition-all duration-300"
+              type="button"
+            >
+              Approve Selected
+            </button>
+            <button
+              onClick={() => handleBatchStatusUpdate("Outstanding")}
+              disabled={isBatchUpdating}
+              className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-white/5 border border-white/10 px-4 text-xs font-bold uppercase tracking-wider text-slate-350 hover:bg-white/10 hover:text-white disabled:opacity-40 cursor-pointer transition-all duration-300"
+              type="button"
+            >
+              Revoke Approval
+            </button>
+            <button
+              onClick={() => setSelectedIds(new Set())}
+              disabled={isBatchUpdating}
+              className="text-xs font-bold uppercase tracking-wider text-slate-450 hover:text-slate-200 transition-colors ml-1.5"
+              type="button"
+            >
+              Clear Selection
+            </button>
+          </div>
+        </div>
+      )}
+
       {filteredDocuments.length > 0 ? (
         <Table>
           <thead>
             <tr className="border-b border-white/5 bg-white/[0.01]">
+              {audience === "internal" && (
+                <Th className="w-10">
+                  <input
+                    type="checkbox"
+                    checked={isAllSelected}
+                    onChange={handleSelectAllToggle}
+                    className="rounded border-white/10 bg-white/5 text-acp-purple focus:ring-acp-purple cursor-pointer h-3.5 w-3.5"
+                  />
+                </Th>
+              )}
               <Th>Index</Th>
               <Th>Document Name</Th>
               <Th>Category</Th>
@@ -216,6 +350,16 @@ export function DocumentChecklist({ documents, audience }: DocumentChecklistProp
                 )}
                 onClick={() => setSelectedDoc(document)}
               >
+                {audience === "internal" && (
+                  <Td className="w-10" onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(document.id)}
+                      onChange={() => handleSelectToggle(document.id)}
+                      className="rounded border-white/10 bg-white/5 text-acp-purple focus:ring-acp-purple cursor-pointer h-3.5 w-3.5"
+                    />
+                  </Td>
+                )}
                 <Td className="font-mono text-xs font-bold text-slate-500 select-none">
                   {document.indexRef}
                 </Td>
@@ -344,6 +488,39 @@ export function DocumentChecklist({ documents, audience }: DocumentChecklistProp
                   value={selectedDoc.ablCritical ? "High Priority" : "Standard"} 
                 />
               </div>
+
+              {/* Edit Document Link (Admin only) */}
+              {audience === "internal" && (
+                <div className="space-y-3.5 border-t border-white/5 pt-4">
+                  <div className="flex items-center gap-2 text-slate-400 font-medium text-xs">
+                    <ExternalLink className="h-4 w-4 text-acp-purple" />
+                    <span>Document Link Management</span>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="block text-[9px] font-extrabold uppercase tracking-[0.12em] text-slate-450" htmlFor="document-link-input">
+                      Google Drive or File URL
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        id="document-link-input"
+                        type="text"
+                        value={draftLink}
+                        onChange={(e) => setDraftLink(e.target.value)}
+                        placeholder="https://drive.google.com/..."
+                        className="h-9 flex-1 rounded-xl border border-white/10 bg-white/5 px-3 text-xs text-white placeholder-slate-600 outline-none focus:border-acp-purple focus:ring-1 focus:ring-acp-purple shadow-sm transition-colors duration-300"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleSaveLink}
+                        disabled={isSavingLink || draftLink === (selectedDoc.driveLink || "")}
+                        className="h-9 px-4 rounded-xl bg-gradient-to-r from-acp-purple to-acp-purple-dark text-white text-xs font-bold uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none hover:shadow-glow-purple cursor-pointer shrink-0 transition-all duration-300"
+                      >
+                        {isSavingLink ? "Saving..." : "Save"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Internal notes */}
               <div className="space-y-2">

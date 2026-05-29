@@ -24,8 +24,9 @@ export function DealDetailPage() {
   const { ref } = useParams();
   const [activeTab, setActiveTab] = useState<TabId>("cover");
   const decodedRef = useMemo(() => (ref ? decodeURIComponent(ref) : ""), [ref]);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   const dealState = useDeal(decodedRef);
-  const documentState = useDealDocuments(decodedRef);
+  const documentState = useDealDocuments(decodedRef, refreshTrigger);
   const submissionState = useSubmissionLog(decodedRef);
   const isLoading = dealState.isLoading || documentState.isLoading || submissionState.isLoading;
   const error = dealState.error ?? documentState.error ?? submissionState.error;
@@ -183,7 +184,11 @@ export function DealDetailPage() {
           <div className="pt-2">
             {activeTab === "cover" ? <CoverSheet deal={dealState.data} audience="internal" /> : null}
             {activeTab === "documents" ? (
-              <DocumentChecklist documents={documentState.data ?? []} audience="internal" />
+              <DocumentChecklist
+                documents={documentState.data ?? []}
+                audience="internal"
+                onRefresh={() => setRefreshTrigger((prev) => prev + 1)}
+              />
             ) : null}
             {activeTab === "submissions" ? <SubmissionTimeline entries={submissionState.data ?? []} /> : null}
           </div>

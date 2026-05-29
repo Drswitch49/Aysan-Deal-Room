@@ -116,3 +116,19 @@ export async function deleteLender(lenderRecordId: string) {
 
   return response.json();
 }
+
+export async function updateAdminDocuments(updates: Array<{ id: string; fields: Record<string, any> }>) {
+  const response = await fetch("/api/admin/update-documents", {
+    method: "POST",
+    headers: getAdminHeaders(),
+    body: JSON.stringify({ updates })
+  });
+
+  if (!response.ok) {
+    const err = await response.json();
+    throw new Error(err.error || "Failed to update documents");
+  }
+
+  return response.json();
+}
+

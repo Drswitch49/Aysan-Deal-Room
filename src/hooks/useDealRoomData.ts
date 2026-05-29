@@ -50,11 +50,11 @@ export function useDeal(ref: string | undefined) {
   }, [ref]);
 }
 
-export function useDealDocuments(ref: string | undefined) {
+export function useDealDocuments(ref: string | undefined, refreshTrigger?: number) {
   return useAsyncData<DealDocument[]>(() => {
     if (!ref) return Promise.resolve([]);
     return getDocumentsForDeal(ref);
-  }, [ref]);
+  }, [ref, refreshTrigger]);
 }
 
 export function useSubmissionLog(ref: string | undefined) {

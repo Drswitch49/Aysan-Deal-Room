@@ -86,7 +86,10 @@ export default async function handler(req: any, res: any) {
         ? docDealRefs.some(id => dealIds.has(id))
         : dealIds.has(String(docDealRefs));
 
-      return belongsToAssignedDeal;
+      const status = String(doc.fields.Status || doc.fields.status || doc.fields.Stage || "").trim().toLowerCase();
+      const isApproved = status === "sent to lender";
+
+      return belongsToAssignedDeal && isApproved;
     });
 
     // 5. Redact fields and inject populated / fallback Drive_Link field
