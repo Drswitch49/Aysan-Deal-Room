@@ -41,7 +41,7 @@ export default async function handler(req: any, res: any) {
         if (Array.isArray(dealRefVal)) {
           dealRefVal.forEach(id => dealIds.add(id));
         } else {
-          dealRefs.add(String(dealRefVal));
+          dealRefs.add(String(dealRefVal).toLowerCase());
         }
       }
     }
@@ -51,7 +51,7 @@ export default async function handler(req: any, res: any) {
     pipelineData.records.forEach((record: any) => {
       if (dealIds.has(record.id)) {
         const refNo = record.fields["REF No."] || record.fields.Deal_Ref || record.fields.dealRef || record.fields["Deal Name"];
-        if (refNo) dealRefs.add(String(refNo));
+        if (refNo) dealRefs.add(String(refNo).toLowerCase());
       }
     });
 
@@ -59,13 +59,13 @@ export default async function handler(req: any, res: any) {
     const submissionsData = await airtableFetch(TABLES.SUBMISSIONS);
 
     // 4. Filter logs:
-    // - Must belong to one of the assigned deals (matching by Deal_Ref)
+    // - Must belong to one of the assigned deals (matching by Deal_Ref record ID or text reference)
     // - Sent_To must be blank or match this lender's company name (so they don't see other lenders)
     const logs = submissionsData.records.filter((entry: any) => {
       const entryDealRefs = entry.fields.Deal_Ref || [];
       const belongsToAssignedDeal = Array.isArray(entryDealRefs)
-        ? entryDealRefs.some(id => dealIds.has(id))
-        : dealIds.has(String(entryDealRefs));
+        ? entryDealRefs.some(id => dealIds.has(id) || dealRefs.has(String(id).toLowerCase()))
+        : (dealIds.has(String(entryDealRefs)) || dealRefs.has(String(entryDealRefs).toLowerCase()));
       
       const sentToVal = String(entry.fields.Sent_To || "").trim();
       const isLenderSpecific = !sentToVal || sentToVal.toLowerCase() === companyName.toLowerCase();

@@ -164,8 +164,15 @@ export async function getSubmissionLogForDeal(ref: string): Promise<SubmissionLo
     if (!deal) return [];
     const allLogs = await getAllSubmissionLog();
     return allLogs
-      .filter((entry) => entry.dealRef.toLowerCase() === deal.id.toLowerCase())
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      .filter((entry) => 
+        entry.dealRef.toLowerCase() === deal.id.toLowerCase() ||
+        entry.dealRef.toLowerCase() === deal.dealRef.toLowerCase()
+      )
+      .sort((a, b) => {
+        const timeA = a.date ? new Date(a.date).getTime() : 0;
+        const timeB = b.date ? new Date(b.date).getTime() : 0;
+        return timeA - timeB;
+      });
   } catch (error) {
     if (isMissingTableError(error)) return [];
     throw error;
