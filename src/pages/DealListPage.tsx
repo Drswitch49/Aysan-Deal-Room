@@ -8,7 +8,7 @@ import { EmptyState } from "../components/ui/EmptyState";
 import { ErrorState } from "../components/ui/ErrorState";
 import { LoadingState } from "../components/ui/LoadingState";
 import { cx } from "../utils/cx";
-import { fetchAdminLenders, createAdminDeal } from "../api/admin";
+import { fetchAdminLenders } from "../api/admin";
 
 const PIPELINE_STAGES = [
   "Intro",
@@ -30,20 +30,6 @@ export function DealListPage() {
   // Card folding state
   const [expandedStages, setExpandedStages] = useState<Record<string, boolean>>({});
 
-  // Create Deal states
-  const [isCreateDealOpen, setIsCreateDealOpen] = useState(false);
-  const [newCompanyName, setNewCompanyName] = useState("");
-  const [newDealRef, setNewDealRef] = useState("");
-  const [newStage, setNewStage] = useState("Intro");
-  const [newSector, setNewSector] = useState("");
-  const [newLocation, setNewLocation] = useState("");
-  const [newBroker, setNewBroker] = useState("");
-  const [newDealFiles, setNewDealFiles] = useState("");
-  const [customSector, setCustomSector] = useState("");
-  const [isSubmittingDeal, setIsSubmittingDeal] = useState(false);
-  const [dealErrorMessage, setDealErrorMessage] = useState("");
-
-
   useEffect(() => {
     fetchAdminLenders()
       .then((lenders) => {
@@ -54,50 +40,6 @@ export function DealListPage() {
       });
   }, []);
 
-  const uniqueSectors = useMemo(() => {
-    if (!data) return [];
-    const sectors = data.map(({ deal }) => deal.sector).filter(Boolean);
-    return Array.from(new Set(sectors)).sort();
-  }, [data]);
-
-  const handleCreateDeal = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newCompanyName.trim()) {
-      setDealErrorMessage("Company name is required.");
-      return;
-    }
-    setIsSubmittingDeal(true);
-    setDealErrorMessage("");
-    try {
-      const sectorToWrite = newSector === "__custom__" ? customSector : newSector;
-      
-      await createAdminDeal({
-        companyName: newCompanyName.trim(),
-        dealRef: newDealRef.trim() || undefined,
-        stage: newStage,
-        sector: sectorToWrite.trim() || undefined,
-        location: newLocation.trim() || undefined,
-        broker: newBroker.trim() || undefined,
-        dealFiles: newDealFiles.trim() || undefined
-      });
-      
-      setNewCompanyName("");
-      setNewDealRef("");
-      setNewStage("Intro");
-      setNewSector("");
-      setCustomSector("");
-      setNewLocation("");
-      setNewBroker("");
-      setNewDealFiles("");
-      setIsCreateDealOpen(false);
-      setRefreshTrigger(prev => prev + 1);
-    } catch (err: any) {
-      console.error(err);
-      setDealErrorMessage(err.message || "Failed to create deal.");
-    } finally {
-      setIsSubmittingDeal(false);
-    }
-  };
 
   const activeDealCount = data?.length ?? 0;
   const outstandingCount = data?.reduce((total, row) => total + row.outstandingDocumentCount, 0) ?? 0;
@@ -246,14 +188,6 @@ export function DealListPage() {
                 </div>
                 
                 <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full sm:w-auto">
-                  <button
-                    onClick={() => setIsCreateDealOpen(true)}
-                    className="inline-flex h-9 items-center gap-2 rounded-xl bg-gradient-to-r from-acp-purple to-acp-purple-dark px-4 text-xs font-bold uppercase tracking-wider text-white shadow-md hover:shadow-glow-purple cursor-pointer transition-all duration-300 self-start sm:self-auto"
-                    type="button"
-                  >
-                    <Plus className="h-4 w-4" />
-                    Add Deal
-                  </button>
 
                   {/* View Mode Segment Switch */}
                   <div className="inline-flex rounded-xl border border-white/5 bg-[#0d0c1d] p-1 shadow-inner self-start sm:self-auto">
@@ -536,177 +470,6 @@ export function DealListPage() {
           </div>
         </div>
       ) : null}
-
-      {/* Create Deal Modal Overlay */}
-      {isCreateDealOpen && (
-        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-lg rounded-2xl border border-white/10 bg-[#0d0c1d] p-6 shadow-2xl relative animate-scale-in max-h-[90vh] overflow-y-auto">
-            <button
-              onClick={() => setIsCreateDealOpen(false)}
-              className="absolute right-4 top-4 text-slate-400 hover:text-white cursor-pointer"
-              type="button"
-            >
-              <X className="h-5 w-5" />
-            </button>
-
-            <h3 className="text-base font-bold text-white uppercase tracking-wider mb-5 flex items-center gap-2">
-              <BriefcaseBusiness className="h-5 w-5 text-acp-purple" />
-              Add New Pipeline Deal
-            </h3>
-
-            {dealErrorMessage && (
-              <div className="mb-4 rounded-xl border border-rose-500/20 bg-rose-500/5 p-4 text-xs font-semibold text-rose-400 flex items-start gap-2">
-                <FileWarning className="h-4 w-4 shrink-0 mt-0.5" />
-                <span>{dealErrorMessage}</span>
-              </div>
-            )}
-
-            <form onSubmit={handleCreateDeal} className="space-y-4 text-xs font-semibold">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-1.5">
-                  <label className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
-                    Company Name <span className="text-rose-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={newCompanyName}
-                    onChange={(e) => setNewCompanyName(e.target.value)}
-                    placeholder="e.g. Acme Corp"
-                    className="h-9 w-full rounded-xl border border-white/10 bg-[#0d0c1d] px-3 text-white placeholder-slate-650 outline-none focus:border-acp-purple focus:ring-1 focus:ring-acp-purple transition-all"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
-                    Reference Number
-                  </label>
-                  <input
-                    type="text"
-                    value={newDealRef}
-                    onChange={(e) => setNewDealRef(e.target.value)}
-                    placeholder="e.g. ACP-101 (optional)"
-                    className="h-9 w-full rounded-xl border border-white/10 bg-[#0d0c1d] px-3 text-white placeholder-slate-650 outline-none focus:border-acp-purple focus:ring-1 focus:ring-acp-purple transition-all"
-                  />
-                </div>
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-1.5">
-                  <label className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
-                    Pipeline Stage
-                  </label>
-                  <select
-                    value={newStage}
-                    onChange={(e) => setNewStage(e.target.value)}
-                    className="h-9 w-full rounded-xl border border-white/10 bg-[#0d0c1d] px-3 text-white outline-none focus:border-acp-purple focus:ring-1 focus:ring-acp-purple transition-all cursor-pointer"
-                  >
-                    {PIPELINE_STAGES.map((stage) => (
-                      <option key={stage} value={stage} className="bg-[#0d0c1d] text-white">
-                        {stage}
-                      </option>
-                    ))}
-                    <option value="Unknown" className="bg-[#0d0c1d] text-white">Unknown</option>
-                  </select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
-                    Sector
-                  </label>
-                  <select
-                    value={newSector}
-                    onChange={(e) => setNewSector(e.target.value)}
-                    className="h-9 w-full rounded-xl border border-white/10 bg-[#0d0c1d] px-3 text-white outline-none focus:border-acp-purple focus:ring-1 focus:ring-acp-purple transition-all cursor-pointer"
-                  >
-                    <option value="" className="bg-[#0d0c1d] text-slate-450">Select Sector (optional)</option>
-                    {uniqueSectors.map((sector) => (
-                      <option key={sector} value={sector} className="bg-[#0d0c1d] text-white">
-                        {sector}
-                      </option>
-                    ))}
-                    <option value="__custom__" className="bg-[#0d0c1d] text-acp-purple font-bold">+ Add Custom Sector...</option>
-                  </select>
-                </div>
-              </div>
-
-              {newSector === "__custom__" && (
-                <div className="space-y-1.5 animate-fade-in-up">
-                  <label className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
-                    Custom Sector Name
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={customSector}
-                    onChange={(e) => setCustomSector(e.target.value)}
-                    placeholder="e.g. AI Technology"
-                    className="h-9 w-full rounded-xl border border-white/10 bg-[#0d0c1d] px-3 text-white placeholder-slate-650 outline-none focus:border-acp-purple focus:ring-1 focus:ring-acp-purple transition-all"
-                  />
-                </div>
-              )}
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-1.5">
-                  <label className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
-                    HQ Location
-                  </label>
-                  <input
-                    type="text"
-                    value={newLocation}
-                    onChange={(e) => setNewLocation(e.target.value)}
-                    placeholder="e.g. London, UK"
-                    className="h-9 w-full rounded-xl border border-white/10 bg-[#0d0c1d] px-3 text-white placeholder-slate-650 outline-none focus:border-acp-purple focus:ring-1 focus:ring-acp-purple transition-all"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
-                    Sponsoring Broker
-                  </label>
-                  <input
-                    type="text"
-                    value={newBroker}
-                    onChange={(e) => setNewBroker(e.target.value)}
-                    placeholder="e.g. John Doe Brokerage"
-                    className="h-9 w-full rounded-xl border border-white/10 bg-[#0d0c1d] px-3 text-white placeholder-slate-650 outline-none focus:border-acp-purple focus:ring-1 focus:ring-acp-purple transition-all"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
-                  Deal Shared Files Link (Google Drive URL)
-                </label>
-                <input
-                  type="url"
-                  value={newDealFiles}
-                  onChange={(e) => setNewDealFiles(e.target.value)}
-                  placeholder="https://drive.google.com/..."
-                  className="h-9 w-full rounded-xl border border-white/10 bg-[#0d0c1d] px-3 text-white placeholder-slate-650 outline-none focus:border-acp-purple focus:ring-1 focus:ring-acp-purple transition-all"
-                />
-              </div>
-
-              <div className="pt-4 border-t border-white/5 flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setIsCreateDealOpen(false)}
-                  className="h-10 px-4 rounded-xl border border-white/10 text-slate-300 text-xs font-bold uppercase tracking-wider hover:bg-white/5 cursor-pointer transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmittingDeal}
-                  className="h-10 px-5 rounded-xl bg-gradient-to-r from-acp-purple to-acp-purple-dark text-white text-xs font-bold uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none hover:shadow-glow-purple cursor-pointer transition-all"
-                >
-                  {isSubmittingDeal ? "Adding..." : "Add Deal"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

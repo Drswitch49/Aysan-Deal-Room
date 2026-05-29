@@ -154,25 +154,4 @@ export async function createAdminDocument(data: {
   return response.json();
 }
 
-export async function createAdminDeal(data: {
-  companyName: string;
-  dealRef?: string;
-  stage?: string;
-  sector?: string;
-  location?: string;
-  broker?: string;
-  dealFiles?: string;
-}) {
-  const response = await fetch("/api/admin/action", {
-    method: "POST",
-    headers: getAdminHeaders(),
-    body: JSON.stringify({ action: "create-deal", ...data })
-  });
 
-  if (!response.ok) {
-    const err = await response.json();
-    throw new Error(err.error || "Failed to create deal");
-  }
-
-  return response.json();
-}

@@ -211,35 +211,6 @@ export default async function handler(req: any, res: any) {
         return res.status(200).json({ success: true, result });
       }
 
-      case "create-deal": {
-        const { companyName, dealRef, stage, sector, location, broker, dealFiles } = req.body;
-        if (!companyName) {
-          return res.status(400).json({ error: "Company Name is required" });
-        }
-        const generatedRef = dealRef || `ACP-${Math.floor(1000 + Math.random() * 9000)}`;
-        const inboxFields: Record<string, any> = {
-          "Deal Name": companyName,
-          "REF. NO": generatedRef,
-          "Sector": sector || "",
-          "Location": location || "",
-          "BROKER": broker || "",
-          "Deal Files": dealFiles || "",
-          "Status": "Passed Review"
-        };
-        const inboxRecord = await airtableCreate("Deal_Inbox", inboxFields);
-        const pipelineFields: Record<string, any> = {
-          "Deal Name": companyName,
-          "Stage": stage || "Intro",
-          "Deal_Inbox": [inboxRecord.id]
-        };
-        const pipelineRecord = await airtableCreate(TABLES.PIPELINE, pipelineFields);
-        return res.status(200).json({
-          success: true,
-          inboxRecord,
-          pipelineRecord
-        });
-      }
-
       default:
         return res.status(400).json({ error: `Unknown action: ${action}` });
     }
