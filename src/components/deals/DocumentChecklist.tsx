@@ -334,7 +334,7 @@ export function DocumentChecklist({ documents, audience, onRefresh }: DocumentCh
       )}
 
       {filteredDocuments.length > 0 ? (
-        <Table>
+        <Table className="max-h-[65vh]">
           <thead>
             <tr className="border-b border-white/5 bg-white/[0.01]">
               {audience === "internal" && (
