@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useParams, Navigate } from "react-router-dom";
 import { 
   Building2, Database, ShieldCheck, LockKeyhole, Landmark, 
-  LogOut, Files, History, Menu, X
+  LogOut, Files, History, Menu, X, MessageSquare
 } from "lucide-react";
 import { 
   loginLender, fetchLenderDeals, fetchLenderDocuments, fetchLenderSubmissions 
@@ -10,10 +10,19 @@ import {
 import { CoverSheet } from "../components/deals/CoverSheet";
 import { DocumentChecklist } from "../components/deals/DocumentChecklist";
 import { SubmissionTimeline } from "../components/deals/SubmissionTimeline";
+import { DealChat } from "../components/deals/DealChat";
 import { LoadingState } from "../components/ui/LoadingState";
 import { ErrorState } from "../components/ui/ErrorState";
 import { EmptyState } from "../components/ui/EmptyState";
 import type { PipelineDeal, DealDocument, SubmissionLogEntry } from "../types/deal";
+import { cx } from "../utils/cx";
+
+type LenderTabId = "overview" | "chat";
+
+const lenderTabs: Array<{ id: LenderTabId; label: string; icon: any }> = [
+  { id: "overview", label: "Deal Room Overview", icon: Files },
+  { id: "chat", label: "Message Admin", icon: MessageSquare }
+];
 
 export function LenderPortalPage() {
   const { portalSlug } = useParams<{ portalSlug: string }>();
@@ -30,6 +39,7 @@ export function LenderPortalPage() {
   const [selectedDeal, setSelectedDeal] = useState<PipelineDeal | null>(null);
   const [lenderProfile, setLenderProfile] = useState<any>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<LenderTabId>("overview");
 
   useEffect(() => {
     if (!portalSlug) return;
@@ -442,30 +452,62 @@ export function LenderPortalPage() {
                   </div>
                 </div>
 
-                {/* Deal Cover Sheet (Lender Redacted view!) */}
-                <CoverSheet deal={selectedDeal} audience="lender" />
+                {/* Tab Switcher */}
+                <div className="flex gap-1.5 overflow-x-auto rounded-xl border border-white/[0.06] bg-[#0D0D0E] p-1.5 shadow-inner backdrop-blur-md">
+                  {lenderTabs.map((tab) => (
+                    <button
+                      key={tab.id}
+                      className={cx(
+                        "inline-flex min-h-9 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-4 text-xs font-extrabold uppercase tracking-wider transition-all duration-300 flex-1 sm:flex-initial cursor-pointer",
+                        activeTab === tab.id
+                          ? "bg-gradient-to-r from-acp-bronze to-acp-bronze-dark text-white shadow-md shadow-glow-purple-card"
+                          : "text-slate-400 hover:bg-white/5 hover:text-white",
+                      )}
+                      onClick={() => setActiveTab(tab.id)}
+                      type="button"
+                    >
+                      <tab.icon className="h-3.5 w-3.5" aria-hidden="true" />
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
 
-                {/* Approved Documents Checklist */}
-                <section className="space-y-4">
-                  <div className="flex items-center gap-3">
-                    <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/5 border border-white/10 text-acp-bronze shadow-sm">
-                      <Files className="h-5 w-5" />
-                    </span>
-                    <h2 className="text-sm font-bold uppercase tracking-wider text-white">Approved Documents</h2>
-                  </div>
-                  <DocumentChecklist documents={activeDocs} audience="lender" />
-                </section>
+                {activeTab === "overview" ? (
+                  <div className="space-y-8">
+                    {/* Deal Cover Sheet (Lender Redacted view!) */}
+                    <CoverSheet deal={selectedDeal} audience="lender" />
 
-                {/* Timeline History */}
-                <section className="space-y-4">
-                  <div className="flex items-center gap-3">
-                    <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/5 border border-white/10 text-acp-bronze shadow-sm">
-                      <History className="h-5 w-5" />
-                    </span>
-                    <h2 className="text-sm font-bold uppercase tracking-wider text-white">Submission Timeline</h2>
+                    {/* Approved Documents Checklist */}
+                    <section className="space-y-4">
+                      <div className="flex items-center gap-3">
+                        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/5 border border-white/10 text-acp-bronze shadow-sm">
+                          <Files className="h-5 w-5" />
+                        </span>
+                        <h2 className="text-sm font-bold uppercase tracking-wider text-white">Approved Documents</h2>
+                      </div>
+                      <DocumentChecklist documents={activeDocs} audience="lender" />
+                    </section>
+
+                    {/* Timeline History */}
+                    <section className="space-y-4">
+                      <div className="flex items-center gap-3">
+                        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/5 border border-white/10 text-acp-bronze shadow-sm">
+                          <History className="h-5 w-5" />
+                        </span>
+                        <h2 className="text-sm font-bold uppercase tracking-wider text-white">Submission Timeline</h2>
+                      </div>
+                      <SubmissionTimeline entries={activeLogs} />
+                    </section>
                   </div>
-                  <SubmissionTimeline entries={activeLogs} />
-                </section>
+                ) : (
+                  <div className="w-full">
+                    <DealChat
+                      mode="lender"
+                      dealId={selectedDeal.id}
+                      portalSlug={portalSlug}
+                    />
+                  </div>
+                )}
 
               </div>
             ) : null}

@@ -52,3 +52,13 @@ export type SubmissionLogEntry = {
   responseReceived: string;
   flag: string;
 };
+
+export type ChatMessage = {
+  id: string;
+  dealId: string;
+  lenderId: string;
+  sender: string;
+  message: string;
+  timestamp: string;
+};
+

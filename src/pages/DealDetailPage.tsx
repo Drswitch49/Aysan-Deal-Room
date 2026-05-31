@@ -1,10 +1,11 @@
-import { ArrowLeft, ClipboardList, FileText, Send, ShieldCheck, Eye, History, Shield, Lock, UserPlus, Check, X, KeyRound, Copy } from "lucide-react";
+import { ArrowLeft, ClipboardList, FileText, Send, ShieldCheck, Eye, History, Shield, Lock, UserPlus, Check, X, KeyRound, Copy, MessageSquare } from "lucide-react";
 import type { ComponentType } from "react";
 import { useMemo, useState, useEffect } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { CoverSheet } from "../components/deals/CoverSheet";
 import { DocumentChecklist } from "../components/deals/DocumentChecklist";
 import { SubmissionTimeline } from "../components/deals/SubmissionTimeline";
+import { DealChat } from "../components/deals/DealChat";
 import { ErrorState } from "../components/ui/ErrorState";
 import { LoadingState } from "../components/ui/LoadingState";
 import { PageHeader } from "../components/ui/PageHeader";
@@ -12,16 +13,18 @@ import { useDeal, useDealDocuments, useSubmissionLog } from "../hooks/useDealRoo
 import { cx } from "../utils/cx";
 import { fetchAdminLenders, createLender, assignDealToLender } from "../api/admin";
 
-type TabId = "cover" | "documents" | "submissions";
+type TabId = "cover" | "documents" | "submissions" | "chat";
 
 const tabs: Array<{ id: TabId; label: string; icon: ComponentType<{ className?: string }> }> = [
   { id: "cover", label: "Cover Sheet", icon: FileText },
   { id: "documents", label: "Document Checklist", icon: ClipboardList },
   { id: "submissions", label: "Submission Log", icon: Send },
+  { id: "chat", label: "Lender Chat", icon: MessageSquare },
 ];
 
 export function DealDetailPage() {
   const { ref } = useParams();
+  const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<TabId>("cover");
   const decodedRef = useMemo(() => (ref ? decodeURIComponent(ref) : ""), [ref]);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -38,6 +41,56 @@ export function DealDetailPage() {
   const [selectedLenderId, setSelectedLenderId] = useState("");
   const [assignmentSuccess, setAssignmentSuccess] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+
+  const [activeChatLenderId, setActiveChatLenderId] = useState<string>("");
+
+  useEffect(() => {
+    let active = true;
+    async function loadLenders() {
+      setIsLoadingLenders(true);
+      try {
+        const list = await fetchAdminLenders();
+        if (active) {
+          setAllLenders(list);
+        }
+      } catch (err) {
+        console.error("Failed to load lenders:", err);
+      } finally {
+        if (active) {
+          setIsLoadingLenders(false);
+        }
+      }
+    }
+    loadLenders();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const assignedLenders = useMemo(() => {
+    return allLenders.filter((lender) =>
+      lender.assignments?.some(
+        (asg: any) => asg.dealRef.toLowerCase() === decodedRef.toLowerCase()
+      )
+    );
+  }, [allLenders, decodedRef]);
+
+  useEffect(() => {
+    if (activeTab === "chat" && assignedLenders.length > 0 && !activeChatLenderId) {
+      setActiveChatLenderId(assignedLenders[0].id);
+    }
+  }, [activeTab, assignedLenders, activeChatLenderId]);
+
+  useEffect(() => {
+    const tabParam = searchParams.get("tab") as TabId | null;
+    const lenderParam = searchParams.get("lenderId");
+    if (tabParam && ["cover", "documents", "submissions", "chat"].includes(tabParam)) {
+      setActiveTab(tabParam);
+    }
+    if (lenderParam) {
+      setActiveChatLenderId(lenderParam);
+    }
+  }, [searchParams]);
   
   // Create New Lender states
   const [isCreatingNew, setIsCreatingNew] = useState(false);
@@ -161,7 +214,7 @@ export function DealDetailPage() {
       {/* Main Two-Column Layout */}
       <div className={cx(
         "grid gap-6 items-start animate-fade-in-up",
-        activeTab === "documents" ? "grid-cols-1" : "lg:grid-cols-[minmax(0,1fr)_360px]"
+        (activeTab === "documents" || activeTab === "chat") ? "grid-cols-1" : "lg:grid-cols-[minmax(0,1fr)_360px]"
       )}>
         {/* Workspace Column */}
         <div className="space-y-5 w-full min-w-0">
@@ -195,11 +248,77 @@ export function DealDetailPage() {
               />
             ) : null}
             {activeTab === "submissions" ? <SubmissionTimeline entries={submissionState.data ?? []} /> : null}
+            {activeTab === "chat" ? (
+              <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-6 items-start">
+                {/* Lenders List */}
+                <div className="rounded-2xl border border-white/[0.06] bg-[#0D0D0E] p-4 space-y-4">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 select-none pb-2 border-b border-white/5">
+                    Assigned Lenders
+                  </h4>
+                  {isLoadingLenders && allLenders.length === 0 ? (
+                    <div className="text-xs text-slate-500 animate-pulse py-4 text-center">
+                      Loading assigned lenders...
+                    </div>
+                  ) : assignedLenders.length === 0 ? (
+                    <div className="text-xs text-slate-500 py-4 text-center leading-relaxed">
+                      No lenders assigned to this deal.
+                    </div>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {assignedLenders.map((lender) => {
+                        const isActive = activeChatLenderId === lender.id;
+                        return (
+                          <button
+                            key={lender.id}
+                            type="button"
+                            onClick={() => setActiveChatLenderId(lender.id)}
+                            className={cx(
+                              "w-full text-left px-3 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all border block cursor-pointer",
+                              isActive
+                                ? "bg-acp-bronze/10 border-acp-bronze text-white shadow-glow-bronze/5"
+                                : "bg-white/[0.02] border-white/5 text-slate-350 hover:bg-white/[0.04] hover:text-white"
+                            )}
+                          >
+                            <div className="truncate font-bold">{lender.Company_Name}</div>
+                            {lender.Contact_Name && (
+                              <div className="text-[10px] text-slate-450 truncate mt-0.5 font-medium">
+                                {lender.Contact_Name}
+                              </div>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Chat Column */}
+                <div className="w-full">
+                  {activeChatLenderId ? (
+                    <DealChat
+                      key={activeChatLenderId}
+                      mode="admin"
+                      dealId={dealState.data.id}
+                      lenderRecordId={activeChatLenderId}
+                      lenderName={assignedLenders.find(l => l.id === activeChatLenderId)?.Company_Name}
+                    />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-[350px] rounded-2xl border border-white/10 bg-acp-card text-center p-6">
+                      <MessageSquare className="h-8 w-8 text-slate-500 mb-3" />
+                      <h4 className="text-sm font-medium text-slate-200">No Lender Selected</h4>
+                      <p className="text-xs text-slate-400 mt-1 max-w-xs leading-relaxed">
+                        Select an assigned lender from the list to open the private chat thread.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : null}
           </div>
         </div>
 
         {/* VDR Audit Activity Column */}
-        {activeTab !== "documents" && (
+        {(activeTab !== "documents" && activeTab !== "chat") && (
           <aside className="rounded-2xl border border-white/[0.06] bg-[#0D0D0E] backdrop-blur-md p-6 shadow-premium-card space-y-6 card-sheen">
             <div className="flex items-center justify-between pb-3 border-b border-white/5">
               <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-350 select-none">

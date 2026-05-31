@@ -238,6 +238,106 @@ export default async function handler(req: any, res: any) {
         return res.status(200).json({ success: true, message: "Admin passcode successfully updated." });
       }
 
+      case "get-chat": {
+        const { dealId, lenderRecordId } = req.body;
+        if (!dealId || !lenderRecordId) {
+          return res.status(400).json({ error: "Deal ID and Lender record ID are required" });
+        }
+        try {
+          const lenderData = await airtableFetchRecord(TABLES.LENDERS, lenderRecordId);
+          const lenderIdText = lenderData.fields.Lender_ID || "";
+
+          const pipelineData = await airtableFetch(TABLES.PIPELINE);
+          const activeDeal = pipelineData.records.find((rec: any) => {
+            const refNo = rec.fields["REF No."] || rec.fields.Deal_Ref || rec.fields.dealRef || rec.fields["Deal Name"];
+            return rec.id === dealId || (refNo && String(refNo).toLowerCase() === dealId.toLowerCase());
+          });
+          if (!activeDeal) {
+            return res.status(404).json({ error: "Acquisition deal not found in active pipeline." });
+          }
+          const resolvedDealId = activeDeal.id;
+          const dealRefNo = activeDeal.fields["REF No."] || "";
+
+          const formula = `AND(OR({Lender_ID} = '${lenderRecordId}', {Lender_ID} = '${escapeFormulaString(lenderIdText)}'), OR({Deal_Ref} = '${resolvedDealId}', {Deal_Ref} = '${escapeFormulaString(dealRefNo)}'))`;
+          const chatData = await airtableFetch(TABLES.CHAT, {
+            filterByFormula: formula
+          });
+
+          const messages = chatData.records.map((rec: any) => {
+            return {
+              id: rec.id,
+              dealId: Array.isArray(rec.fields.Deal_Ref) ? rec.fields.Deal_Ref[0] : (rec.fields.Deal_Ref || ""),
+              lenderId: Array.isArray(rec.fields.Lender_ID) ? rec.fields.Lender_ID[0] : (rec.fields.Lender_ID || ""),
+              sender: rec.fields.Sender || "",
+              message: rec.fields.Message || "",
+              timestamp: rec.fields.Timestamp || rec.createdTime || ""
+            };
+          }).sort((a: any, b: any) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+
+          return res.status(200).json({ success: true, results: messages });
+        } catch (err: any) {
+          if (err.status === 404 || err.type === "TABLE_NOT_FOUND") {
+            return res.status(404).json({
+              error: "Chat table not setup",
+              type: "TABLE_NOT_FOUND",
+              message: "The 'Chat_Messages' table was not found in Airtable. Please create this table to enable chat."
+            });
+          }
+          throw err;
+        }
+      }
+
+      case "send-chat": {
+        const { dealId, lenderRecordId, message } = req.body;
+        if (!dealId || !lenderRecordId || !message || message.trim() === "") {
+          return res.status(400).json({ error: "Deal ID, Lender record ID, and a non-empty message are required" });
+        }
+        try {
+          const lenderData = await airtableFetchRecord(TABLES.LENDERS, lenderRecordId);
+          const lenderIdText = lenderData.fields.Lender_ID || "";
+
+          const pipelineData = await airtableFetch(TABLES.PIPELINE);
+          const activeDeal = pipelineData.records.find((rec: any) => {
+            const refNo = rec.fields["REF No."] || rec.fields.Deal_Ref || rec.fields.dealRef || rec.fields["Deal Name"];
+            return rec.id === dealId || (refNo && String(refNo).toLowerCase() === dealId.toLowerCase());
+          });
+          if (!activeDeal) {
+            return res.status(404).json({ error: "Acquisition deal not found in active pipeline." });
+          }
+          const resolvedDealId = activeDeal.id;
+
+          const newFields = {
+            Lender_ID: [lenderRecordId],
+            Deal_Ref: [resolvedDealId],
+            Sender: "Admin",
+            Message: message,
+            Timestamp: new Date().toISOString()
+          };
+
+          const createdRecord = await airtableCreate(TABLES.CHAT, newFields);
+          
+          const mappedMessage = {
+            id: createdRecord.id,
+            dealId: Array.isArray(createdRecord.fields.Deal_Ref) ? createdRecord.fields.Deal_Ref[0] : (createdRecord.fields.Deal_Ref || resolvedDealId),
+            lenderId: Array.isArray(createdRecord.fields.Lender_ID) ? createdRecord.fields.Lender_ID[0] : (createdRecord.fields.Lender_ID || lenderRecordId),
+            sender: createdRecord.fields.Sender || "Admin",
+            message: createdRecord.fields.Message || message,
+            timestamp: createdRecord.fields.Timestamp || createdRecord.createdTime || new Date().toISOString()
+          };
+
+          return res.status(200).json({ success: true, result: mappedMessage });
+        } catch (err: any) {
+          if (err.status === 404 || err.type === "TABLE_NOT_FOUND") {
+            return res.status(404).json({
+              error: "Chat table not setup",
+              type: "TABLE_NOT_FOUND",
+              message: "The 'Chat_Messages' table was not found in Airtable. Please create this table to enable chat."
+            });
+          }
+          throw err;
+        }
+      }
+
       default:
         return res.status(400).json({ error: `Unknown action: ${action}` });
     }

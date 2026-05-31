@@ -8,7 +8,8 @@ export const TABLES = {
   PIPELINE: process.env.VITE_AIRTABLE_PIPELINE_TABLE || "Active_Pipeline",
   DOCUMENTS: process.env.VITE_AIRTABLE_DOCUMENTS_TABLE || "Documents",
   SUBMISSIONS: process.env.VITE_AIRTABLE_SUBMISSION_TABLE || "Submission_Log",
-  ASSIGNMENTS: "Lender_Deal_Assignments"
+  ASSIGNMENTS: "Lender_Deal_Assignments",
+  CHAT: "Chat_Messages"
 };
 
 export class AirtableError extends Error {

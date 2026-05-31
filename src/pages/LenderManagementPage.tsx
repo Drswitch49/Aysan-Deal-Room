@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { 
   Building2, Users, Link2, KeyRound, Copy, Check, ShieldCheck, 
-  RotateCcw, Trash2, UserPlus, X, ChevronRight, Ban, CheckCircle, ExternalLink, Search 
+  RotateCcw, Trash2, UserPlus, X, ChevronRight, Ban, CheckCircle, ExternalLink, Search, MessageSquare 
 } from "lucide-react";
+import { Link } from "react-router-dom";
 import { PageHeader } from "../components/ui/PageHeader";
 import { LoadingState } from "../components/ui/LoadingState";
 import { EmptyState } from "../components/ui/EmptyState";
@@ -368,7 +369,14 @@ export function LenderManagementPage() {
                             key={asg.assignmentId}
                             className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[10px] font-semibold text-slate-355"
                           >
-                            {asg.dealRef}
+                            <Link
+                              to={`/deals/${encodeURIComponent(asg.dealRef)}?tab=chat&lenderId=${lender.id}`}
+                              className="hover:text-acp-bronze transition-colors flex items-center gap-1 cursor-pointer"
+                              title="Open private chat thread"
+                            >
+                              <MessageSquare className="h-2.5 w-2.5 text-acp-bronze/70 shrink-0" />
+                              {asg.dealRef}
+                            </Link>
                             <button
                               onClick={() => handleRemoveAssignment(asg.assignmentId)}
                               className="text-slate-500 hover:text-rose-400 transition cursor-pointer"
