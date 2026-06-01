@@ -7,6 +7,7 @@ import {
 import { 
   loginLender, fetchLenderDeals, fetchLenderDocuments, fetchLenderSubmissions 
 } from "../api/lender";
+import { fetchRecentLenderChat } from "../api/chat";
 import { CoverSheet } from "../components/deals/CoverSheet";
 import { DocumentChecklist } from "../components/deals/DocumentChecklist";
 import { SubmissionTimeline } from "../components/deals/SubmissionTimeline";
@@ -19,11 +20,6 @@ import type { PipelineDeal, DealDocument, SubmissionLogEntry } from "../types/de
 import { cx } from "../utils/cx";
 
 type LenderTabId = "overview" | "chat";
-
-const lenderTabs: Array<{ id: LenderTabId; label: string; icon: any }> = [
-  { id: "overview", label: "Deal Room Overview", icon: Files },
-  { id: "chat", label: "Message Admin", icon: MessageSquare }
-];
 
 export function LenderPortalPage() {
   const { portalSlug } = useParams<{ portalSlug: string }>();
@@ -42,6 +38,7 @@ export function LenderPortalPage() {
   const [lenderProfile, setLenderProfile] = useState<any>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<LenderTabId>("overview");
+  const [unreadChatsCount, setUnreadChatsCount] = useState<number>(0);
 
   // Effect to select active deal and tab from URL query params (e.g. notifications deep link)
   useEffect(() => {
@@ -102,6 +99,45 @@ export function LenderPortalPage() {
       setLoadingData(false);
     }
   }
+
+  useEffect(() => {
+    if (!isAuthorized || !portalSlug || deals.length === 0) return;
+
+    const calculateLenderUnread = async () => {
+      try {
+        const messages = await fetchRecentLenderChat(portalSlug).catch(() => []);
+        if (!messages) return;
+
+        let unread = 0;
+        const msgsByDeal: Record<string, any[]> = {};
+        messages.forEach((m) => {
+          if (m.sender === "Admin") {
+            if (!msgsByDeal[m.dealId]) msgsByDeal[m.dealId] = [];
+            msgsByDeal[m.dealId].push(m);
+          }
+        });
+
+        deals.forEach((deal) => {
+          const dealMsgs = msgsByDeal[deal.id] || [];
+          if (dealMsgs.length === 0) return;
+
+          const lastReadTimeStr = localStorage.getItem(`lender_last_read_${deal.id}`);
+          const lastReadTime = lastReadTimeStr ? new Date(lastReadTimeStr).getTime() : 0;
+
+          const hasUnread = dealMsgs.some((m) => new Date(m.timestamp).getTime() > lastReadTime);
+          if (hasUnread) unread++;
+        });
+
+        setUnreadChatsCount(unread);
+      } catch (err) {
+        console.error("Failed to fetch unread messages count for lender:", err);
+      }
+    };
+
+    calculateLenderUnread();
+    const interval = setInterval(calculateLenderUnread, 10000);
+    return () => clearInterval(interval);
+  }, [isAuthorized, portalSlug, deals]);
 
   // Handle Login submission
   async function handleLogin(e: React.FormEvent) {
@@ -471,22 +507,38 @@ export function LenderPortalPage() {
 
                 {/* Tab Switcher */}
                 <div className="flex gap-1.5 overflow-x-auto rounded-xl border border-white/[0.06] bg-[#0D0D0E] p-1.5 shadow-inner backdrop-blur-md">
-                  {lenderTabs.map((tab) => (
-                    <button
-                      key={tab.id}
-                      className={cx(
-                        "inline-flex min-h-9 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-4 text-xs font-extrabold uppercase tracking-wider transition-all duration-300 flex-1 sm:flex-initial cursor-pointer",
-                        activeTab === tab.id
-                          ? "bg-gradient-to-r from-acp-bronze to-acp-bronze-dark text-white shadow-md shadow-glow-purple-card"
-                          : "text-slate-400 hover:bg-white/5 hover:text-white",
-                      )}
-                      onClick={() => setActiveTab(tab.id)}
-                      type="button"
-                    >
-                      <tab.icon className="h-3.5 w-3.5" aria-hidden="true" />
-                      {tab.label}
-                    </button>
-                  ))}
+                  <button
+                    className={cx(
+                      "inline-flex min-h-9 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-4 text-xs font-extrabold uppercase tracking-wider transition-all duration-300 flex-1 sm:flex-initial cursor-pointer",
+                      activeTab === "overview"
+                        ? "bg-gradient-to-r from-acp-bronze to-acp-bronze-dark text-white shadow-md shadow-glow-purple-card"
+                        : "text-slate-400 hover:bg-white/5 hover:text-white",
+                    )}
+                    onClick={() => setActiveTab("overview")}
+                    type="button"
+                  >
+                    <Files className="h-3.5 w-3.5" aria-hidden="true" />
+                    Deal Room Overview
+                  </button>
+
+                  <button
+                    className={cx(
+                      "inline-flex min-h-9 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-4 text-xs font-extrabold uppercase tracking-wider transition-all duration-300 flex-1 sm:flex-initial cursor-pointer relative",
+                      activeTab === "chat"
+                        ? "bg-gradient-to-r from-acp-bronze to-acp-bronze-dark text-white shadow-md shadow-glow-purple-card"
+                        : "text-slate-400 hover:bg-white/5 hover:text-white",
+                    )}
+                    onClick={() => setActiveTab("chat")}
+                    type="button"
+                  >
+                    <MessageSquare className="h-3.5 w-3.5" aria-hidden="true" />
+                    <span>Message Admin</span>
+                    {unreadChatsCount > 0 && (
+                      <span className="text-rose-500 font-black text-[11px] animate-pulse ml-1">
+                        ({unreadChatsCount})
+                      </span>
+                    )}
+                  </button>
                 </div>
 
                 {activeTab === "overview" ? (

@@ -27,7 +27,7 @@ export function DealListPage() {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [viewMode, setViewMode] = useState<"pipeline" | "registry">("pipeline");
   const [lendersCount, setLendersCount] = useState<number | null>(null);
-  const [unreadChatsCount, setUnreadChatsCount] = useState<number | null>(null);
+  const [activeChatsCount, setActiveChatsCount] = useState<number | null>(null);
 
   // Card folding state
   const [expandedStages, setExpandedStages] = useState<Record<string, boolean>>({});
@@ -40,28 +40,12 @@ export function DealListPage() {
       .then(([lenders, messages]) => {
         setLendersCount(lenders.length);
         
-        let unread = 0;
-        lenders.forEach((l: any) => {
-          const msgs = messages.filter((m) => m.lenderId === l.id && m.sender !== "Admin");
-          if (msgs.length === 0) return;
-
-          // Group by deal to see if any deal is unread
-          const msgsByDeal: Record<string, any[]> = {};
-          msgs.forEach((m) => {
-            if (!msgsByDeal[m.dealId]) msgsByDeal[m.dealId] = [];
-            msgsByDeal[m.dealId].push(m);
-          });
-
-          const hasAnyUnreadDeal = Object.entries(msgsByDeal).some(([dealId, dealMsgs]) => {
-            const lastReadTimeStr = localStorage.getItem(`admin_last_read_${l.id}_${dealId}`) || 
-                                   localStorage.getItem(`admin_last_read_${l.id}`);
-            const lastReadTime = lastReadTimeStr ? new Date(lastReadTimeStr).getTime() : 0;
-            return dealMsgs.some((m) => new Date(m.timestamp).getTime() > lastReadTime);
-          });
-
-          if (hasAnyUnreadDeal) unread++;
-        });
-        setUnreadChatsCount(unread);
+        // Count lenders that have at least one chat message in history
+        const activeLenders = lenders.filter((l: any) => 
+          messages.some((m) => m.lenderId === l.id)
+        ).length;
+        
+        setActiveChatsCount(activeLenders);
       })
       .catch((err) => {
         console.error("Failed to load dashboard metrics:", err);
@@ -202,8 +186,8 @@ export function DealListPage() {
             <Link to="/admin/messages" className="block transition-transform hover:scale-[1.01]">
               <MetricCard 
                 icon={<MessageSquare className="h-5 w-5" />} 
-                label="Chat Messages" 
-                value={unreadChatsCount !== null ? (unreadChatsCount > 0 ? `${unreadChatsCount} Unread` : "0 Unread") : "..."} 
+                label="Active Chats" 
+                value={activeChatsCount !== null ? activeChatsCount : "..."} 
                 iconBgClass="bg-[#C5A059]"
               />
             </Link>

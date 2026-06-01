@@ -3,12 +3,55 @@ import type { ReactNode } from "react";
 import { Building2, Database, FolderOpen, LockKeyhole, ShieldCheck, Table2, Shield, LogOut, Menu, X, Key, MessageSquare } from "lucide-react";
 import { NavLink, Outlet } from "react-router-dom";
 import { cx } from "../../utils/cx";
-import { changeAdminPassword } from "../../api/admin";
+import { changeAdminPassword, fetchAdminLenders } from "../../api/admin";
+import { fetchRecentAdminChat } from "../../api/chat";
 import { ChatNotificationWatcher } from "../ui/ChatNotificationWatcher";
+import { useEffect } from "react";
 
 export function AppLayout() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
+  const [unreadMessages, setUnreadMessages] = useState<number>(0);
+
+  useEffect(() => {
+    const calculateAdminUnread = async () => {
+      try {
+        const [lenders, messages] = await Promise.all([
+          fetchAdminLenders().catch(() => []),
+          fetchRecentAdminChat().catch(() => [])
+        ]);
+
+        let unread = 0;
+        lenders.forEach((l: any) => {
+          const msgs = messages.filter((m) => m.lenderId === l.id && m.sender !== "Admin");
+          if (msgs.length === 0) return;
+
+          const msgsByDeal: Record<string, any[]> = {};
+          msgs.forEach((m) => {
+            if (!msgsByDeal[m.dealId]) msgsByDeal[m.dealId] = [];
+            msgsByDeal[m.dealId].push(m);
+          });
+
+          const hasAnyUnreadDeal = Object.entries(msgsByDeal).some(([dealId, dealMsgs]) => {
+            const lastReadTimeStr = localStorage.getItem(`admin_last_read_${l.id}_${dealId}`) || 
+                                   localStorage.getItem(`admin_last_read_${l.id}`);
+            const lastReadTime = lastReadTimeStr ? new Date(lastReadTimeStr).getTime() : 0;
+            return dealMsgs.some((m) => new Date(m.timestamp).getTime() > lastReadTime);
+          });
+
+          if (hasAnyUnreadDeal) unread++;
+        });
+
+        setUnreadMessages(unread);
+      } catch (err) {
+        console.error("Failed to load layout unread count:", err);
+      }
+    };
+
+    calculateAdminUnread();
+    const interval = setInterval(calculateAdminUnread, 10000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleLogout = () => {
     sessionStorage.removeItem("admin_authenticated");
@@ -29,7 +72,20 @@ export function AppLayout() {
           <nav className="mt-10 space-y-1.5">
             <SideNavItem to="/deals" icon={<FolderOpen className="h-4 w-4" aria-hidden="true" />} label="Active Deals" />
             <SideNavItem to="/admin/lenders" icon={<Building2 className="h-4 w-4" aria-hidden="true" />} label="Lenders" />
-            <SideNavItem to="/admin/messages" icon={<MessageSquare className="h-4 w-4" aria-hidden="true" />} label="Messages" />
+            <SideNavItem 
+              to="/admin/messages" 
+              icon={<MessageSquare className="h-4 w-4" aria-hidden="true" />} 
+              label={
+                <span className="flex items-center justify-between w-full">
+                  <span>Messages</span>
+                  {unreadMessages > 0 && (
+                    <span className="text-rose-500 font-black text-[11px] animate-pulse">
+                      ({unreadMessages})
+                    </span>
+                  )}
+                </span>
+              } 
+            />
           </nav>
 
           <div className="mt-8 rounded-xl border border-white/[0.06] bg-white/[0.02] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)] backdrop-blur-md">
@@ -112,7 +168,21 @@ export function AppLayout() {
               <nav className="mt-10 space-y-1.5">
                 <SideNavItem to="/deals" icon={<FolderOpen className="h-4 w-4" aria-hidden="true" />} label="Active Deals" onClick={() => setIsMobileMenuOpen(false)} />
                 <SideNavItem to="/admin/lenders" icon={<Building2 className="h-4 w-4" aria-hidden="true" />} label="Lenders" onClick={() => setIsMobileMenuOpen(false)} />
-                <SideNavItem to="/admin/messages" icon={<MessageSquare className="h-4 w-4" aria-hidden="true" />} label="Messages" onClick={() => setIsMobileMenuOpen(false)} />
+                <SideNavItem 
+                  to="/admin/messages" 
+                  icon={<MessageSquare className="h-4 w-4" aria-hidden="true" />} 
+                  label={
+                    <span className="flex items-center justify-between w-full">
+                      <span>Messages</span>
+                      {unreadMessages > 0 && (
+                        <span className="text-rose-500 font-black text-[11px] animate-pulse">
+                          ({unreadMessages})
+                        </span>
+                      )}
+                    </span>
+                  } 
+                  onClick={() => setIsMobileMenuOpen(false)}
+                />
               </nav>
 
               <div className="mt-8 rounded-xl border border-white/[0.06] bg-white/[0.02] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)] backdrop-blur-md">
@@ -364,7 +434,7 @@ function BrandBlock({ compact = false }: { compact?: boolean }) {
   );
 }
 
-function SideNavItem({ to, icon, label, onClick }: { to: string; icon: ReactNode; label: string; onClick?: () => void }) {
+function SideNavItem({ to, icon, label, onClick }: { to: string; icon: ReactNode; label: ReactNode; onClick?: () => void }) {
   return (
     <NavLink
       to={to}
