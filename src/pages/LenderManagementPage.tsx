@@ -260,18 +260,39 @@ export function LenderManagementPage() {
   const activeLenders = lenders.filter(l => l.Status === "Active").length;
   const totalAssignments = lenders.reduce((sum, l) => sum + l.assignments.length, 0);
 
-  // Group messages by lender
-  const messagesByLender = useMemo(() => {
-    const groups: Record<string, ChatMessage[]> = {};
-    recentMessages.forEach((msg) => {
-      if (!msg.lenderId) return;
-      if (!groups[msg.lenderId]) {
-        groups[msg.lenderId] = [];
-      }
-      groups[msg.lenderId].push(msg);
+  // Compute conversations list sorted by latest message (one item per lender)
+  const lenderConversations = useMemo(() => {
+    return lenders.map((lender) => {
+      const msgs = recentMessages.filter((m) => m.lenderId === lender.id);
+      if (msgs.length === 0) return null;
+
+      // Sort messages newest first
+      const sortedMsgs = [...msgs].sort(
+        (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
+      const latestMsg = sortedMsgs[0];
+
+      // Count unread messages (received from Lender)
+      const lastReadTimeStr = localStorage.getItem(`admin_last_read_${lender.id}`);
+      const lastReadTime = lastReadTimeStr ? new Date(lastReadTimeStr).getTime() : 0;
+      const unreadCount = sortedMsgs.filter(
+        (m) => m.sender === "Lender" && new Date(m.timestamp).getTime() > lastReadTime
+      ).length;
+
+      return {
+        lender,
+        totalCount: msgs.length,
+        unreadCount,
+        latestMsg,
+      };
+    })
+    .filter((c): c is NonNullable<typeof c> => c !== null)
+    .sort((a, b) => {
+      const timeA = new Date(a.latestMsg.timestamp).getTime();
+      const timeB = new Date(b.latestMsg.timestamp).getTime();
+      return timeB - timeA;
     });
-    return groups;
-  }, [recentMessages]);
+  }, [lenders, recentMessages]);
 
   return (
     <div className="space-y-8 animate-fade-in-up">
@@ -507,60 +528,69 @@ export function LenderManagementPage() {
                 <h3 className="text-sm font-bold uppercase tracking-wider text-white">Conversations by Lender</h3>
               </div>
               <span className="rounded-full bg-white/5 border border-white/10 px-2 py-0.5 text-[9px] font-bold text-slate-400">
-                {Object.keys(messagesByLender).length}
+                {lenderConversations.length}
               </span>
             </div>
 
-            <div className="flex-1 overflow-y-auto space-y-5 max-h-[600px] pr-1">
-              {Object.keys(messagesByLender).length === 0 ? (
+            <div className="flex-1 overflow-y-auto space-y-3.5 max-h-[600px] pr-1">
+              {lenderConversations.length === 0 ? (
                 <div className="text-center py-12 text-slate-500 text-xs leading-relaxed font-sans">
-                  No messages yet.<br />Chat messages from investors will appear here.
+                  No conversations yet.<br />Chat messages from investors will appear here.
                 </div>
               ) : (
-                Object.entries(messagesByLender).map(([lenderId, msgs]) => {
-                  const lender = lenders.find((l) => l.id === lenderId);
-                  const lenderName = lender ? lender.Company_Name : "Unknown Lender";
+                lenderConversations.map((conv: any) => {
+                  const { lender, totalCount, unreadCount, latestMsg } = conv;
+                  const deal = deals.find((d) => d.id === latestMsg.dealId);
+                  const dealRef = deal ? deal.dealRef : "";
+                  const dealCompany = deal ? deal.companyName : "Assigned Deal";
+                  const isMe = latestMsg.sender === "Admin";
                   
-                  return (
-                    <div key={lenderId} className="space-y-2">
-                      <div className="text-[10px] font-black text-white uppercase tracking-wider pb-1 border-b border-white/5 sticky top-0 bg-[#0D0D0E] z-10">
-                        {lenderName}
-                      </div>
-                      <div className="space-y-2">
-                        {msgs.map((msg) => {
-                          const deal = deals.find((d) => d.id === msg.dealId);
-                          const dealRef = deal ? deal.dealRef : "";
-                          const dealCompany = deal ? deal.companyName : "Assigned Deal";
-                          const isMe = msg.sender === "Admin";
-                          const formattedTime = msg.timestamp
-                            ? new Date(msg.timestamp).toLocaleDateString(undefined, { month: "short", day: "numeric" }) +
-                              " " +
-                              new Date(msg.timestamp).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })
-                            : "";
+                  const formattedTime = latestMsg.timestamp
+                    ? new Date(latestMsg.timestamp).toLocaleDateString(undefined, { month: "short", day: "numeric" }) +
+                      " " +
+                      new Date(latestMsg.timestamp).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })
+                    : "";
 
-                          return (
-                            <Link
-                              key={msg.id}
-                              to={dealRef ? `/deals/${encodeURIComponent(dealRef)}?tab=chat&lenderId=${lenderId}` : "#"}
-                              className="block p-2.5 rounded-xl border border-white/[0.04] bg-white/[0.01] hover:bg-[#0c1122]/60 hover:border-acp-bronze/35 transition-all duration-300 relative group card-sheen"
-                            >
-                              <div className="flex justify-between items-start gap-2">
-                                <span className="text-[9px] text-acp-bronze font-extrabold uppercase tracking-wider truncate">
-                                  {dealCompany} {dealRef ? `(REF: ${dealRef})` : ""}
-                                </span>
-                                <span className="text-[8px] text-slate-500 font-semibold shrink-0">
-                                  {formattedTime}
-                                </span>
-                              </div>
-                              <p className="text-[10px] text-slate-400 mt-1.5 leading-relaxed line-clamp-2 italic">
-                                {isMe ? <span className="text-slate-550 font-bold not-italic">You: </span> : null}
-                                "{msg.message}"
-                              </p>
-                            </Link>
-                          );
-                        })}
+                  return (
+                    <Link
+                      key={lender.id}
+                      to={dealRef ? `/deals/${encodeURIComponent(dealRef)}?tab=chat&lenderId=${lender.id}` : "#"}
+                      className="block p-3 rounded-xl border border-white/[0.04] bg-[#0c1122]/15 hover:bg-[#0c1122]/60 hover:border-acp-bronze/35 transition-all duration-300 relative group card-sheen"
+                    >
+                      {/* Top Row: Lender Name + Time */}
+                      <div className="flex justify-between items-center gap-2">
+                        <span className="text-xs font-bold text-white group-hover:text-acp-bronze transition-colors truncate">
+                          {lender.Company_Name}
+                        </span>
+                        <span className="text-[9px] text-slate-500 font-semibold shrink-0">
+                          {formattedTime}
+                        </span>
                       </div>
-                    </div>
+
+                      {/* Middle Row: Deal reference + Message Counts */}
+                      <div className="flex justify-between items-center mt-1">
+                        <span className="text-[9px] text-acp-bronze font-extrabold uppercase tracking-wider truncate">
+                          {dealCompany} {dealRef ? `(REF: ${dealRef})` : ""}
+                        </span>
+                        
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className="text-[8px] bg-white/5 border border-white/10 text-slate-400 px-1.5 py-0.5 rounded font-mono font-bold">
+                            {totalCount} {totalCount === 1 ? "msg" : "msgs"}
+                          </span>
+                          {unreadCount > 0 && (
+                            <span className="inline-flex items-center justify-center h-4.5 min-w-[18px] text-[8px] font-black uppercase bg-[#C5A059] text-white px-1.5 rounded-full shadow-[0_2px_8px_rgba(197,160,89,0.3)] animate-pulse">
+                              {unreadCount}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Bottom Row: Message snippet */}
+                      <p className="text-[10px] text-slate-450 mt-2.5 leading-relaxed line-clamp-1 italic border-t border-white/[0.02] pt-2">
+                        {isMe ? <span className="text-slate-550 font-bold not-italic">You: </span> : null}
+                        "{latestMsg.message}"
+                      </p>
+                    </Link>
                   );
                 })
               )}

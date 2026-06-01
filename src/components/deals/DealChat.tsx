@@ -86,6 +86,16 @@ export function DealChat({
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
 
+  // Update last read state in local storage when messages are viewed or sent
+  useEffect(() => {
+    if (messages.length === 0) return;
+    if (mode === "admin" && lenderRecordId) {
+      localStorage.setItem(`admin_last_read_${lenderRecordId}`, new Date().toISOString());
+    } else if (mode === "lender" && dealId) {
+      localStorage.setItem(`lender_last_read_${dealId}`, new Date().toISOString());
+    }
+  }, [messages, mode, lenderRecordId, dealId]);
+
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputText.trim() || submitting || inputText.length > maxChars) return;
