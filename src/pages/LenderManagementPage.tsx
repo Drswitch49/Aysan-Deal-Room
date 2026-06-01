@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { 
   Building2, Users, Link2, KeyRound, Copy, Check, ShieldCheck, 
   RotateCcw, Trash2, UserPlus, X, ChevronRight, Ban, CheckCircle, ExternalLink, Search, MessageSquare 
@@ -260,6 +260,19 @@ export function LenderManagementPage() {
   const activeLenders = lenders.filter(l => l.Status === "Active").length;
   const totalAssignments = lenders.reduce((sum, l) => sum + l.assignments.length, 0);
 
+  // Group messages by lender
+  const messagesByLender = useMemo(() => {
+    const groups: Record<string, ChatMessage[]> = {};
+    recentMessages.forEach((msg) => {
+      if (!msg.lenderId) return;
+      if (!groups[msg.lenderId]) {
+        groups[msg.lenderId] = [];
+      }
+      groups[msg.lenderId].push(msg);
+    });
+    return groups;
+  }, [recentMessages]);
+
   return (
     <div className="space-y-8 animate-fade-in-up">
       <PageHeader title="Lender Portals" eyebrow="System Management">
@@ -491,60 +504,63 @@ export function LenderManagementPage() {
             <div className="mb-4 flex items-center justify-between pb-2 border-b border-white/5">
               <div className="flex items-center gap-2">
                 <MessageSquare className="h-4 w-4 text-acp-bronze" />
-                <h3 className="text-sm font-bold uppercase tracking-wider text-white">Recent Conversations</h3>
+                <h3 className="text-sm font-bold uppercase tracking-wider text-white">Conversations by Lender</h3>
               </div>
               <span className="rounded-full bg-white/5 border border-white/10 px-2 py-0.5 text-[9px] font-bold text-slate-400">
-                {recentMessages.length}
+                {Object.keys(messagesByLender).length}
               </span>
             </div>
 
-            <div className="flex-1 overflow-y-auto space-y-3.5 max-h-[600px] pr-1">
-              {recentMessages.length === 0 ? (
+            <div className="flex-1 overflow-y-auto space-y-5 max-h-[600px] pr-1">
+              {Object.keys(messagesByLender).length === 0 ? (
                 <div className="text-center py-12 text-slate-500 text-xs leading-relaxed font-sans">
                   No messages yet.<br />Chat messages from investors will appear here.
                 </div>
               ) : (
-                recentMessages.map((msg) => {
-                  const lender = lenders.find((l) => l.id === msg.lenderId);
-                  const deal = deals.find((d) => d.id === msg.dealId);
+                Object.entries(messagesByLender).map(([lenderId, msgs]) => {
+                  const lender = lenders.find((l) => l.id === lenderId);
+                  const lenderName = lender ? lender.Company_Name : "Unknown Lender";
                   
-                  const lenderName = lender ? lender.Company_Name : "Lender";
-                  const dealRef = deal ? deal.dealRef : "";
-                  const dealCompany = deal ? deal.companyName : "Assigned Deal";
-
-                  const isMe = msg.sender === "Admin";
-                  const formattedTime = msg.timestamp
-                    ? new Date(msg.timestamp).toLocaleDateString(undefined, { month: "short", day: "numeric" }) +
-                      " " +
-                      new Date(msg.timestamp).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })
-                    : "";
-
                   return (
-                    <Link
-                      key={msg.id}
-                      to={dealRef ? `/deals/${encodeURIComponent(dealRef)}?tab=chat&lenderId=${msg.lenderId}` : "#"}
-                      className="block p-3 rounded-xl border border-white/[0.04] bg-white/[0.01] hover:bg-[#0c1122]/60 hover:border-acp-bronze/30 transition-all duration-300 relative group card-sheen"
-                    >
-                      <div className="flex justify-between items-start gap-2">
-                        <span className="text-[11px] font-bold text-white group-hover:text-acp-bronze transition-colors truncate">
-                          {lenderName}
-                        </span>
-                        <span className="text-[9px] text-slate-500 font-semibold shrink-0">
-                          {formattedTime}
-                        </span>
+                    <div key={lenderId} className="space-y-2">
+                      <div className="text-[10px] font-black text-white uppercase tracking-wider pb-1 border-b border-white/5 sticky top-0 bg-[#0D0D0E] z-10">
+                        {lenderName}
                       </div>
-                      
-                      {dealCompany && (
-                        <div className="text-[9px] text-acp-bronze font-extrabold uppercase tracking-wider mt-0.5 truncate">
-                          {dealCompany} {dealRef ? `(REF: ${dealRef})` : ""}
-                        </div>
-                      )}
+                      <div className="space-y-2">
+                        {msgs.map((msg) => {
+                          const deal = deals.find((d) => d.id === msg.dealId);
+                          const dealRef = deal ? deal.dealRef : "";
+                          const dealCompany = deal ? deal.companyName : "Assigned Deal";
+                          const isMe = msg.sender === "Admin";
+                          const formattedTime = msg.timestamp
+                            ? new Date(msg.timestamp).toLocaleDateString(undefined, { month: "short", day: "numeric" }) +
+                              " " +
+                              new Date(msg.timestamp).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })
+                            : "";
 
-                      <p className="text-[10px] text-slate-400 mt-2 leading-relaxed line-clamp-2 italic">
-                        {isMe ? <span className="text-slate-550 font-bold not-italic">You: </span> : null}
-                        "{msg.message}"
-                      </p>
-                    </Link>
+                          return (
+                            <Link
+                              key={msg.id}
+                              to={dealRef ? `/deals/${encodeURIComponent(dealRef)}?tab=chat&lenderId=${lenderId}` : "#"}
+                              className="block p-2.5 rounded-xl border border-white/[0.04] bg-white/[0.01] hover:bg-[#0c1122]/60 hover:border-acp-bronze/35 transition-all duration-300 relative group card-sheen"
+                            >
+                              <div className="flex justify-between items-start gap-2">
+                                <span className="text-[9px] text-acp-bronze font-extrabold uppercase tracking-wider truncate">
+                                  {dealCompany} {dealRef ? `(REF: ${dealRef})` : ""}
+                                </span>
+                                <span className="text-[8px] text-slate-500 font-semibold shrink-0">
+                                  {formattedTime}
+                                </span>
+                              </div>
+                              <p className="text-[10px] text-slate-400 mt-1.5 leading-relaxed line-clamp-2 italic">
+                                {isMe ? <span className="text-slate-550 font-bold not-italic">You: </span> : null}
+                                "{msg.message}"
+                              </p>
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    </div>
                   );
                 })
               )}
