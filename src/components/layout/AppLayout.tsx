@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
-import { Building2, Database, FolderOpen, LockKeyhole, ShieldCheck, Table2, Shield, LogOut, Menu, X, Key } from "lucide-react";
+import { Building2, Database, FolderOpen, LockKeyhole, ShieldCheck, Table2, Shield, LogOut, Menu, X, Key, MessageSquare } from "lucide-react";
 import { NavLink, Outlet } from "react-router-dom";
 import { cx } from "../../utils/cx";
 import { changeAdminPassword } from "../../api/admin";
@@ -29,6 +29,7 @@ export function AppLayout() {
           <nav className="mt-10 space-y-1.5">
             <SideNavItem to="/deals" icon={<FolderOpen className="h-4 w-4" aria-hidden="true" />} label="Active Deals" />
             <SideNavItem to="/admin/lenders" icon={<Building2 className="h-4 w-4" aria-hidden="true" />} label="Lenders" />
+            <SideNavItem to="/admin/messages" icon={<MessageSquare className="h-4 w-4" aria-hidden="true" />} label="Messages" />
           </nav>
 
           <div className="mt-8 rounded-xl border border-white/[0.06] bg-white/[0.02] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)] backdrop-blur-md">
@@ -111,6 +112,7 @@ export function AppLayout() {
               <nav className="mt-10 space-y-1.5">
                 <SideNavItem to="/deals" icon={<FolderOpen className="h-4 w-4" aria-hidden="true" />} label="Active Deals" onClick={() => setIsMobileMenuOpen(false)} />
                 <SideNavItem to="/admin/lenders" icon={<Building2 className="h-4 w-4" aria-hidden="true" />} label="Lenders" onClick={() => setIsMobileMenuOpen(false)} />
+                <SideNavItem to="/admin/messages" icon={<MessageSquare className="h-4 w-4" aria-hidden="true" />} label="Messages" onClick={() => setIsMobileMenuOpen(false)} />
               </nav>
 
               <div className="mt-8 rounded-xl border border-white/[0.06] bg-white/[0.02] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)] backdrop-blur-md">

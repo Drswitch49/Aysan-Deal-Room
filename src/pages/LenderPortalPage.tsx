@@ -502,19 +502,45 @@ export function LenderPortalPage() {
                         </span>
                         <h2 className="text-sm font-bold uppercase tracking-wider text-white">Approved Documents</h2>
                       </div>
-                      <DocumentChecklist documents={activeDocs} audience="lender" />
+                      
+                      {selectedDeal.ndaApproved ? (
+                        <DocumentChecklist documents={activeDocs} audience="lender" />
+                      ) : (
+                        <div className="rounded-2xl border border-white/[0.06] bg-[#0D0D0E] p-8 text-center relative overflow-hidden shadow-premium-card card-sheen max-w-2xl mx-auto my-4 animate-scale-in">
+                          <div className="absolute -left-12 -top-12 h-32 w-32 rounded-full bg-amber-500/5 blur-2xl pointer-events-none" />
+                          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 mx-auto mb-4 animate-pulse">
+                            <LockKeyhole className="h-6 w-6" />
+                          </div>
+                          <h3 className="text-sm font-black uppercase tracking-wider text-white">NDA Approval Required</h3>
+                          <p className="text-xs text-slate-400 mt-2 max-w-md mx-auto leading-relaxed">
+                            Access to the secure document checklist for this acquisition is restricted until the Non-Disclosure Agreement (NDA) is executed and approved.
+                          </p>
+                          <div className="mt-6 flex flex-col sm:flex-row justify-center gap-3">
+                            <button
+                              onClick={() => setActiveTab("chat")}
+                              className="inline-flex h-9 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-acp-bronze to-acp-bronze-dark px-4 text-xs font-bold uppercase tracking-wider text-white shadow-md hover:shadow-glow-bronze transition cursor-pointer"
+                              type="button"
+                            >
+                              <MessageSquare className="h-4 w-4" />
+                              Contact Deal Manager
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </section>
 
                     {/* Timeline History */}
-                    <section className="space-y-4">
-                      <div className="flex items-center gap-3">
-                        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/5 border border-white/10 text-acp-bronze shadow-sm">
-                          <History className="h-5 w-5" />
-                        </span>
-                        <h2 className="text-sm font-bold uppercase tracking-wider text-white">Submission Timeline</h2>
-                      </div>
-                      <SubmissionTimeline entries={activeLogs} />
-                    </section>
+                    {selectedDeal.ndaApproved && (
+                      <section className="space-y-4 animate-fade-in">
+                        <div className="flex items-center gap-3">
+                          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/5 border border-white/10 text-acp-bronze shadow-sm">
+                            <History className="h-5 w-5" />
+                          </span>
+                          <h2 className="text-sm font-bold uppercase tracking-wider text-white">Submission Timeline</h2>
+                        </div>
+                        <SubmissionTimeline entries={activeLogs} />
+                      </section>
+                    )}
                   </div>
                 ) : (
                   <div className="w-full">

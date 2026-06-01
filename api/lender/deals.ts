@@ -1,4 +1,4 @@
-import { airtableFetch, TABLES, escapeFormulaString, normalizeLenderFields, getAssignmentFields } from "../_utils/airtable.js";
+import { airtableFetch, TABLES, escapeFormulaString, normalizeLenderFields, getAssignmentFields, normalizeAssignmentFields } from "../_utils/airtable.js";
 
 const SAFE_FIELDS = [
   "REF No.", "Ref No.", "Deal_Ref", "Deal Ref", "Deal Reference", "Deal Name",
@@ -85,17 +85,21 @@ export default async function handler(req: any, res: any) {
       return res.status(200).json([]);
     }
 
-    // 3. Resolve all assigned deal IDs and Refs
+    // 3. Resolve all assigned deal IDs and Refs + build NDA map
     const dealIds = new Set<string>();
     const dealRefs = new Set<string>();
+    const lenderNdaApproved = lender.normalizedFields.NDA_Approved === "Yes" || lender.normalizedFields.NDA_Approved === "yes" || lender.normalizedFields.NDA_Approved === true;
 
     for (const record of assignmentsData.records) {
       const dealRefVal = record.fields.Deal_Ref;
       if (dealRefVal) {
         if (Array.isArray(dealRefVal)) {
-          dealRefVal.forEach(id => dealIds.add(id));
+          dealRefVal.forEach(id => {
+            dealIds.add(id);
+          });
         } else {
-          dealRefs.add(String(dealRefVal));
+          const refStr = String(dealRefVal);
+          dealRefs.add(refStr);
         }
       }
     }
@@ -197,9 +201,11 @@ export default async function handler(req: any, res: any) {
           fields[key] = record.fields[key];
         }
       });
+
       return {
         id: record.id,
-        fields
+        fields,
+        ndaApproved: lenderNdaApproved
       };
     });
 

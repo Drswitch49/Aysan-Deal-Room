@@ -90,7 +90,9 @@ export function DealChat({
   useEffect(() => {
     if (messages.length === 0) return;
     if (mode === "admin" && lenderRecordId) {
-      localStorage.setItem(`admin_last_read_${lenderRecordId}`, new Date().toISOString());
+      const nowStr = new Date().toISOString();
+      localStorage.setItem(`admin_last_read_${lenderRecordId}`, nowStr);
+      localStorage.setItem(`admin_last_read_${lenderRecordId}_${dealId}`, nowStr);
     } else if (mode === "lender" && dealId) {
       localStorage.setItem(`lender_last_read_${dealId}`, new Date().toISOString());
     }

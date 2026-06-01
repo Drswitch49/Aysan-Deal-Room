@@ -235,7 +235,9 @@ const LENDER_FIELD_MAPPING: Record<string, string> = {
   portalslug: "Portal_Slug",
   portalpassword: "Portal_Password",
   status: "Status",
-  createdat: "Created_At"
+  createdat: "Created_At",
+  nda: "NDA_Approved",
+  ndaapproved: "NDA_Approved"
 };
 
 export function normalizeLenderFields(fields: Record<string, any>): Record<string, any> {
@@ -252,6 +254,7 @@ export function normalizeLenderFields(fields: Record<string, any>): Record<strin
   normalized.Portal_Password = "";
   normalized.Status = "Active";
   normalized.Created_At = "";
+  normalized.NDA_Approved = "No";
 
   Object.keys(fields).forEach(key => {
     const cleanKey = key.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
@@ -274,7 +277,9 @@ const ASSIGNMENT_FIELD_MAPPING: Record<string, string> = {
   dealrefs: "Deal_Ref",
   assignedat: "Assigned_At",
   assignedby: "Assigned_By",
-  status: "Status"
+  status: "Status",
+  nda: "NDA_Approved",
+  ndaapproved: "NDA_Approved"
 };
 
 export function normalizeAssignmentFields(fields: Record<string, any>): Record<string, any> {
@@ -287,12 +292,15 @@ export function normalizeAssignmentFields(fields: Record<string, any>): Record<s
   normalized.Assigned_At = "";
   normalized.Assigned_By = "";
   normalized.Status = "Active";
+  normalized.NDA_Approved = "No";
 
   Object.keys(fields).forEach(key => {
     const cleanKey = key.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
     const targetKey = ASSIGNMENT_FIELD_MAPPING[cleanKey];
     if (targetKey) {
       normalized[targetKey] = fields[key];
+    } else if (cleanKey === "nda" || cleanKey === "ndaapproved") {
+      normalized.NDA_Approved = fields[key];
     } else {
       normalized[key] = fields[key];
     }

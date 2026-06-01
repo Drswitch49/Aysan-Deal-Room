@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { BriefcaseBusiness, FolderOpen, FileWarning, Send, Database, Search, Users, Plus, X } from "lucide-react";
+import { BriefcaseBusiness, FolderOpen, FileWarning, Send, Database, Search, Users, Plus, X, MessageSquare } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useDealListRows } from "../hooks/useDealRoomData";
@@ -9,6 +9,7 @@ import { ErrorState } from "../components/ui/ErrorState";
 import { LoadingState } from "../components/ui/LoadingState";
 import { cx } from "../utils/cx";
 import { fetchAdminLenders } from "../api/admin";
+import { fetchRecentAdminChat } from "../api/chat";
 
 const PIPELINE_STAGES = [
   "Intro",
@@ -26,17 +27,44 @@ export function DealListPage() {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [viewMode, setViewMode] = useState<"pipeline" | "registry">("pipeline");
   const [lendersCount, setLendersCount] = useState<number | null>(null);
+  const [unreadChatsCount, setUnreadChatsCount] = useState<number | null>(null);
 
   // Card folding state
   const [expandedStages, setExpandedStages] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    fetchAdminLenders()
-      .then((lenders) => {
+    Promise.all([
+      fetchAdminLenders().catch(() => []),
+      fetchRecentAdminChat().catch(() => [])
+    ])
+      .then(([lenders, messages]) => {
         setLendersCount(lenders.length);
+        
+        let unread = 0;
+        lenders.forEach((l: any) => {
+          const msgs = messages.filter((m) => m.lenderId === l.id && m.sender !== "Admin");
+          if (msgs.length === 0) return;
+
+          // Group by deal to see if any deal is unread
+          const msgsByDeal: Record<string, any[]> = {};
+          msgs.forEach((m) => {
+            if (!msgsByDeal[m.dealId]) msgsByDeal[m.dealId] = [];
+            msgsByDeal[m.dealId].push(m);
+          });
+
+          const hasAnyUnreadDeal = Object.entries(msgsByDeal).some(([dealId, dealMsgs]) => {
+            const lastReadTimeStr = localStorage.getItem(`admin_last_read_${l.id}_${dealId}`) || 
+                                   localStorage.getItem(`admin_last_read_${l.id}`);
+            const lastReadTime = lastReadTimeStr ? new Date(lastReadTimeStr).getTime() : 0;
+            return dealMsgs.some((m) => new Date(m.timestamp).getTime() > lastReadTime);
+          });
+
+          if (hasAnyUnreadDeal) unread++;
+        });
+        setUnreadChatsCount(unread);
       })
       .catch((err) => {
-        console.error("Failed to fetch lenders count:", err);
+        console.error("Failed to load dashboard metrics:", err);
       });
   }, []);
 
@@ -156,7 +184,7 @@ export function DealListPage() {
 
       {!isLoading && !error && data && data.length > 0 ? (
         <div className="space-y-6">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <MetricCard 
               icon={<BriefcaseBusiness className="h-5 w-5" />} 
               label="Active deals" 
@@ -168,6 +196,14 @@ export function DealListPage() {
                 icon={<Users className="h-5 w-5" />} 
                 label="Registered Lenders" 
                 value={lendersCount !== null ? lendersCount : "..."} 
+                iconBgClass="bg-[#C5A059]"
+              />
+            </Link>
+            <Link to="/admin/messages" className="block transition-transform hover:scale-[1.01]">
+              <MetricCard 
+                icon={<MessageSquare className="h-5 w-5" />} 
+                label="Chat Messages" 
+                value={unreadChatsCount !== null ? (unreadChatsCount > 0 ? `${unreadChatsCount} Unread` : "0 Unread") : "..."} 
                 iconBgClass="bg-[#C5A059]"
               />
             </Link>

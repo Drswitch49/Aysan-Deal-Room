@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { 
-  Building2, Users, Link2, KeyRound, Copy, Check, ShieldCheck, 
+  Building2, Users, Link2, KeyRound, Copy, Check, ShieldCheck, LockKeyhole,
   RotateCcw, Trash2, UserPlus, X, ChevronRight, Ban, CheckCircle, ExternalLink, Search, MessageSquare 
 } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -11,17 +11,18 @@ import { StatusBadge } from "../components/ui/Badge";
 import { Table, Td, Th } from "../components/ui/Table";
 import { 
   fetchAdminLenders, createLender, assignDealToLender, 
-  removeDealAssignment, resetLenderPassword, regenerateLenderPortal, deleteLender 
+  removeDealAssignment, resetLenderPassword, regenerateLenderPortal, deleteLender,
+  toggleLenderNda
 } from "../api/admin";
 import { getDeals } from "../api/airtable";
-import { fetchRecentAdminChat } from "../api/chat";
-import type { PipelineDeal, ChatMessage } from "../types/deal";
+import type { PipelineDeal } from "../types/deal";
 import { cx } from "../utils/cx";
 
 type LenderAssignment = {
   assignmentId: string;
   dealRef: string;
   assignedAt: string;
+  ndaApproved: boolean;
 };
 
 type Lender = {
@@ -36,12 +37,12 @@ type Lender = {
   Status: string;
   assignments: LenderAssignment[];
   Created_At: string;
+  ndaApproved: boolean;
 };
 
 export function LenderManagementPage() {
   const [lenders, setLenders] = useState<Lender[]>([]);
   const [deals, setDeals] = useState<PipelineDeal[]>([]);
-  const [recentMessages, setRecentMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -62,6 +63,7 @@ export function LenderManagementPage() {
   const [newEmail, setNewEmail] = useState("");
   const [newPhone, setNewPhone] = useState("");
   const [selectedDealRef, setSelectedDealRef] = useState("");
+  const [modalNdaApproved, setModalNdaApproved] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   // Collapsed Assigned Deals & Searchable Deals modal
@@ -81,33 +83,18 @@ export function LenderManagementPage() {
     loadData();
   }, []);
 
-  useEffect(() => {
-    const interval = setInterval(async () => {
-      try {
-        const messages = await fetchRecentAdminChat();
-        setRecentMessages(messages);
-      } catch (err) {
-        console.error("Lender page failed to poll recent chats:", err);
-      }
-    }, 8000);
-    return () => clearInterval(interval);
-  }, []);
+
 
   async function loadData() {
     setIsLoading(true);
     setError("");
     try {
-      const [lendersList, allDeals, messages] = await Promise.all([
+      const [lendersList, allDeals] = await Promise.all([
         fetchAdminLenders(),
         getDeals().catch(() => []),
-        fetchRecentAdminChat().catch((err) => {
-          console.error("Failed to fetch recent admin chat:", err);
-          return [];
-        })
       ]);
       setLenders(lendersList);
       setDeals(allDeals);
-      setRecentMessages(messages);
     } catch (err: any) {
       console.error(err);
       setError(err.message || "Failed to query database schema.");
@@ -169,9 +156,10 @@ export function LenderManagementPage() {
     if (!selectedLender || !selectedDealRef) return;
     setSubmitting(true);
     try {
-      await assignDealToLender(selectedLender.id, selectedDealRef);
+      await assignDealToLender(selectedLender.id, selectedDealRef, modalNdaApproved);
       setIsAssignModalOpen(false);
       setSelectedDealRef("");
+      setModalNdaApproved(false);
       const updated = await fetchAdminLenders();
       setLenders(updated);
     } catch (err: any) {
@@ -190,6 +178,17 @@ export function LenderManagementPage() {
       setLenders(updated);
     } catch (err: any) {
       alert(err.message || "Error removing assignment");
+    }
+  }
+
+  // Toggle NDA Approval Handler
+  async function handleToggleLenderNda(lenderId: string, currentNdaState: boolean) {
+    try {
+      await toggleLenderNda(lenderId, currentNdaState);
+      const updated = await fetchAdminLenders();
+      setLenders(updated);
+    } catch (err: any) {
+      alert(err.message || "Error toggling NDA status");
     }
   }
 
@@ -260,39 +259,7 @@ export function LenderManagementPage() {
   const activeLenders = lenders.filter(l => l.Status === "Active").length;
   const totalAssignments = lenders.reduce((sum, l) => sum + l.assignments.length, 0);
 
-  // Compute conversations list sorted by latest message (one item per lender)
-  const lenderConversations = useMemo(() => {
-    return lenders.map((lender) => {
-      const msgs = recentMessages.filter((m) => m.lenderId === lender.id);
-      if (msgs.length === 0) return null;
 
-      // Sort messages newest first
-      const sortedMsgs = [...msgs].sort(
-        (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-      );
-      const latestMsg = sortedMsgs[0];
-
-      // Count unread messages (received from Lender)
-      const lastReadTimeStr = localStorage.getItem(`admin_last_read_${lender.id}`);
-      const lastReadTime = lastReadTimeStr ? new Date(lastReadTimeStr).getTime() : 0;
-      const unreadCount = sortedMsgs.filter(
-        (m) => m.sender === "Lender" && new Date(m.timestamp).getTime() > lastReadTime
-      ).length;
-
-      return {
-        lender,
-        totalCount: msgs.length,
-        unreadCount,
-        latestMsg,
-      };
-    })
-    .filter((c): c is NonNullable<typeof c> => c !== null)
-    .sort((a, b) => {
-      const timeA = new Date(a.latestMsg.timestamp).getTime();
-      const timeB = new Date(b.latestMsg.timestamp).getTime();
-      return timeB - timeA;
-    });
-  }, [lenders, recentMessages]);
 
   return (
     <div className="space-y-8 animate-fade-in-up">
@@ -351,17 +318,16 @@ export function LenderManagementPage() {
       ) : null}
 
       {!isLoading && !error && lenders.length > 0 ? (
-        <div className="grid gap-6 lg:grid-cols-3 items-start">
-          {/* Left Column: Lender Registry */}
-          <div className="lg:col-span-2 rounded-2xl border border-white/[0.06] bg-[#0D0D0E] p-6 shadow-premium-card card-sheen">
-            <div className="mb-4">
-              <h3 className="text-sm font-bold uppercase tracking-wider text-white">Lender Registry</h3>
-            </div>
+        <div className="rounded-2xl border border-white/[0.06] bg-[#0D0D0E] p-6 shadow-premium-card card-sheen">
+          <div className="mb-4">
+            <h3 className="text-sm font-bold uppercase tracking-wider text-white">Lender Registry</h3>
+          </div>
 
             <Table>
               <thead>
                 <tr className="border-b border-white/5 bg-white/[0.01]">
                   <Th>Company Name</Th>
+                  <Th>NDA Status</Th>
                   <Th>Portal URL & Passcode</Th>
                   <Th>Assigned Acquisition Deals</Th>
                   <Th>Status</Th>
@@ -380,6 +346,22 @@ export function LenderManagementPage() {
                           {lender.Email && <div>Email: {lender.Email}</div>}
                           {lender.Phone && <div>Phone: {lender.Phone}</div>}
                         </div>
+                      </Td>
+                      <Td className="min-w-[130px]">
+                        <select
+                          value={lender.ndaApproved ? "Yes" : "No"}
+                          onChange={(e) => handleToggleLenderNda(lender.id, e.target.value === "Yes")}
+                          className={cx(
+                            "bg-transparent border border-white/10 rounded-xl px-2.5 py-1.5 text-xs font-bold outline-none cursor-pointer select-none focus:ring-0 focus:outline-none w-28 text-center",
+                            lender.ndaApproved 
+                              ? "text-emerald-400 border-emerald-500/20 bg-emerald-500/5" 
+                              : "text-amber-400 border-amber-500/20 bg-amber-500/5"
+                          )}
+                          style={{ appearance: "auto" }}
+                        >
+                          <option value="Yes" className="bg-[#0D0D0E] text-emerald-400">NDA: Yes</option>
+                          <option value="No" className="bg-[#0D0D0E] text-amber-400">NDA: No</option>
+                        </select>
                       </Td>
                       <Td className="max-w-[280px]">
                         {/* Link Row */}
@@ -422,19 +404,23 @@ export function LenderManagementPage() {
                           ).map((asg) => (
                             <span
                               key={asg.assignmentId}
-                              className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[10px] font-semibold text-slate-355"
+                              className={cx(
+                                "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] font-semibold transition-colors",
+                                lender.ndaApproved 
+                                  ? "border-emerald-500/20 bg-emerald-500/5 text-emerald-400"
+                                  : "border-amber-500/20 bg-amber-500/5 text-amber-400"
+                              )}
                             >
                               <Link
                                 to={`/deals/${encodeURIComponent(asg.dealRef)}?tab=chat&lenderId=${lender.id}`}
-                                className="hover:text-acp-bronze transition-colors flex items-center gap-1 cursor-pointer"
+                                className="hover:text-acp-bronze transition-colors flex items-center gap-1 cursor-pointer text-white"
                                 title="Open private chat thread"
                               >
-                                <MessageSquare className="h-2.5 w-2.5 text-acp-bronze/70 shrink-0" />
                                 {asg.dealRef}
                               </Link>
                               <button
                                 onClick={() => handleRemoveAssignment(asg.assignmentId)}
-                                className="text-slate-500 hover:text-rose-450 transition cursor-pointer"
+                                className="text-slate-550 hover:text-rose-450 transition cursor-pointer"
                                 title="Revoke access"
                               >
                                 <X className="h-3 w-3" />
@@ -467,6 +453,7 @@ export function LenderManagementPage() {
                               setSelectedLender(lender);
                               setDealSearchQuery("");
                               setSelectedDealRef("");
+                              setModalNdaApproved(lender.ndaApproved);
                               setIsAssignModalOpen(true);
                             }}
                             className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-acp-bronze/10 border border-acp-bronze/20 text-acp-bronze hover:bg-acp-bronze hover:text-white transition cursor-pointer"
@@ -518,84 +505,6 @@ export function LenderManagementPage() {
                 })}
               </tbody>
             </Table>
-          </div>
-
-          {/* Right Column: Recent Messages Sidebar */}
-          <div className="rounded-2xl border border-white/[0.06] bg-[#0D0D0E] p-6 shadow-premium-card card-sheen flex flex-col h-full min-h-[450px]">
-            <div className="mb-4 flex items-center justify-between pb-2 border-b border-white/5">
-              <div className="flex items-center gap-2">
-                <MessageSquare className="h-4 w-4 text-acp-bronze" />
-                <h3 className="text-sm font-bold uppercase tracking-wider text-white">Conversations by Lender</h3>
-              </div>
-              <span className="rounded-full bg-white/5 border border-white/10 px-2 py-0.5 text-[9px] font-bold text-slate-400">
-                {lenderConversations.length}
-              </span>
-            </div>
-
-            <div className="flex-1 overflow-y-auto space-y-3.5 max-h-[600px] pr-1">
-              {lenderConversations.length === 0 ? (
-                <div className="text-center py-12 text-slate-500 text-xs leading-relaxed font-sans">
-                  No conversations yet.<br />Chat messages from investors will appear here.
-                </div>
-              ) : (
-                lenderConversations.map((conv: any) => {
-                  const { lender, totalCount, unreadCount, latestMsg } = conv;
-                  const deal = deals.find((d) => d.id === latestMsg.dealId);
-                  const dealRef = deal ? deal.dealRef : "";
-                  const dealCompany = deal ? deal.companyName : "Assigned Deal";
-                  const isMe = latestMsg.sender === "Admin";
-                  
-                  const formattedTime = latestMsg.timestamp
-                    ? new Date(latestMsg.timestamp).toLocaleDateString(undefined, { month: "short", day: "numeric" }) +
-                      " " +
-                      new Date(latestMsg.timestamp).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })
-                    : "";
-
-                  return (
-                    <Link
-                      key={lender.id}
-                      to={dealRef ? `/deals/${encodeURIComponent(dealRef)}?tab=chat&lenderId=${lender.id}` : "#"}
-                      className="block p-3 rounded-xl border border-white/[0.04] bg-[#0c1122]/15 hover:bg-[#0c1122]/60 hover:border-acp-bronze/35 transition-all duration-300 relative group card-sheen"
-                    >
-                      {/* Top Row: Lender Name + Time */}
-                      <div className="flex justify-between items-center gap-2">
-                        <span className="text-xs font-bold text-white group-hover:text-acp-bronze transition-colors truncate">
-                          {lender.Company_Name}
-                        </span>
-                        <span className="text-[9px] text-slate-500 font-semibold shrink-0">
-                          {formattedTime}
-                        </span>
-                      </div>
-
-                      {/* Middle Row: Deal reference + Message Counts */}
-                      <div className="flex justify-between items-center mt-1">
-                        <span className="text-[9px] text-acp-bronze font-extrabold uppercase tracking-wider truncate">
-                          {dealCompany} {dealRef ? `(REF: ${dealRef})` : ""}
-                        </span>
-                        
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <span className="text-[8px] bg-white/5 border border-white/10 text-slate-400 px-1.5 py-0.5 rounded font-mono font-bold">
-                            {totalCount} {totalCount === 1 ? "msg" : "msgs"}
-                          </span>
-                          {unreadCount > 0 && (
-                            <span className="inline-flex items-center justify-center h-4.5 min-w-[18px] text-[8px] font-black uppercase bg-[#C5A059] text-white px-1.5 rounded-full shadow-[0_2px_8px_rgba(197,160,89,0.3)] animate-pulse">
-                              {unreadCount}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Bottom Row: Message snippet */}
-                      <p className="text-[10px] text-slate-450 mt-2.5 leading-relaxed line-clamp-1 italic border-t border-white/[0.02] pt-2">
-                        {isMe ? <span className="text-slate-550 font-bold not-italic">You: </span> : null}
-                        "{latestMsg.message}"
-                      </p>
-                    </Link>
-                  );
-                })
-              )}
-            </div>
-          </div>
         </div>
       ) : null}
 
@@ -728,8 +637,10 @@ export function LenderManagementPage() {
               onClick={() => {
                 setIsAssignModalOpen(false);
                 setSelectedLender(null);
+                setModalNdaApproved(false);
               }}
               className="absolute right-4 top-4 text-slate-450 hover:text-white cursor-pointer"
+              type="button"
             >
               <X className="h-5 w-5" />
             </button>
@@ -803,6 +714,22 @@ export function LenderManagementPage() {
                       </div>
                     )}
                 </div>
+              </div>
+
+              {/* NDA Approval Toggle Option */}
+              <div className="space-y-1.5">
+                <label className="block text-[9px] font-extrabold uppercase tracking-wider text-slate-400">
+                  NDA Status
+                </label>
+                <select
+                  value={modalNdaApproved ? "Yes" : "No"}
+                  onChange={(e) => setModalNdaApproved(e.target.value === "Yes")}
+                  className="h-10 w-full rounded-xl border border-white/10 bg-[#0A0A0B] px-3 text-xs text-white outline-none transition-all duration-300 focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze cursor-pointer"
+                  style={{ appearance: "auto" }}
+                >
+                  <option value="No">NDA Approved: No</option>
+                  <option value="Yes">NDA Approved: Yes</option>
+                </select>
               </div>
 
               <button

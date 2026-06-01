@@ -101,6 +101,7 @@ export default async function handler(req: any, res: any) {
       .map((rec: any) => {
         const normFields = normalizeLenderFields(rec.fields);
         const lenderIdText = normFields.Lender_ID || "";
+        const isNdaApproved = normFields.NDA_Approved === "Yes" || normFields.NDA_Approved === "yes" || normFields.NDA_Approved === true;
         
         // Find assignments by record ID or by text ID
         const byRecordId = lenderToDealsMap.get(rec.id) || [];
@@ -108,18 +109,22 @@ export default async function handler(req: any, res: any) {
         
         // Deduplicate deal assignments
         const seenDeals = new Set<string>();
-        const assignments: Array<{ assignmentId: string; dealRef: string; assignedAt: string }> = [];
+        const assignments: Array<{ assignmentId: string; dealRef: string; assignedAt: string; ndaApproved: boolean }> = [];
 
         [...byRecordId, ...byTextId].forEach(asg => {
           if (!seenDeals.has(asg.dealRef)) {
             seenDeals.add(asg.dealRef);
-            assignments.push(asg);
+            assignments.push({
+              ...asg,
+              ndaApproved: isNdaApproved
+            });
           }
         });
 
         return {
           id: rec.id,
           ...normFields,
+          ndaApproved: isNdaApproved,
           assignments
         };
       });

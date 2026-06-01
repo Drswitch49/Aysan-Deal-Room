@@ -7,6 +7,7 @@ import { DealDetailPage } from "./pages/DealDetailPage";
 import { DealListPage } from "./pages/DealListPage";
 import { LenderManagementPage } from "./pages/LenderManagementPage";
 import { LenderPortalPage } from "./pages/LenderPortalPage";
+import { AdminMessagesPage } from "./pages/AdminMessagesPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import "./styles.css";
 
@@ -23,6 +24,7 @@ const router = createBrowserRouter([
       { path: "deals", element: <DealListPage /> },
       { path: "deals/:ref", element: <DealDetailPage /> },
       { path: "admin/lenders", element: <LenderManagementPage /> },
+      { path: "admin/messages", element: <AdminMessagesPage /> },
       { path: "*", element: <NotFoundPage /> },
     ],
   },

@@ -17,6 +17,7 @@ export type PipelineDeal = {
   capitalStructure: CapitalStructureRow[];
   rawFields: RawAirtableFields;
   dealFiles: string;
+  ndaApproved?: boolean;
 };
 
 export type CapitalStructureRow = {

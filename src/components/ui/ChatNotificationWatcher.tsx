@@ -71,7 +71,7 @@ export function ChatNotificationWatcher({ mode, portalSlug, deals: lenderDeals }
 
           // We only notify when the message is from the other party
           const shouldNotify = 
-            (mode === "admin" && msg.sender === "Lender") ||
+            (mode === "admin" && msg.sender !== "Admin") ||
             (mode === "lender" && msg.sender === "Admin");
 
           if (shouldNotify) {
@@ -122,9 +122,7 @@ export function ChatNotificationWatcher({ mode, portalSlug, deals: lenderDeals }
       dealContext = dealRef ? `${dealCompany} (REF: ${dealRef})` : dealCompany;
 
       onClick = () => {
-        if (dealRef) {
-          navigate(`/deals/${encodeURIComponent(dealRef)}?tab=chat&lenderId=${msg.lenderId}`);
-        }
+        navigate(`/admin/messages?lenderId=${msg.lenderId}&dealId=${msg.dealId}`);
       };
     } else {
       senderName = "ACP Deal Manager";

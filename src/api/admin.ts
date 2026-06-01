@@ -43,11 +43,11 @@ export async function createLender(data: {
   return response.json();
 }
 
-export async function assignDealToLender(lenderRecordId: string, dealRef: string) {
+export async function assignDealToLender(lenderRecordId: string, dealRef: string, ndaApproved?: boolean) {
   const response = await fetch("/api/admin/action", {
     method: "POST",
     headers: getAdminHeaders(),
-    body: JSON.stringify({ action: "assign-deal", lenderRecordId, dealRef })
+    body: JSON.stringify({ action: "assign-deal", lenderRecordId, dealRef, ndaApproved })
   });
 
   if (!response.ok) {
@@ -68,6 +68,21 @@ export async function removeDealAssignment(assignmentId: string) {
   if (!response.ok) {
     const err = await response.json();
     throw new Error(err.error || "Failed to remove assignment");
+  }
+
+  return response.json();
+}
+
+export async function toggleLenderNda(lenderId: string, ndaApproved: boolean) {
+  const response = await fetch("/api/admin/action", {
+    method: "POST",
+    headers: getAdminHeaders(),
+    body: JSON.stringify({ action: "update-lender-nda", lenderId, ndaApproved })
+  });
+
+  if (!response.ok) {
+    const err = await response.json();
+    throw new Error(err.error || "Failed to update lender NDA status");
   }
 
   return response.json();

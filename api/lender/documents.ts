@@ -1,4 +1,4 @@
-import { airtableFetch, TABLES, escapeFormulaString, getAssignmentFields, getTableSchema } from "../_utils/airtable.js";
+import { airtableFetch, TABLES, escapeFormulaString, getAssignmentFields, getTableSchema, normalizeAssignmentFields } from "../_utils/airtable.js";
 import { authenticateLender } from "./deals.js";
 
 const SAFE_DOC_FIELDS = [
@@ -63,14 +63,17 @@ export default async function handler(req: any, res: any) {
       }
     });
 
+    const ndaApprovedDeals = new Set<string>();
+    const lenderNdaApproved = lender.normalizedFields.NDA_Approved === "Yes" || lender.normalizedFields.NDA_Approved === "yes" || lender.normalizedFields.NDA_Approved === true;
+
     for (const record of assignmentsData.records) {
       const dealRefVal = record.fields.Deal_Ref;
-      if (dealRefVal) {
+      if (dealRefVal && lenderNdaApproved) {
         if (Array.isArray(dealRefVal)) {
-          dealRefVal.forEach(id => dealIds.add(id));
+          dealRefVal.forEach(id => ndaApprovedDeals.add(id));
         } else {
           const matchedId = refToRecordMap.get(String(dealRefVal).toLowerCase()) || dealRefVal;
-          dealIds.add(matchedId);
+          ndaApprovedDeals.add(matchedId);
         }
       }
     }
@@ -79,12 +82,12 @@ export default async function handler(req: any, res: any) {
     const documentsData = await airtableFetch(TABLES.DOCUMENTS);
 
     // 4. Filter:
-    // - Must belong to one of the assigned deals (matching by dealRef linked record ID)
+    // - Must belong to one of the assigned deals where NDA is approved
     const approvedDocs = documentsData.records.filter((doc: any) => {
       const docDealRefs = doc.fields.Deal_Ref || [];
       const belongsToAssignedDeal = Array.isArray(docDealRefs) 
-        ? docDealRefs.some(id => dealIds.has(id))
-        : dealIds.has(String(docDealRefs));
+        ? docDealRefs.some(id => ndaApprovedDeals.has(id))
+        : ndaApprovedDeals.has(String(docDealRefs));
 
       const status = String(doc.fields.Status || doc.fields.status || doc.fields.Stage || "").trim().toLowerCase();
       const isApproved = status === "sent to lender";

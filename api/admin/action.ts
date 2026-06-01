@@ -109,6 +109,15 @@ export default async function handler(req: any, res: any) {
         if (statusCol) {
           assignmentFields[statusCol] = "Active";
         }
+        
+        // Set Lender's NDA status if passed
+        const { ndaApproved } = req.body;
+        if (ndaApproved !== undefined) {
+          await airtableUpdate(TABLES.LENDERS, lenderRecordId, {
+            "NDA_Approved": ndaApproved ? "Yes" : "No"
+          });
+        }
+
         assignmentFields.Assignment_ID = `ASG-${lenderIdText}-${dealRef}`;
 
         const createdAssignment = await airtableCreate(TABLES.ASSIGNMENTS, assignmentFields);
@@ -122,6 +131,18 @@ export default async function handler(req: any, res: any) {
         }
         await airtableDelete(TABLES.ASSIGNMENTS, assignmentId);
         return res.status(200).json({ success: true, message: "Deal assignment successfully removed." });
+      }
+
+      case "update-lender-nda": {
+        const { lenderId, ndaApproved } = req.body;
+        if (!lenderId) {
+          return res.status(400).json({ error: "Lender ID is required" });
+        }
+        const fields = {
+          "NDA_Approved": ndaApproved ? "Yes" : "No"
+        };
+        const updated = await airtableUpdate(TABLES.LENDERS, lenderId, fields);
+        return res.status(200).json({ success: true, result: updated });
       }
 
       case "reset-password": {
