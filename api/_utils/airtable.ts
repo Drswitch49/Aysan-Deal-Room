@@ -24,8 +24,10 @@ export class AirtableError extends Error {
   }
 }
 
-export function escapeFormulaString(value: string): string {
-  return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/'/g, "\\'");
+export function escapeFormulaString(value: any): string {
+  if (value === undefined || value === null) return "";
+  const str = String(value);
+  return str.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/'/g, "\\'");
 }
 
 async function handleResponse(response: Response, tableName: string) {

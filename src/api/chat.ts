@@ -108,3 +108,38 @@ export async function sendAdminChatMessage(
   const data = await response.json();
   return data.result;
 }
+
+/**
+ * Fetch all recent chat messages across deals for a lender
+ */
+export async function fetchRecentLenderChat(portalSlug: string): Promise<ChatMessage[]> {
+  const response = await fetch(`/api/lender/chat`, {
+    headers: getLenderHeaders(portalSlug)
+  });
+
+  if (!response.ok) {
+    const err = await response.json();
+    throw new Error(err.error || "Failed to load recent messages");
+  }
+
+  return response.json();
+}
+
+/**
+ * Fetch all recent chat messages across all deals/lenders for the admin
+ */
+export async function fetchRecentAdminChat(): Promise<ChatMessage[]> {
+  const response = await fetch("/api/admin/action", {
+    method: "POST",
+    headers: getAdminHeaders(),
+    body: JSON.stringify({ action: "get-recent-messages" })
+  });
+
+  if (!response.ok) {
+    const err = await response.json();
+    throw new Error(err.error || "Failed to load recent messages");
+  }
+
+  const data = await response.json();
+  return data.results || [];
+}

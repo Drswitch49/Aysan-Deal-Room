@@ -33,12 +33,35 @@ export default async function handler(req: any, res: any) {
       message = body.message || "";
     }
 
-    if (!dealId) {
+    if (req.method === "POST" && !dealId) {
       return res.status(400).json({ error: "Deal ID is required" });
     }
 
     if (req.method === "POST" && (!message || message.trim() === "")) {
       return res.status(400).json({ error: "Message content cannot be empty" });
+    }
+
+    // If GET and no dealId is provided, fetch ALL recent chat messages for this lender
+    if (req.method === "GET" && !dealId) {
+      const lenderName = lender.fields.Name || companyName;
+      const formula = `{Lender_ID} = '${escapeFormulaString(lenderName)}'`;
+      
+      const chatData = await airtableFetch(TABLES.CHAT, {
+        filterByFormula: formula
+      });
+
+      const messages = chatData.records.map((rec: any) => {
+        return {
+          id: rec.id,
+          dealId: Array.isArray(rec.fields.Deal_Ref) ? rec.fields.Deal_Ref[0] : (rec.fields.Deal_Ref || ""),
+          lenderId: Array.isArray(rec.fields.Lender_ID) ? rec.fields.Lender_ID[0] : (rec.fields.Lender_ID || ""),
+          sender: rec.fields.Sender || "",
+          message: rec.fields.Message || "",
+          timestamp: rec.fields.Timestamp || rec.createdTime || ""
+        };
+      }).sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+      return res.status(200).json(messages);
     }
 
     // 3. Verify that the lender is assigned to this deal (for security)
@@ -98,7 +121,9 @@ export default async function handler(req: any, res: any) {
 
     // 4. Handle GET (Fetch Messages)
     if (req.method === "GET") {
-      const formula = `AND(OR({Lender_ID} = '${lenderRecordId}', {Lender_ID} = '${escapeFormulaString(lenderIdText)}'), OR({Deal_Ref} = '${resolvedDealId}', {Deal_Ref} = '${escapeFormulaString(activeDeal.fields["REF No."])}'))`;
+      const lenderName = lender.fields.Name || companyName;
+      const dealName = activeDeal.fields["Deal Name"] || "";
+      const formula = `AND({Lender_ID} = '${escapeFormulaString(lenderName)}', {Deal_Ref} = '${escapeFormulaString(dealName)}')`;
       
       const chatData = await airtableFetch(TABLES.CHAT, {
         filterByFormula: formula

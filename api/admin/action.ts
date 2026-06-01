@@ -238,6 +238,29 @@ export default async function handler(req: any, res: any) {
         return res.status(200).json({ success: true, message: "Admin passcode successfully updated." });
       }
 
+      case "get-recent-messages": {
+        try {
+          const chatData = await airtableFetch(TABLES.CHAT);
+          const messages = chatData.records.map((rec: any) => {
+            return {
+              id: rec.id,
+              dealId: Array.isArray(rec.fields.Deal_Ref) ? rec.fields.Deal_Ref[0] : (rec.fields.Deal_Ref || ""),
+              lenderId: Array.isArray(rec.fields.Lender_ID) ? rec.fields.Lender_ID[0] : (rec.fields.Lender_ID || ""),
+              sender: rec.fields.Sender || "",
+              message: rec.fields.Message || "",
+              timestamp: rec.fields.Timestamp || rec.createdTime || ""
+            };
+          }).sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+          return res.status(200).json({ success: true, results: messages });
+        } catch (err: any) {
+          if (err.status === 404 || err.type === "TABLE_NOT_FOUND") {
+            return res.status(200).json({ success: true, results: [] });
+          }
+          throw err;
+        }
+      }
+
       case "get-chat": {
         const { dealId, lenderRecordId } = req.body;
         if (!dealId || !lenderRecordId) {
@@ -245,7 +268,7 @@ export default async function handler(req: any, res: any) {
         }
         try {
           const lenderData = await airtableFetchRecord(TABLES.LENDERS, lenderRecordId);
-          const lenderIdText = lenderData.fields.Lender_ID || "";
+          const lenderName = lenderData.fields.Name || lenderData.fields.Company_Name || "";
 
           const pipelineData = await airtableFetch(TABLES.PIPELINE);
           const activeDeal = pipelineData.records.find((rec: any) => {
@@ -256,9 +279,9 @@ export default async function handler(req: any, res: any) {
             return res.status(404).json({ error: "Acquisition deal not found in active pipeline." });
           }
           const resolvedDealId = activeDeal.id;
-          const dealRefNo = activeDeal.fields["REF No."] || "";
+          const dealName = activeDeal.fields["Deal Name"] || "";
 
-          const formula = `AND(OR({Lender_ID} = '${lenderRecordId}', {Lender_ID} = '${escapeFormulaString(lenderIdText)}'), OR({Deal_Ref} = '${resolvedDealId}', {Deal_Ref} = '${escapeFormulaString(dealRefNo)}'))`;
+          const formula = `AND({Lender_ID} = '${escapeFormulaString(lenderName)}', {Deal_Ref} = '${escapeFormulaString(dealName)}')`;
           const chatData = await airtableFetch(TABLES.CHAT, {
             filterByFormula: formula
           });

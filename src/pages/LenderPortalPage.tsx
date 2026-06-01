@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { useParams, Navigate } from "react-router-dom";
+import { useParams, Navigate, useSearchParams } from "react-router-dom";
 import { 
   Building2, Database, ShieldCheck, LockKeyhole, Landmark, 
   LogOut, Files, History, Menu, X, MessageSquare
@@ -14,6 +14,7 @@ import { DealChat } from "../components/deals/DealChat";
 import { LoadingState } from "../components/ui/LoadingState";
 import { ErrorState } from "../components/ui/ErrorState";
 import { EmptyState } from "../components/ui/EmptyState";
+import { ChatNotificationWatcher } from "../components/ui/ChatNotificationWatcher";
 import type { PipelineDeal, DealDocument, SubmissionLogEntry } from "../types/deal";
 import { cx } from "../utils/cx";
 
@@ -26,6 +27,7 @@ const lenderTabs: Array<{ id: LenderTabId; label: string; icon: any }> = [
 
 export function LenderPortalPage() {
   const { portalSlug } = useParams<{ portalSlug: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [passcode, setPasscode] = useState("");
   const [error, setError] = useState("");
   const [isAuthorized, setIsAuthorized] = useState(false);
@@ -40,6 +42,21 @@ export function LenderPortalPage() {
   const [lenderProfile, setLenderProfile] = useState<any>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<LenderTabId>("overview");
+
+  // Effect to select active deal and tab from URL query params (e.g. notifications deep link)
+  useEffect(() => {
+    const dealIdParam = searchParams.get("dealId");
+    const tabParam = searchParams.get("tab") as LenderTabId | null;
+    if (dealIdParam && deals.length > 0) {
+      const match = deals.find(d => d.id === dealIdParam || d.dealRef === dealIdParam);
+      if (match) {
+        setSelectedDeal(match);
+      }
+    }
+    if (tabParam && ["overview", "chat"].includes(tabParam)) {
+      setActiveTab(tabParam);
+    }
+  }, [searchParams, deals]);
 
   useEffect(() => {
     if (!portalSlug) return;
@@ -514,6 +531,9 @@ export function LenderPortalPage() {
 
           </div>
         </main>
+        {isAuthorized && portalSlug && (
+          <ChatNotificationWatcher mode="lender" portalSlug={portalSlug} deals={deals} />
+        )}
       </div>
     </div>
   );

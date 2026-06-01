@@ -14,7 +14,8 @@ import {
   removeDealAssignment, resetLenderPassword, regenerateLenderPortal, deleteLender 
 } from "../api/admin";
 import { getDeals } from "../api/airtable";
-import type { PipelineDeal } from "../types/deal";
+import { fetchRecentAdminChat } from "../api/chat";
+import type { PipelineDeal, ChatMessage } from "../types/deal";
 import { cx } from "../utils/cx";
 
 type LenderAssignment = {
@@ -40,6 +41,7 @@ type Lender = {
 export function LenderManagementPage() {
   const [lenders, setLenders] = useState<Lender[]>([]);
   const [deals, setDeals] = useState<PipelineDeal[]>([]);
+  const [recentMessages, setRecentMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -79,16 +81,33 @@ export function LenderManagementPage() {
     loadData();
   }, []);
 
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+        const messages = await fetchRecentAdminChat();
+        setRecentMessages(messages);
+      } catch (err) {
+        console.error("Lender page failed to poll recent chats:", err);
+      }
+    }, 8000);
+    return () => clearInterval(interval);
+  }, []);
+
   async function loadData() {
     setIsLoading(true);
     setError("");
     try {
-      const [lendersList, allDeals] = await Promise.all([
+      const [lendersList, allDeals, messages] = await Promise.all([
         fetchAdminLenders(),
-        getDeals().catch(() => [])
+        getDeals().catch(() => []),
+        fetchRecentAdminChat().catch((err) => {
+          console.error("Failed to fetch recent admin chat:", err);
+          return [];
+        })
       ]);
       setLenders(lendersList);
       setDeals(allDeals);
+      setRecentMessages(messages);
     } catch (err: any) {
       console.error(err);
       setError(err.message || "Failed to query database schema.");
@@ -298,171 +317,239 @@ export function LenderManagementPage() {
       ) : null}
 
       {!isLoading && !error && lenders.length > 0 ? (
-        <div className="rounded-2xl border border-white/[0.06] bg-[#0D0D0E] p-6 shadow-premium-card card-sheen">
-          <div className="mb-4">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-white">Lender Registry</h3>
+        <div className="grid gap-6 lg:grid-cols-3 items-start">
+          {/* Left Column: Lender Registry */}
+          <div className="lg:col-span-2 rounded-2xl border border-white/[0.06] bg-[#0D0D0E] p-6 shadow-premium-card card-sheen">
+            <div className="mb-4">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-white">Lender Registry</h3>
+            </div>
+
+            <Table>
+              <thead>
+                <tr className="border-b border-white/5 bg-white/[0.01]">
+                  <Th>Company Name</Th>
+                  <Th>Portal URL & Passcode</Th>
+                  <Th>Assigned Acquisition Deals</Th>
+                  <Th>Status</Th>
+                  <Th className="text-right">Portal Actions</Th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5 bg-white/[0.01]">
+                {lenders.map((lender) => {
+                  const url = getPortalUrl(lender.Portal_Slug);
+                  return (
+                    <tr key={lender.id} className="transition hover:bg-white/[0.01]">
+                      <Td className="min-w-[180px]">
+                        <div className="font-semibold text-white">{lender.Company_Name}</div>
+                        <div className="text-[10px] text-slate-450 mt-1 space-y-0.5">
+                          {lender.Contact_Name && <div>Contact: {lender.Contact_Name}</div>}
+                          {lender.Email && <div>Email: {lender.Email}</div>}
+                          {lender.Phone && <div>Phone: {lender.Phone}</div>}
+                        </div>
+                      </Td>
+                      <Td className="max-w-[280px]">
+                        {/* Link Row */}
+                        <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-lg p-1.5 pr-2.5">
+                          <span className="text-[11px] font-mono text-slate-400 truncate flex-1 pl-1">
+                            {url}
+                          </span>
+                          <button
+                            onClick={() => handleCopy(url, `${lender.id}-url`)}
+                            className="h-6 w-6 flex items-center justify-center rounded bg-white/5 text-slate-400 hover:text-white"
+                            title="Copy Portal URL"
+                          >
+                            {copiedId === `${lender.id}-url` ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Link2 className="h-3.5 w-3.5" />}
+                          </button>
+                        </div>
+
+                        {/* Password Row */}
+                        <div className="mt-2 flex items-center gap-2">
+                          <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-white/5 border border-white/5 text-[10px] font-mono text-slate-300">
+                            <KeyRound className="h-3 w-3 text-acp-bronze" />
+                            <span>Passcode: <b>{lender.Portal_Password || "Redacted"}</b></span>
+                          </div>
+                          {lender.Portal_Password && (
+                            <button
+                              onClick={() => handleCopy(lender.Portal_Password || "", `${lender.id}-pass`)}
+                              className="text-slate-400 hover:text-white text-[10px] flex items-center gap-0.5 ml-1"
+                            >
+                              {copiedId === `${lender.id}-pass` ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
+                              Copy
+                            </button>
+                          )}
+                        </div>
+                      </Td>
+                      <Td className="min-w-[260px]">
+                        {/* List of deals */}
+                        <div className="flex flex-wrap gap-1.5 max-w-[320px]">
+                          {(expandedLenderIds[lender.id]
+                            ? lender.assignments
+                            : lender.assignments.slice(0, 3)
+                          ).map((asg) => (
+                            <span
+                              key={asg.assignmentId}
+                              className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[10px] font-semibold text-slate-355"
+                            >
+                              <Link
+                                to={`/deals/${encodeURIComponent(asg.dealRef)}?tab=chat&lenderId=${lender.id}`}
+                                className="hover:text-acp-bronze transition-colors flex items-center gap-1 cursor-pointer"
+                                title="Open private chat thread"
+                              >
+                                <MessageSquare className="h-2.5 w-2.5 text-acp-bronze/70 shrink-0" />
+                                {asg.dealRef}
+                              </Link>
+                              <button
+                                onClick={() => handleRemoveAssignment(asg.assignmentId)}
+                                className="text-slate-500 hover:text-rose-450 transition cursor-pointer"
+                                title="Revoke access"
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </span>
+                          ))}
+
+                          {/* Expand (+N more) button */}
+                          {!expandedLenderIds[lender.id] && lender.assignments.length > 3 && (
+                            <button
+                              onClick={() => toggleLenderExpanded(lender.id)}
+                              className="inline-flex items-center gap-1 rounded-full border border-acp-bronze/20 bg-acp-bronze/5 px-2 py-0.5 text-[10px] font-black text-acp-bronze hover:bg-acp-bronze/10 hover:border-acp-bronze/30 transition cursor-pointer"
+                            >
+                              +{lender.assignments.length - 3}
+                            </button>
+                          )}
+
+                          {/* Collapse (Show less) button */}
+                          {expandedLenderIds[lender.id] && lender.assignments.length > 3 && (
+                            <button
+                              onClick={() => toggleLenderExpanded(lender.id)}
+                              className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-semibold text-slate-400 hover:text-white transition cursor-pointer"
+                            >
+                              Show Less
+                            </button>
+                          )}
+
+                          <button
+                            onClick={() => {
+                              setSelectedLender(lender);
+                              setDealSearchQuery("");
+                              setSelectedDealRef("");
+                              setIsAssignModalOpen(true);
+                            }}
+                            className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-acp-bronze/10 border border-acp-bronze/20 text-acp-bronze hover:bg-acp-bronze hover:text-white transition cursor-pointer"
+                            title="Assign deal"
+                          >
+                            +
+                          </button>
+                        </div>
+                      </Td>
+                      <Td>
+                        <StatusBadge status={lender.Status} />
+                      </Td>
+                      <Td className="text-right">
+                        <div className="flex justify-end gap-2">
+                          {/* Reset Password */}
+                          <button
+                            onClick={() => {
+                              setSelectedLender(lender);
+                              setIsResetConfirmOpen(true);
+                            }}
+                            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 text-[10px] font-bold uppercase tracking-wider text-slate-300 hover:bg-white/10 transition cursor-pointer"
+                          >
+                            <RotateCcw className="h-3 w-3" />
+                            Reset Pass
+                          </button>
+                          {/* Regenerate Slug */}
+                          <button
+                            onClick={() => handleRegeneratePortal(lender.id)}
+                            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 text-[10px] font-bold uppercase tracking-wider text-slate-300 hover:bg-white/10 transition cursor-pointer"
+                          >
+                            <Link2 className="h-3 w-3" />
+                            New Link
+                          </button>
+                          {/* Delete Lender */}
+                          <button
+                            onClick={() => {
+                              setSelectedLender(lender);
+                              setIsDeleteConfirmOpen(true);
+                            }}
+                            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-rose-500/20 bg-rose-500/5 px-3 text-[10px] font-bold uppercase tracking-wider text-rose-450 hover:bg-rose-500/10 hover:border-rose-500/30 transition cursor-pointer"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                            Delete
+                          </button>
+                        </div>
+                      </Td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </Table>
           </div>
 
-          <Table>
-            <thead>
-              <tr className="border-b border-white/5 bg-white/[0.01]">
-                <Th>Company Name</Th>
-                <Th>Portal URL & Passcode</Th>
-                <Th>Assigned Acquisition Deals</Th>
-                <Th>Status</Th>
-                <Th className="text-right">Portal Actions</Th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/5 bg-white/[0.01]">
-              {lenders.map((lender) => {
-                const url = getPortalUrl(lender.Portal_Slug);
-                return (
-                  <tr key={lender.id} className="transition hover:bg-white/[0.01]">
-                    <Td className="min-w-[180px]">
-                      <div className="font-semibold text-white">{lender.Company_Name}</div>
-                      <div className="text-[10px] text-slate-450 mt-1 space-y-0.5">
-                        {lender.Contact_Name && <div>Contact: {lender.Contact_Name}</div>}
-                        {lender.Email && <div>Email: {lender.Email}</div>}
-                        {lender.Phone && <div>Phone: {lender.Phone}</div>}
-                      </div>
-                    </Td>
-                    <Td className="max-w-[280px]">
-                      {/* Link Row */}
-                      <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-lg p-1.5 pr-2.5">
-                        <span className="text-[11px] font-mono text-slate-400 truncate flex-1 pl-1">
-                          {url}
+          {/* Right Column: Recent Messages Sidebar */}
+          <div className="rounded-2xl border border-white/[0.06] bg-[#0D0D0E] p-6 shadow-premium-card card-sheen flex flex-col h-full min-h-[450px]">
+            <div className="mb-4 flex items-center justify-between pb-2 border-b border-white/5">
+              <div className="flex items-center gap-2">
+                <MessageSquare className="h-4 w-4 text-acp-bronze" />
+                <h3 className="text-sm font-bold uppercase tracking-wider text-white">Recent Conversations</h3>
+              </div>
+              <span className="rounded-full bg-white/5 border border-white/10 px-2 py-0.5 text-[9px] font-bold text-slate-400">
+                {recentMessages.length}
+              </span>
+            </div>
+
+            <div className="flex-1 overflow-y-auto space-y-3.5 max-h-[600px] pr-1">
+              {recentMessages.length === 0 ? (
+                <div className="text-center py-12 text-slate-500 text-xs leading-relaxed font-sans">
+                  No messages yet.<br />Chat messages from investors will appear here.
+                </div>
+              ) : (
+                recentMessages.map((msg) => {
+                  const lender = lenders.find((l) => l.id === msg.lenderId);
+                  const deal = deals.find((d) => d.id === msg.dealId);
+                  
+                  const lenderName = lender ? lender.Company_Name : "Lender";
+                  const dealRef = deal ? deal.dealRef : "";
+                  const dealCompany = deal ? deal.companyName : "Assigned Deal";
+
+                  const isMe = msg.sender === "Admin";
+                  const formattedTime = msg.timestamp
+                    ? new Date(msg.timestamp).toLocaleDateString(undefined, { month: "short", day: "numeric" }) +
+                      " " +
+                      new Date(msg.timestamp).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })
+                    : "";
+
+                  return (
+                    <Link
+                      key={msg.id}
+                      to={dealRef ? `/deals/${encodeURIComponent(dealRef)}?tab=chat&lenderId=${msg.lenderId}` : "#"}
+                      className="block p-3 rounded-xl border border-white/[0.04] bg-white/[0.01] hover:bg-[#0c1122]/60 hover:border-acp-bronze/30 transition-all duration-300 relative group card-sheen"
+                    >
+                      <div className="flex justify-between items-start gap-2">
+                        <span className="text-[11px] font-bold text-white group-hover:text-acp-bronze transition-colors truncate">
+                          {lenderName}
                         </span>
-                        <button
-                          onClick={() => handleCopy(url, `${lender.id}-url`)}
-                          className="h-6 w-6 flex items-center justify-center rounded bg-white/5 text-slate-400 hover:text-white"
-                          title="Copy Portal URL"
-                        >
-                          {copiedId === `${lender.id}-url` ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Link2 className="h-3.5 w-3.5" />}
-                        </button>
+                        <span className="text-[9px] text-slate-500 font-semibold shrink-0">
+                          {formattedTime}
+                        </span>
                       </div>
-
-                      {/* Password Row */}
-                      <div className="mt-2 flex items-center gap-2">
-                        <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-white/5 border border-white/5 text-[10px] font-mono text-slate-300">
-                          <KeyRound className="h-3 w-3 text-acp-bronze" />
-                          <span>Passcode: <b>{lender.Portal_Password || "Redacted"}</b></span>
+                      
+                      {dealCompany && (
+                        <div className="text-[9px] text-acp-bronze font-extrabold uppercase tracking-wider mt-0.5 truncate">
+                          {dealCompany} {dealRef ? `(REF: ${dealRef})` : ""}
                         </div>
-                        {lender.Portal_Password && (
-                          <button
-                            onClick={() => handleCopy(lender.Portal_Password || "", `${lender.id}-pass`)}
-                            className="text-slate-400 hover:text-white text-[10px] flex items-center gap-0.5 ml-1"
-                          >
-                            {copiedId === `${lender.id}-pass` ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
-                            Copy
-                          </button>
-                        )}
-                      </div>
-                    </Td>
-                    <Td className="min-w-[260px]">
-                      {/* List of deals */}
-                      <div className="flex flex-wrap gap-1.5 max-w-[320px]">
-                        {(expandedLenderIds[lender.id]
-                          ? lender.assignments
-                          : lender.assignments.slice(0, 3)
-                        ).map((asg) => (
-                          <span
-                            key={asg.assignmentId}
-                            className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[10px] font-semibold text-slate-355"
-                          >
-                            <Link
-                              to={`/deals/${encodeURIComponent(asg.dealRef)}?tab=chat&lenderId=${lender.id}`}
-                              className="hover:text-acp-bronze transition-colors flex items-center gap-1 cursor-pointer"
-                              title="Open private chat thread"
-                            >
-                              <MessageSquare className="h-2.5 w-2.5 text-acp-bronze/70 shrink-0" />
-                              {asg.dealRef}
-                            </Link>
-                            <button
-                              onClick={() => handleRemoveAssignment(asg.assignmentId)}
-                              className="text-slate-500 hover:text-rose-400 transition cursor-pointer"
-                              title="Revoke access"
-                            >
-                              <X className="h-3 w-3" />
-                            </button>
-                          </span>
-                        ))}
+                      )}
 
-                        {/* Expand (+N more) button */}
-                        {!expandedLenderIds[lender.id] && lender.assignments.length > 3 && (
-                          <button
-                            onClick={() => toggleLenderExpanded(lender.id)}
-                            className="inline-flex items-center gap-1 rounded-full border border-acp-bronze/20 bg-acp-bronze/5 px-2 py-0.5 text-[10px] font-black text-acp-bronze hover:bg-acp-bronze/10 hover:border-acp-bronze/30 transition cursor-pointer"
-                          >
-                            +{lender.assignments.length - 3}
-                          </button>
-                        )}
-
-                        {/* Collapse (Show less) button */}
-                        {expandedLenderIds[lender.id] && lender.assignments.length > 3 && (
-                          <button
-                            onClick={() => toggleLenderExpanded(lender.id)}
-                            className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-semibold text-slate-400 hover:text-white transition cursor-pointer"
-                          >
-                            Show Less
-                          </button>
-                        )}
-
-                        <button
-                          onClick={() => {
-                            setSelectedLender(lender);
-                            setDealSearchQuery("");
-                            setSelectedDealRef("");
-                            setIsAssignModalOpen(true);
-                          }}
-                          className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-acp-bronze/10 border border-acp-bronze/20 text-acp-bronze hover:bg-acp-bronze hover:text-white transition cursor-pointer"
-                          title="Assign deal"
-                        >
-                          +
-                        </button>
-                      </div>
-                    </Td>
-                    <Td>
-                      <StatusBadge status={lender.Status} />
-                    </Td>
-                    <Td className="text-right">
-                      <div className="flex justify-end gap-2">
-                        {/* Reset Password */}
-                        <button
-                          onClick={() => {
-                            setSelectedLender(lender);
-                            setIsResetConfirmOpen(true);
-                          }}
-                          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 text-[10px] font-bold uppercase tracking-wider text-slate-300 hover:bg-white/10 transition cursor-pointer"
-                        >
-                          <RotateCcw className="h-3 w-3" />
-                          Reset Pass
-                        </button>
-                        {/* Regenerate Slug */}
-                        <button
-                          onClick={() => handleRegeneratePortal(lender.id)}
-                          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 text-[10px] font-bold uppercase tracking-wider text-slate-300 hover:bg-white/10 transition cursor-pointer"
-                        >
-                          <Link2 className="h-3 w-3" />
-                          New Link
-                        </button>
-                        {/* Delete Lender */}
-                        <button
-                          onClick={() => {
-                            setSelectedLender(lender);
-                            setIsDeleteConfirmOpen(true);
-                          }}
-                          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-rose-500/20 bg-rose-500/5 px-3 text-[10px] font-bold uppercase tracking-wider text-rose-450 hover:bg-rose-500/10 hover:border-rose-500/30 transition cursor-pointer"
-                        >
-                          <Trash2 className="h-3 w-3" />
-                          Delete
-                        </button>
-                      </div>
-                    </Td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </Table>
+                      <p className="text-[10px] text-slate-400 mt-2 leading-relaxed line-clamp-2 italic">
+                        {isMe ? <span className="text-slate-550 font-bold not-italic">You: </span> : null}
+                        "{msg.message}"
+                      </p>
+                    </Link>
+                  );
+                })
+              )}
+            </div>
+          </div>
         </div>
       ) : null}
 

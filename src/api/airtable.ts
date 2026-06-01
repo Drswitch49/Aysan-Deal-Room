@@ -395,8 +395,10 @@ function buildCapitalStructure(fields: RawAirtableFields) {
   return rows.filter((row) => row.provider || row.amount || row.notes);
 }
 
-function escapeFormulaString(value: string): string {
-  return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+function escapeFormulaString(value: any): string {
+  if (value === undefined || value === null) return "";
+  const str = String(value);
+  return str.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
 }
 
 function isMissingTableError(error: unknown): boolean {

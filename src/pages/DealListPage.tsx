@@ -163,12 +163,14 @@ export function DealListPage() {
               value={activeDealCount} 
               iconBgClass="bg-[#C5A059]"
             />
-            <MetricCard 
-              icon={<Users className="h-5 w-5" />} 
-              label="Registered Lenders" 
-              value={lendersCount !== null ? lendersCount : "..."} 
-              iconBgClass="bg-[#C5A059]"
-            />
+            <Link to="/admin/lenders" className="block transition-transform hover:scale-[1.01]">
+              <MetricCard 
+                icon={<Users className="h-5 w-5" />} 
+                label="Registered Lenders" 
+                value={lendersCount !== null ? lendersCount : "..."} 
+                iconBgClass="bg-[#C5A059]"
+              />
+            </Link>
             <MetricCard 
               icon={<FolderOpen className="h-5 w-5" />} 
               label="Total indexed documents" 

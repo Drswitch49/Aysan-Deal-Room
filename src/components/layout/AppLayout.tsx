@@ -4,6 +4,7 @@ import { Building2, Database, FolderOpen, LockKeyhole, ShieldCheck, Table2, Shie
 import { NavLink, Outlet } from "react-router-dom";
 import { cx } from "../../utils/cx";
 import { changeAdminPassword } from "../../api/admin";
+import { ChatNotificationWatcher } from "../ui/ChatNotificationWatcher";
 
 export function AppLayout() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -203,6 +204,7 @@ export function AppLayout() {
           isOpen={isChangePasswordOpen} 
           onClose={() => setIsChangePasswordOpen(false)} 
         />
+        <ChatNotificationWatcher mode="admin" />
       </div>
     </div>
   );

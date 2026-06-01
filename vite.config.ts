@@ -1,4 +1,4 @@
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import fs from "fs";
 import path from "path";
@@ -96,6 +96,11 @@ function apiDevServerPlugin() {
   };
 }
 
-export default defineConfig({
-  plugins: [react(), apiDevServerPlugin()],
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), "");
+  Object.assign(process.env, env);
+
+  return {
+    plugins: [react(), apiDevServerPlugin()],
+  };
 });
