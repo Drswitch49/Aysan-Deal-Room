@@ -73,7 +73,8 @@ export async function fetchLenderDeals(portalSlug: string): Promise<PipelineDeal
     postCompletionRoles: rec.fields.Post_Completion_Roles || rec.fields["Post-Completion Roles"] || "",
     capitalStructure: buildCapitalStructure(rec.fields),
     rawFields: rec.fields,
-    dealFiles: rec.fields["Deal Files"] || rec.fields.dealFiles || ""
+    dealFiles: rec.fields["Deal Files"] || rec.fields.dealFiles || "",
+    ndaApproved: rec.ndaApproved
   }));
 }
 
