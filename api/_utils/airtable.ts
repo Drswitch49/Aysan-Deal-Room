@@ -133,7 +133,15 @@ export async function filterFieldsBySchema(tableName: string, fields: Record<str
     });
 
     if (matchingField) {
-      filtered[matchingField.name] = fields[key];
+      let val = fields[key];
+      if (matchingField.type === "checkbox") {
+        val = (val === "Yes" || val === "yes" || val === true || String(val).toLowerCase() === "true");
+      } else if (matchingField.type === "singleSelect" || matchingField.type === "singleLineText" || matchingField.type === "text") {
+        if (cleanKey === "ndaapproved" || cleanKey === "nda") {
+          val = (val === true || val === "Yes" || val === "yes" || String(val).toLowerCase() === "true") ? "Yes" : "No";
+        }
+      }
+      filtered[matchingField.name] = val;
     } else {
       console.warn(`Field '${key}' not found in schema for table '${tableName}', omitting.`);
     }
