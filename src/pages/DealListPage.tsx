@@ -31,6 +31,8 @@ export function DealListPage() {
 
   // Filter Dropdown State
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
+  const [selectedOwnerFilter, setSelectedOwnerFilter] = useState("All");
+  const [selectedSectorFilter, setSelectedSectorFilter] = useState("All");
 
   // New deal modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -190,9 +192,37 @@ export function DealListPage() {
     });
   }, [deals, inbox]);
 
+  // Dynamically extract unique owners & sectors from joinedDeals
+  const owners = useMemo(() => {
+    const list = new Set<string>();
+    joinedDeals.forEach(d => {
+      if (d.ownerName) list.add(d.ownerName);
+    });
+    return ["All", ...Array.from(list)];
+  }, [joinedDeals]);
+
+  const sectors = useMemo(() => {
+    const list = new Set<string>();
+    joinedDeals.forEach(d => {
+      if (d.sector) list.add(d.sector);
+    });
+    return ["All", ...Array.from(list)];
+  }, [joinedDeals]);
+
+  const baseFilteredDeals = useMemo(() => {
+    let result = joinedDeals;
+    if (selectedOwnerFilter !== "All") {
+      result = result.filter(d => d.ownerName === selectedOwnerFilter);
+    }
+    if (selectedSectorFilter !== "All") {
+      result = result.filter(d => (d.sector || "").toLowerCase() === selectedSectorFilter.toLowerCase());
+    }
+    return result;
+  }, [joinedDeals, selectedOwnerFilter, selectedSectorFilter]);
+
   // Filter & Search Deals
   const filteredDeals = useMemo(() => {
-    let result = joinedDeals;
+    let result = baseFilteredDeals;
 
     // Stage filter bar implementation
     if (selectedStageFilter !== "All") {
@@ -223,12 +253,12 @@ export function DealListPage() {
     }
 
     return result;
-  }, [joinedDeals, selectedStageFilter, searchQuery]);
+  }, [baseFilteredDeals, selectedStageFilter, searchQuery]);
 
   // Active Deals count excluding Killed
   const activeJoinedDeals = useMemo(() => {
-    return joinedDeals.filter(d => (d.status || "").toLowerCase() !== "killed");
-  }, [joinedDeals]);
+    return baseFilteredDeals.filter(d => (d.status || "").toLowerCase() !== "killed");
+  }, [baseFilteredDeals]);
 
   // Pagination Logic
   const totalPages = Math.ceil(filteredDeals.length / itemsPerPage) || 1;
@@ -325,8 +355,7 @@ export function DealListPage() {
       {/* Stage Filter pills horizontal bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 select-none">
         <div className="flex flex-wrap gap-2 text-[10px] font-extrabold uppercase tracking-wider">
-          
-          {/* All */}
+            {/* All */}
           <button
             onClick={() => { setSelectedStageFilter("All"); setCurrentPage(1); }}
             className={cx(
@@ -336,7 +365,7 @@ export function DealListPage() {
                 : "border-white/5 bg-white/[0.01] text-slate-400 hover:text-white hover:bg-white/5"
             )}
           >
-            All ({joinedDeals.length})
+            All ({baseFilteredDeals.length})
           </button>
 
           {/* Inbound */}
@@ -345,11 +374,11 @@ export function DealListPage() {
             className={cx(
               "px-3.5 py-1.5 rounded-full border transition cursor-pointer font-bold",
               selectedStageFilter === "Inbound"
-                ? "border-blue-500 bg-blue-500/5 text-blue-400"
+                ? "border-blue-500 bg-blue-500/5 text-blue-405"
                 : "border-white/5 bg-white/[0.01] text-slate-400 hover:text-white hover:bg-white/5"
             )}
           >
-            Inbound ({joinedDeals.filter(d => {
+            Inbound ({baseFilteredDeals.filter(d => {
               const status = (d.status || "").toLowerCase();
               return status === "intro" || status === "inbound" || status === "information requested";
             }).length})
@@ -365,7 +394,7 @@ export function DealListPage() {
                 : "border-white/5 bg-white/[0.01] text-slate-400 hover:text-white hover:bg-white/5"
             )}
           >
-            Seller Call ({joinedDeals.filter(d => (d.status || "").toLowerCase() === "seller call").length})
+            Seller Call ({baseFilteredDeals.filter(d => (d.status || "").toLowerCase() === "seller call").length})
           </button>
 
           {/* IM Review */}
@@ -378,7 +407,7 @@ export function DealListPage() {
                 : "border-white/5 bg-white/[0.01] text-slate-400 hover:text-white hover:bg-white/5"
             )}
           >
-            IM Review ({joinedDeals.filter(d => (d.status || "").toLowerCase() === "im review").length})
+            IM Review ({baseFilteredDeals.filter(d => (d.status || "").toLowerCase() === "im review").length})
           </button>
 
           {/* DD */}
@@ -391,7 +420,7 @@ export function DealListPage() {
                 : "border-white/5 bg-white/[0.01] text-slate-400 hover:text-white hover:bg-white/5"
             )}
           >
-            DD ({joinedDeals.filter(d => {
+            DD ({baseFilteredDeals.filter(d => {
               const status = (d.status || "").toLowerCase();
               return status === "dd" || status === "due diligence" || status === "offer submitted";
             }).length})
@@ -407,7 +436,7 @@ export function DealListPage() {
                 : "border-rose-500/20 bg-white/[0.01] text-rose-450/70 hover:text-rose-400"
             )}
           >
-            Killed ({joinedDeals.filter(d => (d.status || "").toLowerCase() === "killed").length})
+            Killed ({baseFilteredDeals.filter(d => (d.status || "").toLowerCase() === "killed").length})
           </button>
         </div>
 
@@ -423,7 +452,7 @@ export function DealListPage() {
                 setSearchQuery(e.target.value);
                 setCurrentPage(1);
               }}
-              className="h-9 w-36 rounded-xl border border-white/10 bg-[#0E121A] pl-8.5 pr-3 text-xs text-white placeholder-slate-600 outline-none transition focus:border-acp-bronze focus:w-44"
+              className="h-9 w-36 rounded-xl border border-white/10 bg-[#0E121A] pl-9 pr-3 text-xs text-white placeholder-slate-600 outline-none transition focus:border-acp-bronze focus:w-44"
             />
           </div>
 
@@ -444,6 +473,47 @@ export function DealListPage() {
           </button>
         </div>
       </div>
+
+      {/* Filter Dropdown Panel */}
+      {showFilterDropdown && (
+        <div className="rounded-2xl border border-white/[0.06] bg-[#0E121A] p-4.5 grid grid-cols-1 sm:grid-cols-2 gap-4 animate-fade-in-up">
+          <div className="space-y-1.5">
+            <label className="block text-[8px] font-extrabold uppercase tracking-wider text-slate-500">
+              Filter by Owner
+            </label>
+            <select
+              value={selectedOwnerFilter}
+              onChange={(e) => {
+                setSelectedOwnerFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="h-10 w-full rounded-xl border border-white/10 bg-[#0E121A] px-3 text-xs text-white outline-none focus:border-acp-bronze transition cursor-pointer"
+            >
+              {owners.map(o => (
+                <option key={o} value={o}>{o}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="block text-[8px] font-extrabold uppercase tracking-wider text-slate-500">
+              Filter by Sector
+            </label>
+            <select
+              value={selectedSectorFilter}
+              onChange={(e) => {
+                setSelectedSectorFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="h-10 w-full rounded-xl border border-white/10 bg-[#0E121A] px-3 text-xs text-white outline-none focus:border-acp-bronze transition cursor-pointer"
+            >
+              {sectors.map(s => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+      )}
 
       {isLoading && (
         <div className="rounded-2xl border border-white/[0.06] bg-[#0E121A] p-12 text-center">
