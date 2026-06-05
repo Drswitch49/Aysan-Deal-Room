@@ -246,20 +246,6 @@ export function DealDetailPage() {
     };
   }, [dealState.data, inboxRecords]);
 
-  const isLoading = dealState.isLoading || documentState.isLoading || submissionState.isLoading || isLoadingInbox;
-  const error = dealState.error ?? documentState.error ?? submissionState.error;
-
-  if (isLoading) return <LoadingState />;
-  if (error) return <ErrorState error={error} />;
-  if (!joinedDeal) {
-    return (
-      <div className="animate-fade-in-up">
-        <BackLink />
-        <PageHeader title="Deal not found" eyebrow={decodedRef} />
-      </div>
-    );
-  }
-
   // Calculate dynamic header tasks counts
   const liveDealsCount = useMemo(() => {
     const active = allDeals.filter(d => (d.status || "").toLowerCase() !== "killed");
@@ -274,6 +260,20 @@ export function DealDetailPage() {
       return actDate && actDate < todayStr;
     }).length || 2;
   }, [allDeals]);
+
+  const isLoading = dealState.isLoading || documentState.isLoading || submissionState.isLoading || isLoadingInbox;
+  const error = dealState.error ?? documentState.error ?? submissionState.error;
+
+  if (isLoading) return <LoadingState />;
+  if (error) return <ErrorState error={error} />;
+  if (!joinedDeal) {
+    return (
+      <div className="animate-fade-in-up">
+        <BackLink />
+        <PageHeader title="Deal not found" eyebrow={decodedRef} />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 text-[#E2E8F0] font-sans">
