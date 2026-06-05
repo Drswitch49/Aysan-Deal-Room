@@ -65,11 +65,26 @@ function buildTableUrl(tableName: string, params: QueryParams = {}, offset?: str
   return url.toString();
 }
 
+const fetchCache: Record<string, { timestamp: number; data: any }> = {};
+const CACHE_TTL_MS = 10000; // 10 seconds cache
+
+export function clearAirtableCache() {
+  for (const key in fetchCache) {
+    delete fetchCache[key];
+  }
+}
+
 async function airtableFetch<TFields extends RawAirtableFields>(
   tableName: string,
   params: QueryParams = {},
 ): Promise<AirtableListResponse<TFields>> {
   assertAirtableConfig();
+
+  const cacheKey = JSON.stringify({ tableName, params });
+  const cached = fetchCache[cacheKey];
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+    return cached.data;
+  }
 
   const allRecords: AirtableListResponse<TFields>["records"] = [];
   let offset: string | undefined;
@@ -80,7 +95,9 @@ async function airtableFetch<TFields extends RawAirtableFields>(
     offset = page.offset;
   } while (offset);
 
-  return { records: allRecords };
+  const result = { records: allRecords };
+  fetchCache[cacheKey] = { timestamp: Date.now(), data: result };
+  return result;
 }
 
 async function fetchAirtablePage<TFields extends RawAirtableFields>(
@@ -210,61 +227,84 @@ const SAFE_PIPELINE_FIELDS = [
 ];
 
 let cachedSchema: any = null;
+let isSchemaApiSupported = true;
 
 async function fetchSchema(): Promise<any> {
   if (cachedSchema) return cachedSchema;
+  if (!isSchemaApiSupported) {
+    throw new Error("Airtable Metadata API is not supported by this token");
+  }
   assertAirtableConfig();
 
-  const response = await fetch(`${AIRTABLE_API_ROOT}/meta/bases/${config.airtableBaseId}/tables`, {
-    headers: {
-      Authorization: `Bearer ${config.airtableApiKey}`,
-    },
-  });
+  try {
+    const response = await fetch(`${AIRTABLE_API_ROOT}/meta/bases/${config.airtableBaseId}/tables`, {
+      headers: {
+        Authorization: `Bearer ${config.airtableApiKey}`,
+      },
+    });
 
-  if (!response.ok) {
-    throw new Error(`Failed to fetch schema metadata: ${response.statusText}`);
+    if (!response.ok) {
+      isSchemaApiSupported = false;
+      throw new Error(`Failed to fetch schema metadata: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    cachedSchema = data;
+    return data;
+  } catch (err) {
+    isSchemaApiSupported = false;
+    throw err;
   }
-
-  const data = await response.json();
-  cachedSchema = data;
-  return data;
 }
 
+const existFieldsCache: Record<string, string[]> = {};
+
 async function getExistFields(tableName: string, safeFields: string[]): Promise<string[]> {
-  try {
-    const schema = await fetchSchema();
-    const table = schema.tables.find(
-      (t: any) =>
-        t.name.toLowerCase() === tableName.toLowerCase() ||
-        t.name.toLowerCase().replace(/_/g, " ") === tableName.toLowerCase().replace(/_/g, " ") ||
-        t.name.toLowerCase().replace(/ /g, "_") === tableName.toLowerCase().replace(/ /g, "_")
-    );
-    if (table) {
-      const existingFieldNames = table.fields.map((f: any) => f.name);
-      const matched = safeFields.filter((f) => existingFieldNames.includes(f));
-      if (matched.length > 0) return matched;
-    }
-  } catch (metaError) {
-    console.warn("Airtable Metadata API not available, falling back to record scanning:", metaError);
+  const cacheKey = `${tableName}:${safeFields.join(",")}`;
+  if (existFieldsCache[cacheKey]) {
+    return existFieldsCache[cacheKey];
   }
 
-  try {
-    const response = await fetchAirtablePage<RawAirtableFields>(
-      buildTableUrl(tableName) + "&maxRecords=100"
-    );
-    if (response.records.length === 0) {
+  const runGet = async (): Promise<string[]> => {
+    try {
+      const schema = await fetchSchema();
+      const table = schema.tables.find(
+        (t: any) =>
+          t.name.toLowerCase() === tableName.toLowerCase() ||
+          t.name.toLowerCase().replace(/_/g, " ") === tableName.toLowerCase().replace(/_/g, " ") ||
+          t.name.toLowerCase().replace(/ /g, "_") === tableName.toLowerCase().replace(/ /g, "_")
+      );
+      if (table) {
+        const existingFieldNames = table.fields.map((f: any) => f.name);
+        const matched = safeFields.filter((f) => existingFieldNames.includes(f));
+        if (matched.length > 0) return matched;
+      }
+    } catch (metaError) {
+      console.warn("Airtable Metadata API not available, falling back to record scanning:", metaError);
+    }
+
+    try {
+      const response = await fetchAirtablePage<RawAirtableFields>(
+        buildTableUrl(tableName) + "&maxRecords=100"
+      );
+      if (response.records.length === 0) {
+        return [];
+      }
+      const allKeys = new Set<string>();
+      for (const record of response.records) {
+        for (const key of Object.keys(record.fields)) {
+          allKeys.add(key);
+        }
+      }
+      return safeFields.filter((f) => allKeys.has(f));
+    } catch {
       return [];
     }
-    const allKeys = new Set<string>();
-    for (const record of response.records) {
-      for (const key of Object.keys(record.fields)) {
-        allKeys.add(key);
-      }
-    }
-    return safeFields.filter((f) => allKeys.has(f));
-  } catch {
-    return [];
-  }
+  };
+
+  const result = await runGet();
+  existFieldsCache[cacheKey] = result;
+  return result;
 }
 
 
@@ -399,6 +439,19 @@ function escapeFormulaString(value: any): string {
   if (value === undefined || value === null) return "";
   const str = String(value);
   return str.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+}
+
+export async function getDealInbox(): Promise<any[]> {
+  try {
+    const response = await airtableFetch<RawAirtableFields>("Deal_Inbox");
+    return response.records.map((record) => ({
+      id: record.id,
+      fields: record.fields
+    }));
+  } catch (error) {
+    if (isMissingTableError(error)) return [];
+    throw error;
+  }
 }
 
 function isMissingTableError(error: unknown): boolean {

@@ -1,7 +1,10 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
-import { Building2, Database, FolderOpen, LockKeyhole, ShieldCheck, Table2, Shield, LogOut, Menu, X, Key, MessageSquare } from "lucide-react";
-import { NavLink, Outlet } from "react-router-dom";
+import { 
+  Building2, Database, FolderOpen, LockKeyhole, ShieldCheck, Table2, Shield, LogOut, Menu, X, Key, MessageSquare,
+  LayoutDashboard, Kanban, FileText, LineChart, Users, Compass, Settings
+} from "lucide-react";
+import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import { cx } from "../../utils/cx";
 import { changeAdminPassword, fetchAdminLenders } from "../../api/admin";
 import { fetchRecentAdminChat } from "../../api/chat";
@@ -9,6 +12,9 @@ import { ChatNotificationWatcher } from "../ui/ChatNotificationWatcher";
 import { useEffect } from "react";
 
 export function AppLayout() {
+  const location = useLocation();
+  const isPipelinePage = location.pathname === "/deals" || location.pathname === "/";
+  const isDealDetailPage = location.pathname.startsWith("/deals") && location.pathname !== "/deals";
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
   const [unreadMessages, setUnreadMessages] = useState<number>(0);
@@ -69,69 +75,57 @@ export function AppLayout() {
         <div className="flex h-full flex-col px-6 py-7 z-10">
           <BrandBlock />
 
-          <nav className="mt-10 space-y-1.5">
-            <SideNavItem to="/deals" icon={<FolderOpen className="h-4 w-4" aria-hidden="true" />} label="Active Deals" />
-            <SideNavItem to="/admin/lenders" icon={<Building2 className="h-4 w-4" aria-hidden="true" />} label="Lenders" />
-            <SideNavItem 
-              to="/admin/messages" 
-              icon={<MessageSquare className="h-4 w-4" aria-hidden="true" />} 
-              label={
-                <span className="flex items-center justify-between w-full">
-                  <span>Messages</span>
-                  {unreadMessages > 0 && (
-                    <span className="text-rose-500 font-black text-[11px] animate-pulse">
-                      ({unreadMessages})
-                    </span>
-                  )}
-                </span>
-              } 
-            />
+          <nav className="mt-8 flex-1 space-y-6 overflow-y-auto pr-1 select-none">
+            {/* OPERATIONS SECTION */}
+            <div className="space-y-1">
+              <p className="text-[9px] font-extrabold uppercase tracking-[0.2em] text-slate-500 px-3.5 mb-1.5">Operations</p>
+              <SideNavItem to="/" icon={<LayoutDashboard className="h-4 w-4" />} label="Dashboard" end />
+              <SideNavItem to="/deals" icon={<Kanban className="h-4 w-4" />} label="Deal Pipeline" end />
+            </div>
+
+            {/* INTELLIGENCE SECTION */}
+            <div className="space-y-1">
+              <p className="text-[9px] font-extrabold uppercase tracking-[0.2em] text-slate-500 px-3.5 mb-1.5">Intelligence</p>
+              <SideNavItem to="/admin/lenders" icon={<Building2 className="h-4 w-4" />} label="Lender Intel" />
+            </div>
+
+            {/* PEOPLE SECTION */}
+            <div className="space-y-1">
+              <p className="text-[9px] font-extrabold uppercase tracking-[0.2em] text-slate-500 px-3.5 mb-1.5">People</p>
+              <SideNavItem to="/admin/hr" icon={<Users className="h-4 w-4" />} label="HR & Stakeholders" />
+            </div>
+
+            {/* SYSTEM SECTION */}
+            <div className="space-y-1">
+              <p className="text-[9px] font-extrabold uppercase tracking-[0.2em] text-slate-500 px-3.5 mb-1.5">System</p>
+              <SideNavItem to="/admin/settings" icon={<Settings className="h-4 w-4" />} label="Settings" />
+            </div>
           </nav>
 
-          <div className="mt-8 rounded-xl border border-white/[0.06] bg-white/[0.02] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)] backdrop-blur-md">
-            <p className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-acp-bronze">Operating Model</p>
-            <div className="mt-4 space-y-3.5">
-              <SideFact icon={<Database className="h-3.5 w-3.5" aria-hidden="true" />} label="Live Database Sync" />
-              <SideFact icon={<Table2 className="h-3.5 w-3.5" aria-hidden="true" />} label="Read-Only Access" />
-              <SideFact icon={<LockKeyhole className="h-3.5 w-3.5" aria-hidden="true" />} label="Restricted Actions" />
-            </div>
-          </div>
-
-          {/* Active Session Card with Logout Option */}
-          <div className="mt-auto pt-4 border-t border-white/[0.04]">
+          {/* User Profile Footer */}
+          <div className="mt-auto pt-4 border-t border-white/[0.06]">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-acp-bronze/10 border border-acp-bronze/20 text-xs font-bold text-acp-bronze shadow-sm">
-                  <Shield className="h-4 w-4" aria-hidden="true" />
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#F5C443] text-xs font-black text-slate-950 shadow-sm border border-[#F5C443]/20">
+                  AO
                 </div>
                 <div className="min-w-0">
-                  <p className="truncate text-xs font-bold text-white tracking-wide">
-                    Active Session
+                  <p className="truncate text-xs font-bold text-white tracking-wide leading-none mb-1">
+                    Ayo Oyesanya
                   </p>
-                  <p className="truncate text-[9px] font-extrabold uppercase tracking-wider text-slate-500">
-                    Secure Admin Panel
+                  <p className="truncate text-[9px] font-extrabold uppercase tracking-wider text-acp-bronze">
+                    Managing Partner
                   </p>
                 </div>
               </div>
-
-              <div className="flex items-center gap-1.5 shrink-0">
-                <button
-                  onClick={() => setIsChangePasswordOpen(true)}
-                  className="h-8 w-8 flex items-center justify-center rounded-lg border border-white/10 bg-white/5 text-slate-400 hover:text-acp-bronze hover:bg-acp-bronze/10 hover:border-acp-bronze/20 transition cursor-pointer"
-                  title="Change Admin Passcode"
-                  type="button"
-                >
-                  <Key className="h-4 w-4" aria-hidden="true" />
-                </button>
-                <button
-                  onClick={handleLogout}
-                  className="h-8 w-8 flex items-center justify-center rounded-lg border border-white/10 bg-white/5 text-slate-400 hover:text-rose-450 hover:bg-rose-500/10 hover:border-rose-500/20 transition cursor-pointer"
-                  title="Log Out Session"
-                  type="button"
-                >
-                  <LogOut className="h-4 w-4" aria-hidden="true" />
-                </button>
-              </div>
+              <button
+                onClick={handleLogout}
+                className="h-8 w-8 flex items-center justify-center rounded-lg border border-white/10 bg-white/5 text-slate-400 hover:text-rose-450 hover:bg-rose-500/10 hover:border-rose-500/20 transition cursor-pointer"
+                title="Log Out Session"
+                type="button"
+              >
+                <LogOut className="h-4 w-4" aria-hidden="true" />
+              </button>
             </div>
           </div>
         </div>
@@ -165,76 +159,60 @@ export function AppLayout() {
                 </button>
               </div>
 
-              <nav className="mt-10 space-y-1.5">
-                <SideNavItem to="/deals" icon={<FolderOpen className="h-4 w-4" aria-hidden="true" />} label="Active Deals" onClick={() => setIsMobileMenuOpen(false)} />
-                <SideNavItem to="/admin/lenders" icon={<Building2 className="h-4 w-4" aria-hidden="true" />} label="Lenders" onClick={() => setIsMobileMenuOpen(false)} />
-                <SideNavItem 
-                  to="/admin/messages" 
-                  icon={<MessageSquare className="h-4 w-4" aria-hidden="true" />} 
-                  label={
-                    <span className="flex items-center justify-between w-full">
-                      <span>Messages</span>
-                      {unreadMessages > 0 && (
-                        <span className="text-rose-500 font-black text-[11px] animate-pulse">
-                          ({unreadMessages})
-                        </span>
-                      )}
-                    </span>
-                  } 
-                  onClick={() => setIsMobileMenuOpen(false)}
-                />
+              <nav className="mt-8 flex-1 space-y-6 overflow-y-auto pr-1 select-none">
+                {/* OPERATIONS SECTION */}
+                <div className="space-y-1">
+                  <p className="text-[9px] font-extrabold uppercase tracking-[0.2em] text-slate-500 px-3.5 mb-1.5">Operations</p>
+                  <SideNavItem to="/" icon={<LayoutDashboard className="h-4 w-4" />} label="Dashboard" end onClick={() => setIsMobileMenuOpen(false)} />
+                  <SideNavItem to="/deals" icon={<Kanban className="h-4 w-4" />} label="Deal Pipeline" end onClick={() => setIsMobileMenuOpen(false)} />
+                </div>
+
+                {/* INTELLIGENCE SECTION */}
+                <div className="space-y-1">
+                  <p className="text-[9px] font-extrabold uppercase tracking-[0.2em] text-slate-500 px-3.5 mb-1.5">Intelligence</p>
+                  <SideNavItem to="/admin/lenders" icon={<Building2 className="h-4 w-4" />} label="Lender Intel" onClick={() => setIsMobileMenuOpen(false)} />
+                </div>
+
+                {/* PEOPLE SECTION */}
+                <div className="space-y-1">
+                  <p className="text-[9px] font-extrabold uppercase tracking-[0.2em] text-slate-500 px-3.5 mb-1.5">People</p>
+                  <SideNavItem to="/admin/hr" icon={<Users className="h-4 w-4" />} label="HR & Stakeholders" onClick={() => setIsMobileMenuOpen(false)} />
+                </div>
+
+                {/* SYSTEM SECTION */}
+                <div className="space-y-1">
+                  <p className="text-[9px] font-extrabold uppercase tracking-[0.2em] text-slate-500 px-3.5 mb-1.5">System</p>
+                  <SideNavItem to="/admin/settings" icon={<Settings className="h-4 w-4" />} label="Settings" onClick={() => setIsMobileMenuOpen(false)} />
+                </div>
               </nav>
 
-              <div className="mt-8 rounded-xl border border-white/[0.06] bg-white/[0.02] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)] backdrop-blur-md">
-                <p className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-acp-bronze">Operating Model</p>
-                <div className="mt-4 space-y-3.5">
-                  <SideFact icon={<Database className="h-3.5 w-3.5" aria-hidden="true" />} label="Live Database Sync" />
-                  <SideFact icon={<Table2 className="h-3.5 w-3.5" aria-hidden="true" />} label="Read-Only Access" />
-                  <SideFact icon={<LockKeyhole className="h-3.5 w-3.5" aria-hidden="true" />} label="Restricted Actions" />
-                </div>
-              </div>
-
-              {/* Active Session Card with Logout Option */}
-              <div className="mt-auto pt-4 border-t border-white/[0.04]">
+              {/* User Profile Footer */}
+              <div className="mt-auto pt-4 border-t border-white/[0.06]">
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-acp-bronze/10 border border-acp-bronze/20 text-xs font-bold text-acp-bronze shadow-sm">
-                      <Shield className="h-4 w-4" aria-hidden="true" />
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#F5C443] text-xs font-black text-slate-950 shadow-sm border border-[#F5C443]/20">
+                      AO
                     </div>
                     <div className="min-w-0">
-                      <p className="truncate text-xs font-bold text-white tracking-wide">
-                        Active Session
+                      <p className="truncate text-xs font-bold text-white tracking-wide leading-none mb-1">
+                        Ayo Oyesanya
                       </p>
-                      <p className="truncate text-[9px] font-extrabold uppercase tracking-wider text-slate-500">
-                        Secure Admin Panel
+                      <p className="truncate text-[9px] font-extrabold uppercase tracking-wider text-acp-bronze">
+                        Managing Partner
                       </p>
                     </div>
                   </div>
-
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <button
-                      onClick={() => {
-                        setIsMobileMenuOpen(false);
-                        setIsChangePasswordOpen(true);
-                      }}
-                      className="h-8 w-8 flex items-center justify-center rounded-lg border border-white/10 bg-white/5 text-slate-400 hover:text-acp-bronze hover:bg-acp-bronze/10 hover:border-acp-bronze/20 transition cursor-pointer"
-                      title="Change Admin Passcode"
-                      type="button"
-                    >
-                      <Key className="h-4 w-4" aria-hidden="true" />
-                    </button>
-                    <button
-                      onClick={() => {
-                        setIsMobileMenuOpen(false);
-                        handleLogout();
-                      }}
-                      className="h-8 w-8 flex items-center justify-center rounded-lg border border-white/10 bg-white/5 text-slate-400 hover:text-rose-450 hover:bg-rose-500/10 hover:border-rose-500/20 transition cursor-pointer"
-                      title="Log Out Session"
-                      type="button"
-                    >
-                      <LogOut className="h-4 w-4" aria-hidden="true" />
-                    </button>
-                  </div>
+                  <button
+                    onClick={() => {
+                      setIsMobileMenuOpen(false);
+                      handleLogout();
+                    }}
+                    className="h-8 w-8 flex items-center justify-center rounded-lg border border-white/10 bg-white/5 text-slate-400 hover:text-rose-450 hover:bg-rose-500/10 hover:border-rose-500/20 transition cursor-pointer"
+                    title="Log Out Session"
+                    type="button"
+                  >
+                    <LogOut className="h-4 w-4" aria-hidden="true" />
+                  </button>
                 </div>
               </div>
             </div>
@@ -259,10 +237,12 @@ export function AppLayout() {
             </div>
             <div className="hidden min-w-0 lg:block">
               <p className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-slate-400">Secure Environment</p>
-              <p className="mt-1 text-xs font-bold text-slate-300 tracking-wide uppercase">Aysan Capital Partners Pipeline</p>
+              <Link to="/deals" className="block mt-1 text-xs font-bold text-slate-300 tracking-wide uppercase hover:text-white transition-colors">
+                Aysan Capital Partners Pipeline
+              </Link>
             </div>
             <div className="hidden items-center gap-2.5 md:flex">
-              <Pill icon={<Database className="h-3.5 w-3.5 text-acp-bronze" aria-hidden="true" />} label="Active Pipeline" />
+              <Pill icon={<Database className="h-3.5 w-3.5 text-acp-bronze" aria-hidden="true" />} label="Active Pipeline" to="/deals" />
               <Pill icon={<ShieldCheck className="h-3.5 w-3.5 text-acp-emerald" aria-hidden="true" />} label="Secure Access" />
             </div>
           </div>
@@ -412,43 +392,83 @@ function ChangePasswordModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
 
 
 function BrandBlock({ compact = false }: { compact?: boolean }) {
+  if (compact) {
+    return (
+      <Link to="/" className="flex min-w-0 items-center gap-3 hover:opacity-90 transition">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#C5A059]/20 to-[#C5A059]/20 text-white border border-[#C5A059]/30">
+          <Building2 className="h-5 w-5 text-white" aria-hidden="true" />
+        </div>
+        <div className="min-w-0">
+          <p className="truncate font-heading text-base font-black tracking-tight text-white uppercase">
+            Aysan Capital
+          </p>
+          <p className="truncate text-[10px] font-extrabold uppercase tracking-[0.18em] text-acp-bronze">
+            Deal Room Portal
+          </p>
+        </div>
+      </Link>
+    );
+  }
+
   return (
-    <div className="flex min-w-0 items-center gap-3">
-      <div
-        className={cx(
-          "flex shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#C5A059]/20 to-[#C5A059]/20 text-white shadow-md border border-[#C5A059]/30",
-          compact ? "h-10 w-10" : "h-11 w-11",
-        )}
-      >
-        <Building2 className="h-5 w-5 text-white" aria-hidden="true" />
-      </div>
-      <div className="min-w-0">
-        <p className="truncate font-heading text-base font-black tracking-tight text-white uppercase">
-          Aysan Capital
-        </p>
-        <p className="truncate text-[10px] font-extrabold uppercase tracking-[0.18em] text-acp-bronze">
-          Deal Room Portal
-        </p>
-      </div>
-    </div>
+    <Link to="/" className="min-w-0 space-y-0.5 select-none text-left mb-6 block hover:opacity-90 transition">
+      <p className="text-[9px] font-bold uppercase tracking-[0.25em] text-slate-500">
+        AYSAN CAPITAL
+      </p>
+      <h1 className="font-heading text-xl font-black text-white leading-none uppercase tracking-tight">
+        ACP Deal OS
+      </h1>
+      <p className="text-[8px] font-bold tracking-wide text-acp-bronze uppercase">
+        Operator-Investor Platform
+      </p>
+    </Link>
   );
 }
 
-function SideNavItem({ to, icon, label, onClick }: { to: string; icon: ReactNode; label: ReactNode; onClick?: () => void }) {
+function SideNavItem({ 
+  to, 
+  icon, 
+  label, 
+  onClick, 
+  disabled = false, 
+  end = false, 
+  activeOverride 
+}: { 
+  to: string; 
+  icon: ReactNode; 
+  label: ReactNode; 
+  onClick?: () => void; 
+  disabled?: boolean;
+  end?: boolean;
+  activeOverride?: boolean;
+}) {
+  if (disabled) {
+    return (
+      <div
+        className="flex h-10 items-center gap-3 rounded-lg px-3.5 text-xs font-bold text-slate-655 cursor-not-allowed select-none border border-transparent"
+      >
+        <span className="opacity-40">{icon}</span>
+        <span className="opacity-40">{label}</span>
+      </div>
+    );
+  }
+
   return (
     <NavLink
       to={to}
+      end={end}
       onClick={onClick}
-      className={({ isActive }) =>
-        cx(
-          "flex h-11 items-center gap-3 rounded-lg px-3.5 text-xs font-bold uppercase tracking-wider transition-all duration-300 relative group border",
-          isActive
-            ? "bg-[#0D0D0E] border-white/10 text-white shadow-soft"
-            : "border-transparent text-slate-400 hover:bg-white/[0.03] hover:text-white",
-        )
-      }
+      className={({ isActive }) => {
+        const isCurrentActive = activeOverride !== undefined ? activeOverride : isActive;
+        return cx(
+          "flex h-10 items-center gap-3 rounded-lg px-3.5 text-xs font-bold transition-all duration-300 relative group border",
+          isCurrentActive
+            ? "bg-white/[0.04] border-white/10 text-white shadow-soft"
+            : "border-transparent text-slate-400 hover:bg-white/[0.02] hover:text-white",
+        );
+      }}
     >
-      <span className="transition-transform duration-300 group-hover:scale-110">{icon}</span>
+      <span className="transition-transform duration-300 group-hover:scale-105">{icon}</span>
       {label}
     </NavLink>
   );
@@ -463,11 +483,27 @@ function SideFact({ icon, label }: { icon: ReactNode; label: string }) {
   );
 }
 
-function Pill({ icon, label }: { icon: ReactNode; label: string }) {
-  return (
-    <span className="inline-flex h-8 items-center gap-2 rounded-full border border-white/10 bg-white/[0.02] backdrop-blur-sm px-3.5 text-xs font-bold tracking-wide text-slate-300 shadow-sm transition-all duration-300 hover:border-white/20 hover:bg-white/5">
+function Pill({ icon, label, to }: { icon: ReactNode; label: string; to?: string }) {
+  const content = (
+    <>
       {icon}
       {label}
+    </>
+  );
+
+  const className = "inline-flex h-8 items-center gap-2 rounded-full border border-white/10 bg-white/[0.02] backdrop-blur-sm px-3.5 text-xs font-bold tracking-wide text-slate-300 shadow-sm transition-all duration-300 hover:border-white/25 hover:bg-white/5 hover:text-white cursor-pointer";
+
+  if (to) {
+    return (
+      <Link to={to} className={className}>
+        {content}
+      </Link>
+    );
+  }
+
+  return (
+    <span className={className}>
+      {content}
     </span>
   );
 }

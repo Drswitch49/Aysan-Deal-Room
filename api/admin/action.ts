@@ -232,6 +232,28 @@ export default async function handler(req: any, res: any) {
         return res.status(200).json({ success: true, result });
       }
 
+      case "create-deal": {
+        const { dealName, acpRefNo, stage, nextAction, nextActionDate } = req.body;
+        if (!dealName) {
+          return res.status(400).json({ error: "Deal Name is required" });
+        }
+        const fields: Record<string, any> = {
+          "Deal Name": dealName,
+          "Stage": stage || "Intro"
+        };
+        if (acpRefNo) {
+          fields["ACP REF NO"] = acpRefNo;
+        }
+        if (nextAction) {
+          fields["Next Action"] = nextAction;
+        }
+        if (nextActionDate) {
+          fields["Next Action Date"] = nextActionDate;
+        }
+        const result = await airtableCreate(TABLES.PIPELINE, fields);
+        return res.status(200).json({ success: true, result });
+      }
+
       case "change-admin-password": {
         const { newPassword } = req.body;
         if (!newPassword || newPassword.trim() === "") {
