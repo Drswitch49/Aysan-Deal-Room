@@ -3,7 +3,7 @@ import {
   Search, Filter, Plus, X, AlertTriangle, ChevronLeft, ChevronRight, 
   Database, RefreshCw, FolderOpen, ArrowUpRight, TrendingUp, Sparkles
 } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { getDeals, getDealInbox, getAllDocuments } from "../api/airtable";
 import { fetchAdminLenders, createAdminDeal } from "../api/admin";
 import type { PipelineDeal, DealDocument } from "../types/deal";
@@ -11,6 +11,7 @@ import { cx } from "../utils/cx";
 
 export function DealListPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [deals, setDeals] = useState<PipelineDeal[]>([]);
   const [inbox, setInbox] = useState<any[]>([]);
   const [documents, setDocuments] = useState<DealDocument[]>([]);
@@ -40,6 +41,15 @@ export function DealListPage() {
   const [newDealNextActionDate, setNewDealNextActionDate] = useState("");
   const [isSubmittingDeal, setIsSubmittingDeal] = useState(false);
   const [dealSubmitError, setDealSubmitError] = useState("");
+
+  useEffect(() => {
+    if (searchParams.get("create") === "true") {
+      setIsModalOpen(true);
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete("create");
+      setSearchParams(newParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   useEffect(() => {
     setIsLoading(true);

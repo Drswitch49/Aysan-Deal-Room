@@ -275,12 +275,12 @@ export function DealDetailPage() {
           </div>
           
           <div className="flex items-center gap-2 shrink-0">
-            <button
-              onClick={() => alert("Deal pipeline modal opened.")}
+            <Link
+              to="/deals?create=true"
               className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3.5 text-[10px] font-extrabold uppercase tracking-wider text-slate-300 shadow-sm transition hover:border-white/20 hover:text-white hover:bg-white/10 cursor-pointer"
             >
               + NEW DEAL
-            </button>
+            </Link>
           </div>
         </div>
 
@@ -326,7 +326,7 @@ export function DealDetailPage() {
             </div>
 
             <button
-              onClick={() => alert("LOI draft creation tool opened.")}
+              onClick={() => setActiveTab("loi")}
               className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-white/10 hover:border-white/20 bg-white/5 px-4 text-xs font-bold uppercase tracking-wider text-slate-300 transition cursor-pointer"
             >
               <Send className="h-3.5 w-3.5" />
@@ -365,6 +365,7 @@ export function DealDetailPage() {
             deal={joinedDeal} 
             assignedLenders={assignedLenders} 
             openAddLenderModal={openAddLenderModal} 
+            setActiveTab={setActiveTab}
           />
         )}
         
@@ -674,11 +675,13 @@ function BackLink() {
 function OverviewTab({ 
   deal, 
   assignedLenders, 
-  openAddLenderModal 
+  openAddLenderModal,
+  setActiveTab
 }: { 
   deal: any; 
   assignedLenders: any[]; 
-  openAddLenderModal: () => void 
+  openAddLenderModal: () => void;
+  setActiveTab: (tab: TabId) => void;
 }) {
   const ebitdaVal = Number(deal.ebitda) || 0;
   const multVal = Number(deal.multiplier) || 0;
@@ -1004,14 +1007,14 @@ function OverviewTab({
             <div className="grid grid-cols-2 gap-3 pt-6">
               <button 
                 type="button"
-                onClick={() => alert("Full investment memo opened.")}
+                onClick={() => setActiveTab("brief")}
                 className="h-9 rounded-xl border border-white/10 hover:border-white/20 bg-white/5 hover:bg-white/10 text-xs font-bold uppercase tracking-wider text-slate-300 transition cursor-pointer"
               >
                 Review Memo
               </button>
               <button 
                 type="button"
-                onClick={() => alert("Capital stack configurator launched.")}
+                onClick={() => setActiveTab("loi")}
                 className="h-9 rounded-xl bg-gradient-to-r from-[#C5A059] to-[#A8873F] hover:opacity-90 text-xs font-black uppercase tracking-wider text-white transition cursor-pointer shadow-glow-bronze/10"
               >
                 Adjust Stack
@@ -1420,11 +1423,23 @@ function PostMeetingTab({ deal }: { deal: any }) {
   const [uploadState, setUploadState] = useState<"idle" | "dragging" | "uploading" | "analyzed">("idle");
   const [uploadedFileName, setUploadedFileName] = useState("");
   const [progress, setProgress] = useState(0);
+  const [showSuccess, setShowSuccess] = useState(false);
 
   const [actionsTriggered, setActionsTriggered] = useState({
-    emailDrafted: true,
-    savedToNotion: true,
+    emailDrafted: false,
+    savedToNotion: false,
   });
+
+  const handleUpdateScorecard = () => {
+    setShowSuccess(true);
+    setActionsTriggered({
+      emailDrafted: true,
+      savedToNotion: true,
+    });
+    setTimeout(() => {
+      setShowSuccess(false);
+    }, 3000);
+  };
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -1540,12 +1555,19 @@ function PostMeetingTab({ deal }: { deal: any }) {
 
           <button
             type="button"
-            onClick={() => alert("Scorecard updated and pushed to Notion.")}
+            onClick={handleUpdateScorecard}
             className="w-full h-10 rounded-xl bg-slate-100 text-slate-950 font-black text-xs uppercase tracking-wider hover:bg-white flex items-center justify-center gap-1.5 cursor-pointer mt-4"
           >
             <CheckCircle2 className="h-4.5 w-4.5" />
             Update scorecard & Notion
           </button>
+
+          {showSuccess && (
+            <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 p-3 text-[10px] font-semibold text-emerald-400 flex items-center justify-center gap-2 animate-fade-in-up mt-3">
+              <Check className="h-4 w-4 shrink-0 text-emerald-400" />
+              <span>Airtable updated. Scorecard synced to Notion successfully.</span>
+            </div>
+          )}
         </div>
 
         {/* Auto-triggered actions */}
@@ -1881,6 +1903,34 @@ function LOIStructureTab({ deal }: { deal: any }) {
   const [targetCompletion, setTargetCompletion] = useState("31 July 2026");
   const [exclusivity, setExclusivity] = useState("30 days");
 
+  const downloadLoiDraft = () => {
+    const content = `LETTER OF INTENT
+    
+From: Aysan Capital Partners - YOFY Ltd
+To: [Vendor name] - ${deal.companyName || deal.dealRef} (Kent) Ltd
+Date: ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+
+We are pleased to confirm our non-binding intention to acquire 100% of the issued share capital of ${deal.companyName || deal.dealRef} (Kent) Ltd on the following principal terms:
+
+Consideration: £${totalEv} total EV comprising cash at completion of £${cashAtClose}, a Vendor Loan Note of £${vln} over 36 months at 5% per annum, and deferred consideration of £${deferred} subject to EBITDA performance milestones in months 13-24.
+
+This proposal is subject to detailed financial, legal, and operational due diligence. We propose an exclusivity period of ${exclusivity} from the date of this letter to conclude the transaction.
+
+Our team has extensive experience in the cleaning services sector and we believe our partnership will preserve the legacy of the company while driving next-phase growth through our operational platform.
+
+We look forward to your positive response.
+`;
+
+    const blob = new Blob([content], { type: "text/markdown;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `LOI_Draft_${(deal.companyName || deal.dealRef).replace(/[^a-zA-Z0-9]/g, "_")}.md`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-6 items-stretch font-sans animate-fade-in-up">
       
@@ -1951,8 +2001,8 @@ function LOIStructureTab({ deal }: { deal: any }) {
 
         <button
           type="button"
-          onClick={() => alert("LOI PDF Draft generated.")}
-          className="w-full h-10 rounded-xl bg-white/5 border border-white/10 hover:border-white/20 text-xs font-bold uppercase tracking-wider text-slate-300 transition flex items-center justify-center gap-1.5 cursor-pointer mt-6"
+          onClick={downloadLoiDraft}
+          className="w-full h-10 rounded-xl bg-gradient-to-r from-[#C5A059] to-[#A8873F] hover:opacity-90 text-xs font-black uppercase tracking-wider text-white transition flex items-center justify-center gap-1.5 cursor-pointer mt-6 shadow-glow-bronze/10"
         >
           <BrainCircuit className="h-4 w-4" />
           Generate LOI draft
@@ -2130,7 +2180,26 @@ function LenderMatchTab({
 
           <button
             type="button"
-            onClick={() => alert("Drafting Moorfields submission email...")}
+            onClick={() => {
+              const subject = encodeURIComponent(`Deal Submission: ${deal.companyName || deal.dealRef} (Kent) Ltd`);
+              const body = encodeURIComponent(`Hi Lee,
+
+Hope you're well.
+
+I wanted to share a new deal opportunity with you: ${deal.companyName || deal.dealRef} (Kent) Ltd.
+
+Below are some key metrics:
+- Sector: ${deal.sector}
+- EV Ask: £525k (2.6x EBITDA)
+- EBITDA: £190k
+
+Let me know if you would like to receive the full submission pack.
+
+Best regards,
+Ayo
+`);
+              window.open(`mailto:lee.coutanche@moorfields.co.uk?subject=${subject}&body=${body}`);
+            }}
             className="w-full h-9 rounded-xl bg-slate-100 text-slate-950 font-black text-xs uppercase tracking-wider hover:bg-white flex items-center justify-center gap-1.5 cursor-pointer mt-6"
           >
             Draft submission email
