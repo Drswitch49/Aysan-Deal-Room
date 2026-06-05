@@ -197,9 +197,15 @@ export function DealListPage() {
     // Stage filter bar implementation
     if (selectedStageFilter !== "All") {
       if (selectedStageFilter === "Inbound") {
-        result = result.filter(d => (d.status || "").toLowerCase() === "intro" || (d.status || "").toLowerCase() === "inbound");
+        result = result.filter(d => {
+          const status = (d.status || "").toLowerCase();
+          return status === "intro" || status === "inbound" || status === "information requested";
+        });
       } else if (selectedStageFilter === "DD") {
-        result = result.filter(d => (d.status || "").toLowerCase() === "dd" || (d.status || "").toLowerCase() === "due diligence" || (d.status || "").toLowerCase() === "offer submitted");
+        result = result.filter(d => {
+          const status = (d.status || "").toLowerCase();
+          return status === "dd" || status === "due diligence" || status === "offer submitted";
+        });
       } else {
         result = result.filter(d => (d.status || "").toLowerCase() === selectedStageFilter.toLowerCase());
       }
@@ -346,7 +352,10 @@ export function DealListPage() {
                 : "border-white/5 bg-white/[0.01] text-slate-400 hover:text-white hover:bg-white/5"
             )}
           >
-            Inbound ({joinedDeals.filter(d => (d.status || "").toLowerCase() === "intro" || (d.status || "").toLowerCase() === "inbound").length})
+            Inbound ({joinedDeals.filter(d => {
+              const status = (d.status || "").toLowerCase();
+              return status === "intro" || status === "inbound" || status === "information requested";
+            }).length})
           </button>
 
           {/* Seller Call */}
@@ -385,7 +394,10 @@ export function DealListPage() {
                 : "border-white/5 bg-white/[0.01] text-slate-400 hover:text-white hover:bg-white/5"
             )}
           >
-            DD ({joinedDeals.filter(d => (d.status || "").toLowerCase() === "dd" || (d.status || "").toLowerCase() === "due diligence").length})
+            DD ({joinedDeals.filter(d => {
+              const status = (d.status || "").toLowerCase();
+              return status === "dd" || status === "due diligence" || status === "offer submitted";
+            }).length})
           </button>
 
           {/* Killed */}
@@ -398,7 +410,7 @@ export function DealListPage() {
                 : "border-rose-500/20 bg-white/[0.01] text-rose-450/70 hover:text-rose-400"
             )}
           >
-            Killed
+            Killed ({joinedDeals.filter(d => (d.status || "").toLowerCase() === "killed").length})
           </button>
         </div>
 
