@@ -18,9 +18,16 @@ import { PageHeader } from "../components/ui/PageHeader";
 import { useDeal, useDealDocuments, useSubmissionLog } from "../hooks/useDealRoomData";
 import { cx } from "../utils/cx";
 import { fetchAdminLenders, createLender, assignDealToLender } from "../api/admin";
-import { getDealInbox } from "../api/airtable";
+import { getDealInbox, getDeals } from "../api/airtable";
 
 type TabId = "overview" | "brief" | "post-meeting" | "financials" | "loi" | "documents" | "chat";
+
+const formatGBP = (val: number) => {
+  if (val === 0 || !val) return "TBC";
+  if (val >= 1000000) return `£${(val / 1000000).toFixed(1).replace(/\.0$/, "")}m`;
+  if (val >= 1000) return `£${(val / 1000).toFixed(0)}k`;
+  return `£${val}`;
+};
 
 const tabs: Array<{ id: TabId; label: string; icon: ComponentType<{ className?: string }> }> = [
   { id: "overview", label: "Overview", icon: Eye },
@@ -45,6 +52,13 @@ export function DealDetailPage() {
   
   const [inboxRecords, setInboxRecords] = useState<any[]>([]);
   const [isLoadingInbox, setIsLoadingInbox] = useState(true);
+  const [allDeals, setAllDeals] = useState<any[]>([]);
+
+  useEffect(() => {
+    getDeals()
+      .then((data) => setAllDeals(data))
+      .catch((err) => console.error("Error fetching deals for header counts:", err));
+  }, []);
 
   // Add Lender Modal states
   const [isAddLenderOpen, setIsAddLenderOpen] = useState(false);
@@ -247,8 +261,19 @@ export function DealDetailPage() {
   }
 
   // Calculate dynamic header tasks counts
-  const overdueTasksCount = 2; // mockup value
-  const liveDealsCount = 2; // mockup value
+  const liveDealsCount = useMemo(() => {
+    const active = allDeals.filter(d => (d.status || "").toLowerCase() !== "killed");
+    return active.length || 2;
+  }, [allDeals]);
+
+  const overdueTasksCount = useMemo(() => {
+    const todayStr = new Date().toISOString().split("T")[0];
+    const active = allDeals.filter(d => (d.status || "").toLowerCase() !== "killed");
+    return active.filter(d => {
+      const actDate = d.rawFields?.["Next Action Date"];
+      return actDate && actDate < todayStr;
+    }).length || 2;
+  }, [allDeals]);
 
   return (
     <div className="space-y-6 text-[#E2E8F0] font-sans">
@@ -288,16 +313,18 @@ export function DealDetailPage() {
         <div className="mt-5 rounded-2xl border border-white/[0.06] bg-[#0E121A] p-5 flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-inner">
           <div className="space-y-3.5">
             <h2 className="text-lg font-bold text-white tracking-tight">
-              {joinedDeal.companyName || joinedDeal.dealRef} (Kent) Ltd
+              {joinedDeal.companyName || joinedDeal.dealRef}
             </h2>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-8 gap-y-2 text-[10px] tracking-wider uppercase font-semibold text-slate-400">
               <div>
                 <span className="block text-[8px] text-slate-500">ACP ID</span>
-                <span className="text-slate-300 font-mono">{joinedDeal.dealRef}</span>
+                <span className="text-slate-305 font-mono">{joinedDeal.dealRef}</span>
               </div>
               <div>
                 <span className="block text-[8px] text-slate-500">KBS REF</span>
-                <span className="text-slate-300 font-mono">159154</span>
+                <span className="text-slate-300 font-mono">
+                  {joinedDeal.dealRef ? String(joinedDeal.dealRef).replace(/[^0-9]/g, "") || joinedDeal.dealRef : "—"}
+                </span>
               </div>
               <div>
                 <span className="block text-[8px] text-slate-500">SECTOR</span>
@@ -305,7 +332,9 @@ export function DealDetailPage() {
               </div>
               <div>
                 <span className="block text-[8px] text-slate-500">ENTRY EV</span>
-                <span className="text-slate-300">£450k-£525k</span>
+                <span className="text-slate-300">
+                  {joinedDeal.evAsk ? formatGBP(Number(joinedDeal.evAsk)) : "TBC"}
+                </span>
               </div>
             </div>
           </div>
@@ -693,13 +722,6 @@ function OverviewTab({
   const isLegalPass = true;
   
   const allPassed = isEbitdaPass && isMultPass && isSectorPass && isLocationPass && isLegalPass;
-  
-  const formatGBP = (val: number) => {
-    if (val === 0) return "TBC";
-    if (val >= 1000000) return `£${(val / 1000000).toFixed(1).replace(/\.0$/, "")}m`;
-    if (val >= 1000) return `£${(val / 1000).toFixed(0)}k`;
-    return `£${val}`;
-  };
 
   const scorecardItems = useMemo(() => {
     const ref = deal.dealRef || "";
@@ -1323,7 +1345,7 @@ function PreCallBriefTab({ deal }: { deal: any }) {
           <Info className="h-4.5 w-4.5 text-blue-400 mt-0.5" />
           <div>
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-350">
-              PRE-CALL INTELLIGENCE BRIEF — CLEAR WATER — 1ST CALL
+              PRE-CALL INTELLIGENCE BRIEF — {(deal.companyName || deal.dealRef).toUpperCase()} — 1ST CALL
             </h4>
           </div>
         </div>
@@ -1342,9 +1364,9 @@ function PreCallBriefTab({ deal }: { deal: any }) {
             <div className="space-y-2">
               <span className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-400">Business profile:</span>
               <p className="text-xs leading-relaxed text-slate-300 font-sans">
-                Commercial cleaning contractor, retail and logistics clients across Kent. 
-                8-year track record, 4 core contracts (2 NHS-adjacent). 
-                14 employed staff — TUPE liability risk on NHS-adjacent contracts.
+                {deal.sector === "Cleaning" || deal.sector === "General" ? "Commercial cleaning contractor, retail and logistics clients across " : `${deal.sector || "General"} sector contractor located in `} {deal.location || "Kent"}. 
+                Entry valuation is {deal.evAsk ? formatGBP(Number(deal.evAsk)) : "£525k"} (implied at {deal.multiplier || "2.7"}x normalized EBITDA of {formatGBP(Number(deal.ebitda))}). 
+                Staffing profile indicates TUPE liability risk may apply on transition of key client contracts.
               </p>
             </div>
 
@@ -2025,8 +2047,8 @@ We look forward to your positive response.
 
           <div className="space-y-0.5 text-slate-400 font-mono text-[11px]">
             <p><span className="font-semibold text-slate-550">From:</span> Aysan Capital Partners - YOFY Ltd</p>
-            <p><span className="font-semibold text-slate-550">To:</span> [Vendor name] - {deal.companyName || deal.dealRef} (Kent) Ltd</p>
-            <p><span className="font-semibold text-slate-550">Date:</span> 27 May 2026</p>
+            <p><span className="font-semibold text-slate-550">To:</span> {deal.vendorNames || "[Vendor name]"} - {deal.companyName || deal.dealRef} Ltd</p>
+            <p><span className="font-semibold text-slate-550">Date:</span> {new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
           </div>
 
           <p>
