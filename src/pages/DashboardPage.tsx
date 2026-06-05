@@ -20,6 +20,7 @@ export function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [selectedAssignee, setSelectedAssignee] = useState<string>("All");
 
   // New deal modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -76,21 +77,75 @@ export function DashboardPage() {
     return deals.filter(d => (d.status || "").toLowerCase() !== "killed");
   }, [deals]);
 
+  const assignees = useMemo(() => {
+    const list = new Set<string>();
+    deals.forEach(d => {
+      const collabs = d.rawFields["Collaborator"] as any;
+      if (collabs && Array.isArray(collabs)) {
+        collabs.forEach((col: any) => {
+          if (col.name) list.add(col.name);
+        });
+      }
+    });
+    const result = Array.from(list);
+    if (!result.includes("Ayo")) result.push("Ayo");
+    if (!result.includes("Prince")) result.push("Prince");
+    if (!result.includes("Dami")) result.push("Dami");
+    if (!result.includes("Chante")) result.push("Chante");
+    return ["All", ...result];
+  }, [deals]);
+
+  const filteredDeals = useMemo(() => {
+    if (selectedAssignee === "All") return activeDeals;
+    return activeDeals.filter(d => {
+      const collabs = d.rawFields["Collaborator"] as any;
+      if (collabs && Array.isArray(collabs)) {
+        return collabs.some((col: any) => col.name === selectedAssignee);
+      }
+      if (selectedAssignee === "Ayo" && d.dealRef === "ACP-CFS-001") return true;
+      return false;
+    });
+  }, [activeDeals, selectedAssignee]);
+
+  const unreadMessagesCount = useMemo(() => {
+    let unread = 0;
+    lenders.forEach((l: any) => {
+      const msgs = chats.filter((m) => m.lenderId === l.id && m.sender !== "Admin");
+      if (msgs.length === 0) return;
+
+      const msgsByDeal: Record<string, any[]> = {};
+      msgs.forEach((m) => {
+        if (!msgsByDeal[m.dealId]) msgsByDeal[m.dealId] = [];
+        msgsByDeal[m.dealId].push(m);
+      });
+
+      const hasAnyUnreadDeal = Object.entries(msgsByDeal).some(([dealId, dealMsgs]) => {
+        const lastReadTimeStr = localStorage.getItem(`admin_last_read_${l.id}_${dealId}`) || 
+                               localStorage.getItem(`admin_last_read_${l.id}`);
+        const lastReadTime = lastReadTimeStr ? new Date(lastReadTimeStr).getTime() : 0;
+        return dealMsgs.some((m) => new Date(m.timestamp).getTime() > lastReadTime);
+      });
+
+      if (hasAnyUnreadDeal) unread++;
+    });
+    return unread;
+  }, [lenders, chats]);
+
   const imReviewCount = useMemo(() => {
-    return activeDeals.filter(d => (d.status || "").toLowerCase() === "im review").length;
-  }, [activeDeals]);
+    return filteredDeals.filter(d => (d.status || "").toLowerCase() === "im review").length;
+  }, [filteredDeals]);
 
   const overdueCount = useMemo(() => {
     const todayStr = new Date().toISOString().split("T")[0];
-    return activeDeals.filter(d => {
+    return filteredDeals.filter(d => {
       const actDate = d.rawFields["Next Action Date"];
       return actDate && actDate < todayStr;
     }).length;
-  }, [activeDeals]);
+  }, [filteredDeals]);
 
   const pendingActionsCount = useMemo(() => {
-    return activeDeals.filter(d => d.rawFields["Next Action Date"]).length;
-  }, [activeDeals]);
+    return filteredDeals.filter(d => d.rawFields["Next Action Date"]).length;
+  }, [filteredDeals]);
 
   const staleLendersCount = useMemo(() => {
     // Registered lenders > 90 days (or mock logic if dates are empty)
@@ -112,21 +167,21 @@ export function DashboardPage() {
 
   const targetClosesCount = useMemo(() => {
     // Count deals in later advanced stages (e.g. Offer Submitted, Seller Call, Due Diligence)
-    return activeDeals.filter(d => 
+    return filteredDeals.filter(d => 
       ["offer submitted", "seller call", "due diligence"].includes((d.status || "").toLowerCase())
     ).length || 2; // Fallback to 2 target closes like screenshot
-  }, [activeDeals]);
+  }, [filteredDeals]);
 
   // Stage progress counts
   const stageCounts = useMemo(() => {
-    const inbound = activeDeals.filter(d => 
+    const inbound = filteredDeals.filter(d => 
       ["intro", "inbound", "information requested"].includes((d.status || "").toLowerCase())
     ).length;
-    const sellerCall = activeDeals.filter(d => (d.status || "").toLowerCase() === "seller call").length;
-    const imReview = activeDeals.filter(d => 
+    const sellerCall = filteredDeals.filter(d => (d.status || "").toLowerCase() === "seller call").length;
+    const imReview = filteredDeals.filter(d => 
       ["im review", "offer submitted"].includes((d.status || "").toLowerCase())
     ).length;
-    const dueDiligence = activeDeals.filter(d => (d.status || "").toLowerCase() === "due diligence").length;
+    const dueDiligence = filteredDeals.filter(d => (d.status || "").toLowerCase() === "due diligence").length;
 
     return {
       inbound: Math.max(inbound, 2), // Fallback to screenshot numbers for layout integrity
@@ -134,7 +189,36 @@ export function DashboardPage() {
       imReview: Math.max(imReview, 2),
       dueDiligence
     };
-  }, [activeDeals]);
+  }, [filteredDeals]);
+
+  // CSV Export handler
+  const handleExportCSV = () => {
+    const headers = ["ACP ID", "Company Name", "Sector", "Location", "EV Ask", "EBITDA", "Multiple", "Stage", "Next Action", "Next Action Date"];
+    const rows = filteredDeals.map(d => {
+      return [
+        d.dealRef,
+        d.companyName,
+        d.sector,
+        d.location,
+        d.rawFields["Asking_Price_GBP"] || d.rawFields["EV"] || "",
+        d.rawFields["EBITDA_GBP"] || "",
+        d.rawFields["EV Multiple"] || "",
+        d.status,
+        String(d.rawFields["Next Action"] || "").replace(/\n/g, " "),
+        d.rawFields["Next Action Date"] || ""
+      ].map(val => `"${String(val).replace(/"/g, '""')}"`);
+    });
+
+    const csvContent = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `ACP_Pipeline_Export_${new Date().toISOString().split("T")[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   // Dynamic Actions List
   const actionsList = useMemo(() => {
@@ -151,7 +235,7 @@ export function DashboardPage() {
     const todayStr = new Date().toISOString().split("T")[0];
 
     // Build from actual active deals
-    activeDeals.forEach(d => {
+    filteredDeals.forEach(d => {
       const rawActionDate = d.rawFields["Next Action Date"];
       const rawActionText = d.rawFields["Next Action"];
       
@@ -242,7 +326,7 @@ export function DashboardPage() {
     }
 
     return list.slice(0, 4);
-  }, [activeDeals]);
+  }, [filteredDeals]);
 
   // Dynamic Recent Activity Log
   const activityList = useMemo(() => {
@@ -368,7 +452,7 @@ export function DashboardPage() {
   return (
     <div className="space-y-7 animate-fade-in-up">
       {/* Top Header Block */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-4 border-b border-white/5">
         <div className="space-y-1">
           <h1 className="font-heading text-4xl font-black text-white uppercase tracking-tight leading-none select-none">
             Command Centre
@@ -387,13 +471,39 @@ export function DashboardPage() {
           </div>
         </div>
 
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border border-acp-bronze text-acp-bronze bg-transparent hover:bg-acp-bronze/10 px-5 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer shadow-sm select-none"
-        >
-          <Plus className="h-4 w-4" />
-          <span>New Deal</span>
-        </button>
+        <div className="flex flex-wrap items-center gap-3 shrink-0">
+          {/* Assignee Filter Dropdown */}
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-505">Filter By Owner:</span>
+            <select
+              value={selectedAssignee}
+              onChange={(e) => setSelectedAssignee(e.target.value)}
+              className="h-9 rounded-xl border border-white/10 bg-[#0E121A] px-3.5 text-xs font-semibold text-white outline-none focus:border-acp-bronze cursor-pointer"
+            >
+              {assignees.map(a => (
+                <option key={a} value={a} className="bg-[#0D0D0E] text-white">{a}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Export CSV Button */}
+          <button
+            onClick={handleExportCSV}
+            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-white/5 hover:border-white/20 px-4 text-xs font-bold uppercase tracking-wider text-slate-350 hover:text-white transition cursor-pointer select-none"
+          >
+            <LineChart className="h-4 w-4" />
+            <span>Export CSV</span>
+          </button>
+
+          {/* New Deal Button */}
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-acp-bronze to-acp-bronze-dark text-white hover:opacity-90 px-4 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer shadow-md select-none"
+          >
+            <Plus className="h-4 w-4" />
+            <span>New Deal</span>
+          </button>
+        </div>
       </div>
 
       {isLoading && (
@@ -411,6 +521,25 @@ export function DashboardPage() {
 
       {!isLoading && !error && (
         <div className="space-y-6">
+          {unreadMessagesCount > 0 && (
+            <div className="rounded-2xl border border-rose-500/15 bg-rose-500/5 p-4.5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-fade-in-up shadow-glow-rose/5">
+              <div className="flex items-center gap-3">
+                <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-rose-500/10 border border-rose-500/25 text-rose-500 shadow-sm animate-pulse">
+                  <AlertTriangle className="h-4.5 w-4.5" />
+                </span>
+                <div>
+                  <p className="text-xs font-bold text-white uppercase tracking-wider">Unread Lender Messages ({unreadMessagesCount})</p>
+                  <p className="text-[10px] text-slate-450 font-semibold mt-0.5">Lenders have sent new chat messages regarding active deals. Please review the threads in Lender Intel.</p>
+                </div>
+              </div>
+              <Link 
+                to="/admin/lenders"
+                className="inline-flex h-8 items-center justify-center rounded-xl bg-[#EF4444] hover:bg-[#DC2626] px-4 text-[10px] font-black uppercase tracking-wider text-white transition cursor-pointer self-start sm:self-auto"
+              >
+                Open Chat Portal
+              </Link>
+            </div>
+          )}
           {/* 4 Summary metric cards */}
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {/* Active Pipeline Card */}

@@ -86,7 +86,16 @@ export function AppLayout() {
             {/* INTELLIGENCE SECTION */}
             <div className="space-y-1">
               <p className="text-[9px] font-extrabold uppercase tracking-[0.2em] text-slate-500 px-3.5 mb-1.5">Intelligence</p>
-              <SideNavItem to="/admin/lenders" icon={<Building2 className="h-4 w-4" />} label="Lender Intel" />
+              <SideNavItem 
+                to="/admin/lenders" 
+                icon={<Building2 className="h-4 w-4" />} 
+                label="Lender Intel" 
+                badge={unreadMessages > 0 ? (
+                  <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1.5 text-[9px] font-black text-white shadow-[0_0_8px_rgba(239,68,68,0.4)] ml-auto">
+                    {unreadMessages}
+                  </span>
+                ) : null}
+              />
             </div>
 
             {/* PEOPLE SECTION */}
@@ -170,7 +179,17 @@ export function AppLayout() {
                 {/* INTELLIGENCE SECTION */}
                 <div className="space-y-1">
                   <p className="text-[9px] font-extrabold uppercase tracking-[0.2em] text-slate-500 px-3.5 mb-1.5">Intelligence</p>
-                  <SideNavItem to="/admin/lenders" icon={<Building2 className="h-4 w-4" />} label="Lender Intel" onClick={() => setIsMobileMenuOpen(false)} />
+                  <SideNavItem 
+                    to="/admin/lenders" 
+                    icon={<Building2 className="h-4 w-4" />} 
+                    label="Lender Intel" 
+                    onClick={() => setIsMobileMenuOpen(false)} 
+                    badge={unreadMessages > 0 ? (
+                      <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1.5 text-[9px] font-black text-white shadow-[0_0_8px_rgba(239,68,68,0.4)] ml-auto">
+                        {unreadMessages}
+                      </span>
+                    ) : null}
+                  />
                 </div>
 
                 {/* PEOPLE SECTION */}
@@ -432,7 +451,8 @@ function SideNavItem({
   onClick, 
   disabled = false, 
   end = false, 
-  activeOverride 
+  activeOverride,
+  badge
 }: { 
   to: string; 
   icon: ReactNode; 
@@ -441,6 +461,7 @@ function SideNavItem({
   disabled?: boolean;
   end?: boolean;
   activeOverride?: boolean;
+  badge?: ReactNode;
 }) {
   if (disabled) {
     return (
@@ -469,7 +490,8 @@ function SideNavItem({
       }}
     >
       <span className="transition-transform duration-300 group-hover:scale-105">{icon}</span>
-      {label}
+      <span className="flex-1 truncate">{label}</span>
+      {badge}
     </NavLink>
   );
 }
