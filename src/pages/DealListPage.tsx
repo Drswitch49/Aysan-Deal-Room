@@ -209,9 +209,6 @@ export function DealListPage() {
       } else {
         result = result.filter(d => (d.status || "").toLowerCase() === selectedStageFilter.toLowerCase());
       }
-    } else {
-      // Exclude Killed from "All" by default to match dashboard
-      result = result.filter(d => (d.status || "").toLowerCase() !== "killed");
     }
 
     // Search query filter
@@ -339,7 +336,7 @@ export function DealListPage() {
                 : "border-white/5 bg-white/[0.01] text-slate-400 hover:text-white hover:bg-white/5"
             )}
           >
-            All ({activeJoinedDeals.length})
+            All ({joinedDeals.length})
           </button>
 
           {/* Inbound */}
@@ -554,10 +551,22 @@ export function DealListPage() {
                         <td className="px-4 py-4 select-none">
                           <span className={cx(
                             "inline-flex items-center rounded px-2.5 py-0.5 text-[8px] font-black uppercase tracking-widest",
-                            (deal.status || "").toLowerCase() === "intro" || (deal.status || "").toLowerCase() === "inbound" ? "bg-blue-500/10 text-blue-400 border border-blue-500/20" :
-                            (deal.status || "").toLowerCase() === "im review" ? "bg-[#2D2214] text-[#D97706] border border-[#D97706]/20" :
-                            (deal.status || "").toLowerCase() === "seller call" ? "bg-pink-500/10 text-pink-405 border border-pink-500/20" :
-                            "bg-acp-bronze/10 text-acp-bronze border border-acp-bronze/20"
+                            (() => {
+                              const s = (deal.status || "").toLowerCase();
+                              if (s === "intro" || s === "inbound" || s === "information requested") {
+                                return "bg-blue-500/10 text-blue-405 border border-blue-500/20";
+                              }
+                              if (s === "seller call") {
+                                return "bg-pink-500/10 text-pink-405 border border-pink-500/20";
+                              }
+                              if (s === "im review") {
+                                return "bg-[#2D2214] text-[#D97706] border border-[#D97706]/20";
+                              }
+                              if (s === "killed") {
+                                return "bg-rose-500/10 text-rose-500 border border-rose-500/20";
+                              }
+                              return "bg-acp-bronze/10 text-acp-bronze border border-acp-bronze/20";
+                            })()
                           )}>
                             {deal.status}
                           </span>
@@ -607,7 +616,7 @@ export function DealListPage() {
             {/* Pagination Controls */}
             <div className="flex items-center justify-between border-t border-white/[0.04] bg-white/[0.01] px-5 py-3.5 select-none">
               <div className="text-[9px] font-bold uppercase tracking-wider text-slate-500">
-                SHOWING {filteredDeals.length} OF {activeJoinedDeals.length} ACTIVE OPPORTUNITIES
+                SHOWING {filteredDeals.length} OF {selectedStageFilter === "All" || selectedStageFilter === "Killed" ? joinedDeals.length : activeJoinedDeals.length} {selectedStageFilter === "All" || selectedStageFilter === "Killed" ? "TOTAL" : "ACTIVE"} OPPORTUNITIES
               </div>
               <div className="flex items-center gap-2.5">
                 <button
