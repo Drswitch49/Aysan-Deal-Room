@@ -220,11 +220,10 @@ export function DealListPage() {
     return result;
   }, [joinedDeals, selectedOwnerFilter, selectedSectorFilter]);
 
-  // Filter & Search Deals
-  const filteredDeals = useMemo(() => {
+  // Filter base list by stage (but before search query) to get correct stage denominators
+  const stageFilteredDeals = useMemo(() => {
     let result = baseFilteredDeals;
 
-    // Stage filter bar implementation
     if (selectedStageFilter !== "All") {
       if (selectedStageFilter === "Inbound") {
         result = result.filter(d => {
@@ -241,6 +240,13 @@ export function DealListPage() {
       }
     }
 
+    return result;
+  }, [baseFilteredDeals, selectedStageFilter]);
+
+  // Filter & Search Deals
+  const filteredDeals = useMemo(() => {
+    let result = stageFilteredDeals;
+
     // Search query filter
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase().trim();
@@ -253,11 +259,22 @@ export function DealListPage() {
     }
 
     return result;
-  }, [baseFilteredDeals, selectedStageFilter, searchQuery]);
+  }, [stageFilteredDeals, searchQuery]);
 
   // Active Deals count excluding Killed
   const activeJoinedDeals = useMemo(() => {
     return baseFilteredDeals.filter(d => (d.status || "").toLowerCase() !== "killed");
+  }, [baseFilteredDeals]);
+
+  // Overdue actions count (contextual to active filters)
+  const overdueCount = useMemo(() => {
+    const todayStr = new Date().toISOString().split("T")[0];
+    return baseFilteredDeals.filter(d => {
+      if ((d.status || "").toLowerCase() === "killed") return false;
+      const actDate = d.rawFields?.["Next Action Date"];
+      const actText = d.rawFields?.["Next Action"];
+      return actDate && actText && actDate < todayStr;
+    }).length;
   }, [baseFilteredDeals]);
 
   // Pagination Logic
@@ -332,12 +349,19 @@ export function DealListPage() {
         <div className="space-y-1">
           <h1 className="text-xl font-bold text-white tracking-tight">Deal Pipeline</h1>
           <p className="text-xs text-slate-550 font-medium">
-            {activeJoinedDeals.length} active deals - {imReviewDealsCount} in IM Review
+            Pipeline Overview — {imReviewDealsCount} in IM Review
           </p>
         </div>
         
         <div className="flex items-center gap-2">
-          <HeaderMetrics />
+          {overdueCount > 0 && (
+            <span className="inline-flex items-center rounded-full bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 text-[9px] font-bold text-amber-500 uppercase tracking-wider select-none animate-pulse">
+              {overdueCount} OVERDUE TASKS
+            </span>
+          )}
+          <span className="inline-flex items-center rounded-full bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 text-[9px] font-bold text-blue-400 uppercase tracking-wider select-none">
+            {activeJoinedDeals.length} LIVE DEALS
+          </span>
           
           <button
             onClick={() => setIsModalOpen(true)}
@@ -458,14 +482,6 @@ export function DealListPage() {
           >
             <Filter className="h-4 w-4" />
             <span>Filter</span>
-          </button>
-
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-acp-bronze hover:bg-acp-bronze/10 px-3.5 text-xs font-bold uppercase tracking-wider text-acp-bronze transition cursor-pointer"
-          >
-            <Plus className="h-4 w-4" />
-            <span>Add Deal</span>
           </button>
         </div>
       </div>
@@ -682,7 +698,7 @@ export function DealListPage() {
             {/* Pagination Controls */}
             <div className="flex items-center justify-between border-t border-white/[0.04] bg-white/[0.01] px-5 py-3.5 select-none">
               <div className="text-[9px] font-bold uppercase tracking-wider text-slate-500">
-                SHOWING {filteredDeals.length} OF {selectedStageFilter === "All" || selectedStageFilter === "Killed" ? joinedDeals.length : activeJoinedDeals.length} {selectedStageFilter === "All" || selectedStageFilter === "Killed" ? "TOTAL" : "ACTIVE"} OPPORTUNITIES
+                SHOWING {filteredDeals.length} OF {stageFilteredDeals.length} {selectedStageFilter === "All" || selectedStageFilter === "Killed" ? "TOTAL" : "ACTIVE"} OPPORTUNITIES
               </div>
               <div className="flex items-center gap-2.5">
                 <button
