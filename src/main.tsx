@@ -14,6 +14,7 @@ import { PortCoMonitorPage } from "./pages/PortCoMonitorPage";
 import { HrStakeholdersPage } from "./pages/HrStakeholdersPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { getDeals } from "./api/airtable";
+import { PipelineProvider } from "./context/PipelineContext";
 import "./styles.css";
 
 function CurrentDealRedirect() {
@@ -84,6 +85,8 @@ const router = createBrowserRouter([
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <RouterProvider router={router} />
+    <PipelineProvider>
+      <RouterProvider router={router} />
+    </PipelineProvider>
   </StrictMode>,
 );

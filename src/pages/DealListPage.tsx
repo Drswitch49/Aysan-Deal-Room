@@ -4,15 +4,17 @@ import {
   Database, RefreshCw, FolderOpen, ArrowUpRight, TrendingUp, Sparkles
 } from "lucide-react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { getDeals, getDealInbox, getAllDocuments } from "../api/airtable";
+import { getDealInbox, getAllDocuments } from "../api/airtable";
 import { fetchAdminLenders, createAdminDeal } from "../api/admin";
 import type { PipelineDeal, DealDocument } from "../types/deal";
 import { cx } from "../utils/cx";
+import { usePipeline } from "../context/PipelineContext";
+import { HeaderMetrics } from "../components/ui/HeaderMetrics";
 
 export function DealListPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [deals, setDeals] = useState<PipelineDeal[]>([]);
+  const { deals, refresh: refreshPipeline } = usePipeline();
   const [inbox, setInbox] = useState<any[]>([]);
   const [documents, setDocuments] = useState<DealDocument[]>([]);
   const [lenders, setLenders] = useState<any[]>([]);
@@ -58,13 +60,11 @@ export function DealListPage() {
     setError("");
 
     Promise.all([
-      getDeals().catch(() => []),
       getDealInbox().catch(() => []),
       getAllDocuments().catch(() => []),
       fetchAdminLenders().catch(() => [])
     ])
-      .then(([dealsData, inboxData, docsData, lendersData]) => {
-        setDeals(dealsData);
+      .then(([inboxData, docsData, lendersData]) => {
         setInbox(inboxData);
         setDocuments(docsData);
         setLenders(lendersData);
@@ -315,6 +315,7 @@ export function DealListPage() {
       
       // Trigger data refresh
       setRefreshTrigger(prev => prev + 1);
+      refreshPipeline();
     } catch (err: any) {
       console.error("Error creating deal:", err);
       setDealSubmitError(err.message || "Failed to create deal.");
@@ -336,12 +337,7 @@ export function DealListPage() {
         </div>
         
         <div className="flex items-center gap-2">
-          <span className="inline-flex items-center rounded-full bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 text-[9px] font-bold text-amber-500 uppercase tracking-wider select-none">
-            2 OVERDUE TASKS
-          </span>
-          <span className="inline-flex items-center rounded-full bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 text-[9px] font-bold text-blue-400 uppercase tracking-wider select-none">
-            2 LIVE DEALS
-          </span>
+          <HeaderMetrics />
           
           <button
             onClick={() => setIsModalOpen(true)}

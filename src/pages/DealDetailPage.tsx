@@ -18,7 +18,8 @@ import { PageHeader } from "../components/ui/PageHeader";
 import { useDeal, useDealDocuments, useSubmissionLog } from "../hooks/useDealRoomData";
 import { cx } from "../utils/cx";
 import { fetchAdminLenders, createLender, assignDealToLender } from "../api/admin";
-import { getDealInbox, getDeals } from "../api/airtable";
+import { getDealInbox } from "../api/airtable";
+import { HeaderMetrics } from "../components/ui/HeaderMetrics";
 
 type TabId = "overview" | "brief" | "post-meeting" | "financials" | "loi" | "documents" | "chat";
 
@@ -52,13 +53,7 @@ export function DealDetailPage() {
   
   const [inboxRecords, setInboxRecords] = useState<any[]>([]);
   const [isLoadingInbox, setIsLoadingInbox] = useState(true);
-  const [allDeals, setAllDeals] = useState<any[]>([]);
 
-  useEffect(() => {
-    getDeals()
-      .then((data) => setAllDeals(data))
-      .catch((err) => console.error("Error fetching deals for header counts:", err));
-  }, []);
 
   // Add Lender Modal states
   const [isAddLenderOpen, setIsAddLenderOpen] = useState(false);
@@ -246,20 +241,7 @@ export function DealDetailPage() {
     };
   }, [dealState.data, inboxRecords]);
 
-  // Calculate dynamic header tasks counts
-  const liveDealsCount = useMemo(() => {
-    const active = allDeals.filter(d => (d.status || "").toLowerCase() !== "killed");
-    return active.length || 2;
-  }, [allDeals]);
 
-  const overdueTasksCount = useMemo(() => {
-    const todayStr = new Date().toISOString().split("T")[0];
-    const active = allDeals.filter(d => (d.status || "").toLowerCase() !== "killed");
-    return active.filter(d => {
-      const actDate = d.rawFields?.["Next Action Date"];
-      return actDate && actDate < todayStr;
-    }).length || 2;
-  }, [allDeals]);
 
   const isLoading = dealState.isLoading || documentState.isLoading || submissionState.isLoading || isLoadingInbox;
   const error = dealState.error ?? documentState.error ?? submissionState.error;
@@ -286,12 +268,7 @@ export function DealDetailPage() {
                 Deal Detail — {joinedDeal.companyName || joinedDeal.dealRef}
               </h1>
               <div className="flex items-center gap-2">
-                <span className="inline-flex items-center rounded-full bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 text-[9px] font-bold text-amber-500 uppercase tracking-wider select-none">
-                  {overdueTasksCount} OVERDUE TASKS
-                </span>
-                <span className="inline-flex items-center rounded-full bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 text-[9px] font-bold text-blue-400 uppercase tracking-wider select-none">
-                  {liveDealsCount} LIVE DEALS
-                </span>
+                <HeaderMetrics />
               </div>
             </div>
             <p className="text-[10px] text-slate-500 font-mono tracking-wider">

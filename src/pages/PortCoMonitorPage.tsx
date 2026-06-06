@@ -3,6 +3,7 @@ import {
   AlertCircle, Plus, MoreVertical, ShieldAlert, CheckCircle2, ChevronLeft, ChevronRight 
 } from "lucide-react";
 import { cx } from "../utils/cx";
+import { HeaderMetrics } from "../components/ui/HeaderMetrics";
 
 export function PortCoMonitorPage() {
   const [activeSlide, setActiveSlide] = useState(0);
@@ -73,12 +74,7 @@ export function PortCoMonitorPage() {
         </div>
         
         <div className="flex items-center gap-2 select-none">
-          <span className="inline-flex items-center rounded-full bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 text-[9px] font-bold text-amber-500 uppercase tracking-wider">
-            2 OVERDUE TASKS
-          </span>
-          <span className="inline-flex items-center rounded-full bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 text-[9px] font-bold text-blue-450 uppercase tracking-wider">
-            3 LIVE DEALS
-          </span>
+          <HeaderMetrics />
           
           <div className="flex items-center gap-1">
             <button

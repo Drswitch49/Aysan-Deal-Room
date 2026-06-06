@@ -5,6 +5,7 @@ import {
 import { changeAdminPassword } from "../api/admin";
 import { clearAirtableCache } from "../api/airtable";
 import { cx } from "../utils/cx";
+import { HeaderMetrics } from "../components/ui/HeaderMetrics";
 
 export function SettingsPage() {
   const [newPassword, setNewPassword] = useState("");
@@ -119,12 +120,7 @@ export function SettingsPage() {
         </div>
         
         <div className="flex items-center gap-3 select-none">
-          <span className="inline-flex items-center rounded-full bg-rose-500/10 border border-rose-500/25 px-2.5 py-1 text-[9px] font-black text-rose-500 uppercase tracking-widest">
-            2 OVERDUE TASKS
-          </span>
-          <span className="inline-flex items-center rounded-full bg-[#C5A059]/10 border border-[#C5A059]/25 px-2.5 py-1 text-[9px] font-black text-[#C5A059] uppercase tracking-widest">
-            3 LIVE DEALS
-          </span>
+          <HeaderMetrics />
           
           <button 
             type="button" 

@@ -11,9 +11,10 @@ import {
   removeDealAssignment, resetLenderPassword, regenerateLenderPortal, deleteLender,
   toggleLenderNda
 } from "../api/admin";
-import { getDeals } from "../api/airtable";
 import type { PipelineDeal } from "../types/deal";
 import { cx } from "../utils/cx";
+import { usePipeline } from "../context/PipelineContext";
+import { HeaderMetrics } from "../components/ui/HeaderMetrics";
 
 type LenderAssignment = {
   assignmentId: string;
@@ -154,7 +155,7 @@ const mockLenderDetails: Record<string, {
 
 export function LenderManagementPage() {
   const [lenders, setLenders] = useState<Lender[]>([]);
-  const [deals, setDeals] = useState<PipelineDeal[]>([]);
+  const { deals } = usePipeline();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -200,12 +201,8 @@ export function LenderManagementPage() {
     setIsLoading(true);
     setError("");
     try {
-      const [lendersList, allDeals] = await Promise.all([
-        fetchAdminLenders(),
-        getDeals().catch(() => []),
-      ]);
+      const lendersList = await fetchAdminLenders();
       setLenders(lendersList);
-      setDeals(allDeals);
     } catch (err: any) {
       console.error(err);
       setError(err.message || "Failed to query database schema.");
@@ -481,12 +478,7 @@ export function LenderManagementPage() {
         </div>
         
         <div className="flex items-center gap-2">
-          <span className="inline-flex items-center rounded-full bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 text-[9px] font-bold text-amber-500 uppercase tracking-wider select-none">
-            2 OVERDUE TASKS
-          </span>
-          <span className="inline-flex items-center rounded-full bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 text-[9px] font-bold text-blue-400 uppercase tracking-wider select-none">
-            3 LIVE DEALS
-          </span>
+          <HeaderMetrics />
           
           <button
             onClick={() => setIsAddModalOpen(true)}

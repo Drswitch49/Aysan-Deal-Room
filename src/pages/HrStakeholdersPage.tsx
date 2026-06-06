@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Plus, Users, ShieldAlert, Award, FileText, UserCheck, Briefcase } from "lucide-react";
 import { cx } from "../utils/cx";
+import { HeaderMetrics } from "../components/ui/HeaderMetrics";
 
 type TeamMember = {
   initials: string;
@@ -125,12 +126,7 @@ export function HrStakeholdersPage() {
         </div>
         
         <div className="flex items-center gap-2 select-none">
-          <span className="inline-flex items-center rounded-full bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 text-[9px] font-bold text-amber-500 uppercase tracking-wider">
-            2 OVERDUE TASKS
-          </span>
-          <span className="inline-flex items-center rounded-full bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 text-[9px] font-bold text-blue-450 uppercase tracking-wider">
-            3 LIVE DEALS
-          </span>
+          <HeaderMetrics />
           
           <button
             className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-[#C5A059] px-3.5 text-[10px] font-extrabold uppercase tracking-wider text-slate-950 shadow-sm hover:bg-[#C5A059]/90 cursor-pointer transition"

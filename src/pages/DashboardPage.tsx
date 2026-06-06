@@ -4,14 +4,15 @@ import {
   Plus, X, Calendar, User, Clock, AlertTriangle, TrendingUp, CheckCircle2, ShieldCheck, Database
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { getDeals, getAllDocuments, getAllSubmissionLog } from "../api/airtable";
+import { getAllDocuments, getAllSubmissionLog } from "../api/airtable";
 import { fetchAdminLenders, createAdminDeal } from "../api/admin";
 import { fetchRecentAdminChat } from "../api/chat";
 import type { PipelineDeal, DealDocument, SubmissionLogEntry } from "../types/deal";
 import { cx } from "../utils/cx";
+import { usePipeline } from "../context/PipelineContext";
 
 export function DashboardPage() {
-  const [deals, setDeals] = useState<PipelineDeal[]>([]);
+  const { deals, refresh: refreshPipeline } = usePipeline();
   const [documents, setDocuments] = useState<DealDocument[]>([]);
   const [submissions, setSubmissions] = useState<SubmissionLogEntry[]>([]);
   const [lenders, setLenders] = useState<any[]>([]);
@@ -37,14 +38,12 @@ export function DashboardPage() {
     setError("");
 
     Promise.all([
-      getDeals().catch(() => []),
       getAllDocuments().catch(() => []),
       getAllSubmissionLog().catch(() => []),
       fetchAdminLenders().catch(() => []),
       fetchRecentAdminChat().catch(() => [])
     ])
-      .then(([dealsData, docsData, subsData, lendersData, chatsData]) => {
-        setDeals(dealsData);
+      .then(([docsData, subsData, lendersData, chatsData]) => {
         setDocuments(docsData);
         setSubmissions(subsData);
         setLenders(lendersData);
@@ -442,6 +441,7 @@ export function DashboardPage() {
       
       // Trigger reload
       setRefreshTrigger(prev => prev + 1);
+      refreshPipeline();
     } catch (err: any) {
       setDealSubmitError(err.message || "Failed to create deal.");
     } finally {
