@@ -388,6 +388,16 @@ export function LenderManagementPage() {
         key = "lendo";
       } else if (nameLower.includes("sammy")) {
         key = "sammy";
+      } else if (nameLower.includes("hsbc")) {
+        key = "hsbc";
+      } else if (nameLower.includes("reward")) {
+        key = "reward";
+      } else if (nameLower.includes("barclays")) {
+        key = "barclays";
+      } else if (nameLower.includes("oaknorth")) {
+        key = "oaknorth";
+      } else if (nameLower.includes("thincats")) {
+        key = "thincats";
       } else {
         key = `dynamic-${dbLender.id}`;
       }
