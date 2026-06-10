@@ -1,4 +1,5 @@
 import { airtableFetch, TABLES, escapeFormulaString, normalizeLenderFields, getAssignmentFields, normalizeAssignmentFields } from "../_utils/airtable.js";
+import { getSessionToken, verifyJWT } from "../_utils/jwt.js";
 
 const SAFE_FIELDS = [
   "REF No.", "Ref No.", "Deal_Ref", "Deal Ref", "Deal Reference", "Deal Name",
@@ -23,37 +24,65 @@ const SAFE_FIELDS = [
 
 // Helper to authenticate lender via headers
 export async function authenticateLender(req: any): Promise<any> {
-  const slug = req.headers["x-lender-slug"];
-  const password = req.headers["x-lender-password"];
-
-  if (!slug || !password) {
+  const token = getSessionToken(req);
+  if (!token) {
     throw new Error("Missing lender authentication credentials.");
   }
 
-  const data = await airtableFetch(TABLES.LENDERS, {
-    filterByFormula: `{Portal_Slug} = '${escapeFormulaString(slug)}'`,
-    maxRecords: 1
-  });
-
-  if (!data.records || data.records.length === 0) {
-    throw new Error("Invalid lender portal slug.");
+  const decoded = await verifyJWT(token);
+  if (!decoded) {
+    throw new Error("Invalid session token.");
   }
 
-  const lender = data.records[0];
-  const normFields = normalizeLenderFields(lender.fields);
-  if (normFields.Portal_Password !== password) {
-    throw new Error("Invalid passcode.");
+  const slug = req.headers["x-lender-slug"] || req.query.portalSlug || decoded.portalSlug;
+  const email = decoded.email;
+
+  if (decoded.role === "lender") {
+    if (!email) {
+      throw new Error("Invalid lender session email.");
+    }
+    const data = await airtableFetch(TABLES.LENDERS, {
+      filterByFormula: `{Email} = '${escapeFormulaString(email)}'`,
+      maxRecords: 1
+    });
+
+    if (!data.records || data.records.length === 0) {
+      throw new Error("Lender email alignment failed.");
+    }
+
+    const lender = data.records[0];
+    const normFields = normalizeLenderFields(lender.fields);
+
+    if (normFields.Status !== "Active") {
+      throw new Error("Lender account is inactive.");
+    }
+
+    return {
+      ...lender,
+      normalizedFields: normFields
+    };
+  } else if (decoded.role === "admin" || decoded.role === "analyst") {
+    if (!slug) {
+      throw new Error("Admin simulation requires a lender slug.");
+    }
+    const data = await airtableFetch(TABLES.LENDERS, {
+      filterByFormula: `{Portal_Slug} = '${escapeFormulaString(slug)}'`,
+      maxRecords: 1
+    });
+
+    if (!data.records || data.records.length === 0) {
+      throw new Error("Invalid lender portal slug.");
+    }
+
+    const lender = data.records[0];
+    const normFields = normalizeLenderFields(lender.fields);
+    return {
+      ...lender,
+      normalizedFields: normFields
+    };
   }
 
-  if (normFields.Status !== "Active") {
-    throw new Error("Lender account is inactive.");
-  }
-
-  // Attach normalized fields so helpers don't have to re-normalize
-  return {
-    ...lender,
-    normalizedFields: normFields
-  };
+  throw new Error("Unauthorized role for lender actions.");
 }
 
 export default async function handler(req: any, res: any) {

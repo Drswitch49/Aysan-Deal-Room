@@ -1,7 +1,8 @@
 import { useState, useMemo, useEffect } from "react";
 import { 
   Search, Filter, Plus, X, AlertTriangle, ChevronLeft, ChevronRight, 
-  Database, RefreshCw, FolderOpen, ArrowUpRight, TrendingUp, Sparkles
+  Database, RefreshCw, FolderOpen, ArrowUpRight, TrendingUp, Sparkles,
+  Kanban
 } from "lucide-react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { getDealInbox, getAllDocuments } from "../api/airtable";
@@ -10,11 +11,16 @@ import type { PipelineDeal, DealDocument } from "../types/deal";
 import { cx } from "../utils/cx";
 import { usePipeline } from "../context/PipelineContext";
 import { HeaderMetrics } from "../components/ui/HeaderMetrics";
+import { LoadingState } from "../components/ui/LoadingState";
+import { Modal } from "../components/ui/Modal";
+import { FormField, inputClass, selectClass, textareaClass } from "../components/ui/FormField";
+import { DealKanban } from "../components/deals/DealKanban";
 
 export function DealListPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { deals, refresh: refreshPipeline } = usePipeline();
+  const [viewMode, setViewMode] = useState<"list" | "kanban">("list");
   const [inbox, setInbox] = useState<any[]>([]);
   const [documents, setDocuments] = useState<DealDocument[]>([]);
   const [lenders, setLenders] = useState<any[]>([]);
@@ -261,6 +267,24 @@ export function DealListPage() {
     return result;
   }, [stageFilteredDeals, searchQuery]);
 
+  // Filter & Search Deals for Kanban (ignores stage filter pills)
+  const kanbanFilteredDeals = useMemo(() => {
+    let result = baseFilteredDeals;
+
+    // Search query filter
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      result = result.filter(d => 
+        (d.companyName || "").toLowerCase().includes(q) ||
+        (d.dealRef || "").toLowerCase().includes(q) ||
+        (d.sector || "").toLowerCase().includes(q) ||
+        (d.location || "").toLowerCase().includes(q)
+      );
+    }
+
+    return result;
+  }, [baseFilteredDeals, searchQuery]);
+
   // Active Deals count excluding Killed
   const activeJoinedDeals = useMemo(() => {
     return baseFilteredDeals.filter(d => (d.status || "").toLowerCase() !== "killed");
@@ -291,18 +315,18 @@ export function DealListPage() {
   // Handle Owner Avatars formatting to match high-fidelity circles
   const getOwnerAvatar = (initials: string) => {
     if (initials === "AY") {
-      return <div className="flex h-5.5 w-5.5 shrink-0 items-center justify-center rounded-full bg-amber-400 text-slate-950 text-[9px] font-black shadow-sm select-none">AY</div>;
+      return <div className="flex h-5.5 w-5.5 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-[#C5A059] to-[#D4B876] text-slate-950 text-[9px] font-bold border border-[#C5A059]/10 shadow-inner select-none">AY</div>;
     }
     if (initials === "CH") {
-      return <div className="flex h-5.5 w-5.5 shrink-0 items-center justify-center rounded-full bg-[#A855F7] text-white text-[9px] font-black shadow-sm select-none">CH</div>;
+      return <div className="flex h-5.5 w-5.5 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-purple-500/80 to-purple-400/80 text-white text-[9px] font-bold border border-purple-500/10 shadow-inner select-none">CH</div>;
     }
     if (initials === "PR") {
-      return <div className="flex h-5.5 w-5.5 shrink-0 items-center justify-center rounded-full bg-[#3B82F6] text-white text-[9px] font-black shadow-sm select-none">PR</div>;
+      return <div className="flex h-5.5 w-5.5 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-blue-500/80 to-blue-400/80 text-white text-[9px] font-bold border border-blue-500/10 shadow-inner select-none">PR</div>;
     }
     if (initials === "DA" || initials === "DM") {
-      return <div className="flex h-5.5 w-5.5 shrink-0 items-center justify-center rounded-full bg-[#10B981] text-slate-950 text-[9px] font-black shadow-sm select-none">DM</div>;
+      return <div className="flex h-5.5 w-5.5 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-emerald-500/80 to-emerald-400/80 text-slate-950 text-[9px] font-bold border border-emerald-500/10 shadow-inner select-none">DM</div>;
     }
-    return <div className="flex h-5.5 w-5.5 shrink-0 items-center justify-center rounded-full bg-white/10 border border-white/5 text-slate-400 text-[9px] font-bold shadow-sm select-none">?</div>;
+    return <div className="flex h-5.5 w-5.5 shrink-0 items-center justify-center rounded-full bg-white/5 border border-white/10 text-slate-400 text-[9px] font-bold shadow-sm select-none">?</div>;
   };
 
   const handleCreateDeal = async (e: React.FormEvent) => {
@@ -342,30 +366,30 @@ export function DealListPage() {
   };
 
   return (
-    <div className="space-y-6 text-[#E2E8F0] font-sans">
+    <div className="space-y-8 text-[#E2E8F0] font-sans animate-fade-in-up">
       
       {/* Header section with Dynamic overview & Warning Pills */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/5 pb-4">
-        <div className="space-y-1">
-          <h1 className="text-xl font-bold text-white tracking-tight">Deal Pipeline</h1>
-          <p className="text-xs text-slate-550 font-medium">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/[0.04] pb-5">
+        <div className="space-y-2">
+          <h1 className="text-2xl font-bold text-white tracking-tight">Deal Pipeline</h1>
+          <p className="text-xs text-slate-500 font-medium">
             Pipeline Overview — {imReviewDealsCount} in IM Review
           </p>
         </div>
         
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 select-none">
           {overdueCount > 0 && (
-            <span className="inline-flex items-center rounded-full bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 text-[9px] font-bold text-amber-500 uppercase tracking-wider select-none animate-pulse">
+            <span className="inline-flex items-center rounded-full bg-rose-500/5 border border-rose-500/10 px-2.5 py-0.5 text-[9px] font-semibold text-rose-455 tracking-wide select-none animate-pulse">
               {overdueCount} OVERDUE TASKS
             </span>
           )}
-          <span className="inline-flex items-center rounded-full bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 text-[9px] font-bold text-blue-400 uppercase tracking-wider select-none">
+          <span className="inline-flex items-center rounded-full bg-blue-500/5 border border-blue-500/10 px-2.5 py-0.5 text-[9px] font-semibold text-blue-400 tracking-wide select-none">
             {activeJoinedDeals.length} LIVE DEALS
           </span>
           
           <button
             onClick={() => setIsModalOpen(true)}
-            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3.5 text-[10px] font-extrabold uppercase tracking-wider text-slate-300 shadow-sm hover:bg-white/10 hover:text-white cursor-pointer transition"
+            className="inline-flex h-8 items-center gap-1.5 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-white cursor-pointer transition"
           >
             + NEW DEAL
           </button>
@@ -374,91 +398,97 @@ export function DealListPage() {
 
       {/* Stage Filter pills horizontal bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 select-none">
-        <div className="flex flex-wrap gap-2 text-[10px] font-extrabold uppercase tracking-wider">
+        {viewMode === "list" ? (
+          <div className="flex flex-wrap gap-2 text-[10px] font-bold tracking-wide">
             {/* All */}
-          <button
-            onClick={() => { setSelectedStageFilter("All"); setCurrentPage(1); }}
-            className={cx(
-              "px-3.5 py-1.5 rounded-full border transition cursor-pointer font-bold",
-              selectedStageFilter === "All"
-                ? "border-[#10B981] bg-[#10B981]/5 text-[#10B981]"
-                : "border-white/5 bg-white/[0.01] text-slate-400 hover:text-white hover:bg-white/5"
-            )}
-          >
-            All ({baseFilteredDeals.length})
-          </button>
+            <button
+              onClick={() => { setSelectedStageFilter("All"); setCurrentPage(1); }}
+              className={cx(
+                "px-3.5 py-1.5 rounded-full border transition cursor-pointer font-bold",
+                selectedStageFilter === "All"
+                  ? "border-[#C5A059] bg-[#C5A059]/5 text-[#C5A059]"
+                  : "border-white/[0.04] bg-white/[0.01] text-slate-400 hover:text-white hover:bg-white/[0.03]"
+              )}
+            >
+              All ({baseFilteredDeals.length})
+            </button>
 
-          {/* Inbound */}
-          <button
-            onClick={() => { setSelectedStageFilter("Inbound"); setCurrentPage(1); }}
-            className={cx(
-              "px-3.5 py-1.5 rounded-full border transition cursor-pointer font-bold",
-              selectedStageFilter === "Inbound"
-                ? "border-blue-500 bg-blue-500/5 text-blue-405"
-                : "border-white/5 bg-white/[0.01] text-slate-400 hover:text-white hover:bg-white/5"
-            )}
-          >
-            Inbound ({baseFilteredDeals.filter(d => {
-              const status = (d.status || "").toLowerCase();
-              return status === "intro" || status === "inbound" || status === "information requested";
-            }).length})
-          </button>
+            {/* Inbound */}
+            <button
+              onClick={() => { setSelectedStageFilter("Inbound"); setCurrentPage(1); }}
+              className={cx(
+                "px-3.5 py-1.5 rounded-full border transition cursor-pointer font-bold",
+                selectedStageFilter === "Inbound"
+                  ? "border-blue-500/30 bg-blue-500/5 text-blue-400"
+                  : "border-white/[0.04] bg-white/[0.01] text-slate-400 hover:text-white hover:bg-white/[0.03]"
+              )}
+            >
+              Inbound ({baseFilteredDeals.filter(d => {
+                const status = (d.status || "").toLowerCase();
+                return status === "intro" || status === "inbound" || status === "information requested";
+              }).length})
+            </button>
 
-          {/* Seller Call */}
-          <button
-            onClick={() => { setSelectedStageFilter("Seller Call"); setCurrentPage(1); }}
-            className={cx(
-              "px-3.5 py-1.5 rounded-full border transition cursor-pointer font-bold",
-              selectedStageFilter === "Seller Call"
-                ? "border-blue-500 bg-blue-500/5 text-blue-400"
-                : "border-white/5 bg-white/[0.01] text-slate-400 hover:text-white hover:bg-white/5"
-            )}
-          >
-            Seller Call ({baseFilteredDeals.filter(d => (d.status || "").toLowerCase() === "seller call").length})
-          </button>
+            {/* Seller Call */}
+            <button
+              onClick={() => { setSelectedStageFilter("Seller Call"); setCurrentPage(1); }}
+              className={cx(
+                "px-3.5 py-1.5 rounded-full border transition cursor-pointer font-bold",
+                selectedStageFilter === "Seller Call"
+                  ? "border-indigo-500/30 bg-indigo-500/5 text-indigo-400"
+                  : "border-white/[0.04] bg-white/[0.01] text-slate-400 hover:text-white hover:bg-white/[0.03]"
+              )}
+            >
+              Seller Call ({baseFilteredDeals.filter(d => (d.status || "").toLowerCase() === "seller call").length})
+            </button>
 
-          {/* IM Review */}
-          <button
-            onClick={() => { setSelectedStageFilter("IM Review"); setCurrentPage(1); }}
-            className={cx(
-              "px-3.5 py-1.5 rounded-full border transition cursor-pointer font-bold",
-              selectedStageFilter === "IM Review"
-                ? "border-amber-500 bg-amber-500/5 text-amber-500"
-                : "border-white/5 bg-white/[0.01] text-slate-400 hover:text-white hover:bg-white/5"
-            )}
-          >
-            IM Review ({baseFilteredDeals.filter(d => (d.status || "").toLowerCase() === "im review").length})
-          </button>
+            {/* IM Review */}
+            <button
+              onClick={() => { setSelectedStageFilter("IM Review"); setCurrentPage(1); }}
+              className={cx(
+                "px-3.5 py-1.5 rounded-full border transition cursor-pointer font-bold",
+                selectedStageFilter === "IM Review"
+                  ? "border-amber-500/30 bg-amber-500/5 text-amber-500"
+                  : "border-white/[0.04] bg-white/[0.01] text-slate-400 hover:text-white hover:bg-white/[0.03]"
+              )}
+            >
+              IM Review ({baseFilteredDeals.filter(d => (d.status || "").toLowerCase() === "im review").length})
+            </button>
 
-          {/* DD */}
-          <button
-            onClick={() => { setSelectedStageFilter("DD"); setCurrentPage(1); }}
-            className={cx(
-              "px-3.5 py-1.5 rounded-full border transition cursor-pointer font-bold",
-              selectedStageFilter === "DD"
-                ? "border-blue-500 bg-blue-500/5 text-blue-400"
-                : "border-white/5 bg-white/[0.01] text-slate-400 hover:text-white hover:bg-white/5"
-            )}
-          >
-            DD ({baseFilteredDeals.filter(d => {
-              const status = (d.status || "").toLowerCase();
-              return status === "dd" || status === "due diligence" || status === "offer submitted";
-            }).length})
-          </button>
+            {/* DD */}
+            <button
+              onClick={() => { setSelectedStageFilter("DD"); setCurrentPage(1); }}
+              className={cx(
+                "px-3.5 py-1.5 rounded-full border transition cursor-pointer font-bold",
+                selectedStageFilter === "DD"
+                  ? "border-emerald-500/30 bg-emerald-500/5 text-emerald-400"
+                  : "border-white/[0.04] bg-white/[0.01] text-slate-400 hover:text-white hover:bg-white/[0.03]"
+              )}
+            >
+              DD ({baseFilteredDeals.filter(d => {
+                const status = (d.status || "").toLowerCase();
+                return status === "dd" || status === "due diligence" || status === "offer submitted";
+              }).length})
+            </button>
 
-          {/* Killed */}
-          <button
-            onClick={() => { setSelectedStageFilter("Killed"); setCurrentPage(1); }}
-            className={cx(
-              "px-3.5 py-1.5 rounded-full border transition cursor-pointer font-bold",
-              selectedStageFilter === "Killed"
-                ? "border-rose-500 bg-rose-500/5 text-rose-500 font-extrabold"
-                : "border-rose-500/20 bg-white/[0.01] text-rose-450/70 hover:text-rose-400"
-            )}
-          >
-            Killed ({baseFilteredDeals.filter(d => (d.status || "").toLowerCase() === "killed").length})
-          </button>
-        </div>
+            {/* Killed */}
+            <button
+              onClick={() => { setSelectedStageFilter("Killed"); setCurrentPage(1); }}
+              className={cx(
+                "px-3.5 py-1.5 rounded-full border transition cursor-pointer font-bold",
+                selectedStageFilter === "Killed"
+                  ? "border-rose-500 bg-rose-500/5 text-rose-500"
+                  : "border-rose-500/10 bg-white/[0.01] text-rose-400/70 hover:text-rose-400"
+              )}
+            >
+              Killed ({baseFilteredDeals.filter(d => (d.status || "").toLowerCase() === "killed").length})
+            </button>
+          </div>
+        ) : (
+          <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider select-none bg-white/[0.02] border border-white/[0.04] px-3.5 py-2 rounded-xl">
+            Drag cards to progress stages · Checked by deal lifecycle engine
+          </div>
+        )}
 
         {/* Right side actions - Search / Filter / Add */}
         <div className="flex items-center gap-3 select-none">
@@ -472,25 +502,53 @@ export function DealListPage() {
                 setSearchQuery(e.target.value);
                 setCurrentPage(1);
               }}
-              className="h-9 w-36 rounded-xl border border-white/10 bg-[#0E121A] pl-9 pr-3 text-xs text-white placeholder-slate-600 outline-none transition focus:border-acp-bronze focus:w-44"
+              className="h-9 w-36 rounded-xl border border-white/[0.06] bg-[#0B0B0C] pl-9 pr-3 text-xs text-white placeholder-slate-650 outline-none transition focus:border-[#C5A059] focus:w-44 shadow-inner"
             />
           </div>
 
           <button
             onClick={() => setShowFilterDropdown(!showFilterDropdown)}
-            className="inline-flex h-9 items-center gap-2 rounded-xl border border-white/10 bg-[#0E121A] px-3.5 text-xs font-bold text-slate-350 hover:bg-white/5 transition cursor-pointer"
+            className="inline-flex h-9 items-center gap-2 rounded-xl border border-white/[0.06] bg-[#0B0B0C] px-3.5 text-xs font-semibold text-slate-300 hover:bg-white/[0.03] transition cursor-pointer shadow-inner"
           >
             <Filter className="h-4 w-4" />
             <span>Filter</span>
           </button>
+
+          {/* View Toggles */}
+          <div className="flex rounded-xl border border-white/[0.06] bg-[#0B0B0C] p-0.5 shadow-inner">
+            <button
+              onClick={() => setViewMode("list")}
+              className={cx(
+                "flex h-8 w-8 items-center justify-center rounded-lg transition-all cursor-pointer",
+                viewMode === "list"
+                  ? "bg-white/[0.03] text-white border border-white/[0.06] shadow-sm"
+                  : "text-slate-550 hover:text-white"
+              )}
+              title="Table View"
+            >
+              <Database className="h-3.5 w-3.5" />
+            </button>
+            <button
+              onClick={() => setViewMode("kanban")}
+              className={cx(
+                "flex h-8 w-8 items-center justify-center rounded-lg transition-all cursor-pointer",
+                viewMode === "kanban"
+                  ? "bg-white/[0.03] text-white border border-white/[0.06] shadow-sm"
+                  : "text-slate-555 hover:text-white"
+              )}
+              title="Kanban Board"
+            >
+              <Kanban className="h-3.5 w-3.5" />
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Filter Dropdown Panel */}
       {showFilterDropdown && (
-        <div className="rounded-2xl border border-white/[0.06] bg-[#0E121A] p-4.5 grid grid-cols-1 sm:grid-cols-2 gap-4 animate-fade-in-up">
-          <div className="space-y-1.5">
-            <label className="block text-[8px] font-extrabold uppercase tracking-wider text-slate-500">
+        <div className="rounded-2xl p-5 grid grid-cols-1 sm:grid-cols-2 gap-4 animate-fade-in-up premium-card">
+          <div className="space-y-2">
+            <label className="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 select-none">
               Filter by Owner
             </label>
             <select
@@ -499,16 +557,16 @@ export function DealListPage() {
                 setSelectedOwnerFilter(e.target.value);
                 setCurrentPage(1);
               }}
-              className="h-10 w-full rounded-xl border border-white/10 bg-[#0E121A] px-3 text-xs text-white outline-none focus:border-acp-bronze transition cursor-pointer"
+              className="h-10 w-full rounded-xl border border-white/[0.06] bg-[#070708] px-3.5 text-xs text-white outline-none focus:border-[#C5A059] transition cursor-pointer shadow-inner"
             >
               {owners.map(o => (
-                <option key={o} value={o}>{o}</option>
+                <option key={o} value={o} className="bg-[#0B0B0C]">{o}</option>
               ))}
             </select>
           </div>
 
-          <div className="space-y-1.5">
-            <label className="block text-[8px] font-extrabold uppercase tracking-wider text-slate-500">
+          <div className="space-y-2">
+            <label className="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 select-none">
               Filter by Sector
             </label>
             <select
@@ -517,22 +575,17 @@ export function DealListPage() {
                 setSelectedSectorFilter(e.target.value);
                 setCurrentPage(1);
               }}
-              className="h-10 w-full rounded-xl border border-white/10 bg-[#0E121A] px-3 text-xs text-white outline-none focus:border-acp-bronze transition cursor-pointer"
+              className="h-10 w-full rounded-xl border border-white/[0.06] bg-[#070708] px-3.5 text-xs text-white outline-none focus:border-[#C5A059] transition cursor-pointer shadow-inner"
             >
               {sectors.map(s => (
-                <option key={s} value={s}>{s}</option>
+                <option key={s} value={s} className="bg-[#0B0B0C]">{s}</option>
               ))}
             </select>
           </div>
         </div>
       )}
 
-      {isLoading && (
-        <div className="rounded-2xl border border-white/[0.06] bg-[#0E121A] p-12 text-center">
-          <Database className="mx-auto h-8 w-8 text-acp-bronze animate-pulse mb-3" />
-          <p className="text-xs font-bold text-slate-350">Loading pipeline deals...</p>
-        </div>
-      )}
+      {isLoading && <LoadingState variant="table" label="Loading pipeline deals" />}
 
       {error && (
         <div className="rounded-2xl border border-rose-500/10 bg-rose-500/5 p-6 text-center text-xs font-semibold text-rose-400 border-l-4 border-l-rose-500">
@@ -542,307 +595,287 @@ export function DealListPage() {
 
       {!isLoading && !error && (
         <div className="space-y-6">
-          
-          {/* Structured Deal Table Container */}
-          <div className="rounded-2xl border border-white/[0.06] bg-[#0E121A] overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse table-fixed min-w-[950px]">
-                <thead>
-                  <tr className="border-b border-white/[0.06] bg-white/[0.01] select-none text-slate-500">
-                    <th className="w-[200px] px-5 py-3 text-[9px] font-extrabold uppercase tracking-wider">Deal</th>
-                    <th className="w-[85px] px-4 py-3 text-[9px] font-extrabold uppercase tracking-wider">Ref</th>
-                    <th className="w-[100px] px-4 py-3 text-[9px] font-extrabold uppercase tracking-wider">Sector</th>
-                    <th className="w-[80px] px-4 py-3 text-[9px] font-extrabold uppercase tracking-wider">Revenue</th>
-                    <th className="w-[80px] px-4 py-3 text-[9px] font-extrabold uppercase tracking-wider">Ebitda</th>
-                    <th className="w-[80px] px-4 py-3 text-[9px] font-extrabold uppercase tracking-wider">EV Ask</th>
-                    <th className="w-[85px] px-4 py-3 text-[9px] font-extrabold uppercase tracking-wider">Mult</th>
-                    <th className="w-[110px] px-4 py-3 text-[9px] font-extrabold uppercase tracking-wider">Stage</th>
-                    <th className="w-[170px] px-4 py-3 text-[9px] font-extrabold uppercase tracking-wider">Next Action</th>
-                    <th className="w-[110px] px-5 py-3 text-[9px] font-extrabold uppercase tracking-wider">Owner</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/[0.04]">
-                  {paginatedDeals.map((deal) => {
-                    const multVal = Number(deal.multiplier);
-                    const isHighMultiplier = !isNaN(multVal) && multVal > 6.0;
+          {viewMode === "list" ? (
+            /* Structured Deal Table Container */
+            <div className="rounded-2xl premium-card overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse table-fixed min-w-[950px]">
+                  <thead>
+                    <tr className="border-b border-white/[0.04] bg-white/[0.01] select-none text-slate-400">
+                      <th className="w-[200px] px-5 py-3.5 text-[10px] font-semibold tracking-wide uppercase">Deal</th>
+                      <th className="w-[85px] px-4 py-3.5 text-[10px] font-semibold tracking-wide uppercase">Ref</th>
+                      <th className="w-[100px] px-4 py-3.5 text-[10px] font-semibold tracking-wide uppercase">Sector</th>
+                      <th className="w-[80px] px-4 py-3.5 text-[10px] font-semibold tracking-wide uppercase">Revenue</th>
+                      <th className="w-[80px] px-4 py-3.5 text-[10px] font-semibold tracking-wide uppercase">Ebitda</th>
+                      <th className="w-[80px] px-4 py-3.5 text-[10px] font-semibold tracking-wide uppercase">EV Ask</th>
+                      <th className="w-[85px] px-4 py-3.5 text-[10px] font-semibold tracking-wide uppercase">Mult</th>
+                      <th className="w-[110px] px-4 py-3.5 text-[10px] font-semibold tracking-wide uppercase">Stage</th>
+                      <th className="w-[170px] px-4 py-3.5 text-[10px] font-semibold tracking-wide uppercase">Next Action</th>
+                      <th className="w-[110px] px-5 py-3.5 text-[10px] font-semibold tracking-wide uppercase">Owner</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/[0.04]">
+                    {paginatedDeals.map((deal) => {
+                      const multVal = Number(deal.multiplier);
+                      const isHighMultiplier = !isNaN(multVal) && multVal > 6.0;
 
-                    return (
-                      <tr 
-                        key={deal.id} 
-                        onClick={() => navigate(`/deals/${encodeURIComponent(deal.dealRef)}`)}
-                        className="hover:bg-white/[0.01] transition-colors cursor-pointer"
-                      >
-                        {/* Company Details */}
-                        <td className="px-5 py-4 min-w-0">
-                          <Link 
-                            to={`/deals/${encodeURIComponent(deal.dealRef)}`}
-                            className="block font-sans font-bold text-xs text-white hover:text-acp-bronze transition-colors truncate"
-                          >
-                            {deal.companyName || "Not Specified"}
-                          </Link>
-                          <p className="mt-0.5 text-[9px] text-slate-500 truncate leading-tight select-none">
-                            {deal.location} — KBS {deal.dealRef}
-                          </p>
-                        </td>
+                      return (
+                        <tr 
+                          key={deal.id} 
+                          onClick={() => navigate(`/deals/${encodeURIComponent(deal.dealRef)}`)}
+                          className="table-row-hover border-b border-white/[0.03]"
+                        >
+                          {/* Company Details */}
+                          <td className="px-5 py-4 min-w-0">
+                            <Link 
+                              to={`/deals/${encodeURIComponent(deal.dealRef)}`}
+                              className="block font-sans font-semibold text-xs text-white hover:text-[#C5A059] transition-colors truncate"
+                            >
+                              {deal.companyName || "Not Specified"}
+                            </Link>
+                            <p className="mt-1 text-[10px] text-slate-500 truncate leading-tight select-none">
+                              {deal.location} — KBS {deal.dealRef}
+                            </p>
+                          </td>
 
-                        {/* Deal Ref */}
-                        <td className="px-4 py-4 select-none">
-                          <span className="inline-flex items-center rounded-md bg-white/[0.03] border border-white/5 px-2 py-0.5 text-[9px] font-black text-slate-400 font-mono">
-                            {deal.dealRef}
-                          </span>
-                        </td>
+                          {/* Deal Ref */}
+                          <td className="px-4 py-4 select-none">
+                            <span className="inline-flex items-center rounded-lg bg-white/[0.02] border border-white/[0.04] px-2 py-0.5 text-[10px] font-medium text-slate-400 font-mono">
+                              {deal.dealRef}
+                            </span>
+                          </td>
 
-                        {/* Sector Blue Pill */}
-                        <td className="px-4 py-4 select-none">
-                          <span className="inline-flex items-center rounded-full bg-[#131E35] border border-blue-500/10 px-2.5 py-0.5 text-[9px] font-extrabold text-[#3B82F6]">
-                            {deal.sector}
-                          </span>
-                        </td>
+                          {/* Sector Pill */}
+                          <td className="px-4 py-4 select-none">
+                            <span className="inline-flex items-center rounded-full bg-blue-500/5 border border-blue-500/10 px-2.5 py-0.5 text-[10px] font-semibold text-blue-400">
+                              {deal.sector}
+                            </span>
+                          </td>
 
-                        {/* Revenue */}
-                        <td className="px-4 py-4 font-sans text-xs font-semibold text-white">
-                          {formatFinancial(deal.revenue)}
-                        </td>
+                          {/* Revenue */}
+                          <td className="px-4 py-4 font-sans text-xs font-medium text-white">
+                            {formatFinancial(deal.revenue)}
+                          </td>
 
-                        {/* EBITDA */}
-                        <td className="px-4 py-4 font-sans text-xs font-semibold text-white">
-                          {formatFinancial(deal.ebitda)}
-                        </td>
+                          {/* EBITDA */}
+                          <td className="px-4 py-4 font-sans text-xs font-medium text-white">
+                            {formatFinancial(deal.ebitda)}
+                          </td>
 
-                        {/* EV Ask */}
-                        <td className="px-4 py-4 font-sans text-xs font-semibold text-white">
-                          {formatFinancial(deal.evAsk)}
-                        </td>
+                          {/* EV Ask */}
+                          <td className="px-4 py-4 font-sans text-xs font-medium text-white">
+                            {formatFinancial(deal.evAsk)}
+                          </td>
 
-                        {/* Multipliers with Caution Alert */}
-                        <td className="px-4 py-4 font-sans text-xs font-bold">
-                          <span className={cx(
-                            "inline-flex items-center gap-1",
-                            isHighMultiplier ? "text-amber-500 font-extrabold" : "text-[#10B981]"
-                          )}>
-                            {formatMultiplier(deal.multiplier)}
-                            {isHighMultiplier && (
-                              <span title="Multiplier threshold breached">
-                                <AlertTriangle className="h-3 w-3 text-amber-500 animate-pulse" />
-                              </span>
-                            )}
-                          </span>
-                        </td>
-
-                        {/* Stage Badge */}
-                        <td className="px-4 py-4 select-none">
-                          <span className={cx(
-                            "inline-flex items-center rounded px-2.5 py-0.5 text-[8px] font-black uppercase tracking-widest",
-                            (() => {
-                              const s = (deal.status || "").toLowerCase();
-                              if (s === "intro" || s === "inbound" || s === "information requested") {
-                                return "bg-blue-500/10 text-blue-405 border border-blue-500/20";
-                              }
-                              if (s === "seller call") {
-                                return "bg-pink-500/10 text-pink-405 border border-pink-500/20";
-                              }
-                              if (s === "im review") {
-                                return "bg-[#2D2214] text-[#D97706] border border-[#D97706]/20";
-                              }
-                              if (s === "killed") {
-                                return "bg-rose-500/10 text-rose-500 border border-rose-500/20";
-                              }
-                              return "bg-acp-bronze/10 text-acp-bronze border border-acp-bronze/20";
-                            })()
-                          )}>
-                            {deal.status}
-                          </span>
-                        </td>
-
-                        {/* Next Action Text */}
-                        <td className="px-4 py-4 min-w-0">
-                          <div className="flex items-start gap-2 min-w-0 font-sans">
+                          {/* Multipliers with Caution Alert */}
+                          <td className="px-4 py-4 font-sans text-xs font-medium">
                             <span className={cx(
-                              "mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full",
-                              deal.nextActionColor === "red" ? "bg-rose-500" :
-                              deal.nextActionColor === "yellow" ? "bg-amber-450" : "bg-blue-400"
-                            )} />
-                            <div className="min-w-0">
-                              <p className="text-[10px] font-bold text-white leading-tight truncate">
-                                {deal.nextActionTitle}
-                              </p>
-                              <p className="mt-0.5 text-[9px] font-semibold text-slate-500 truncate leading-none">
-                                {deal.nextActionSub}
-                              </p>
-                            </div>
-                          </div>
-                        </td>
+                              "inline-flex items-center gap-1",
+                              isHighMultiplier ? "text-amber-500 font-semibold" : "text-emerald-450"
+                            )}>
+                              {formatMultiplier(deal.multiplier)}
+                              {isHighMultiplier && (
+                                <span title="Multiplier threshold breached">
+                                  <AlertTriangle className="h-3 w-3 text-amber-500 animate-pulse" />
+                                </span>
+                              )}
+                            </span>
+                          </td>
 
-                        {/* Owner Avatars */}
-                        <td className="px-5 py-4 select-none">
-                          <div className="flex items-center gap-2">
-                            {getOwnerAvatar(deal.ownerInitials)}
-                            <span className="text-[10px] font-bold text-slate-400">{deal.ownerName}</span>
-                          </div>
+                          {/* Stage Badge */}
+                          <td className="px-4 py-4 select-none">
+                            <span className={cx(
+                              "inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-semibold tracking-normal border",
+                              (() => {
+                                const s = (deal.status || "").toLowerCase();
+                                if (s === "intro" || s === "inbound" || s === "information requested") {
+                                    return "bg-blue-500/5 text-blue-400 border-blue-500/10";
+                                }
+                                if (s === "seller call") {
+                                    return "bg-pink-500/5 text-pink-400 border-pink-500/10";
+                                }
+                                if (s === "im review") {
+                                    return "bg-amber-500/5 text-amber-400 border-amber-500/10";
+                                }
+                                if (s === "killed") {
+                                    return "bg-rose-500/5 text-rose-500 border-rose-500/10";
+                                }
+                                return "bg-[#C5A059]/5 text-[#C5A059] border-[#C5A059]/10";
+                              })()
+                            )}>
+                              {deal.status}
+                            </span>
+                          </td>
+
+                          {/* Next Action Text */}
+                          <td className="px-4 py-4 min-w-0">
+                            <div className="flex items-start gap-2 min-w-0 font-sans">
+                              <span className={cx(
+                                "mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full",
+                                deal.nextActionColor === "red" ? "bg-rose-500" :
+                                deal.nextActionColor === "yellow" ? "bg-amber-450" : "bg-blue-400"
+                              )} />
+                              <div className="min-w-0">
+                                <p className="text-[10px] font-semibold text-white leading-tight truncate">
+                                  {deal.nextActionTitle}
+                                </p>
+                                <p className="mt-1 text-[10px] font-medium text-slate-500 truncate leading-none">
+                                  {deal.nextActionSub}
+                                </p>
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* Owner Avatars */}
+                          <td className="px-5 py-4 select-none">
+                            <div className="flex items-center gap-2">
+                              {getOwnerAvatar(deal.ownerInitials)}
+                              <span className="text-[10px] font-medium text-slate-400">{deal.ownerName}</span>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+
+                    {filteredDeals.length === 0 && (
+                      <tr>
+                        <td colSpan={10} className="px-5 py-12 text-center text-xs font-bold text-slate-500">
+                          No deals found matching your filters.
                         </td>
                       </tr>
-                    );
-                  })}
-
-                  {filteredDeals.length === 0 && (
-                    <tr>
-                      <td colSpan={10} className="px-5 py-12 text-center text-xs font-bold text-slate-500">
-                        No deals found matching your filters.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Pagination Controls */}
-            <div className="flex items-center justify-between border-t border-white/[0.04] bg-white/[0.01] px-5 py-3.5 select-none">
-              <div className="text-[9px] font-bold uppercase tracking-wider text-slate-500">
-                SHOWING {filteredDeals.length} OF {stageFilteredDeals.length} {selectedStageFilter === "All" || selectedStageFilter === "Killed" ? "TOTAL" : "ACTIVE"} OPPORTUNITIES
+                    )}
+                  </tbody>
+                </table>
               </div>
-              <div className="flex items-center gap-2.5">
-                <button
-                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                  disabled={currentPage === 1}
-                  className="h-8 rounded-lg border border-white/10 px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-white disabled:opacity-30 disabled:pointer-events-none hover:bg-white/5 transition cursor-pointer"
-                >
-                  Previous
-                </button>
-                <span className="h-8 w-8 flex items-center justify-center rounded-lg bg-blue-500/10 border border-blue-500/20 text-[10px] font-extrabold text-blue-400">
-                  {currentPage}
-                </span>
-                <button
-                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                  disabled={currentPage === totalPages}
-                  className="h-8 rounded-lg border border-white/10 px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-white disabled:opacity-30 disabled:pointer-events-none hover:bg-white/5 transition cursor-pointer"
-                >
-                  Next
-                </button>
+
+              {/* Pagination Controls */}
+              <div className="flex items-center justify-between border-t border-white/[0.04] bg-white/[0.01] px-5 py-3.5 select-none">
+                <div className="text-[9px] font-bold uppercase tracking-wider text-slate-500">
+                  Showing {Math.min((currentPage - 1) * itemsPerPage + 1, filteredDeals.length)}–{Math.min(currentPage * itemsPerPage, filteredDeals.length)} of {filteredDeals.length}
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    disabled={currentPage === 1}
+                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/[0.08] text-slate-400 hover:text-white disabled:opacity-30 disabled:pointer-events-none hover:bg-white/[0.05] transition cursor-pointer"
+                    aria-label="Previous page"
+                  >
+                    <ChevronLeft className="h-3.5 w-3.5" />
+                  </button>
+                  <span className="text-[10px] font-bold text-slate-400 min-w-[60px] text-center">
+                    {currentPage} / {totalPages}
+                  </span>
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                    disabled={currentPage === totalPages}
+                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/[0.08] text-slate-400 hover:text-white disabled:opacity-30 disabled:pointer-events-none hover:bg-white/[0.05] transition cursor-pointer"
+                    aria-label="Next page"
+                  >
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-
+          ) : (
+            <DealKanban
+              deals={kanbanFilteredDeals}
+              onStageChanged={() => refreshPipeline()}
+            />
+          )}
         </div>
       )}
 
       {/* New Deal Creation Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={() => setIsModalOpen(false)} />
-          
-          <form 
-            onSubmit={handleCreateDeal}
-            className="relative z-10 w-full max-w-md rounded-2xl border border-white/10 bg-[#0E121A] p-6 shadow-2xl backdrop-blur-xl animate-fade-in-up"
-          >
-            <div className="flex items-center justify-between pb-4 border-b border-white/5">
-              <h3 className="text-sm font-bold text-white uppercase tracking-wider">
-                Add New Deal to Pipeline
-              </h3>
-              <button 
-                type="button" 
-                onClick={() => setIsModalOpen(false)} 
-                className="text-slate-405 hover:text-white transition"
-              >
-                <X className="h-4 w-4" />
-              </button>
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title="Add New Deal to Pipeline"
+      >
+        <form onSubmit={handleCreateDeal} className="space-y-4 font-sans">
+          {dealSubmitError && (
+            <div className="rounded-lg border border-rose-500/20 bg-rose-500/5 p-3 text-xs font-semibold text-rose-400 flex items-center gap-2">
+              <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+              {dealSubmitError}
             </div>
+          )}
 
-            <div className="mt-5 space-y-4 font-sans">
-              {dealSubmitError && (
-                <div className="rounded-lg border border-rose-500/10 bg-rose-500/5 p-3 text-center text-xs font-semibold text-rose-455 border-l-2 border-l-rose-500">
-                  {dealSubmitError}
-                </div>
-              )}
+          <FormField label="Deal / Company Name" id="new-deal-company" required>
+            <input
+              id="new-deal-company"
+              type="text"
+              required
+              value={newDealName}
+              onChange={(e) => setNewDealName(e.target.value)}
+              placeholder="e.g. Clear Water Cleaning Services"
+              className={inputClass}
+            />
+          </FormField>
 
-              <div className="space-y-1.5">
-                <label className="block text-[8px] font-extrabold uppercase tracking-wider text-slate-500">
-                  Deal / Company Name *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={newDealName}
-                  onChange={(e) => setNewDealName(e.target.value)}
-                  placeholder="e.g. Clear Water Cleaning Services"
-                  className="h-10 w-full rounded-xl border border-white/10 bg-white/5 px-3 text-xs text-white placeholder-slate-600 outline-none focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze transition"
-                />
-              </div>
+          <FormField label="ACP Reference No." id="new-deal-ref">
+            <input
+              id="new-deal-ref"
+              type="text"
+              value={newDealRef}
+              onChange={(e) => setNewDealRef(e.target.value)}
+              placeholder="e.g. ACP-CFS-006"
+              className={inputClass}
+            />
+          </FormField>
 
-              <div className="space-y-1.5">
-                <label className="block text-[8px] font-extrabold uppercase tracking-wider text-slate-500">
-                  ACP Reference No. (optional)
-                </label>
-                <input
-                  type="text"
-                  value={newDealRef}
-                  onChange={(e) => setNewDealRef(e.target.value)}
-                  placeholder="e.g. ACP-CFS-006"
-                  className="h-10 w-full rounded-xl border border-white/10 bg-white/5 px-3 text-xs text-white placeholder-slate-600 outline-none focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze transition"
-                />
-              </div>
+          <FormField label="Pipeline Stage" id="new-deal-stage">
+            <select
+              id="new-deal-stage"
+              value={newDealStage}
+              onChange={(e) => setNewDealStage(e.target.value)}
+              className={selectClass}
+            >
+              <option value="Intro">Intro</option>
+              <option value="IM Review">IM Review</option>
+              <option value="Information Requested">Information Requested</option>
+              <option value="Offer Submitted">Offer Submitted</option>
+              <option value="Seller Call">Seller Call</option>
+            </select>
+          </FormField>
 
-              <div className="space-y-1.5">
-                <label className="block text-[8px] font-extrabold uppercase tracking-wider text-slate-500">
-                  Pipeline Stage
-                </label>
-                <select
-                  value={newDealStage}
-                  onChange={(e) => setNewDealStage(e.target.value)}
-                  className="h-10 w-full rounded-xl border border-white/10 bg-[#0E121A] px-3 text-xs text-white outline-none focus:border-acp-bronze transition"
-                >
-                  <option value="Intro">Intro</option>
-                  <option value="IM Review">IM Review</option>
-                  <option value="Information Requested">Information Requested</option>
-                  <option value="Offer Submitted">Offer Submitted</option>
-                  <option value="Seller Call">Seller Call</option>
-                </select>
-              </div>
+          <FormField label="Next Action Details" id="new-deal-next-action">
+            <textarea
+              id="new-deal-next-action"
+              value={newDealNextAction}
+              onChange={(e) => setNewDealNextAction(e.target.value)}
+              placeholder="e.g. 2nd call TBC"
+              rows={3}
+              className={textareaClass}
+            />
+          </FormField>
 
-              <div className="space-y-1.5">
-                <label className="block text-[8px] font-extrabold uppercase tracking-wider text-slate-500">
-                  Next Action Details
-                </label>
-                <textarea
-                  value={newDealNextAction}
-                  onChange={(e) => setNewDealNextAction(e.target.value)}
-                  placeholder="e.g. 2nd call TBC"
-                  rows={3}
-                  className="w-full rounded-xl border border-white/10 bg-white/5 p-3 text-xs text-white placeholder-slate-600 outline-none focus:border-acp-bronze transition resize-none font-sans"
-                />
-              </div>
+          <FormField label="Next Action Target Date" id="new-deal-target-date">
+            <input
+              id="new-deal-target-date"
+              type="date"
+              value={newDealNextActionDate}
+              onChange={(e) => setNewDealNextActionDate(e.target.value)}
+              className={inputClass}
+            />
+          </FormField>
 
-              <div className="space-y-1.5">
-                <label className="block text-[8px] font-extrabold uppercase tracking-wider text-slate-500">
-                  Next Action Target Date
-                </label>
-                <input
-                  type="date"
-                  value={newDealNextActionDate}
-                  onChange={(e) => setNewDealNextActionDate(e.target.value)}
-                  className="h-10 w-full rounded-xl border border-white/10 bg-white/5 px-3 text-xs text-white outline-none focus:border-acp-bronze transition"
-                />
-              </div>
-            </div>
-
-            <div className="mt-6 flex justify-end gap-2.5 font-sans">
-              <button
-                type="button"
-                onClick={() => setIsModalOpen(false)}
-                className="h-9 px-4 rounded-xl border border-white/10 text-slate-350 text-xs font-bold uppercase tracking-wider hover:bg-white/5 transition"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={isSubmittingDeal}
-                className="h-9 px-4 rounded-xl bg-gradient-to-r from-acp-bronze to-acp-bronze-dark text-white text-xs font-bold uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none hover:shadow-glow-bronze transition cursor-pointer"
-              >
-                {isSubmittingDeal ? "Adding..." : "Add Deal"}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
+          <div className="flex justify-end gap-2.5 pt-1">
+            <button
+              type="button"
+              onClick={() => setIsModalOpen(false)}
+              className="h-9 px-4 rounded-xl border border-white/10 text-slate-400 text-xs font-bold uppercase tracking-wider hover:bg-white/5 transition cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmittingDeal}
+              className="h-9 px-4 rounded-xl bg-gradient-to-r from-[#C5A059] to-[#A8873F] text-slate-950 text-xs font-bold uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none hover:shadow-glow-bronze transition cursor-pointer"
+            >
+              {isSubmittingDeal ? "Adding..." : "Add Deal"}
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

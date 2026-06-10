@@ -57,16 +57,36 @@ export function LenderPortalPage() {
 
   useEffect(() => {
     if (!portalSlug) return;
-    const sessionStr = sessionStorage.getItem(`lender_session_${portalSlug}`);
-    if (sessionStr) {
+    
+    async function checkLenderSession() {
       try {
-        const session = JSON.parse(sessionStr);
-        setLenderProfile(session.profile);
-        setIsAuthorized(true);
-      } catch {
-        sessionStorage.removeItem(`lender_session_${portalSlug}`);
+        const sessionRes = await fetch("/api/auth/session");
+        if (sessionRes.ok) {
+          const sessionData = await sessionRes.json();
+          if (sessionData.authenticated && (sessionData.user.role === "lender" || sessionData.user.role === "admin" || sessionData.user.role === "analyst")) {
+            setLenderProfile({ Email: sessionData.user.email, Role: sessionData.user.role });
+            setIsAuthorized(true);
+            return;
+          }
+        }
+      } catch (err) {
+        console.error("Failed to check lender session:", err);
+      }
+
+      // Fallback to local session check
+      const sessionStr = sessionStorage.getItem(`lender_session_${portalSlug}`);
+      if (sessionStr) {
+        try {
+          const session = JSON.parse(sessionStr);
+          setLenderProfile(session.profile);
+          setIsAuthorized(true);
+        } catch {
+          sessionStorage.removeItem(`lender_session_${portalSlug}`);
+        }
       }
     }
+
+    checkLenderSession();
   }, [portalSlug]);
 
   useEffect(() => {
@@ -157,8 +177,13 @@ export function LenderPortalPage() {
   }
 
   // Handle Logout
-  function handleLogout() {
+  async function handleLogout() {
     if (!portalSlug) return;
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch (err) {
+      console.error("Logout request failed:", err);
+    }
     sessionStorage.removeItem(`lender_session_${portalSlug}`);
     setIsAuthorized(false);
     setLenderProfile(null);

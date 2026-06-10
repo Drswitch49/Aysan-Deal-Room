@@ -3,7 +3,7 @@ import {
   Lock, UserPlus, Check, X, KeyRound, Copy, MessageSquare, TrendingUp, Sparkles, 
   Upload, Users, Globe, ExternalLink, HelpCircle, CheckSquare, Square, AlertCircle, 
   ArrowRight, BrainCircuit, RefreshCw, Star, Info, MessageSquareCode, AlertTriangle,
-  FolderClosed, ChevronRight, CheckCircle2
+  FolderClosed, ChevronRight, Clock, CheckCircle2, Plus, Loader2
 } from "lucide-react";
 import type { ComponentType } from "react";
 import { useMemo, useState, useEffect } from "react";
@@ -15,13 +15,25 @@ import { DealChat } from "../components/deals/DealChat";
 import { ErrorState } from "../components/ui/ErrorState";
 import { LoadingState } from "../components/ui/LoadingState";
 import { PageHeader } from "../components/ui/PageHeader";
+import { Modal } from "../components/ui/Modal";
+import { FormField, inputClass, selectClass, textareaClass } from "../components/ui/FormField";
 import { useDeal, useDealDocuments, useSubmissionLog } from "../hooks/useDealRoomData";
+import { useJobStatus } from "../hooks/useJobStatus";
 import { cx } from "../utils/cx";
-import { fetchAdminLenders, createLender, assignDealToLender } from "../api/admin";
+import { 
+  fetchAdminLenders, createLender, assignDealToLender,
+  fetchPrecallBriefs, generatePrecallBrief, askPrecallBriefQuestion,
+  fetchPostcallBriefs, generatePostcallBrief, overridePostcallScores,
+  transitionDealStage, triggerOsintEnrichment, triggerFinancialAnalysis
+} from "../api/admin";
 import { getDealInbox } from "../api/airtable";
 import { HeaderMetrics } from "../components/ui/HeaderMetrics";
+import { StageHistory } from "../components/deals/StageHistory";
+import { ActivityFeed } from "../components/deals/ActivityFeed";
+import { usePipeline } from "../context/PipelineContext";
+import { STAGE_LABELS, type DealStage } from "../lib/airtable/schema";
 
-type TabId = "overview" | "brief" | "post-meeting" | "financials" | "loi" | "documents" | "chat";
+type TabId = "overview" | "brief" | "post-meeting" | "financials" | "loi" | "documents" | "activity" | "chat";
 
 const formatGBP = (val: number) => {
   if (val === 0 || !val) return "TBC";
@@ -37,8 +49,59 @@ const tabs: Array<{ id: TabId; label: string; icon: ComponentType<{ className?: 
   { id: "financials", label: "Financials", icon: TrendingUp },
   { id: "loi", label: "LOI & structure", icon: ShieldCheck },
   { id: "documents", label: "Documents", icon: ClipboardList },
+  { id: "activity", label: "Activity Log", icon: Clock },
   { id: "chat", label: "Lender Chat", icon: MessageSquare },
 ];
+
+const LEGACY_STAGE_MAP: Record<string, DealStage> = {
+  intro: "INTRO",
+  inbound: "INTRO",
+  "information requested": "DISCOVERY",
+  discovery: "DISCOVERY",
+  "seller call": "DISCOVERY",
+  "im review": "LOI",
+  "offer submitted": "LOI",
+  loi: "LOI",
+  "due diligence": "DUE_DILIGENCE",
+  diligence: "DUE_DILIGENCE",
+  closing: "CLOSING",
+  close: "CLOSING",
+  portfolio: "PORTFOLIO",
+  completed: "PORTFOLIO",
+  killed: "KILLED",
+  dead: "KILLED",
+};
+
+function normalizeStage(raw: string | undefined): DealStage {
+  if (!raw) return "INTRO";
+  const key = String(raw).trim();
+  return (
+    LEGACY_STAGE_MAP[key] ||
+    LEGACY_STAGE_MAP[key.toLowerCase()] ||
+    (key.toUpperCase() as DealStage) ||
+    "INTRO"
+  );
+}
+
+const STAGE_BADGE_COLORS: Record<DealStage, string> = {
+  INTRO:         "bg-indigo-500/10 text-indigo-400 border-indigo-500/20 hover:border-indigo-550/40 hover:bg-indigo-500/20",
+  DISCOVERY:     "bg-blue-500/10 text-blue-400 border-blue-500/20 hover:border-blue-550/40 hover:bg-blue-500/20",
+  LOI:           "bg-amber-500/10 text-amber-500 border-amber-500/20 hover:border-amber-550/40 hover:bg-amber-500/20",
+  DUE_DILIGENCE: "bg-purple-500/10 text-purple-400 border-purple-500/20 hover:border-purple-550/40 hover:bg-purple-500/20",
+  CLOSING:       "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:border-emerald-550/40 hover:bg-emerald-500/20",
+  PORTFOLIO:     "bg-[#c5a059]/10 text-[#c5a059] border-[#c5a059]/20 hover:border-[#c5a059]/40 hover:bg-[#c5a059]/20",
+  KILLED:        "bg-red-500/10 text-red-400 border-red-500/20 hover:border-red-550/40 hover:bg-red-500/20",
+};
+
+const VALID_TRANSITIONS: Record<DealStage, DealStage[]> = {
+  INTRO:         ["DISCOVERY", "KILLED"],
+  DISCOVERY:     ["INTRO", "LOI", "KILLED"],
+  LOI:           ["DISCOVERY", "DUE_DILIGENCE", "KILLED"],
+  DUE_DILIGENCE: ["LOI", "CLOSING", "KILLED"],
+  CLOSING:       ["DUE_DILIGENCE", "PORTFOLIO", "KILLED"],
+  PORTFOLIO:     [],
+  KILLED:        [],
+};
 
 export function DealDetailPage() {
   const { ref } = useParams();
@@ -46,10 +109,101 @@ export function DealDetailPage() {
   const [activeTab, setActiveTab] = useState<TabId>("overview");
   const decodedRef = useMemo(() => (ref ? decodeURIComponent(ref) : ""), [ref]);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [latestPostcallScore, setLatestPostcallScore] = useState<string>("38/50");
   
-  const dealState = useDeal(decodedRef);
+  const dealState = useDeal(decodedRef, refreshTrigger);
+
+  // Poll OSINT status if active
+  const rawOsintStatus = dealState.data?.rawFields?.OSINT_Status as string;
+  const isOsintProcessing = [
+    "Queued",
+    "Scraping Website",
+    "Extracting Metadata",
+    "Analyzing Company",
+    "Generating Risk Profile",
+    "queued",
+    "processing"
+  ].includes(rawOsintStatus);
+
+  const osintJob = useJobStatus({
+    table: "Active_Pipeline",
+    recordId: dealState.data?.id,
+    enabled: !!dealState.data?.id && isOsintProcessing,
+    onComplete: () => {
+      setRefreshTrigger((prev) => prev + 1);
+    },
+    onFailed: () => {
+      setRefreshTrigger((prev) => prev + 1);
+    }
+  });
+
+  const [isTriggeringOsint, setIsTriggeringOsint] = useState(false);
+  const [osintTriggerError, setOsintTriggerError] = useState<string | null>(null);
+
+  const handleTriggerOsint = async () => {
+    if (!dealState.data?.id) return;
+    setIsTriggeringOsint(true);
+    setOsintTriggerError(null);
+    try {
+      await triggerOsintEnrichment(dealState.data.id);
+      setRefreshTrigger((prev) => prev + 1);
+    } catch (err: any) {
+      setOsintTriggerError(err.message || "Failed to trigger OSINT enrichment");
+    } finally {
+      setIsTriggeringOsint(false);
+    }
+  };
+
+  // Poll Financial status if active
+  const rawFinancialStatus = dealState.data?.rawFields?.Financial_Analysis_Status as string;
+  const isFinancialProcessing = [
+    "Processing",
+    "processing",
+    "queued",
+    "analyzing"
+  ].includes(rawFinancialStatus);
+
+  const financialJob = useJobStatus({
+    table: "Active_Pipeline",
+    recordId: dealState.data?.id,
+    jobType: "financial",
+    enabled: !!dealState.data?.id && isFinancialProcessing,
+    onComplete: () => {
+      setRefreshTrigger((prev) => prev + 1);
+    },
+    onFailed: () => {
+      setRefreshTrigger((prev) => prev + 1);
+    }
+  });
+
+  const [isTriggeringFinancial, setIsTriggeringFinancial] = useState(false);
+  const [financialTriggerError, setFinancialTriggerError] = useState<string | null>(null);
+
+  const handleTriggerFinancial = async (documentId?: string) => {
+    if (!dealState.data?.id) return;
+    setIsTriggeringFinancial(true);
+    setFinancialTriggerError(null);
+    try {
+      await triggerFinancialAnalysis(dealState.data.id, documentId);
+      setRefreshTrigger((prev) => prev + 1);
+    } catch (err: any) {
+      setFinancialTriggerError(err.message || "Failed to trigger financial analysis");
+    } finally {
+      setIsTriggeringFinancial(false);
+    }
+  };
+
   const documentState = useDealDocuments(decodedRef, refreshTrigger);
   const submissionState = useSubmissionLog(decodedRef);
+
+  const { refresh: refreshPipeline } = usePipeline();
+
+  // Stage transition states
+  const [targetStage, setTargetStage] = useState<DealStage | null>(null);
+  const [transitionNotes, setTransitionNotes] = useState("");
+  const [isTransitionModalOpen, setIsTransitionModalOpen] = useState(false);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [transitionError, setTransitionError] = useState<string | null>(null);
   
   const [inboxRecords, setInboxRecords] = useState<any[]>([]);
   const [isLoadingInbox, setIsLoadingInbox] = useState(true);
@@ -64,6 +218,27 @@ export function DealDetailPage() {
   const [errorMessage, setErrorMessage] = useState("");
 
   const [activeChatLenderId, setActiveChatLenderId] = useState<string>("");
+
+  const handleTransitionSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!targetStage || !joinedDeal) return;
+    setIsTransitioning(true);
+    setTransitionError(null);
+    try {
+      await transitionDealStage(joinedDeal.id, targetStage, {
+        notes: transitionNotes,
+        changedBy: "Admin",
+        role: "admin",
+      });
+      setIsTransitionModalOpen(false);
+      setRefreshTrigger((prev) => prev + 1);
+      refreshPipeline();
+    } catch (err: any) {
+      setTransitionError(err.message || "Failed to execute stage transition.");
+    } finally {
+      setIsTransitioning(false);
+    }
+  };
 
   useEffect(() => {
     setIsLoadingInbox(true);
@@ -257,6 +432,9 @@ export function DealDetailPage() {
     );
   }
 
+  const currentStage = normalizeStage(joinedDeal.status);
+  const allowedNext = VALID_TRANSITIONS[currentStage] || [];
+
   return (
     <div className="space-y-6 text-[#E2E8F0] font-sans">
       <div>
@@ -317,16 +495,50 @@ export function DealDetailPage() {
           </div>
           
           <div className="flex items-center gap-6 shrink-0 md:border-l md:border-white/5 md:pl-8">
-            <div className="text-center">
-              <span className="inline-flex items-center rounded-lg bg-amber-500/10 border border-amber-500/20 px-2.5 py-0.5 text-[9px] font-extrabold text-amber-500 uppercase tracking-widest">
-                IM Review
-              </span>
-              <span className="block text-[8px] text-slate-500 uppercase font-bold tracking-widest mt-1">Phase</span>
+            <div className="text-center relative">
+              {allowedNext.length > 0 ? (
+                <div className="flex flex-col items-center">
+                  <select
+                    value={currentStage}
+                    onChange={(e) => {
+                      const selected = e.target.value as DealStage;
+                      if (selected !== currentStage) {
+                        setTargetStage(selected);
+                        setTransitionNotes("");
+                        setTransitionError(null);
+                        setIsTransitionModalOpen(true);
+                      }
+                    }}
+                    className={cx(
+                      "inline-flex items-center rounded-lg border px-2.5 py-1 text-[9px] font-extrabold uppercase tracking-widest outline-none cursor-pointer transition shadow-sm",
+                      STAGE_BADGE_COLORS[currentStage]
+                    )}
+                  >
+                    <option value={currentStage}>{STAGE_LABELS[currentStage]}</option>
+                    {allowedNext.map((stg) => (
+                      <option key={stg} value={stg} className="bg-[#0e0e10] text-white">
+                        → Move to {STAGE_LABELS[stg]}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="block text-[8px] text-slate-500 uppercase font-bold tracking-widest mt-1">Stage (Change)</span>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center">
+                  <span className={cx(
+                    "inline-flex items-center rounded-lg border px-2.5 py-0.5 text-[9px] font-extrabold uppercase tracking-widest",
+                    STAGE_BADGE_COLORS[currentStage]
+                  )}>
+                    {STAGE_LABELS[currentStage] || currentStage}
+                  </span>
+                  <span className="block text-[8px] text-slate-500 uppercase font-bold tracking-widest mt-1">Stage (Terminal)</span>
+                </div>
+              )}
             </div>
             
             <div className="text-center">
               <span className="block text-2xl font-black text-emerald-450 tracking-tight leading-none">
-                {activeTab === "post-meeting" ? "38/50" : activeTab === "documents" ? "20/50" : "39/50"}
+                {activeTab === "post-meeting" ? latestPostcallScore : activeTab === "documents" ? "20/50" : "39/50"}
               </span>
               <span className="block text-[8px] text-slate-500 uppercase font-bold tracking-widest mt-1">Score</span>
             </div>
@@ -344,20 +556,20 @@ export function DealDetailPage() {
 
       {/* Tabs navigation with scroll support */}
       <div className="flex items-center gap-1">
-        <div className="flex gap-1.5 overflow-x-auto rounded-xl border border-white/[0.06] bg-[#0E121A]/50 p-1.5 shadow-inner backdrop-blur-md flex-1">
+        <div className="flex gap-1 overflow-x-auto rounded-xl border border-white/[0.04] bg-[#0A0A0B]/40 p-1 shadow-inner backdrop-blur-md flex-1">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               className={cx(
-                "inline-flex h-8 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-4.5 text-[10px] font-extrabold uppercase tracking-widest transition-all duration-300 cursor-pointer flex-1",
+                "inline-flex h-8 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-4 text-[10px] font-semibold uppercase tracking-wider transition-all duration-200 cursor-pointer flex-1",
                 activeTab === tab.id
-                  ? "bg-[#1C2333] text-white border border-white/10 shadow-sm"
-                  : "text-slate-400 hover:text-white hover:bg-white/5",
+                  ? "bg-white/[0.03] text-white border border-white/[0.06] shadow-sm"
+                  : "text-slate-450 hover:text-white hover:bg-white/[0.01]",
               )}
               onClick={() => setActiveTab(tab.id)}
               type="button"
             >
-              <tab.icon className="h-3.5 w-3.5" aria-hidden="true" />
+              <tab.icon className="h-3.5 w-3.5 text-slate-500" aria-hidden="true" />
               {tab.label}
             </button>
           ))}
@@ -372,6 +584,11 @@ export function DealDetailPage() {
             assignedLenders={assignedLenders} 
             openAddLenderModal={openAddLenderModal} 
             setActiveTab={setActiveTab}
+            osintStatus={osintJob.isProcessing ? osintJob.status : (joinedDeal?.rawFields?.OSINT_Status as string)}
+            osintError={osintJob.error || (joinedDeal?.rawFields?.OSINT_Failure_Reason as string)}
+            isTriggeringOsint={isTriggeringOsint}
+            osintTriggerError={osintTriggerError}
+            handleTriggerOsint={handleTriggerOsint}
           />
         )}
         
@@ -380,11 +597,19 @@ export function DealDetailPage() {
         )}
         
         {activeTab === "post-meeting" && (
-          <PostMeetingTab deal={joinedDeal} />
+          <PostMeetingTab deal={joinedDeal} onScoreChange={setLatestPostcallScore} />
         )}
 
         {activeTab === "financials" && (
-          <FinancialsTab deal={joinedDeal} />
+          <FinancialsTab 
+            deal={joinedDeal}
+            financialStatus={financialJob.isProcessing ? financialJob.status : (joinedDeal?.rawFields?.Financial_Analysis_Status as string)}
+            financialError={financialJob.error || (joinedDeal?.rawFields?.Financial_Anomalies as string)}
+            isTriggering={isTriggeringFinancial}
+            triggerError={financialTriggerError}
+            handleTrigger={handleTriggerFinancial}
+            documents={documentState.data || []}
+          />
         )}
 
         {activeTab === "loi" && (
@@ -393,6 +618,17 @@ export function DealDetailPage() {
 
         {activeTab === "documents" && (
           <DocumentsTab deal={joinedDeal} documentState={documentState} setRefreshTrigger={setRefreshTrigger} />
+        )}
+
+        {activeTab === "activity" && (
+          <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-6 items-start animate-fade-in-up">
+            <div className="rounded-2xl border border-white/[0.06] bg-[#0E121A] p-5 shadow-inner">
+              <StageHistory dealId={joinedDeal.id} />
+            </div>
+            <div className="rounded-2xl border border-white/[0.06] bg-[#0E121A] p-5 shadow-inner">
+              <ActivityFeed dealId={joinedDeal.id} limit={30} showFilters={true} />
+            </div>
+          </div>
         )}
 
 
@@ -464,200 +700,248 @@ export function DealDetailPage() {
         )}
       </div>
 
-      {/* Add Lender Modal Overlay */}
-      {isAddLenderOpen && (
-        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0E121A] p-6 shadow-2xl relative animate-scale-in">
+      {/* Add Lender Modal */}
+      <Modal 
+        isOpen={isAddLenderOpen} 
+        onClose={() => setIsAddLenderOpen(false)} 
+        title={createdLenderDetails ? "Lender Link Success!" : (isCreatingNew ? "Create & Link Lender" : "Link Existing Lender")}
+      >
+        {createdLenderDetails ? (
+          <div className="space-y-4 text-center">
+            <div className="flex flex-col items-center">
+              <span className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 mb-3">
+                <Check className="h-6 w-6" />
+              </span>
+              <p className="text-[11px] text-slate-400 mt-1">
+                {createdLenderDetails.company} is now linked to this deal. Copy credentials below:
+              </p>
+            </div>
+
+            <div className="space-y-3.5 mt-5 text-left">
+              <FormField label="Portal Access Link" id="created-lender-url">
+                <div className="flex items-center gap-2">
+                  <input
+                    id="created-lender-url"
+                    type="text"
+                    readOnly
+                    value={createdLenderDetails.url}
+                    className={cx(inputClass, "flex-1")}
+                  />
+                  <button
+                    onClick={() => handleCopy(createdLenderDetails.url, "url")}
+                    className="h-9 w-9 shrink-0 flex items-center justify-center rounded-xl bg-white/5 border border-white/10 hover:border-white/20 text-slate-400 hover:text-white cursor-pointer"
+                    type="button"
+                  >
+                    {copiedId === "url" ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
+                  </button>
+                </div>
+              </FormField>
+
+              <FormField label="Portal Passcode" id="created-lender-pass">
+                <div className="flex items-center gap-2">
+                  <input
+                    id="created-lender-pass"
+                    type="text"
+                    readOnly
+                    value={createdLenderDetails.pass}
+                    className={cx(inputClass, "flex-1 font-mono")}
+                  />
+                  <button
+                    onClick={() => handleCopy(createdLenderDetails.pass, "pass")}
+                    className="h-9 w-9 shrink-0 flex items-center justify-center rounded-xl bg-white/5 border border-white/10 hover:border-white/20 text-slate-400 hover:text-white cursor-pointer"
+                    type="button"
+                  >
+                    {copiedId === "pass" ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
+                  </button>
+                </div>
+              </FormField>
+            </div>
+
             <button
               onClick={() => setIsAddLenderOpen(false)}
-              className="absolute right-4 top-4 text-slate-400 hover:text-white cursor-pointer"
+              className="mt-6 w-full h-10 rounded-xl bg-white text-slate-950 font-black text-xs uppercase tracking-wider hover:bg-slate-100 transition cursor-pointer"
               type="button"
             >
-              <X className="h-5 w-5" />
+              Done
             </button>
+          </div>
+        ) : (
+          <div>
+            <div className="mb-4 flex items-center justify-between border-b border-white/5 pb-2">
+              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
+                Assign mode
+              </span>
+              <button
+                onClick={() => {
+                  setIsCreatingNew(!isCreatingNew);
+                  setErrorMessage("");
+                  setAssignmentSuccess(false);
+                }}
+                className="text-[10px] font-black uppercase tracking-wider text-[#C5A059] hover:underline cursor-pointer"
+                type="button"
+              >
+                {isCreatingNew ? "Use Existing" : "Create New"}
+              </button>
+            </div>
 
-            {createdLenderDetails ? (
-              <div className="space-y-4">
-                <div className="flex flex-col items-center text-center">
-                  <span className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 mb-3">
-                    <Check className="h-6 w-6" />
-                  </span>
-                  <h3 className="text-base font-bold text-white uppercase tracking-wider">Lender Link Success!</h3>
-                  <p className="text-[11px] text-slate-400 mt-1">
-                    {createdLenderDetails.company} is now linked to this deal. Copy credentials below:
-                  </p>
-                </div>
+            {errorMessage && (
+              <div className="mb-4 rounded-xl border border-rose-500/20 bg-rose-500/10 p-3 text-xs text-rose-400 font-medium">
+                {errorMessage}
+              </div>
+            )}
 
-                <div className="space-y-3.5 mt-5">
-                  <div>
-                    <label className="block text-[8px] font-extrabold uppercase tracking-wider text-slate-500">Portal Access Link</label>
-                    <div className="mt-1.5 flex items-center gap-2">
-                      <input
-                        type="text"
-                        readOnly
-                        value={createdLenderDetails.url}
-                        className="h-9 flex-1 rounded-xl border border-white/10 bg-white/5 px-3 text-[11px] text-slate-350 outline-none"
-                      />
-                      <button
-                        onClick={() => handleCopy(createdLenderDetails.url, "url")}
-                        className="h-9 w-9 shrink-0 flex items-center justify-center rounded-xl bg-white/5 border border-white/10 hover:border-white/20 text-slate-400 hover:text-white cursor-pointer"
-                        type="button"
-                      >
-                        {copiedId === "url" ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
-                      </button>
-                    </div>
-                  </div>
+            {assignmentSuccess && (
+              <div className="mb-4 rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3 text-xs text-emerald-400 font-medium flex items-center gap-2">
+                <Check className="h-4 w-4" /> Assigned successfully!
+              </div>
+            )}
 
-                  <div>
-                    <label className="block text-[8px] font-extrabold uppercase tracking-wider text-slate-500">Portal Passcode</label>
-                    <div className="mt-1.5 flex items-center gap-2">
-                      <input
-                        type="text"
-                        readOnly
-                        value={createdLenderDetails.pass}
-                        className="h-9 flex-1 rounded-xl border border-white/10 bg-white/5 px-3 text-[11px] font-mono text-slate-350 outline-none"
-                      />
-                      <button
-                        onClick={() => handleCopy(createdLenderDetails.pass, "pass")}
-                        className="h-9 w-9 shrink-0 flex items-center justify-center rounded-xl bg-white/5 border border-white/10 hover:border-white/20 text-slate-400 hover:text-white cursor-pointer"
-                        type="button"
-                      >
-                        {copiedId === "pass" ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
-                      </button>
-                    </div>
-                  </div>
+            {isCreatingNew ? (
+              <form onSubmit={handleCreateAndAssign} className="space-y-4">
+                <FormField label="Company Name" required id="detail-lender-company">
+                  <input
+                    id="detail-lender-company"
+                    type="text"
+                    required
+                    value={newCompanyName}
+                    onChange={(e) => setNewCompanyName(e.target.value)}
+                    placeholder="e.g. OakNorth Bank"
+                    className={inputClass}
+                  />
+                </FormField>
+                
+                <FormField label="Contact Name" id="detail-lender-contact">
+                  <input
+                    id="detail-lender-contact"
+                    type="text"
+                    value={newContactName}
+                    onChange={(e) => setNewContactName(e.target.value)}
+                    placeholder="e.g. John Smith"
+                    className={inputClass}
+                  />
+                </FormField>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <FormField label="Email Address" id="detail-lender-email">
+                    <input
+                      id="detail-lender-email"
+                      type="email"
+                      value={newEmail}
+                      onChange={(e) => setNewEmail(e.target.value)}
+                      placeholder="e.g. jsmith@oaknorth.com"
+                      className={inputClass}
+                    />
+                  </FormField>
+                  <FormField label="Phone Number" id="detail-lender-phone">
+                    <input
+                      id="detail-lender-phone"
+                      type="text"
+                      value={newPhone}
+                      onChange={(e) => setNewPhone(e.target.value)}
+                      placeholder="e.g. +44 7700 900077"
+                      className={inputClass}
+                    />
+                  </FormField>
                 </div>
 
                 <button
-                  onClick={() => setIsAddLenderOpen(false)}
-                  className="mt-6 w-full h-10 rounded-xl bg-white text-slate-950 font-black text-xs uppercase tracking-wider hover:bg-slate-100 transition cursor-pointer"
-                  type="button"
+                  type="submit"
+                  disabled={submitting}
+                  className="mt-2 w-full h-10 rounded-xl bg-gradient-to-r from-acp-bronze to-acp-bronze-dark text-white font-black text-xs uppercase tracking-wider hover:opacity-90 transition disabled:opacity-50 flex items-center justify-center cursor-pointer"
                 >
-                  Done
+                  {submitting ? "Creating & Assigning..." : "Create & Assign"}
                 </button>
-              </div>
+              </form>
             ) : (
-              <div>
-                <div className="mb-4 flex items-center justify-between border-b border-white/5 pb-2">
-                  <h3 className="text-sm font-bold text-white uppercase tracking-wider">
-                    {isCreatingNew ? "Create & Link Lender" : "Link Existing Lender"}
-                  </h3>
-                  <button
-                    onClick={() => {
-                      setIsCreatingNew(!isCreatingNew);
-                      setErrorMessage("");
-                      setAssignmentSuccess(false);
-                    }}
-                    className="text-[10px] font-black uppercase tracking-wider text-[#C5A059] hover:underline cursor-pointer"
-                    type="button"
-                  >
-                    {isCreatingNew ? "Use Existing" : "Create New"}
-                  </button>
-                </div>
-
-                {errorMessage && (
-                  <div className="mb-4 rounded-xl border border-rose-500/20 bg-rose-500/10 p-3 text-xs text-rose-400 font-medium">
-                    {errorMessage}
-                  </div>
-                )}
-
-                {assignmentSuccess && (
-                  <div className="mb-4 rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3 text-xs text-emerald-400 font-medium flex items-center gap-2">
-                    <Check className="h-4 w-4" /> Assigned successfully!
-                  </div>
-                )}
-
-                {isCreatingNew ? (
-                  <form onSubmit={handleCreateAndAssign} className="space-y-4">
-                    <div>
-                      <label className="block text-[9px] font-extrabold uppercase tracking-wider text-slate-400">Company Name</label>
-                      <input
-                        type="text"
-                        required
-                        value={newCompanyName}
-                        onChange={(e) => setNewCompanyName(e.target.value)}
-                        placeholder="e.g. OakNorth Bank"
-                        className="mt-1.5 h-10 w-full rounded-xl border border-white/10 bg-white/5 px-3 text-xs text-white placeholder-slate-600 outline-none focus:border-acp-bronze"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[9px] font-extrabold uppercase tracking-wider text-slate-400">Contact Name</label>
-                      <input
-                        type="text"
-                        value={newContactName}
-                        onChange={(e) => setNewContactName(e.target.value)}
-                        placeholder="e.g. John Smith"
-                        className="mt-1.5 h-10 w-full rounded-xl border border-white/10 bg-white/5 px-3 text-xs text-white placeholder-slate-600 outline-none focus:border-acp-bronze"
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-[9px] font-extrabold uppercase tracking-wider text-slate-400">Email Address</label>
-                        <input
-                          type="email"
-                          value={newEmail}
-                          onChange={(e) => setNewEmail(e.target.value)}
-                          placeholder="e.g. jsmith@oaknorth.com"
-                          className="mt-1.5 h-10 w-full rounded-xl border border-white/10 bg-white/5 px-3 text-xs text-white placeholder-slate-600 outline-none focus:border-acp-bronze"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[9px] font-extrabold uppercase tracking-wider text-slate-400">Phone Number</label>
-                        <input
-                          type="text"
-                          value={newPhone}
-                          onChange={(e) => setNewPhone(e.target.value)}
-                          placeholder="e.g. +44 7700 900077"
-                          className="mt-1.5 h-10 w-full rounded-xl border border-white/10 bg-white/5 px-3 text-xs text-white placeholder-slate-600 outline-none focus:border-acp-bronze"
-                        />
-                      </div>
-                    </div>
-
-                    <button
-                      type="submit"
-                      disabled={submitting}
-                      className="mt-2 w-full h-10 rounded-xl bg-gradient-to-r from-[#C5A059] to-[#C5A059] text-white font-black text-xs uppercase tracking-wider hover:opacity-90 transition disabled:opacity-50 flex items-center justify-center cursor-pointer"
+              <form onSubmit={handleAssignExisting} className="space-y-4">
+                <FormField label="Select Lender" id="detail-select-lender">
+                  {isLoadingLenders ? (
+                    <div className="text-xs text-slate-450 animate-pulse">Loading lenders...</div>
+                  ) : (
+                    <select
+                      id="detail-select-lender"
+                      required
+                      value={selectedLenderId}
+                      onChange={(e) => setSelectedLenderId(e.target.value)}
+                      className={selectClass}
                     >
-                      {submitting ? "Creating & Assigning..." : "Create & Assign"}
-                    </button>
-                  </form>
-                ) : (
-                  <form onSubmit={handleAssignExisting} className="space-y-4">
-                    <div>
-                      <label className="block text-[9px] font-extrabold uppercase tracking-wider text-slate-400">Select Lender</label>
-                      {isLoadingLenders ? (
-                        <div className="mt-1.5 text-xs text-slate-450 animate-pulse">Loading lenders...</div>
-                      ) : (
-                        <select
-                          required
-                          value={selectedLenderId}
-                          onChange={(e) => setSelectedLenderId(e.target.value)}
-                          className="mt-1.5 h-10 w-full rounded-xl border border-white/10 bg-[#0D0D0E] px-3 text-xs text-white outline-none focus:border-acp-bronze cursor-pointer"
-                        >
-                          <option value="">-- Select an existing lender --</option>
-                          {allLenders.map((lender) => (
-                            <option key={lender.id} value={lender.id}>
-                              {lender.Company_Name} {lender.Contact_Name ? `(${lender.Contact_Name})` : ""}
-                            </option>
-                          ))}
-                        </select>
-                      )}
-                    </div>
+                      <option value="">-- Select an existing lender --</option>
+                      {allLenders.map((lender) => (
+                        <option key={lender.id} value={lender.id}>
+                          {lender.Company_Name} {lender.Contact_Name ? `(${lender.Contact_Name})` : ""}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </FormField>
 
-                    <button
-                      type="submit"
-                      disabled={submitting || !selectedLenderId || isLoadingLenders}
-                      className="mt-4 w-full h-10 rounded-xl bg-gradient-to-r from-[#C5A059] to-[#C5A059] text-white font-black text-xs uppercase tracking-wider hover:opacity-90 transition disabled:opacity-50 flex items-center justify-center cursor-pointer"
-                    >
-                      {submitting ? "Assigning..." : "Assign Lender"}
-                    </button>
-                  </form>
-                )}
-              </div>
+                <button
+                  type="submit"
+                  disabled={submitting || !selectedLenderId || isLoadingLenders}
+                  className="mt-4 w-full h-10 rounded-xl bg-gradient-to-r from-acp-bronze to-acp-bronze-dark text-white font-black text-xs uppercase tracking-wider hover:opacity-90 transition disabled:opacity-50 flex items-center justify-center cursor-pointer"
+                >
+                  {submitting ? "Assigning..." : "Assign Lender"}
+                </button>
+              </form>
             )}
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
+
+      {/* Stage Transition Modal */}
+      <Modal
+        isOpen={isTransitionModalOpen}
+        onClose={() => {
+          setIsTransitionModalOpen(false);
+          setTargetStage(null);
+        }}
+        title="Confirm Stage Transition"
+      >
+        <form onSubmit={handleTransitionSubmit} className="space-y-4 font-sans">
+          {transitionError && (
+            <div className="rounded-lg border border-rose-500/20 bg-rose-500/5 p-3 text-xs font-semibold text-rose-450 flex items-center gap-2">
+              <AlertTriangle className="h-3.5 w-3.5 shrink-0 animate-pulse" />
+              <span>{transitionError}</span>
+            </div>
+          )}
+
+          <div className="text-xs text-slate-350 leading-relaxed select-none">
+            You are changing the deal stage from <span className="font-bold text-white">{STAGE_LABELS[currentStage] || currentStage}</span> to <span className="font-bold text-[#c5a059]">{targetStage ? STAGE_LABELS[targetStage] : ""}</span>.
+            This action will record an entry in the immutable audit trail and trigger downstream workflows.
+          </div>
+
+          <FormField label="Reason / Notes for this transition" id="transition-notes">
+            <textarea
+              id="transition-notes"
+              value={transitionNotes}
+              onChange={(e) => setTransitionNotes(e.target.value)}
+              placeholder="Provide a brief explanation for this stage transition..."
+              className={textareaClass}
+              rows={3}
+            />
+          </FormField>
+
+          <div className="flex justify-end gap-2.5 pt-1 select-none">
+            <button
+              type="button"
+              onClick={() => {
+                setIsTransitionModalOpen(false);
+                setTargetStage(null);
+              }}
+              className="h-9 px-4 rounded-xl border border-white/10 text-slate-400 text-xs font-bold uppercase tracking-wider hover:bg-white/5 transition cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isTransitioning}
+              className="h-9 px-4 rounded-xl bg-gradient-to-r from-[#C5A059] to-[#A8873F] text-slate-950 text-xs font-bold uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none hover:shadow-glow-bronze transition cursor-pointer"
+            >
+              {isTransitioning ? "Transitioning..." : "Confirm Move"}
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }
@@ -682,12 +966,22 @@ function OverviewTab({
   deal, 
   assignedLenders, 
   openAddLenderModal,
-  setActiveTab
+  setActiveTab,
+  osintStatus,
+  osintError,
+  isTriggeringOsint,
+  osintTriggerError,
+  handleTriggerOsint
 }: { 
   deal: any; 
   assignedLenders: any[]; 
   openAddLenderModal: () => void;
   setActiveTab: (tab: TabId) => void;
+  osintStatus?: string;
+  osintError?: string | null;
+  isTriggeringOsint?: boolean;
+  osintTriggerError?: string | null;
+  handleTriggerOsint?: () => Promise<void>;
 }) {
   const ebitdaVal = Number(deal.ebitda) || 0;
   const multVal = Number(deal.multiplier) || 0;
@@ -1024,11 +1318,217 @@ function OverviewTab({
 
         </div>
       </div>
+
+      {/* Card 5: OSINT Operational Intelligence */}
+      <div className="rounded-2xl border border-white/[0.06] bg-[#0E121A] p-6 shadow-premium-card card-sheen mt-6">
+        <div className="flex flex-col lg:flex-row gap-8 items-stretch">
+          <div className="flex-1 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-white/5">
+              <div className="flex items-center gap-2.5">
+                <div className="h-8 w-8 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
+                  <Globe className="h-4 w-4 text-blue-400" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-350">OSINT Operational Intelligence</h4>
+                  <span className="text-[9px] font-black uppercase text-blue-400 tracking-wider">
+                    Status: {osintStatus || "Not Started"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Progress Steps / Status Badge */}
+              <div className="flex items-center gap-4">
+                {osintStatus && osintStatus !== "unknown" && osintStatus !== "Not Started" && (
+                  <div className="flex items-center gap-1.5">
+                    {[
+                      "Queued",
+                      "Scraping Website",
+                      "Extracting Metadata",
+                      "Analyzing Company",
+                      "Generating Risk Profile",
+                      "Completed"
+                    ].map((stage, idx, arr) => {
+                      const currentIdx = arr.indexOf(osintStatus);
+                      const isDone = currentIdx > idx || osintStatus === "Completed";
+                      const isActive = osintStatus === stage;
+                      const isFailed = osintStatus === "Failed";
+
+                      let color = "rgba(255,255,255,0.1)";
+                      if (isDone) color = "#10B981"; // green
+                      else if (isActive) color = isFailed ? "#EF4444" : "#3B82F6"; // blue or red
+                      
+                      return (
+                        <div key={stage} className="flex items-center gap-1">
+                          <div 
+                            title={stage}
+                            className={`h-2 w-2 rounded-full transition-all duration-300 ${isActive ? 'animate-pulse scale-125' : ''}`}
+                            style={{ 
+                              backgroundColor: color, 
+                              boxShadow: isActive ? `0 0 8px ${color}` : 'none' 
+                            }}
+                          />
+                          {idx < arr.length - 1 && (
+                            <div className="h-[1px] w-3 bg-white/10" style={{ backgroundColor: isDone ? "#10B981" : "rgba(255,255,255,0.05)" }} />
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={handleTriggerOsint}
+                  disabled={!!isTriggeringOsint || !!(osintStatus && ["Queued", "Scraping Website", "Extracting Metadata", "Analyzing Company", "Generating Risk Profile"].includes(osintStatus))}
+                  className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-[10px] font-black uppercase tracking-wider text-slate-200 transition disabled:opacity-50 cursor-pointer flex items-center gap-1.5"
+                >
+                  <RefreshCw className={`h-3 w-3 ${isTriggeringOsint ? 'animate-spin' : ''}`} />
+                  {isTriggeringOsint ? "Triggering..." : "Scan Company"}
+                </button>
+              </div>
+            </div>
+
+            {/* Error state if failed */}
+            {osintError && (
+              <div className="p-3 rounded-xl border border-red-500/20 bg-red-500/5 text-xs text-red-400 font-sans">
+                <strong>Enrichment Failure:</strong> {osintError}
+              </div>
+            )}
+            {osintTriggerError && (
+              <div className="p-3 rounded-xl border border-red-500/20 bg-red-500/5 text-xs text-red-400 font-sans">
+                <strong>Trigger Error:</strong> {osintTriggerError}
+              </div>
+            )}
+
+            {/* Content Display */}
+            {deal.rawFields?.OSINT_Summary ? (
+              <div className="space-y-4">
+                <p className="text-xs leading-relaxed text-slate-300 font-sans">
+                  {deal.rawFields.OSINT_Summary}
+                </p>
+
+                {deal.rawFields?.OSINT_Key_Insights && (
+                  <div className="space-y-1.5">
+                    <span className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-500">Key Intelligence Insights</span>
+                    <ul className="text-xs text-slate-350 space-y-1 list-disc list-inside">
+                      {String(deal.rawFields.OSINT_Key_Insights).split("\n").map((insight, idx) => (
+                        <li key={idx} className="font-sans">{insight.replace(/^•\s*/, "")}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {deal.rawFields?.OSINT_Risk_Flags && (
+                  <div className="space-y-2 pt-3 border-t border-white/5">
+                    <span className="block text-[8px] font-extrabold uppercase tracking-widest text-red-400">Risk Profile & Discrepancies</span>
+                    <div className="space-y-1.5">
+                      {String(deal.rawFields.OSINT_Risk_Flags).split("\n").map((flag, idx) => (
+                        <div key={idx} className="flex items-start gap-2 text-xs text-red-400/90 font-sans">
+                          <AlertTriangle className="h-3.5 w-3.5 text-red-400 shrink-0 mt-0.5" />
+                          <span>{flag.replace(/^•\s*/, "")}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-slate-500">
+                <Globe className="h-8 w-8 text-slate-700 mx-auto mb-2" />
+                <p className="text-xs font-bold">No OSINT intelligence has been gathered for this company yet.</p>
+                <p className="text-[10px] text-slate-600 mt-1 font-sans">Click "Scan Company" above or transition stage to Discovery to trigger automatic enrichment.</p>
+              </div>
+            )}
+          </div>
+
+          {/* Right Panel: Sources & Metadata */}
+          <div className="w-full lg:w-[320px] border-t lg:border-t-0 lg:border-l border-white/5 pt-6 lg:pt-0 lg:pl-6 flex flex-col justify-between space-y-4">
+            <div className="space-y-4">
+              <h5 className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400">Target Source Registry</h5>
+              
+              <div className="space-y-2.5 text-xs font-sans">
+                <div className="flex items-center justify-between py-1.5 border-b border-white/[0.03]">
+                  <span className="text-slate-450 font-medium">Companies House</span>
+                  {deal.rawFields?.Companies_House_Number ? (
+                    <span className="font-bold text-slate-300">#{deal.rawFields.Companies_House_Number}</span>
+                  ) : (
+                    <span className="text-slate-600 font-medium">Not Found</span>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between py-1.5 border-b border-white/[0.03]">
+                  <span className="text-slate-450 font-medium">LinkedIn Page</span>
+                  {deal.rawFields?.LinkedIn_URL ? (
+                    <a 
+                      href={deal.rawFields.LinkedIn_URL} 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="text-blue-400 hover:text-blue-300 font-bold flex items-center gap-1 transition"
+                    >
+                      Linked <ExternalLink className="h-3 w-3" />
+                    </a>
+                  ) : (
+                    <span className="text-slate-600 font-medium">Unlinked</span>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between py-1.5 border-b border-white/[0.03]">
+                  <span className="text-slate-450 font-medium">Website URL</span>
+                  {deal.rawFields?.Website || deal.rawFields?.Company_Website ? (
+                    <a 
+                      href={deal.rawFields.Website || deal.rawFields.Company_Website} 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="text-blue-400 hover:text-blue-300 font-bold flex items-center gap-1 transition"
+                    >
+                      Visit <ExternalLink className="h-3 w-3" />
+                    </a>
+                  ) : (
+                    <span className="text-slate-600 font-medium">No Link</span>
+                  )}
+                </div>
+
+                {deal.rawFields?.OSINT_Completed_At && (
+                  <div className="flex items-center justify-between py-1.5">
+                    <span className="text-slate-450 font-medium">Last Enrichment</span>
+                    <span className="text-slate-400 font-semibold">
+                      {new Date(deal.rawFields.OSINT_Completed_At).toLocaleDateString("en-GB", {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric"
+                      })}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Micro-telemetry */}
+            {deal.rawFields?.OSINT_Data && (
+              <div className="bg-white/[0.02] border border-white/[0.04] rounded-xl p-3 text-[10px] text-slate-500 font-sans space-y-1">
+                <span className="block font-bold text-slate-450 uppercase tracking-widest text-[8px]">Scraper Telemetry</span>
+                <div>
+                  Technographics and schema markups parsed successfully. View raw payload in databases.
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
     </div>
   );
 }
 
 function PreCallBriefTab({ deal }: { deal: any }) {
+  const [briefs, setBriefs] = useState<any[]>([]);
+  const [selectedBrief, setSelectedBrief] = useState<any | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generatingStatus, setGeneratingStatus] = useState(""); // live queue status
+  const [error, setError] = useState<string | null>(null);
+
+  // Configuration inputs for new brief
   const [attendees, setAttendees] = useState<string[]>(["Ayo (lead)", "Prince"]);
   const [selectedCallType, setSelectedCallType] = useState<"1st" | "2nd" | "neg">("1st");
   const [dataSources, setDataSources] = useState<Record<string, boolean>>({
@@ -1037,17 +1537,58 @@ function PreCallBriefTab({ deal }: { deal: any }) {
     notionSops: true,
     airtable: true,
   });
-  
+
   const [uploadState, setUploadState] = useState<"idle" | "dragging" | "uploading" | "analyzed">("idle");
   const [uploadedFileName, setUploadedFileName] = useState("");
+  const [pastedText, setPastedText] = useState("");
   const [progress, setProgress] = useState(0);
 
   const [chatQuestion, setChatQuestion] = useState("");
-  const [aiAnswers, setAiAnswers] = useState<Array<{ q: string; a: string }>>([]);
   const [isAsking, setIsAsking] = useState(false);
 
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [briefGenerated, setBriefGenerated] = useState(true);
+  // Loading animation step
+  const [loadingStep, setLoadingStep] = useState(0);
+  const steps = [
+    "Scraping Companies House data...",
+    "Crawling LinkedIn profiles...",
+    "Ingesting Airtable records...",
+    "Querying Claude 3.5 Sonnet...",
+    "Formatting intelligence brief..."
+  ];
+
+  useEffect(() => {
+    if (deal?.id) {
+      loadBriefs();
+    }
+  }, [deal?.id]);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (isGenerating) {
+      setLoadingStep(0);
+      interval = setInterval(() => {
+        setLoadingStep((prev) => (prev < steps.length - 1 ? prev + 1 : prev));
+      }, 3000);
+    }
+    return () => clearInterval(interval);
+  }, [isGenerating]);
+
+  async function loadBriefs() {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const list = await fetchPrecallBriefs(deal.id);
+      setBriefs(list);
+      if (list.length > 0) {
+        setSelectedBrief(list[0]);
+      }
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || "Failed to load pre-call briefs.");
+    } finally {
+      setIsLoading(false);
+    }
+  }
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -1092,37 +1633,82 @@ function PreCallBriefTab({ deal }: { deal: any }) {
     }
   };
 
-  const triggerGeneration = () => {
+  const triggerGeneration = async () => {
     setIsGenerating(true);
-    setTimeout(() => {
+    setError(null);
+    setGeneratingStatus("");
+    try {
+      const result = await generatePrecallBrief({
+        dealId: deal.id,
+        attendees,
+        selectedCallType,
+        dataSources,
+        pastedText: uploadedFileName ? `Dropped file: ${uploadedFileName}. ` + pastedText : pastedText
+      });
+
+      if (result?.status === "queued") {
+        // 202 — job is queued. Show holding message, poll briefs list after a delay.
+        setGeneratingStatus("Queued — generating in background…");
+        setTimeout(async () => {
+          try {
+            const list = await fetchPrecallBriefs(deal.id);
+            setBriefs(list);
+            if (list.length > 0) {
+              setSelectedBrief(list[0]);
+            }
+          } catch {/* silently ignore */} finally {
+            setIsGenerating(false);
+            setGeneratingStatus("");
+          }
+        }, 10_000); // 10 seconds — QStash worker should complete well within this
+      } else {
+        // 200 — synchronous result (local dev)
+        setBriefs((prev) => [result, ...prev]);
+        setSelectedBrief(result);
+        setIsGenerating(false);
+      }
+
+      // Reset inputs
+      setUploadState("idle");
+      setUploadedFileName("");
+      setPastedText("");
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || "Failed to generate pre-call brief.");
       setIsGenerating(false);
-      setBriefGenerated(true);
-    }, 1000);
+    }
   };
 
-  const handleAskQuestion = (e: React.FormEvent) => {
+  const handleAskQuestion = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!chatQuestion.trim()) return;
+    if (!chatQuestion.trim() || !selectedBrief) return;
     
     const q = chatQuestion;
     setChatQuestion("");
     setIsAsking(true);
     
-    setTimeout(() => {
-      let response = "Based on the connection intelligence, ";
-      if (q.toLowerCase().includes("nhs") || q.toLowerCase().includes("contract")) {
-        response += "the NHS-adjacent contracts account for approximately 35% of total revenue. They expire in August 2027 and contain automatic 12-month extension clauses if performance SLAs (currently at 98.4%) are met.";
-      } else if (q.toLowerCase().includes("manager") || q.toLowerCase().includes("founder") || q.toLowerCase().includes("staff")) {
-        response += "there are 2 area managers overseeing operations on site. Standard 3-month notice periods are active. The founder holds the primary commercial relationships, and a key seller-note structure is recommended to secure handover of these accounts.";
-      } else if (q.toLowerCase().includes("equipment") || q.toLowerCase().includes("debt") || q.toLowerCase().includes("asset")) {
-        response += "all cleaning machinery and fleet vans (5 vans) are fully owned, with no outstanding HP (Hire Purchase) agreements or lease liabilities in the balance sheet.";
-      } else {
-        response += "I've reviewed the uploaded information. The contractor maintains strong positioning. To address this specifically, I recommend checking Section 4 of the IM regarding employee contracts and TUPE provisions.";
-      }
+    try {
+      const response = await askPrecallBriefQuestion({
+        dealId: deal.id,
+        briefId: selectedBrief.id,
+        question: q,
+        history: selectedBrief.aiAnswers || []
+      });
       
-      setAiAnswers((prev) => [...prev, { q, a: response }]);
+      setSelectedBrief((prev: any) => ({
+        ...prev,
+        aiAnswers: response.aiAnswers
+      }));
+      
+      setBriefs((prev) =>
+        prev.map((b) => (b.id === selectedBrief.id ? { ...b, aiAnswers: response.aiAnswers } : b))
+      );
+    } catch (err: any) {
+      console.error(err);
+      alert(err.message || "Failed to get response from Claude.");
+    } finally {
       setIsAsking(false);
-    }, 800);
+    }
   };
 
   const toggleSource = (key: string) => {
@@ -1136,308 +1722,622 @@ function PreCallBriefTab({ deal }: { deal: any }) {
     }
   };
 
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-6 items-stretch font-sans animate-fade-in-up">
-      
-      {/* Left Pane: Configuration */}
-      <div className="rounded-2xl border border-white/[0.06] bg-[#0E121A] p-5 space-y-6 flex flex-col justify-between">
-        <div className="space-y-5">
-          <h3 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 pb-2 border-b border-white/5">
-            PRE-CALL CONFIGURATION
-          </h3>
-
-          {/* Attendees */}
-          <div className="space-y-2">
-            <span className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-500">ATTENDEES</span>
-            <div className="flex flex-wrap gap-1.5 items-center">
-              {attendees.map((att, idx) => (
-                <span 
-                  key={idx} 
-                  className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-[10px] font-semibold ${
-                    att.includes("lead") 
-                      ? "bg-[#10B981] text-slate-950" 
-                      : "bg-white/5 border border-white/10 text-slate-300"
-                  }`}
-                >
-                  {att}
-                </span>
-              ))}
-              <button 
-                type="button" 
-                onClick={addAttendee}
-                className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-slate-400 hover:text-white cursor-pointer transition"
-              >
-                +
-              </button>
-            </div>
-          </div>
-
-          {/* Call Type */}
-          <div className="space-y-2">
-            <span className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-500">CALL TYPE</span>
-            <div className="grid grid-cols-3 gap-1 bg-white/5 rounded-xl p-1 border border-white/[0.04]">
-              <button
-                type="button"
-                onClick={() => setSelectedCallType("1st")}
-                className={`h-7 rounded-lg text-[10px] font-bold uppercase tracking-wider transition cursor-pointer ${
-                  selectedCallType === "1st" 
-                    ? "bg-[#10B981] text-slate-950 font-bold" 
-                    : "text-slate-500 hover:text-white"
-                }`}
-              >
-                1st seller call
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelectedCallType("2nd")}
-                className={`h-7 rounded-lg text-[10px] font-bold uppercase tracking-wider transition cursor-pointer ${
-                  selectedCallType === "2nd" 
-                    ? "bg-[#10B981] text-slate-950 font-bold" 
-                    : "text-slate-500 hover:text-white"
-                }`}
-              >
-                2nd call
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelectedCallType("neg")}
-                className={`h-7 rounded-lg text-[10px] font-bold uppercase tracking-wider transition cursor-pointer ${
-                  selectedCallType === "neg" 
-                    ? "bg-[#10B981] text-slate-950 font-bold" 
-                    : "text-slate-500 hover:text-white"
-                }`}
-              >
-                Negotiation
-              </button>
-            </div>
-          </div>
-
-          {/* Upload IM */}
-          <div className="space-y-2">
-            <span className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-500">UPLOAD IM (OPTIONAL)</span>
-            <div 
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-              className={`border border-dashed rounded-xl p-6 text-center transition cursor-pointer relative ${
-                uploadState === "dragging" 
-                  ? "border-[#10B981] bg-[#10B981]/5" 
-                  : "border-white/10 hover:border-white/20 bg-white/[0.01]"
-              }`}
-            >
-              <input 
-                type="file" 
-                accept=".pdf"
-                onChange={handleFileChange}
-                className="absolute inset-0 opacity-0 cursor-pointer"
-              />
-              {uploadState === "idle" && (
-                <div className="space-y-2 py-2">
-                  <Upload className="h-5 w-5 text-slate-500 mx-auto" />
-                  <p className="text-[9px] text-slate-400 uppercase tracking-wider font-extrabold">
-                    DROP IM PDF HERE
-                  </p>
-                </div>
-              )}
-              {uploadState === "dragging" && (
-                <div className="space-y-1">
-                  <Upload className="h-5 w-5 text-[#10B981] mx-auto animate-bounce" />
-                  <p className="text-[10px] text-[#10B981] font-bold">Drop PDF to ingest</p>
-                </div>
-              )}
-              {uploadState === "uploading" && (
-                <div className="space-y-2">
-                  <RefreshCw className="h-4 w-4 text-[#10B981] mx-auto animate-spin" />
-                  <p className="text-[10px] text-slate-400 font-semibold">Analyzing PDF ({progress}%)</p>
-                  <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
-                    <div className="h-full bg-[#10B981]" style={{ width: `${progress}%` }} />
-                  </div>
-                </div>
-              )}
-              {uploadState === "analyzed" && (
-                <div className="space-y-1.5">
-                  <Check className="h-5 w-5 text-emerald-450 mx-auto animate-pulse" />
-                  <p className="text-[10px] text-slate-200 font-bold truncate px-2">{uploadedFileName}</p>
-                  <p className="text-[9px] text-emerald-400 font-bold uppercase tracking-widest">IM Ingested & Analyzed</p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* OSINT Sources */}
-          <div className="space-y-2">
-            <span className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-500">OSINT SOURCES TO PULL</span>
-            <div className="grid grid-cols-2 gap-2">
-              {[
-                { id: "companiesHouse", label: "Companies House" },
-                { id: "linkedIn", label: "LinkedIn" },
-                { id: "notionSops", label: "Notion SOPs" },
-                { id: "airtable", label: "Airtable record" },
-              ].map((src) => {
-                const isConnected = dataSources[src.id];
-                return (
-                  <button
-                    key={src.id}
-                    type="button"
-                    onClick={() => toggleSource(src.id)}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-[10px] font-bold text-left transition cursor-pointer ${
-                      isConnected 
-                        ? "bg-white/5 border-white/10 text-white" 
-                        : "bg-white/[0.01] border-white/5 text-slate-500 hover:text-slate-450"
-                    }`}
-                  >
-                    <span className={`h-1.5 w-1.5 rounded-full ${isConnected ? "bg-emerald-450" : "bg-slate-700"}`} />
-                    {src.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-
-        <button
-          type="button"
-          onClick={triggerGeneration}
-          disabled={isGenerating}
-          className="w-full h-10 rounded-xl bg-slate-100 text-slate-950 font-black text-xs uppercase tracking-wider transition hover:bg-white disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer mt-6"
-        >
-          {isGenerating ? (
-            <>
-              <RefreshCw className="h-4 w-4 animate-spin" />
-              Ingesting...
-            </>
-          ) : (
-            <>
-              <Sparkles className="h-4 w-4" />
-              Generate pre-call brief
-            </>
-          )}
-        </button>
+  if (isLoading) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <Loader2 className="h-8 w-8 text-[#C5A059] animate-spin" />
+        <span className="text-xs text-slate-400 ml-2 font-sans">Loading briefs...</span>
       </div>
+    );
+  }
 
-      {/* Right Pane: Intelligence Brief */}
-      <div className="rounded-2xl border border-white/[0.06] bg-[#0E1524] p-6 flex flex-col justify-between min-h-[500px] flex-1">
-        
-        <div className="flex items-center gap-3 pb-3 border-b border-white/5">
-          <Info className="h-4.5 w-4.5 text-blue-400 mt-0.5" />
+  return (
+    <div className="space-y-4">
+      {/* History Selector and Header */}
+      {briefs.length > 0 && (
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-white/5 pb-3">
           <div>
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-350">
-              PRE-CALL INTELLIGENCE BRIEF — {(deal.companyName || deal.dealRef).toUpperCase()} — 1ST CALL
-            </h4>
+            <h3 className="text-sm font-bold text-white flex items-center gap-2">
+              <FileText className="h-4 w-4 text-[#C5A059]" />
+              Pre-call Intelligence
+            </h3>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1 select-none">
+              <History className="h-3 w-3" />
+              History:
+            </span>
+            <select
+              value={selectedBrief?.id || ""}
+              onChange={(e) => {
+                if (e.target.value === "") {
+                  setSelectedBrief(null);
+                } else {
+                  const matched = briefs.find((b) => b.id === e.target.value);
+                  if (matched) setSelectedBrief(matched);
+                }
+              }}
+              className="rounded-lg border border-white/10 bg-[#0E121A] px-3 py-1.5 text-xs font-semibold text-slate-200 outline-none hover:border-white/20 focus:border-[#C5A059]/50"
+            >
+              {briefs.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name.replace("Pre-call Brief: ", "")}
+                </option>
+              ))}
+            </select>
+
+            <button
+              onClick={() => setSelectedBrief(null)}
+              className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-slate-405 hover:text-white hover:bg-white/10 transition"
+              title="Perform new analysis"
+            >
+              <Plus className="h-4 w-4" />
+            </button>
           </div>
         </div>
+      )}
 
-        {!briefGenerated ? (
-          <div className="flex flex-col items-center justify-center flex-1 py-12 text-center">
-            <BrainCircuit className="h-12 w-12 text-slate-650 mb-3 animate-pulse" />
-            <h5 className="text-xs font-bold text-slate-300 uppercase tracking-wider">No Brief Generated</h5>
-            <p className="text-[10px] text-slate-450 max-w-xs mt-1.5 leading-relaxed font-sans">
-              Configure parameters and click "Generate pre-call brief" to ingest AI summaries.
+      {error && (
+        <div className="flex items-start gap-3 rounded-xl border border-rose-500/20 bg-rose-500/5 p-4">
+          <AlertCircle className="h-5 w-5 text-rose-500 shrink-0 mt-0.5" />
+          <div>
+            <h4 className="text-sm font-semibold text-white">Error</h4>
+            <p className="text-xs text-rose-200 mt-1 leading-relaxed">{error}</p>
+          </div>
+        </div>
+      )}
+
+      {isGenerating ? (
+        /* Progress loader */
+        <div className="rounded-2xl border border-white/15 bg-acp-card backdrop-blur-md p-10 flex flex-col items-center justify-center space-y-6 min-h-[350px]">
+          <div className="relative flex items-center justify-center">
+            <RefreshCw className="h-12 w-12 text-[#C5A059] animate-spin" />
+            <div className="absolute h-6 w-6 rounded-full bg-[#C5A059]/10 animate-ping" />
+          </div>
+          <div className="text-center space-y-2">
+            <h4 className="text-base font-bold text-white font-sans">Generating Intelligence Brief</h4>
+            <p className="text-xs text-[#C5A059] font-medium select-none tracking-wide animate-pulse font-sans">
+              {steps[loadingStep]}
             </p>
           </div>
-        ) : (
-          <div className="flex-1 space-y-6 mt-4">
-            
-            <div className="space-y-2">
-              <span className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-400">Business profile:</span>
-              <p className="text-xs leading-relaxed text-slate-300 font-sans">
-                {deal.sector === "Cleaning" || deal.sector === "General" ? "Commercial cleaning contractor, retail and logistics clients across " : `${deal.sector || "General"} sector contractor located in `} {deal.location || "Kent"}. 
-                Entry valuation is {deal.evAsk ? formatGBP(Number(deal.evAsk)) : "£525k"} (implied at {deal.multiplier || "2.7"}x normalized EBITDA of {formatGBP(Number(deal.ebitda))}). 
-                Staffing profile indicates TUPE liability risk may apply on transition of key client contracts.
-              </p>
-            </div>
+          <div className="w-full max-w-xs bg-white/5 rounded-full h-1.5 overflow-hidden">
+            <div 
+              className="bg-[#C5A059] h-1.5 rounded-full transition-all duration-700 ease-out" 
+              style={{ width: `${((loadingStep + 1) / steps.length) * 100}%` }}
+            />
+          </div>
+        </div>
+      ) : selectedBrief ? (
+        /* Display Generated Brief */
+        <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-6 items-stretch font-sans animate-fade-in-up">
+          {/* Left Pane: Config used */}
+          <div className="rounded-2xl border border-white/[0.06] bg-[#0E121A] p-5 space-y-6 flex flex-col justify-between">
+            <div className="space-y-5">
+              <h3 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 pb-2 border-b border-white/5">
+                BRIEF PARAMETERS
+              </h3>
 
-            <div className="space-y-2">
-              <span className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-400">Opening angle:</span>
-              <p className="text-xs leading-relaxed text-slate-300 font-sans">
-                Lead with operational continuity. Seller's concern is staff legacy, not headline price. 
-                Avoid equity-first language in the opener.
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <span className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-400 font-sans">Questions for Ayo to ask:</span>
-              <ol className="list-decimal list-inside space-y-2 text-xs font-sans text-slate-300">
-                <li>What % of revenue is contractual vs ad hoc?</li>
-                <li>Is the owner willing to remain for a 6-12 month transition?</li>
-                <li>What are the depot lease terms and break clauses?</li>
-              </ol>
-            </div>
-
-            {/* Custom QA answers block */}
-            {aiAnswers.length > 0 && (
-              <div className="border-t border-white/5 pt-4 space-y-3 animate-fade-in-up">
-                <span className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-500">Interactive Brief Q&A</span>
-                <div className="space-y-3 max-h-[180px] overflow-y-auto pr-1">
-                  {aiAnswers.map((item, idx) => (
-                    <div key={idx} className="space-y-1.5">
-                      <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-semibold font-sans">
-                        <Users className="h-3.5 w-3.5 text-acp-bronze" />
-                        <span>Ayo: "{item.q}"</span>
-                      </div>
-                      <div className="flex items-start gap-2 bg-[#101012]/30 border border-white/[0.03] rounded-xl p-3 text-[11px] leading-relaxed text-slate-300 font-sans">
-                        <BrainCircuit className="h-4 w-4 text-[#C5A059] shrink-0 mt-0.5" />
-                        <p>{item.a}</p>
-                      </div>
-                    </div>
+              {/* Attendees */}
+              <div className="space-y-2">
+                <span className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-500">ATTENDEES</span>
+                <div className="flex flex-wrap gap-1.5 items-center">
+                  {selectedBrief.attendees?.map((att: string, idx: number) => (
+                    <span 
+                      key={idx} 
+                      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-[10px] font-semibold ${
+                        att.includes("lead") 
+                          ? "bg-[#10B981] text-slate-950" 
+                          : "bg-white/5 border border-white/10 text-slate-300"
+                      }`}
+                    >
+                      {att}
+                    </span>
                   ))}
                 </div>
               </div>
-            )}
 
+              {/* Call Type */}
+              <div className="space-y-2">
+                <span className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-500">CALL TYPE</span>
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-extrabold uppercase tracking-wider bg-[#C5A059]/10 border border-[#C5A059]/20 text-[#C5A059]">
+                  {selectedBrief.selectedCallType === "1st" ? "1st Seller Call" : selectedBrief.selectedCallType === "2nd" ? "2nd Call" : "Negotiation"}
+                </span>
+              </div>
+
+              {/* Data Sources */}
+              <div className="space-y-2">
+                <span className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-500 font-sans">OSINT SOURCES INGESTED</span>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { id: "companiesHouse", label: "Companies House" },
+                    { id: "linkedIn", label: "LinkedIn" },
+                    { id: "notionSops", label: "Notion SOPs" },
+                    { id: "airtable", label: "Airtable record" },
+                  ].map((src) => {
+                    const isConnected = selectedBrief.dataSources?.[src.id] !== false;
+                    return (
+                      <div
+                        key={src.id}
+                        className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-[10px] font-bold text-left opacity-75 ${
+                          isConnected 
+                            ? "bg-white/5 border-white/10 text-white" 
+                            : "bg-white/[0.01] border-white/5 text-slate-600"
+                        }`}
+                      >
+                        <span className={`h-1.5 w-1.5 rounded-full ${isConnected ? "bg-emerald-450" : "bg-slate-850"}`} />
+                        {src.label}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setSelectedBrief(null)}
+              className="w-full h-10 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 cursor-pointer mt-6"
+            >
+              <Plus className="h-4 w-4" />
+              Generate new brief
+            </button>
           </div>
-        )}
 
-        <form onSubmit={handleAskQuestion} className="border-t border-white/5 pt-4 mt-6 flex gap-2">
-          <input
-            type="text"
-            required
-            disabled={isAsking}
-            value={chatQuestion}
-            onChange={(e) => setChatQuestion(e.target.value)}
-            placeholder="Ask Claude your own question regarding TUPE, notice periods, assets..."
-            className="flex-1 h-9 rounded-xl border border-white/10 bg-white/5 px-3 text-xs text-white placeholder-slate-500 outline-none focus:border-acp-bronze disabled:opacity-50 font-sans"
-          />
-          <button
-            type="submit"
-            disabled={isAsking || !chatQuestion.trim()}
-            className="h-9 w-9 shrink-0 flex items-center justify-center rounded-xl bg-gradient-to-r from-acp-bronze to-acp-bronze-dark text-white hover:opacity-90 disabled:opacity-50 cursor-pointer shadow-glow-bronze/10"
-          >
-            {isAsking ? (
-              <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <ArrowRight className="h-3.5 w-3.5" />
-            )}
-          </button>
-        </form>
+          {/* Right Pane: Content */}
+          <div className="rounded-2xl border border-white/[0.06] bg-[#0E1524] p-6 flex flex-col justify-between min-h-[500px] flex-1">
+            <div className="flex-1 space-y-6">
+              
+              <div className="flex items-center gap-3 pb-3 border-b border-white/5">
+                <Info className="h-4.5 w-4.5 text-blue-400 mt-0.5" />
+                <div>
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-350">
+                    PRE-CALL INTELLIGENCE BRIEF — {(deal.companyName || deal.dealRef).toUpperCase()} — {selectedBrief.selectedCallType === "1st" ? "1ST CALL" : selectedBrief.selectedCallType === "2nd" ? "2ND CALL" : "NEGOTIATION"}
+                  </h4>
+                </div>
+              </div>
 
-      </div>
+              <div className="space-y-2">
+                <span className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-400">Business profile:</span>
+                <p className="text-xs leading-relaxed text-slate-300 font-sans">
+                  {selectedBrief.businessProfile}
+                </p>
+              </div>
 
+              <div className="space-y-2">
+                <span className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-400">Opening angle:</span>
+                <p className="text-xs leading-relaxed text-slate-300 font-sans">
+                  {selectedBrief.openingAngle}
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <span className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-400 font-sans">Questions for Ayo to ask:</span>
+                <ol className="list-decimal list-inside space-y-2 text-xs font-sans text-slate-300">
+                  {selectedBrief.questionsToAsk?.map((q: string, idx: number) => (
+                    <li key={idx}>{q}</li>
+                  ))}
+                </ol>
+              </div>
+
+              {/* Custom QA answers block */}
+              {selectedBrief.aiAnswers && selectedBrief.aiAnswers.length > 0 && (
+                <div className="border-t border-white/5 pt-4 space-y-3 animate-fade-in-up">
+                  <span className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-500">Interactive Brief Q&A</span>
+                  <div className="space-y-3 max-h-[200px] overflow-y-auto pr-1">
+                    {selectedBrief.aiAnswers.map((item: any, idx: number) => (
+                      <div key={idx} className="space-y-1.5">
+                        <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-semibold font-sans">
+                          <Users className="h-3.5 w-3.5 text-[#C5A059]" />
+                          <span>Ayo: "{item.q}"</span>
+                        </div>
+                        <div className="flex items-start gap-2 bg-[#101012]/30 border border-white/[0.03] rounded-xl p-3 text-[11px] leading-relaxed text-slate-300 font-sans">
+                          <BrainCircuit className="h-4 w-4 text-[#C5A059] shrink-0 mt-0.5" />
+                          <p>{item.a}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+            </div>
+
+            <form onSubmit={handleAskQuestion} className="border-t border-white/5 pt-4 mt-6 flex gap-2">
+              <input
+                type="text"
+                required
+                disabled={isAsking}
+                value={chatQuestion}
+                onChange={(e) => setChatQuestion(e.target.value)}
+                placeholder="Ask Claude your own question regarding TUPE, notice periods, assets..."
+                className="flex-1 h-9 rounded-xl border border-white/10 bg-white/5 px-3 text-xs text-white placeholder-slate-500 outline-none focus:border-[#C5A059] disabled:opacity-50 font-sans"
+              />
+              <button
+                type="submit"
+                disabled={isAsking || !chatQuestion.trim()}
+                className="h-9 w-9 shrink-0 flex items-center justify-center rounded-xl bg-gradient-to-r from-[#C5A059] to-[#A8873F] text-white hover:opacity-90 disabled:opacity-50 cursor-pointer shadow-glow-bronze/10"
+              >
+                {isAsking ? (
+                  <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <ArrowRight className="h-3.5 w-3.5" />
+                )}
+              </button>
+            </form>
+          </div>
+        </div>
+      ) : (
+        /* Configuration and Generation screen */
+        <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-6 items-stretch font-sans animate-fade-in-up">
+          
+          {/* Left Pane: Configuration */}
+          <div className="rounded-2xl border border-white/[0.06] bg-[#0E121A] p-5 space-y-6 flex flex-col justify-between">
+            <div className="space-y-5">
+              <h3 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 pb-2 border-b border-white/5">
+                PRE-CALL CONFIGURATION
+              </h3>
+
+              {/* Attendees */}
+              <div className="space-y-2">
+                <span className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-500">ATTENDEES</span>
+                <div className="flex flex-wrap gap-1.5 items-center">
+                  {attendees.map((att, idx) => (
+                    <span 
+                      key={idx} 
+                      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-[10px] font-semibold ${
+                        att.includes("lead") 
+                          ? "bg-[#10B981] text-slate-950" 
+                          : "bg-white/5 border border-white/10 text-slate-300"
+                      }`}
+                    >
+                      {att}
+                    </span>
+                  ))}
+                  <button 
+                    type="button" 
+                    onClick={addAttendee}
+                    className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-slate-400 hover:text-white cursor-pointer transition"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+
+              {/* Call Type */}
+              <div className="space-y-2">
+                <span className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-500">CALL TYPE</span>
+                <div className="grid grid-cols-3 gap-1 bg-white/5 rounded-xl p-1 border border-white/[0.04]">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedCallType("1st")}
+                    className={`h-7 rounded-lg text-[10px] font-bold uppercase tracking-wider transition cursor-pointer ${
+                      selectedCallType === "1st" 
+                        ? "bg-[#10B981] text-slate-950 font-bold" 
+                        : "text-slate-500 hover:text-white"
+                    }`}
+                  >
+                    1st seller call
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedCallType("2nd")}
+                    className={`h-7 rounded-lg text-[10px] font-bold uppercase tracking-wider transition cursor-pointer ${
+                      selectedCallType === "2nd" 
+                        ? "bg-[#10B981] text-slate-950 font-bold" 
+                        : "text-slate-500 hover:text-white"
+                    }`}
+                  >
+                    2nd call
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedCallType("neg")}
+                    className={`h-7 rounded-lg text-[10px] font-bold uppercase tracking-wider transition cursor-pointer ${
+                      selectedCallType === "neg" 
+                        ? "bg-[#10B981] text-slate-950 font-bold" 
+                        : "text-slate-500 hover:text-white"
+                    }`}
+                  >
+                    Negotiation
+                  </button>
+                </div>
+              </div>
+
+              {/* Upload IM */}
+              <div className="space-y-2">
+                <span className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-500">UPLOAD IM (OPTIONAL)</span>
+                <div 
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                  className={`border border-dashed rounded-xl p-6 text-center transition cursor-pointer relative ${
+                    uploadState === "dragging" 
+                      ? "border-[#10B981] bg-[#10B981]/5" 
+                      : "border-white/10 hover:border-white/20 bg-white/[0.01]"
+                  }`}
+                >
+                  <input 
+                    type="file" 
+                    accept=".pdf"
+                    onChange={handleFileChange}
+                    className="absolute inset-0 opacity-0 cursor-pointer"
+                  />
+                  {uploadState === "idle" && (
+                    <div className="space-y-2 py-2">
+                      <Upload className="h-5 w-5 text-slate-500 mx-auto" />
+                      <p className="text-[9px] text-slate-405 uppercase tracking-wider font-extrabold">
+                        DROP IM PDF HERE
+                      </p>
+                    </div>
+                  )}
+                  {uploadState === "dragging" && (
+                    <div className="space-y-1">
+                      <Upload className="h-5 w-5 text-[#10B981] mx-auto animate-bounce" />
+                      <p className="text-[10px] text-[#10B981] font-bold">Drop PDF to ingest</p>
+                    </div>
+                  )}
+                  {uploadState === "uploading" && (
+                    <div className="space-y-2">
+                      <RefreshCw className="h-4 w-4 text-[#10B981] mx-auto animate-spin" />
+                      <p className="text-[10px] text-slate-400 font-semibold">Analyzing PDF ({progress}%)</p>
+                      <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
+                        <div className="h-full bg-[#10B981]" style={{ width: `${progress}%` }} />
+                      </div>
+                    </div>
+                  )}
+                  {uploadState === "analyzed" && (
+                    <div className="space-y-1.5">
+                      <Check className="h-5 w-5 text-emerald-450 mx-auto animate-pulse" />
+                      <p className="text-[10px] text-slate-200 font-bold truncate px-2">{uploadedFileName}</p>
+                      <p className="text-[9px] text-emerald-405 font-bold uppercase tracking-widest">IM Ingested & Analyzed</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Paste IM alternative text (Optional) */}
+              {!uploadedFileName && (
+                <div className="space-y-2">
+                  <span className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-500">PASTE IM TEXT (OPTIONAL)</span>
+                  <textarea
+                    value={pastedText}
+                    onChange={(e) => setPastedText(e.target.value)}
+                    placeholder="Paste Information Memorandum summary here..."
+                    className="w-full h-20 rounded-xl border border-white/10 bg-[#0E121A] p-2 text-xs font-medium text-slate-200 outline-none focus:border-[#C5A059]/50 resize-none font-sans"
+                  />
+                </div>
+              )}
+
+              {/* OSINT Sources */}
+              <div className="space-y-2">
+                <span className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-500">OSINT SOURCES TO PULL</span>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { id: "companiesHouse", label: "Companies House" },
+                    { id: "linkedIn", label: "LinkedIn" },
+                    { id: "notionSops", label: "Notion SOPs" },
+                    { id: "airtable", label: "Airtable record" },
+                  ].map((src) => {
+                    const isConnected = dataSources[src.id];
+                    return (
+                      <button
+                        key={src.id}
+                        type="button"
+                        onClick={() => toggleSource(src.id)}
+                        className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-[10px] font-bold text-left transition cursor-pointer ${
+                          isConnected 
+                            ? "bg-white/5 border-white/10 text-white" 
+                            : "bg-white/[0.01] border-white/5 text-slate-500 hover:text-slate-450"
+                        }`}
+                      >
+                        <span className={`h-1.5 w-1.5 rounded-full ${isConnected ? "bg-emerald-450" : "bg-slate-700"}`} />
+                        {src.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={triggerGeneration}
+              disabled={isGenerating}
+              className="w-full h-10 rounded-xl bg-slate-100 text-slate-950 font-black text-xs uppercase tracking-wider transition hover:bg-white disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer mt-6"
+            >
+              <Sparkles className="h-4 w-4" />
+              {generatingStatus || "Generate pre-call brief"}
+            </button>
+          </div>
+
+          {/* Right Pane: Preview */}
+          <div className="rounded-2xl border border-white/[0.06] bg-[#0E1524] p-6 flex flex-col justify-center items-center min-h-[500px] flex-1 text-center">
+            <BrainCircuit className="h-12 w-12 text-slate-655 mb-3 animate-pulse" />
+            <h5 className="text-xs font-bold text-slate-350 uppercase tracking-wider">No Brief Selected</h5>
+            <p className="text-[10px] text-slate-450 max-w-xs mt-1.5 leading-relaxed font-sans">
+              Configure parameters on the left and click "Generate pre-call brief" or choose an existing brief from the history.
+            </p>
+          </div>
+
+        </div>
+      )}
     </div>
   );
 }
 
-function PostMeetingTab({ deal }: { deal: any }) {
+function PostMeetingTab({ deal, onScoreChange }: { deal: any; onScoreChange: (score: string) => void }) {
+  const [briefs, setBriefs] = useState<any[]>([]);
+  const [loadingBriefs, setLoadingBriefs] = useState(true);
+  const [selectedBrief, setSelectedBrief] = useState<any | null>(null);
+  
+  const [schemaId, setSchemaId] = useState<string>("ACP_DEAL_ROOM");
   const [manualNotes, setManualNotes] = useState("");
   const [uploadState, setUploadState] = useState<"idle" | "dragging" | "uploading" | "analyzed">("idle");
   const [uploadedFileName, setUploadedFileName] = useState("");
   const [progress, setProgress] = useState(0);
-  const [showSuccess, setShowSuccess] = useState(false);
+  
+  const [mode, setMode] = useState<"view" | "new">("view");
+  const [generating, setGenerating] = useState(false);
+  const [generatingStatus, setGeneratingStatus] = useState(""); // live queue status
+  const [overrides, setOverrides] = useState<Record<string, number>>({});
+  const [savingOverrides, setSavingOverrides] = useState(false);
+  const [successMsg, setSuccessMsg] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
+  const [copiedEmail, setCopiedEmail] = useState(false);
+  const [activeExplanation, setActiveExplanation] = useState<string | null>(null);
 
-  const [actionsTriggered, setActionsTriggered] = useState({
-    emailDrafted: false,
-    savedToNotion: false,
-  });
+  // Load past briefs on mount
+  useEffect(() => {
+    let active = true;
+    async function loadBriefs() {
+      setLoadingBriefs(true);
+      try {
+        const list = await fetchPostcallBriefs(deal.id);
+        if (active) {
+          setBriefs(list);
+          if (list.length > 0) {
+            setSelectedBrief(list[0]);
+            setMode("view");
+          } else {
+            setMode("new");
+          }
+        }
+      } catch (err: any) {
+        console.error("Failed to load post-call briefs:", err);
+      } finally {
+        if (active) setLoadingBriefs(false);
+      }
+    }
+    loadBriefs();
+    return () => {
+      active = false;
+    };
+  }, [deal.id]);
 
-  const handleUpdateScorecard = () => {
-    setShowSuccess(true);
-    setActionsTriggered({
-      emailDrafted: true,
-      savedToNotion: true,
-    });
-    setTimeout(() => {
-      setShowSuccess(false);
-    }, 3000);
+  // Sync parent header score
+  useEffect(() => {
+    if (selectedBrief && selectedBrief.calculated) {
+      onScoreChange(`${selectedBrief.calculated.scoreOutOf50}/50`);
+    } else {
+      onScoreChange("—/50");
+    }
+  }, [selectedBrief, onScoreChange]);
+
+  // Initialize overrides state when selectedBrief changes
+  useEffect(() => {
+    if (selectedBrief) {
+      setOverrides(selectedBrief.overrides || {});
+    } else {
+      setOverrides({});
+    }
+    setActiveExplanation(null);
+  }, [selectedBrief]);
+
+  const handleCopyEmail = () => {
+    if (selectedBrief?.followUpEmail) {
+      navigator.clipboard.writeText(selectedBrief.followUpEmail);
+      setCopiedEmail(true);
+      setTimeout(() => setCopiedEmail(false), 2000);
+    }
+  };
+
+  const handleLoadDemo = () => {
+    setManualNotes(`CleanCare Ltd Discovery Call Notes - 07/06/2026
+Target clean contract provider based in Maidstone, Kent.
+
+Turnover is £1.8m, with EBITDA reported at £165k. Owner add-back of £25k verified for owner/director market salary. Total EBITDA normalized is £190k. Asking price EV is £450k (~2.4x normalized EBITDA).
+
+Owner plans to retire but is willing to support operations for up to 6 months for transition under earn-out/handover. TUPE transfers apply to 14 cleaners. Depot lease terms are currently outstanding and need landlord confirmation.
+
+Client concentration details verified: largest facility client generates 21% of turnover. Low historical debtor risk. Predictable recurring office cleaning services contracts. Bankable profile for senior debt, suitable for 45% EV leverage.
+
+Owner is open to deferred payment structures, specifically accepting 20% Vendor Loan Note (VLN) and 15% deferred payment over 2 years, with remaining 65% cash at close. Responsive team and broker agreed to supply full 3-year P&L immediately.`);
+  };
+
+  const handleUpdateScorecard = async () => {
+    if (!manualNotes.trim()) {
+      setErrorMsg("Please paste some meeting notes or drag a transcript first.");
+      return;
+    }
+    setGenerating(true);
+    setErrorMsg("");
+    setSuccessMsg("");
+    setGeneratingStatus("");
+    try {
+      const result = await generatePostcallBrief({
+        dealId: deal.id,
+        notes: manualNotes,
+        schemaId
+      });
+
+      if (result?.status === "queued") {
+        // 202 — job is queued. Show holding message, reload briefs after delay.
+        setGeneratingStatus("Queued — generating in background…");
+        setSuccessMsg("Post-call analysis queued — results will appear automatically.");
+        setTimeout(async () => {
+          try {
+            const list = await fetchPostcallBriefs(deal.id);
+            setBriefs(list);
+            if (list.length > 0) {
+              setSelectedBrief(list[0]);
+              setMode("view");
+            }
+          } catch {/* silently ignore */} finally {
+            setGenerating(false);
+            setGeneratingStatus("");
+          }
+        }, 10_000);
+        setManualNotes("");
+        setUploadState("idle");
+      } else {
+        // 200 — synchronous result (local dev)
+        setBriefs(prev => [result, ...prev]);
+        setSelectedBrief(result);
+        setMode("view");
+        setManualNotes("");
+        setUploadState("idle");
+        setSuccessMsg("Post-call analysis generated successfully!");
+        setGenerating(false);
+      }
+    } catch (err: any) {
+      console.error(err);
+      setErrorMsg(err.message || "Failed to generate post-call brief.");
+      setGenerating(false);
+    }
+  };
+
+  const handleSliderChange = (metricId: string, val: number) => {
+    setOverrides(prev => ({
+      ...prev,
+      [metricId]: val
+    }));
+  };
+
+  const handleResetOverrides = () => {
+    setOverrides(selectedBrief?.overrides || {});
+  };
+
+  const handleSubmitOverrides = async () => {
+    if (!selectedBrief) return;
+    setSavingOverrides(true);
+    setErrorMsg("");
+    setSuccessMsg("");
+    try {
+      const result = await overridePostcallScores({
+        dealId: deal.id,
+        briefId: selectedBrief.id,
+        overrides
+      });
+      // Update briefs list and current selection
+      setBriefs(prev => prev.map(b => b.id === result.id ? result : b));
+      setSelectedBrief(result);
+      setSuccessMsg("Manual overrides updated and saved successfully!");
+    } catch (err: any) {
+      console.error(err);
+      setErrorMsg(err.message || "Failed to save overrides.");
+    } finally {
+      setSavingOverrides(false);
+    }
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -1459,6 +2359,8 @@ function PostMeetingTab({ deal }: { deal: any }) {
           clearInterval(interval);
           setTimeout(() => {
             setUploadState("analyzed");
+            // Fill with demo text for high fidelity
+            handleLoadDemo();
           }, 300);
           return 100;
         }
@@ -1482,6 +2384,280 @@ function PostMeetingTab({ deal }: { deal: any }) {
     }
   };
 
+  const hasUnsavedOverrides = useMemo(() => {
+    if (!selectedBrief) return false;
+    // Check if overrides state differs from selectedBrief.overrides
+    const schemaMetrics = selectedBrief.calculated?.metrics || [];
+    return schemaMetrics.some((metric: any) => {
+      const stateVal = overrides[metric.metricId] !== undefined ? overrides[metric.metricId] : metric.score;
+      const dbVal = selectedBrief.overrides?.[metric.metricId] !== undefined 
+        ? selectedBrief.overrides[metric.metricId] 
+        : selectedBrief.aiScores?.[metric.metricId]?.score;
+      return stateVal !== dbVal;
+    });
+  }, [overrides, selectedBrief]);
+
+  if (loadingBriefs) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 text-center space-y-4">
+        <Loader2 className="h-8 w-8 text-[#C5A059] animate-spin" />
+        <p className="text-xs text-slate-400">Loading scoring scorecard records...</p>
+      </div>
+    );
+  }
+
+  // ----------------------------------------------------
+  // VIEW MODE
+  // ----------------------------------------------------
+  if (mode === "view" && selectedBrief) {
+    const calc = selectedBrief.calculated || { scoreOutOf50: 0, percentage: 0, metrics: [] };
+    const schemaLabel = selectedBrief.schemaId === "ACP_DEAL_ROOM" ? "ACP Default" : "Modular";
+    
+    return (
+      <div className="space-y-6 animate-fade-in-up font-sans">
+        
+        {/* Controls Row */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/5 pb-4">
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Analysis Run:</span>
+            <select
+              value={selectedBrief.id}
+              onChange={(e) => {
+                const found = briefs.find(b => b.id === e.target.value);
+                if (found) setSelectedBrief(found);
+              }}
+              className="h-9 rounded-xl border border-white/10 bg-[#0E121A] px-3.5 text-xs text-white outline-none focus:border-acp-bronze cursor-pointer"
+            >
+              {briefs.map(b => (
+                <option key={b.id} value={b.id}>{b.name}</option>
+              ))}
+            </select>
+          </div>
+          
+          <button
+            onClick={() => {
+              setMode("new");
+              setOverrides({});
+              setSuccessMsg("");
+              setErrorMsg("");
+            }}
+            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-4 text-xs font-bold uppercase tracking-wider text-slate-350 hover:text-white hover:bg-white/10 transition cursor-pointer"
+          >
+            <Plus className="h-4 w-4" />
+            New Analysis
+          </button>
+        </div>
+
+        {errorMsg && (
+          <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 p-3 text-xs text-rose-400 font-medium">
+            {errorMsg}
+          </div>
+        )}
+
+        {successMsg && (
+          <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3 text-xs text-emerald-400 font-medium flex items-center gap-2">
+            <Check className="h-4 w-4" />
+            {successMsg}
+          </div>
+        )}
+
+        {/* Main Scorecard View */}
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-6 items-start">
+          
+          {/* Left: Score Breakdown */}
+          <div className="space-y-6">
+            
+            {/* Scorecard Box */}
+            <div className="rounded-2xl border border-white/[0.06] bg-[#0E121A] p-6 space-y-6">
+              
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/5 pb-4">
+                <div>
+                  <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-350">
+                    DEAL SCORECARD — {calc.scoreOutOf50}/50
+                  </h4>
+                  <p className="text-[10px] text-slate-500 font-semibold tracking-wider mt-0.5">
+                    Schema: {schemaLabel} ({calc.metrics?.length || 0} Categories)
+                  </p>
+                </div>
+                <div className="text-right">
+                  <span className="block text-[9px] font-extrabold uppercase tracking-widest text-[#FF6B00]">
+                    {calc.percentage}% — progress to IC approval
+                  </span>
+                  <div className="h-2 w-48 bg-white/5 rounded-full overflow-hidden mt-1.5 ml-auto">
+                    <div className="h-full rounded-full bg-[#FF6B00]" style={{ width: `${calc.percentage}%` }} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Sliders Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5">
+                {calc.metrics?.map((metric: any) => {
+                  const currentVal = overrides[metric.metricId] !== undefined ? overrides[metric.metricId] : metric.score;
+                  const dbVal = selectedBrief.overrides?.[metric.metricId] !== undefined 
+                    ? selectedBrief.overrides[metric.metricId] 
+                    : selectedBrief.aiScores?.[metric.metricId]?.score;
+                  const isMetricOverridden = selectedBrief.overrides?.[metric.metricId] !== undefined;
+                  const isModifiedLocally = currentVal !== dbVal;
+
+                  // Color based on score
+                  const scoreColorClass = currentVal >= 8 
+                    ? "text-emerald-400" 
+                    : currentVal >= 5 
+                    ? "text-[#FF6B00]" 
+                    : "text-rose-450";
+
+                  const scoreBgColor = currentVal >= 8 
+                    ? "#10B981" 
+                    : currentVal >= 5 
+                    ? "#FF6B00" 
+                    : "#EF4444";
+
+                  return (
+                    <div key={metric.metricId} className="space-y-2 p-3 bg-white/[0.01] hover:bg-white/[0.02] border border-white/[0.03] rounded-xl transition duration-200">
+                      <div className="flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-slate-300 font-semibold text-[11px]">{metric.name}</span>
+                          {isMetricOverridden && (
+                            <span className="text-[8px] bg-blue-500/10 text-blue-450 border border-blue-500/20 px-1 py-0.2 rounded font-extrabold uppercase tracking-wider">
+                              Override
+                            </span>
+                          )}
+                          {isModifiedLocally && (
+                            <span className="text-[8px] bg-amber-500/10 text-amber-500 border border-amber-500/20 px-1 py-0.2 rounded font-extrabold uppercase tracking-wider animate-pulse">
+                              Pending
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className={`font-extrabold ${scoreColorClass}`}>{currentVal}/10</span>
+                          <button
+                            type="button"
+                            onClick={() => setActiveExplanation(activeExplanation === metric.metricId ? null : metric.metricId)}
+                            className={`h-5 w-5 flex items-center justify-center rounded-md border transition cursor-pointer ${
+                              activeExplanation === metric.metricId
+                                ? "bg-blue-500/10 border-blue-500/30 text-blue-450"
+                                : "bg-white/5 border-white/10 text-slate-500 hover:text-white"
+                            }`}
+                          >
+                            <Info className="h-3 w-3" />
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="relative flex items-center">
+                        <input
+                          type="range"
+                          min="1"
+                          max="10"
+                          value={currentVal}
+                          onChange={(e) => handleSliderChange(metric.metricId, Number(e.target.value))}
+                          className="w-full h-1.5 rounded-full appearance-none bg-white/5 cursor-pointer focus:outline-none transition"
+                          style={{
+                            background: `linear-gradient(to right, ${scoreBgColor} 0%, ${scoreBgColor} ${currentVal * 10}%, rgba(255,255,255,0.05) ${currentVal * 10}%, rgba(255,255,255,0.05) 100%)`
+                          }}
+                        />
+                      </div>
+
+                      {/* Tooltip inline box */}
+                      {activeExplanation === metric.metricId && (
+                        <div className="text-[10px] text-slate-400 bg-[#07090D] border border-white/5 rounded-lg p-2.5 mt-2 leading-relaxed animate-fade-in-up">
+                          <p className="font-semibold text-slate-300 mb-0.5">AI Rating Rationale:</p>
+                          {metric.explanation}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Unsaved overrides banner */}
+              {hasUnsavedOverrides && (
+                <div className="rounded-xl border border-amber-500/25 bg-amber-500/5 p-4 flex flex-col sm:flex-row items-center justify-between gap-4 animate-scale-in">
+                  <div className="flex items-center gap-2.5 text-xs text-amber-500 font-medium">
+                    <AlertTriangle className="h-4.5 w-4.5 shrink-0" />
+                    <span>Unsaved adjustments. Recompute & update scorecard?</span>
+                  </div>
+                  <div className="flex items-center gap-2 w-full sm:w-auto">
+                    <button
+                      onClick={handleResetOverrides}
+                      disabled={savingOverrides}
+                      className="h-8 flex-1 sm:flex-initial rounded-lg border border-white/10 hover:border-white/20 bg-white/5 px-3 text-xs font-bold uppercase tracking-wider text-slate-350 transition cursor-pointer"
+                    >
+                      Reset
+                    </button>
+                    <button
+                      onClick={handleSubmitOverrides}
+                      disabled={savingOverrides}
+                      className="h-8 flex-1 sm:flex-initial rounded-lg bg-amber-500 text-slate-955 px-4 text-xs font-black uppercase tracking-wider hover:bg-amber-400 transition cursor-pointer shadow-lg shadow-amber-500/10 flex items-center justify-center gap-1"
+                    >
+                      {savingOverrides && <RefreshCw className="h-3 w-3 animate-spin" />}
+                      Save Scores
+                    </button>
+                  </div>
+                </div>
+              )}
+
+            </div>
+
+            {/* AI Summary Block */}
+            <div className="rounded-2xl border border-white/[0.06] bg-[#0E121A] p-5 space-y-4">
+              <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 pb-2 border-b border-white/5">
+                ACP AI POST-CALL SUMMARY
+              </h4>
+              <div className="rounded-xl border border-blue-500/10 bg-[#0E1524] p-4.5 space-y-2.5">
+                <div className="flex items-center gap-2 text-xs font-bold text-slate-200">
+                  <BrainCircuit className="h-4 w-4 text-blue-400" />
+                  ANALYSIS RUN EXECUTIVE INSIGHT
+                </div>
+                <p className="text-xs leading-relaxed text-slate-300 font-sans italic">
+                  "{selectedBrief.summary}"
+                </p>
+              </div>
+            </div>
+
+          </div>
+
+          {/* Right: Email Drawer */}
+          <div className="rounded-2xl border border-white/[0.06] bg-[#0E121A] p-5 space-y-4 h-full">
+            <div className="flex items-center justify-between border-b border-white/5 pb-3">
+              <h3 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">
+                BROKER FOLLOW-UP EMAIL
+              </h3>
+              <button
+                onClick={handleCopyEmail}
+                className="inline-flex h-7 items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 text-[10px] font-extrabold uppercase tracking-wider text-slate-350 hover:text-white hover:bg-white/10 cursor-pointer transition"
+              >
+                {copiedEmail ? (
+                  <>
+                    <Check className="h-3 w-3 text-emerald-450" />
+                    COPIED
+                  </>
+                ) : (
+                  <>
+                    <Copy className="h-3 w-3" />
+                    COPY EMAIL
+                  </>
+                )}
+              </button>
+            </div>
+            
+            <div className="rounded-xl border border-white/5 bg-white/[0.01] p-4 font-mono text-[11px] leading-relaxed text-slate-350 overflow-y-auto max-h-[480px]">
+              <div className="border-b border-white/5 pb-2 mb-3">
+                <span className="text-slate-500 font-bold uppercase tracking-wider">To:</span> <span className="text-slate-300">Broker / Seller Contact</span>
+              </div>
+              <div className="whitespace-pre-wrap">{selectedBrief.followUpEmail}</div>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    );
+  }
+
+  // ----------------------------------------------------
+  // NEW ANALYSIS MODE (NEW)
+  // ----------------------------------------------------
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-6 items-stretch font-sans animate-fade-in-up">
       
@@ -1490,13 +2666,38 @@ function PostMeetingTab({ deal }: { deal: any }) {
         
         {/* Post-meeting upload */}
         <div className="rounded-2xl border border-white/[0.06] bg-[#0E121A] p-5 space-y-4">
-          <h3 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 pb-2 border-b border-white/5">
-            POST-MEETING UPLOAD
-          </h3>
+          <div className="flex items-center justify-between pb-2 border-b border-white/5">
+            <h3 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">
+              POST-MEETING SCORING
+            </h3>
+            {briefs.length > 0 && (
+              <button
+                onClick={() => setMode("view")}
+                className="text-[9px] font-black uppercase text-[#C5A059] hover:underline cursor-pointer"
+              >
+                Back to Scorecard
+              </button>
+            )}
+          </div>
+          
           <p className="text-[10px] text-slate-400 leading-relaxed">
-            Upload within 24 hours of your call. System prompts automatically via Make.com.
+            Specify a scorecard schema configuration, paste call notes/transcripts or drag a file to run the AI engine.
           </p>
 
+          {/* Schema Selector */}
+          <div className="space-y-1.5">
+            <label className="block text-[9px] font-extrabold uppercase tracking-wider text-slate-400">Scoring Schema Configuration</label>
+            <select
+              value={schemaId}
+              onChange={(e) => setSchemaId(e.target.value)}
+              className="h-10 w-full rounded-xl border border-white/10 bg-[#0D0D0E] px-3 text-xs text-white outline-none focus:border-acp-bronze cursor-pointer"
+            >
+              <option value="ACP_DEAL_ROOM">ACP Default Schema (5 Categories)</option>
+              <option value="MODULAR_OPPORTUNITY">Modular Opportunity Schema (8 Categories)</option>
+            </select>
+          </div>
+
+          {/* Drag & Drop */}
           <div 
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
@@ -1533,7 +2734,7 @@ function PostMeetingTab({ deal }: { deal: any }) {
               <div className="space-y-1">
                 <Check className="h-4.5 w-4.5 text-emerald-450 mx-auto" />
                 <p className="text-[10px] text-slate-200 font-bold truncate">{uploadedFileName}</p>
-                <p className="text-[8px] text-emerald-400 font-bold uppercase tracking-widest">Transcript Parsed</p>
+                <p className="text-[8px] text-emerald-400 font-bold uppercase tracking-widest">Transcript Loaded</p>
               </div>
             )}
           </div>
@@ -1548,121 +2749,102 @@ function PostMeetingTab({ deal }: { deal: any }) {
             value={manualNotes}
             onChange={(e) => setManualNotes(e.target.value)}
             placeholder="Key points from the call..."
-            rows={4}
+            rows={6}
             className="w-full rounded-xl border border-white/10 bg-white/5 p-3 text-xs text-white placeholder-slate-600 outline-none focus:border-acp-bronze font-sans resize-none"
           />
 
-          <button
-            type="button"
-            onClick={handleUpdateScorecard}
-            className="w-full h-10 rounded-xl bg-slate-100 text-slate-950 font-black text-xs uppercase tracking-wider hover:bg-white flex items-center justify-center gap-1.5 cursor-pointer mt-4"
-          >
-            <CheckCircle2 className="h-4.5 w-4.5" />
-            Update scorecard & Notion
-          </button>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={handleLoadDemo}
+              disabled={generating}
+              className="flex-1 h-10 rounded-xl border border-white/10 bg-white/5 text-slate-350 font-bold text-xs uppercase tracking-wider hover:bg-white/10 transition cursor-pointer"
+            >
+              Demo Notes
+            </button>
+            
+            <button
+              type="button"
+              onClick={handleUpdateScorecard}
+              disabled={generating}
+              className="flex-[2] h-10 rounded-xl bg-slate-100 text-slate-955 font-black text-xs uppercase tracking-wider hover:bg-white flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+            >
+              {generating ? (
+                <>
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                  Scoring...
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="h-4.5 w-4.5" />
+                  Score Call
+                </>
+              )}
+            </button>
+          </div>
 
-          {showSuccess && (
-            <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 p-3 text-[10px] font-semibold text-emerald-400 flex items-center justify-center gap-2 animate-fade-in-up mt-3">
-              <Check className="h-4 w-4 shrink-0 text-emerald-400" />
-              <span>Airtable updated. Scorecard synced to Notion successfully.</span>
+          {errorMsg && (
+            <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 p-3 text-xs text-rose-450 font-medium">
+              {errorMsg}
             </div>
           )}
         </div>
 
-        {/* Auto-triggered actions */}
-        <div className="rounded-2xl border border-white/[0.06] bg-[#0E121A] p-5 space-y-3.5">
+        {/* Info panel */}
+        <div className="rounded-2xl border border-white/[0.06] bg-[#0E121A] p-5 space-y-3">
           <h3 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 pb-2 border-b border-white/5">
-            AUTO-TRIGGERED ACTIONS
+            EXPLAINABLE AI ENGINE
           </h3>
-          <ul className="space-y-2.5 text-xs">
-            <li className="flex items-center gap-2.5 text-slate-300 font-medium">
-              {actionsTriggered.emailDrafted ? (
-                <Check className="h-4.5 w-4.5 text-emerald-450" />
-              ) : (
-                <span className="h-4.5 w-4.5 rounded-full border border-white/10" />
-              )}
-              Follow-up email to broker drafted
-            </li>
-            <li className="flex items-center gap-2.5 text-slate-300 font-medium">
-              {actionsTriggered.savedToNotion ? (
-                <Check className="h-4.5 w-4.5 text-emerald-450" />
-              ) : (
-                <span className="h-4.5 w-4.5 rounded-full border border-white/10" />
-              )}
-              Scorecard saved to Notion
-            </li>
-          </ul>
+          <p className="text-[10px] text-slate-400 leading-relaxed">
+            The Deal Room engine runs structured prompts mapping details against transaction guidelines. Manual overrides are saved to Airtable, recalculating the totals dynamically.
+          </p>
         </div>
 
       </div>
 
-      {/* Right Column Current Scorecard */}
-      <div className="rounded-2xl border border-white/[0.06] bg-[#0E121A] p-6 space-y-6 flex flex-col justify-between flex-1">
-        
-        <div className="space-y-5">
-          <div className="pb-3 border-b border-white/5">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-350">
-              CURRENT SCORECARD — 38/50
-            </h4>
-          </div>
-
-          {/* Progress to IC */}
-          <div className="space-y-2">
-            <span className="block text-[9px] font-extrabold uppercase tracking-widest text-[#FF6B00]">
-              76% — progress to IC approval
-            </span>
-            <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden">
-              <div className="h-full rounded-full bg-[#FF6B00]" style={{ width: "76%" }} />
-            </div>
-          </div>
-
-          {/* Dynamic scorecard meters */}
-          <div className="space-y-4 pt-2">
-            {[
-              { label: "Sector fit", val: 8, colorClass: "bg-[#FF6B00]" },
-              { label: "Financials", val: 7, colorClass: "bg-[#FF6B00]" },
-              { label: "Transition risk", val: 7, colorClass: "bg-[#FF6B00]" },
-              { label: "Lender fit", val: 7, colorClass: "bg-[#10B981]" },
-              { label: "Structure viability", val: 9, colorClass: "bg-[#10B981]" },
-            ].map((metric, idx) => (
-              <div key={idx} className="space-y-1.5">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-slate-400 font-medium">{metric.label}</span>
-                  <span className="font-extrabold text-slate-200">{metric.val}/10</span>
-                </div>
-                <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
-                  <div 
-                    className={`h-full rounded-full ${metric.colorClass}`} 
-                    style={{ width: `${metric.val * 10}%` }} 
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
+      {/* Right Column Empty State (Waiting for action) */}
+      <div className="rounded-2xl border border-[#C5A059]/10 bg-gradient-to-b from-[#0E121A] to-[#080B10] p-8 flex flex-col items-center justify-center text-center space-y-4 min-h-[400px] flex-1">
+        <div className="h-14 w-14 rounded-full bg-[#C5A059]/10 border border-[#C5A059]/20 flex items-center justify-center text-[#C5A059] shadow-glow-bronze/10">
+          <Sparkles className="h-6 w-6 animate-pulse" />
         </div>
-
-        {/* Claude Post-call summary */}
-        <div className="rounded-xl border border-blue-500/10 bg-[#0E1524] p-4.5 space-y-2.5 mt-6">
-          <div className="flex items-center gap-2 text-xs font-bold text-slate-200">
-            <MessageSquareCode className="h-4 w-4 text-blue-400" />
-            CLAUDE POST-CALL SUMMARY
-          </div>
-          <p className="text-xs leading-relaxed text-slate-300 font-sans italic">
-            "Strong first call. Seller confirmed earn-out openness (6 months). Customer concentration risk confirmed — top client 21%. Add-back verified: £25k owner salary. Recommend advancing to IM Review with LOI draft. Outstanding: depot lease terms not confirmed."
+        <div className="max-w-md space-y-1.5">
+          <h4 className="text-sm font-bold text-white uppercase tracking-wider">Awaiting Discovery Call Input</h4>
+          <p className="text-xs text-slate-400 leading-relaxed">
+            Select your scorecard schema layout (ACP Default 5-metric or Modular 8-metric), paste the meeting notes, and click **Score Call** to run the intelligence scoring engine.
           </p>
         </div>
-
       </div>
 
     </div>
   );
 }
 
-function FinancialsTab({ deal }: { deal: any }) {
+function FinancialsTab({ 
+  deal, 
+  financialStatus, 
+  financialError, 
+  isTriggering, 
+  triggerError, 
+  handleTrigger,
+  documents 
+}: { 
+  deal: any; 
+  financialStatus?: string; 
+  financialError?: string | null; 
+  isTriggering: boolean; 
+  triggerError: string | null; 
+  handleTrigger: (documentId?: string) => Promise<void>;
+  documents?: any[];
+}) {
+  const [subTab, setSubTab] = useState<"report" | "sandbox">(
+    financialStatus === "Completed" ? "report" : "sandbox"
+  );
+  
+  // Sandbox state
   const [multiple, setMultiple] = useState(deal.multiplier ? Number(deal.multiplier) : 2.7);
   const [leverage, setLeverage] = useState(45);
+  const [selectedDocId, setSelectedDocId] = useState<string>("");
   
-  // Interactive calc values
   const ebitdaVal = 190000;
   const impliedEV = Math.round(ebitdaVal * multiple);
   const seniorDebt = Math.round(impliedEV * (leverage / 100));
@@ -1670,226 +2852,594 @@ function FinancialsTab({ deal }: { deal: any }) {
   const deferred = Math.round(impliedEV * 0.15);
   const equityNeed = Math.round(impliedEV * 0.20);
 
-  const [aiReport, setAiReport] = useState("");
-  const [isRunningAnalyst, setIsRunningAnalyst] = useState(false);
-
   const formatGBP = (val: number) => {
+    if (val === 0 || !val) return "TBC";
     if (val >= 1000000) return `£${(val / 1000000).toFixed(2).replace(/\.00$/, "")}m`;
     if (val >= 1000) return `£${(val / 1000).toFixed(0)}k`;
     return `£${val}`;
   };
 
-  const handleRunAnalyst = () => {
-    setIsRunningAnalyst(true);
-    setAiReport("");
-    setTimeout(() => {
-      setAiReport(
-        "Financial analysis complete. Implied entry valuation represents an efficient entry at " + multiple.toFixed(1) + "x EBITDA. Normalized EBITDA of £190k is supported by verified add-backs of £28k. Estimated DSCR cash flow service is 1.38x under base conditions, declining to 1.22x in a -20% stress scenario, leaving a thin margin above the 1.20x stressed floor covenant. Leverage ratios indicate that senior debt at 45% of EV represents a low-risk profile for traditional commercial lenders, while the 20% vendor loan note effectively bridges funding requirements and provides transition insurance."
-      );
-      setIsRunningAnalyst(false);
-    }, 1200);
-  };
+  // Filter documents to show completed financials
+  const financialDocs = useMemo(() => {
+    return (documents || []).filter(
+      (doc) => 
+        doc.status === "completed" && 
+        ["Financial", "Accounts", "financial", "accounts", "Tax Return"].includes(doc.category)
+    );
+  }, [documents]);
+
+  // Read metrics from deal
+  const reportEbitda = Number(deal.rawFields?.EBITDA) || 0;
+  const reportDscr = Number(deal.rawFields?.DSCR) || 0;
+  const reportLeverage = Number(deal.rawFields?.Leverage_Ratio) || 0;
+  const reportEV = Number(deal.rawFields?.Enterprise_Value) || 0;
+  const reportScore = Number(deal.rawFields?.Deal_Score) || 0;
+  const reportRiskScore = Number(deal.rawFields?.Financial_Risk_Score) || 0;
+  const reportCommentary = String(deal.rawFields?.Financial_Insights || "").trim();
+  const reportAnomaliesText = String(deal.rawFields?.Financial_Anomalies || "").trim();
+  const reportCompletedAt = deal.rawFields?.Financial_Completed_At;
+
+  const revenueVal = Number(deal.revenue) || Number(deal.rawFields?.Revenue) || 1600000;
+  const ebitdaMargin = revenueVal > 0 ? (reportEbitda / revenueVal) : 0;
+  const currentRatio = 1.5; // fallback
+
+  // Reconstruct scorecard points
+  const scorecard = useMemo(() => {
+    // DSCR points
+    let dscrPoints = 0;
+    if (reportDscr >= 1.5) dscrPoints = 25;
+    else if (reportDscr >= 1.25) dscrPoints = 20;
+    else if (reportDscr >= 1.1) dscrPoints = 15;
+    else if (reportDscr >= 1.0) dscrPoints = 10;
+
+    // Leverage points
+    let leveragePoints = 0;
+    if (reportLeverage <= 2.0 && reportLeverage > 0) leveragePoints = 20;
+    else if (reportLeverage <= 3.5 && reportLeverage > 0) leveragePoints = 15;
+    else if (reportLeverage <= 4.5 && reportLeverage > 0) leveragePoints = 10;
+    else if (reportLeverage <= 5.5 && reportLeverage > 0) leveragePoints = 5;
+
+    // Margin points
+    let marginPoints = 0;
+    if (ebitdaMargin >= 0.20) marginPoints = 15;
+    else if (ebitdaMargin >= 0.15) marginPoints = 12;
+    else if (ebitdaMargin >= 0.10) marginPoints = 8;
+    else if (ebitdaMargin >= 0.05) marginPoints = 4;
+
+    // Liquidity points
+    let liquidityPoints = 0;
+    if (currentRatio >= 1.5) liquidityPoints = 10;
+    else if (currentRatio >= 1.2) liquidityPoints = 8;
+    else if (currentRatio >= 1.0) liquidityPoints = 5;
+
+    // Parse deductions
+    const deductions: Array<{ reason: string; impact: number }> = [];
+    if (reportAnomaliesText) {
+      const lines = reportAnomaliesText.split("\n");
+      for (const line of lines) {
+        const clean = line.replace(/^•\s*/, "").trim();
+        if (clean.toLowerCase().includes("negative ebitda")) {
+          deductions.push({ reason: "Negative EBITDA", impact: -15 });
+        } else if (clean.toLowerCase().includes("working capital") || clean.toLowerCase().includes("liquidity")) {
+          deductions.push({ reason: "Working Capital Deficit", impact: -10 });
+        } else if (clean.toLowerCase().includes("weak debt coverage") || clean.toLowerCase().includes("dscr")) {
+          deductions.push({ reason: "Weak debt service coverage", impact: -10 });
+        } else if (clean.toLowerCase().includes("discrepancies") || clean.toLowerCase().includes("revenue")) {
+          deductions.push({ reason: "Logical Revenue Discrepancies", impact: -10 });
+        } else {
+          deductions.push({ reason: clean.split(":")[0] || clean, impact: -5 });
+        }
+      }
+    }
+
+    return {
+      dscr: dscrPoints,
+      leverage: leveragePoints,
+      margin: marginPoints,
+      liquidity: liquidityPoints,
+      deductions
+    };
+  }, [reportDscr, reportLeverage, ebitdaMargin, currentRatio, reportAnomaliesText]);
+
+  // Keep subTab synced if financial analysis finishes in background
+  useEffect(() => {
+    if (financialStatus === "Completed" && subTab !== "report") {
+      setSubTab("report");
+    }
+  }, [financialStatus]);
 
   return (
     <div className="space-y-6 font-sans animate-fade-in-up">
-      {/* 3 Columns Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
-        
-        {/* Column 1: P&L SUMMARY */}
-        <div className="rounded-2xl border border-white/[0.06] bg-[#0E121A] p-5 flex flex-col justify-between h-full">
-          <div>
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-350 pb-3 border-b border-white/5">
-              P&L SUMMARY
-            </h3>
-            <ul className="mt-4 space-y-3 text-xs">
-              <li className="flex items-center justify-between">
-                <span className="text-slate-400 font-medium">Revenue</span>
-                <span className="font-bold text-slate-200">£1,800k</span>
-              </li>
-              <li className="flex items-center justify-between">
-                <span className="text-slate-400 font-medium">Labour / COGS</span>
-                <span className="font-bold text-rose-400">£(1,260k)</span>
-              </li>
-              <li className="flex items-center justify-between font-bold border-t border-white/5 pt-2 text-slate-200">
-                <span>Gross profit</span>
-                <span>£540k</span>
-              </li>
-              <li className="flex items-center justify-between mt-2">
-                <span className="text-slate-400 font-medium">Fixed overheads</span>
-                <span className="font-bold text-rose-400">£(350k)</span>
-              </li>
-              <li className="flex items-center justify-between font-bold border-t border-white/5 pt-2 text-slate-200">
-                <span>EBITDA reported</span>
-                <span>£162k</span>
-              </li>
-              <li className="flex items-center justify-between text-emerald-450 mt-1 font-semibold">
-                <span>Add-backs</span>
-                <span>+£28k</span>
-              </li>
-            </ul>
-          </div>
-
-          <div className="bg-[#121A2E] border border-blue-500/10 rounded-xl p-3.5 text-center mt-5">
-            <span className="block text-[8px] font-extrabold uppercase tracking-widest text-blue-400">EBITDA NORMALIZED</span>
-            <span className="block text-xl font-bold text-white mt-0.5">£190k</span>
-          </div>
+      {/* Sub-tabs switch */}
+      <div className="flex items-center justify-between border-b border-white/5 pb-2">
+        <div className="flex gap-2">
+          <button
+            onClick={() => setSubTab("report")}
+            className={cx(
+              "px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition cursor-pointer",
+              subTab === "report"
+                ? "bg-[#C5A059]/10 border border-[#C5A059] text-white"
+                : "text-slate-400 hover:text-white"
+            )}
+            type="button"
+          >
+            Underwriting Report
+          </button>
+          <button
+            onClick={() => setSubTab("sandbox")}
+            className={cx(
+              "px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition cursor-pointer",
+              subTab === "sandbox"
+                ? "bg-[#C5A059]/10 border border-[#C5A059] text-white"
+                : "text-slate-400 hover:text-white"
+            )}
+            type="button"
+          >
+            Interactive Sandbox
+          </button>
         </div>
 
-        {/* Column 2: DSCR ANALYSIS */}
-        <div className="rounded-2xl border border-white/[0.06] bg-[#0E121A] p-5 flex flex-col justify-between h-full">
-          <div>
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-350 pb-3 border-b border-white/5">
-              DSCR ANALYSIS
-            </h3>
-            <ul className="mt-4 space-y-3.5 text-xs">
-              <li className="flex items-center justify-between">
-                <span className="text-slate-400 font-medium">Senior debt service</span>
-                <span className="font-bold text-slate-200">£82k/yr</span>
-              </li>
-              <li className="flex items-center justify-between">
-                <span className="text-slate-400 font-medium">DSCR base case</span>
-                <span className="flex items-center gap-1 font-bold text-emerald-450">
-                  1.38x
-                  <Check className="h-4 w-4" />
-                </span>
-              </li>
-              <li className="flex items-center justify-between">
-                <span className="text-slate-400 font-medium">DSCR stress (-20%)</span>
-                <span className="flex items-center gap-1 font-bold text-amber-500">
-                  1.22x
-                  <AlertTriangle className="h-3.5 w-3.5" />
-                </span>
-              </li>
-              <li className="flex items-center justify-between">
-                <span className="text-slate-450 font-medium">Stressed floor</span>
-                <span className="font-bold text-slate-300">1.20x</span>
-              </li>
-            </ul>
-          </div>
-
-          <div className="bg-white/[0.02] border border-white/[0.04] rounded-xl p-3 text-[10px] leading-relaxed text-slate-450 mt-5">
-            Stress case above floor but thin. Monitor top-client concentration at DD.
-          </div>
-        </div>
-
-        {/* Column 3: CAPITAL STACK */}
-        <div className="rounded-2xl border border-white/[0.06] bg-[#0E121A] p-5 flex flex-col justify-between h-full">
-          <div>
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-350 pb-3 border-b border-white/5">
-              CAPITAL STACK
-            </h3>
-            
-            <ul className="mt-4 space-y-3 text-xs">
-              <li className="flex items-center justify-between">
-                <span className="text-slate-450 font-medium">Senior debt</span>
-                <span className="font-bold text-slate-200">£236k (45%)</span>
-              </li>
-              <li className="flex items-center justify-between">
-                <span className="text-slate-455 font-medium">VLN</span>
-                <span className="font-bold text-slate-200">£105k (20%)</span>
-              </li>
-              <li className="flex items-center justify-between">
-                <span className="text-slate-450 font-medium">Deferred</span>
-                <span className="font-bold text-slate-200">£79k (15%)</span>
-              </li>
-              <li className="flex items-center justify-between">
-                <span className="text-slate-450 font-medium">ACP equity</span>
-                <span className="font-bold text-slate-200">£105k (20%)</span>
-              </li>
-            </ul>
-          </div>
-
-          <div className="space-y-3.5 mt-5">
-            <div className="flex items-center justify-between text-[10px] uppercase font-black text-slate-400">
-              <div>
-                <span className="block text-[8px] text-slate-500">TOTAL EV</span>
-                <span className="text-slate-200">£525k</span>
-              </div>
-              <div className="text-right">
-                <span className="block text-[8px] text-slate-500">EQUITY CHEQUE</span>
-                <span className="text-slate-200">£105k</span>
-              </div>
-            </div>
-
-            {/* Stack bar visual */}
-            <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden flex">
-              <div className="h-full bg-blue-500" style={{ width: "45%" }} />
-              <div className="h-full bg-[#C5A059]" style={{ width: "20%" }} />
-              <div className="h-full bg-[#E8DEC9]" style={{ width: "15%" }} />
-              <div className="h-full bg-[#10B981]" style={{ width: "20%" }} />
-            </div>
-          </div>
-        </div>
-
-      </div>
-
-      {/* Interactive Controls & Simulated Analyst */}
-      <div className="rounded-2xl border border-white/[0.06] bg-[#0E121A] p-5 space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-2 border-b border-white/5">
-          <div className="space-y-2">
-            <label className="block text-xs font-bold text-slate-450 uppercase">Valuation EBITDA Multiple</label>
-            <input 
-              type="range" 
-              min="1.5" 
-              max="5.0" 
-              step="0.1" 
-              value={multiple} 
-              onChange={(e) => setMultiple(parseFloat(e.target.value))}
-              className="w-full accent-acp-bronze cursor-pointer bg-white/5 h-2 rounded-lg"
-            />
-            <div className="flex justify-between text-[8px] font-bold text-slate-500">
-              <span>1.5x</span>
-              <span>2.7x (E.g.)</span>
-              <span>4.0x</span>
-              <span>5.0x</span>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <label className="block text-xs font-bold text-slate-455 uppercase">Leverage Ratio</label>
-            <input 
-              type="range" 
-              min="30" 
-              max="75" 
-              step="5" 
-              value={leverage} 
-              onChange={(e) => setLeverage(parseInt(e.target.value))}
-              className="w-full accent-acp-bronze cursor-pointer bg-white/5 h-2 rounded-lg"
-            />
-            <div className="flex justify-between text-[8px] font-bold text-slate-500">
-              <span>30%</span>
-              <span>45% (Target)</span>
-              <span>60%</span>
-              <span>75%</span>
-            </div>
-          </div>
-        </div>
-
-        {aiReport && (
-          <div className="p-4.5 bg-[#0E1524] rounded-xl border border-blue-500/10 text-xs text-slate-300 leading-relaxed font-sans animate-fade-in-up">
-            <div className="flex items-center gap-2 font-bold text-slate-200 mb-2">
-              <BrainCircuit className="h-4.5 w-4.5 text-blue-400" />
-              CLAUDE FINANCIAL INSIGHTS
-            </div>
-            <p>{aiReport}</p>
-          </div>
+        {financialStatus === "Completed" && reportCompletedAt && (
+          <span className="text-[9px] text-slate-500 font-mono">
+            Analyzed: {new Date(reportCompletedAt).toLocaleString()}
+          </span>
         )}
-
-        <button
-          type="button"
-          onClick={handleRunAnalyst}
-          disabled={isRunningAnalyst}
-          className="w-full h-10 rounded-xl border border-white/10 hover:border-white/20 bg-white/5 hover:bg-white/10 text-xs font-bold uppercase tracking-wider text-slate-300 transition flex items-center justify-center gap-2 cursor-pointer"
-        >
-          {isRunningAnalyst ? (
-            <RefreshCw className="h-4 w-4 animate-spin" />
-          ) : (
-            <Sparkles className="h-4 w-4" />
-          )}
-          Run Claude analyst — generate full financial commentary
-        </button>
       </div>
 
+      {subTab === "report" && (
+        <div className="space-y-6">
+          {/* Status states */}
+          {financialStatus === "Processing" && (
+            <div className="rounded-2xl border border-blue-500/10 bg-[#0E1524] p-8 text-center space-y-4">
+              <Loader2 className="h-8 w-8 text-blue-400 animate-spin mx-auto" />
+              <div className="space-y-1">
+                <h4 className="text-sm font-bold text-white uppercase tracking-wider">Underwriting Analysis in Progress</h4>
+                <p className="text-xs text-slate-400 max-w-md mx-auto leading-relaxed">
+                  The deterministic calculation engine is computing financial ratios, evaluating risk thresholds, and consulting Claude AI for commentary...
+                </p>
+              </div>
+            </div>
+          )}
+
+          {financialStatus === "Failed" && (
+            <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 p-5 text-xs text-rose-400 font-medium">
+              <div className="flex items-center gap-2 font-bold mb-2">
+                <AlertCircle className="h-4.5 w-4.5" />
+                Underwriting Engine Failed
+              </div>
+              <p className="pl-6">{financialError || "Unknown execution crash."}</p>
+              <div className="mt-4 pl-6">
+                <button
+                  onClick={() => handleTrigger()}
+                  className="px-3.5 py-1.5 rounded-lg bg-rose-500/20 border border-rose-500/30 text-rose-300 font-bold hover:bg-rose-500/30 transition text-[10px] uppercase tracking-wider cursor-pointer"
+                >
+                  Retry Underwriting
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Trigger screen if empty */}
+          {(financialStatus === "unknown" || !financialStatus) && (
+            <div className="rounded-2xl border border-white/[0.06] bg-[#0E121A] p-6 text-center space-y-5">
+              <div className="max-w-md mx-auto space-y-2">
+                <BrainCircuit className="h-10 w-10 text-slate-500 mx-auto" />
+                <h4 className="text-sm font-bold text-white uppercase tracking-wider">Deterministic Underwriting Engine</h4>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  No calculated underwriting report exists for this deal. Run the calculation engine to compute leverage, coverage, and debt capacity ratios.
+                </p>
+              </div>
+
+              {triggerError && (
+                <div className="max-w-md mx-auto rounded-xl border border-rose-500/20 bg-rose-500/10 p-3 text-xs text-rose-400 text-left">
+                  {triggerError}
+                </div>
+              )}
+
+              <div className="max-w-xs mx-auto space-y-3">
+                <select
+                  value={selectedDocId}
+                  onChange={(e) => setSelectedDocId(e.target.value)}
+                  className={cx(selectClass, "text-xs w-full")}
+                >
+                  <option value="">Scan all uploaded documents (automatic)</option>
+                  {financialDocs.map((doc) => (
+                    <option key={doc.id} value={doc.id}>
+                      {doc.documentName}
+                    </option>
+                  ))}
+                </select>
+
+                <button
+                  type="button"
+                  onClick={() => handleTrigger(selectedDocId || undefined)}
+                  disabled={isTriggering}
+                  className="w-full h-10 rounded-xl bg-white hover:bg-slate-100 text-slate-950 font-black text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 cursor-pointer shadow-glow-bronze/5 disabled:opacity-50"
+                >
+                  {isTriggering ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin text-slate-950" />
+                      Queuing calculation...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-4 w-4 text-slate-950" />
+                      Run Underwriting Engine
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Report Dashboard */}
+          {financialStatus === "Completed" && (
+            <div className="space-y-6">
+              {/* Top Scorecard Card */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Score Summary */}
+                <div className="rounded-2xl border border-white/[0.06] bg-[#0E121A] p-5 flex flex-col justify-between items-center text-center">
+                  <div className="space-y-1 w-full">
+                    <h3 className="text-[10px] font-bold uppercase tracking-widest text-slate-450 border-b border-white/5 pb-2">
+                      Acquisition Viability Score
+                    </h3>
+                    <div className="py-6">
+                      <span className="text-5xl font-black text-white tracking-tight">{reportScore}</span>
+                      <span className="text-slate-500 text-lg font-bold">/100</span>
+                    </div>
+                  </div>
+
+                  <div className="w-full space-y-2">
+                    <div className="flex items-center justify-between text-[10px] uppercase font-bold text-slate-450">
+                      <span>Confidence Score</span>
+                      <span className="text-slate-200">{reportRiskScore}%</span>
+                    </div>
+                    <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+                      <div className="h-full bg-emerald-500" style={{ width: `${reportRiskScore}%` }} />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Weighted Factors */}
+                <div className="rounded-2xl border border-white/[0.06] bg-[#0E121A] p-5 lg:col-span-2 space-y-4">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-350 pb-2 border-b border-white/5">
+                    Scoring Breakdown
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3.5 text-xs">
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between font-medium">
+                        <span className="text-slate-400">Debt Service Coverage (DSCR)</span>
+                        <span className="font-bold text-slate-200">{scorecard.dscr}/25</span>
+                      </div>
+                      <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
+                        <div className="h-full bg-blue-500" style={{ width: `${(scorecard.dscr / 25) * 100}%` }} />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between font-medium">
+                        <span className="text-slate-400">Leverage Ratio</span>
+                        <span className="font-bold text-slate-200">{scorecard.leverage}/20</span>
+                      </div>
+                      <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
+                        <div className="h-full bg-blue-500" style={{ width: `${(scorecard.leverage / 20) * 100}%` }} />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between font-medium">
+                        <span className="text-slate-400">EBITDA Margin</span>
+                        <span className="font-bold text-slate-200">{scorecard.margin}/15</span>
+                      </div>
+                      <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
+                        <div className="h-full bg-blue-500" style={{ width: `${(scorecard.margin / 15) * 100}%` }} />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between font-medium">
+                        <span className="text-slate-400">Current Ratio & Liquidity</span>
+                        <span className="font-bold text-slate-200">{scorecard.liquidity}/10</span>
+                      </div>
+                      <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
+                        <div className="h-full bg-blue-500" style={{ width: `${(scorecard.liquidity / 10) * 100}%` }} />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Deductions Alert */}
+              {scorecard.deductions.length > 0 && (
+                <div className="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4 space-y-3.5">
+                  <div className="flex items-center gap-2 text-xs font-bold text-amber-500 uppercase tracking-wider">
+                    <AlertTriangle className="h-4.5 w-4.5" />
+                    Risk Deductions Applied
+                  </div>
+                  <ul className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs pl-6 list-disc text-slate-350">
+                    {scorecard.deductions.map((ded, idx) => (
+                      <li key={idx}>
+                        <span className="font-medium text-slate-300">{ded.reason}</span>
+                        <span className="text-rose-450 font-bold ml-1.5">({ded.impact} pts)</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Key Calculated Metrics Cards */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="rounded-xl border border-white/[0.04] bg-[#0A0D14] p-4 text-center">
+                  <span className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-500">NORMALIZED EBITDA</span>
+                  <span className="block text-lg font-bold text-white mt-1">{formatGBP(reportEbitda)}</span>
+                </div>
+                <div className="rounded-xl border border-white/[0.04] bg-[#0A0D14] p-4 text-center">
+                  <span className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-500">DEBT COVERAGE (DSCR)</span>
+                  <span className="block text-lg font-bold text-white mt-1">{reportDscr ? `${reportDscr.toFixed(2)}x` : "N/A"}</span>
+                </div>
+                <div className="rounded-xl border border-white/[0.04] bg-[#0A0D14] p-4 text-center">
+                  <span className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-500">LEVERAGE RATIO</span>
+                  <span className="block text-lg font-bold text-white mt-1">{reportLeverage ? `${reportLeverage.toFixed(2)}x` : "N/A"}</span>
+                </div>
+                <div className="rounded-xl border border-white/[0.04] bg-[#0A0A0B] p-4 text-center">
+                  <span className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-500">ENTERPRISE VALUE</span>
+                  <span className="block text-lg font-bold text-white mt-1">{formatGBP(reportEV)}</span>
+                </div>
+              </div>
+
+              {/* Claude Credit Commentary */}
+              {reportCommentary && (
+                <div className="rounded-2xl border border-white/[0.06] bg-[#0E121A] p-5 space-y-4">
+                  <div className="flex items-center gap-2 font-bold text-white text-xs uppercase tracking-wider border-b border-white/5 pb-2">
+                    <BrainCircuit className="h-4.5 w-4.5 text-[#C5A059]" />
+                    Claude AI Credit Underwriting commentary
+                  </div>
+                  <div className="text-slate-300 text-xs leading-relaxed space-y-4 font-sans">
+                    {reportCommentary.split("\n\n").map((para, idx) => (
+                      <p key={idx}>{para}</p>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* In-Context Anomalies */}
+              {reportAnomaliesText && (
+                <div className="rounded-2xl border border-white/[0.06] bg-[#0E121A] p-5 space-y-3">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-rose-400 pb-2 border-b border-white/5">
+                    Detected System Anomalies
+                  </h4>
+                  <ul className="space-y-2">
+                    {reportAnomaliesText.split("\n").map((anomaly, idx) => (
+                      <li key={idx} className="flex items-start gap-2 text-xs text-slate-350">
+                        <AlertTriangle className="h-4 w-4 text-rose-500 shrink-0 mt-0.5" />
+                        <span>{anomaly.replace(/^•\s*/, "")}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Re-trigger options */}
+              <div className="rounded-xl border border-white/[0.04] bg-white/[0.01] p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="text-left">
+                  <h5 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Re-evaluate calculations</h5>
+                  <p className="text-[9px] text-slate-500 mt-0.5">Updated financials? Re-trigger underwriting calculations across document files.</p>
+                </div>
+                
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  <select
+                    value={selectedDocId}
+                    onChange={(e) => setSelectedDocId(e.target.value)}
+                    className={cx(selectClass, "text-[10px] py-1 h-8 bg-[#0E121A] w-full sm:w-48")}
+                  >
+                    <option value="">Scan all documents</option>
+                    {financialDocs.map((doc) => (
+                      <option key={doc.id} value={doc.id}>
+                        {doc.documentName}
+                      </option>
+                    ))}
+                  </select>
+
+                  <button
+                    onClick={() => handleTrigger(selectedDocId || undefined)}
+                    disabled={isTriggering}
+                    className="h-8 px-4 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 hover:text-white text-[10px] font-bold uppercase tracking-wider text-slate-300 transition flex items-center gap-1.5 shrink-0 cursor-pointer"
+                  >
+                    {isTriggering ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-3.5 w-3.5" />
+                    )}
+                    Re-run
+                  </button>
+                </div>
+              </div>
+
+            </div>
+          )}
+        </div>
+      )}
+
+      {subTab === "sandbox" && (
+        <div className="space-y-6">
+          {/* 3 Columns Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
+            
+            {/* Column 1: P&L SUMMARY */}
+            <div className="rounded-2xl border border-white/[0.06] bg-[#0E121A] p-5 flex flex-col justify-between h-full">
+              <div>
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-350 pb-3 border-b border-white/5">
+                  P&L SUMMARY (DRAFT)
+                </h3>
+                <ul className="mt-4 space-y-3 text-xs">
+                  <li className="flex items-center justify-between">
+                    <span className="text-slate-400 font-medium">Revenue</span>
+                    <span className="font-bold text-slate-200">£1,800k</span>
+                  </li>
+                  <li className="flex items-center justify-between">
+                    <span className="text-slate-400 font-medium">Labour / COGS</span>
+                    <span className="font-bold text-rose-400">£(1,260k)</span>
+                  </li>
+                  <li className="flex items-center justify-between font-bold border-t border-white/5 pt-2 text-slate-200">
+                    <span>Gross profit</span>
+                    <span>£540k</span>
+                  </li>
+                  <li className="flex items-center justify-between mt-2">
+                    <span className="text-slate-400 font-medium">Fixed overheads</span>
+                    <span className="font-bold text-rose-400">£(350k)</span>
+                  </li>
+                  <li className="flex items-center justify-between font-bold border-t border-white/5 pt-2 text-slate-200">
+                    <span>EBITDA reported</span>
+                    <span>£162k</span>
+                  </li>
+                  <li className="flex items-center justify-between text-emerald-450 mt-1 font-semibold">
+                    <span>Add-backs</span>
+                    <span>+£28k</span>
+                  </li>
+                </ul>
+              </div>
+
+              <div className="bg-[#121A2E] border border-blue-500/10 rounded-xl p-3.5 text-center mt-5">
+                <span className="block text-[8px] font-extrabold uppercase tracking-widest text-blue-400">EBITDA NORMALIZED</span>
+                <span className="block text-xl font-bold text-white mt-0.5">£190k</span>
+              </div>
+            </div>
+
+            {/* Column 2: DSCR ANALYSIS */}
+            <div className="rounded-2xl border border-white/[0.06] bg-[#0E121A] p-5 flex flex-col justify-between h-full">
+              <div>
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-350 pb-3 border-b border-white/5">
+                  DSCR ANALYSIS (DRAFT)
+                </h3>
+                <ul className="mt-4 space-y-3.5 text-xs">
+                  <li className="flex items-center justify-between">
+                    <span className="text-slate-400 font-medium">Senior debt service</span>
+                    <span className="font-bold text-slate-200">£82k/yr</span>
+                  </li>
+                  <li className="flex items-center justify-between">
+                    <span className="text-slate-400 font-medium">DSCR base case</span>
+                    <span className="flex items-center gap-1 font-bold text-emerald-450">
+                      1.38x
+                      <Check className="h-4 w-4" />
+                    </span>
+                  </li>
+                  <li className="flex items-center justify-between">
+                    <span className="text-slate-400 font-medium">DSCR stress (-20%)</span>
+                    <span className="flex items-center gap-1 font-bold text-amber-500">
+                      1.22x
+                      <AlertTriangle className="h-3.5 w-3.5" />
+                    </span>
+                  </li>
+                  <li className="flex items-center justify-between">
+                    <span className="text-slate-455 font-medium">Stressed floor</span>
+                    <span className="font-bold text-slate-300">1.20x</span>
+                  </li>
+                </ul>
+              </div>
+
+              <div className="bg-white/[0.02] border border-white/[0.04] rounded-xl p-3 text-[10px] leading-relaxed text-slate-450 mt-5">
+                Stress case above floor but thin. Monitor top-client concentration at DD.
+              </div>
+            </div>
+
+            {/* Column 3: CAPITAL STACK */}
+            <div className="rounded-2xl border border-white/[0.06] bg-[#0E121A] p-5 flex flex-col justify-between h-full">
+              <div>
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-350 pb-3 border-b border-white/5">
+                  CAPITAL STACK (DRAFT)
+                </h3>
+                
+                <ul className="mt-4 space-y-3 text-xs">
+                  <li className="flex items-center justify-between">
+                    <span className="text-slate-450 font-medium">Senior debt</span>
+                    <span className="font-bold text-slate-200">{formatGBP(seniorDebt)} ({leverage}%)</span>
+                  </li>
+                  <li className="flex items-center justify-between">
+                    <span className="text-slate-455 font-medium">VLN</span>
+                    <span className="font-bold text-slate-200">{formatGBP(vln)} (20%)</span>
+                  </li>
+                  <li className="flex items-center justify-between">
+                    <span className="text-slate-450 font-medium">Deferred</span>
+                    <span className="font-bold text-slate-200">{formatGBP(deferred)} (15%)</span>
+                  </li>
+                  <li className="flex items-center justify-between">
+                    <span className="text-slate-450 font-medium">ACP equity</span>
+                    <span className="font-bold text-slate-200">{formatGBP(equityNeed)} (20%)</span>
+                  </li>
+                </ul>
+              </div>
+
+              <div className="space-y-3.5 mt-5">
+                <div className="flex items-center justify-between text-[10px] uppercase font-black text-slate-400">
+                  <div>
+                    <span className="block text-[8px] text-slate-500">TOTAL EV</span>
+                    <span className="text-slate-200">{formatGBP(impliedEV)}</span>
+                  </div>
+                  <div className="text-right">
+                    <span className="block text-[8px] text-slate-500">EQUITY CHEQUE</span>
+                    <span className="text-slate-200">{formatGBP(equityNeed)}</span>
+                  </div>
+                </div>
+
+                {/* Stack bar visual */}
+                <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden flex">
+                  <div className="h-full bg-blue-500" style={{ width: `${leverage}%` }} />
+                  <div className="h-full bg-[#C5A059]" style={{ width: "20%" }} />
+                  <div className="h-full bg-[#E8DEC9]" style={{ width: "15%" }} />
+                  <div className="h-full bg-[#10B981]" style={{ width: "20%" }} />
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          {/* Interactive Controls */}
+          <div className="rounded-2xl border border-white/[0.06] bg-[#0E121A] p-5 space-y-4">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-350 pb-2 border-b border-white/5">
+              Valuation Controls
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="block text-xs font-bold text-slate-450 uppercase">Valuation EBITDA Multiple</label>
+                <input 
+                  type="range" 
+                  min="1.5" 
+                  max="5.0" 
+                  step="0.1" 
+                  value={multiple} 
+                  onChange={(e) => setMultiple(parseFloat(e.target.value))}
+                  className="w-full accent-acp-bronze cursor-pointer bg-white/5 h-2 rounded-lg"
+                />
+                <div className="flex justify-between text-[8px] font-bold text-slate-500">
+                  <span>1.5x</span>
+                  <span>2.7x (E.g.)</span>
+                  <span>4.0x</span>
+                  <span>5.0x</span>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-xs font-bold text-slate-455 uppercase">Leverage Ratio</label>
+                <input 
+                  type="range" 
+                  min="30" 
+                  max="75" 
+                  step="5" 
+                  value={leverage} 
+                  onChange={(e) => setLeverage(parseInt(e.target.value))}
+                  className="w-full accent-acp-bronze cursor-pointer bg-white/5 h-2 rounded-lg"
+                />
+                <div className="flex justify-between text-[8px] font-bold text-slate-500">
+                  <span>30%</span>
+                  <span>45% (Target)</span>
+                  <span>60%</span>
+                  <span>75%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

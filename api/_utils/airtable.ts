@@ -9,7 +9,16 @@ export const TABLES = {
   DOCUMENTS: process.env.VITE_AIRTABLE_DOCUMENTS_TABLE || "Documents",
   SUBMISSIONS: process.env.VITE_AIRTABLE_SUBMISSION_TABLE || "Submission_Log",
   ASSIGNMENTS: "Lender_Deal_Assignments",
-  CHAT: "Chat_Messages"
+  CHAT: "Chat_Messages",
+  TEAM: process.env.AIRTABLE_TEAM_TABLE || "ACP_Team",
+  HIRING: process.env.AIRTABLE_HIRING_TABLE || "Hiring_Briefs",
+  STAKEHOLDERS: process.env.AIRTABLE_STAKEHOLDER_TABLE || "External_Stakeholders",
+  TRANSCRIPT_ANALYSES: "Transcript_Analyses",
+  PRECALL_BRIEFS: "Precall_Briefs",
+  POSTCALL_BRIEFS: "Postcall_Briefs",
+  PORTFOLIO_METRICS: "Portfolio_Metrics",
+  PORTFOLIO_ALERTS: "Portfolio_Alerts",
+  PORTFOLIO_HEALTH: "Portfolio_Health"
 };
 
 export class AirtableError extends Error {
@@ -141,6 +150,21 @@ export async function filterFieldsBySchema(tableName: string, fields: Record<str
           val = (val === true || val === "Yes" || val === "yes" || String(val).toLowerCase() === "true") ? "Yes" : "No";
         }
       }
+
+      // Convert values based on matchingField.type to accommodate attachments vs URLs
+      if (matchingField.type === "multipleAttachments") {
+        if (typeof val === "string" && val.trim() !== "") {
+          val = [{ url: val, filename: fields.Document_Name || fields.Name || "document" }];
+        } else if (!Array.isArray(val)) {
+          val = [];
+        }
+      } else if (matchingField.type === "url" || matchingField.type === "singleLineText" || matchingField.type === "multilineText") {
+        if (Array.isArray(val)) {
+          const firstItem = val[0];
+          val = firstItem && typeof firstItem === "object" ? (firstItem.url || "") : "";
+        }
+      }
+
       filtered[matchingField.name] = val;
     } else {
       console.warn(`Field '${key}' not found in schema for table '${tableName}', omitting.`);
@@ -374,6 +398,99 @@ export async function getAssignmentFields(): Promise<{
     dealRefCol: dealRefField ? dealRefField.name : "Deal_Ref",
     statusCol: statusField ? statusField.name : null
   };
+}
+
+const TEAM_FIELD_MAPPING: Record<string, string> = {
+  name: "Name",
+  role: "Role",
+  accesslevel: "Access_Level",
+  initials: "Initials",
+  avatartheme: "Avatar_Theme",
+  avatarbg: "Avatar_Theme",
+  order: "Order"
+};
+
+const HIRING_FIELD_MAPPING: Record<string, string> = {
+  role: "Role",
+  company: "Company",
+  status: "Status_Text",
+  statustext: "Status_Text",
+  accentcolor: "Accent_Color"
+};
+
+const STAKEHOLDER_FIELD_MAPPING: Record<string, string> = {
+  name: "Name",
+  association: "Association",
+  description: "Description",
+  accentcolor: "Accent_Color"
+};
+
+export function normalizeTeamFields(fields: Record<string, any>): Record<string, any> {
+  if (!fields) return {};
+  const normalized: Record<string, any> = {};
+  
+  normalized.Name = "";
+  normalized.Role = "";
+  normalized.Access_Level = "READ ACCESS";
+  normalized.Initials = "";
+  normalized.Avatar_Theme = "blue";
+  normalized.Order = 99;
+
+  Object.keys(fields).forEach(key => {
+    const cleanKey = key.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+    const targetKey = TEAM_FIELD_MAPPING[cleanKey];
+    if (targetKey) {
+      normalized[targetKey] = fields[key];
+    } else {
+      normalized[key] = fields[key];
+    }
+  });
+
+  return normalized;
+}
+
+export function normalizeHiringFields(fields: Record<string, any>): Record<string, any> {
+  if (!fields) return {};
+  const normalized: Record<string, any> = {};
+  
+  normalized.Role = "";
+  normalized.Company = "";
+  normalized.Status_Text = "";
+  normalized.Accent_Color = "amber";
+
+  Object.keys(fields).forEach(key => {
+    const cleanKey = key.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+    const targetKey = HIRING_FIELD_MAPPING[cleanKey];
+    if (targetKey) {
+      normalized[targetKey] = fields[key];
+    } else {
+      normalized[key] = fields[key];
+    }
+  });
+
+  return normalized;
+}
+
+export function normalizeStakeholderFields(fields: Record<string, any>): Record<string, any> {
+  if (!fields) return {};
+  const normalized: Record<string, any> = {};
+  
+  normalized.Name = "";
+  normalized.Association = "";
+  normalized.Description = "";
+  normalized.Accent_Color = "blue";
+
+  Object.keys(fields).forEach(key => {
+    const cleanKey = key.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+    const targetKey = STAKEHOLDER_FIELD_MAPPING[cleanKey];
+    if (targetKey) {
+      normalized[targetKey] = fields[key];
+    } else {
+      normalized[key] = fields[key];
+    }
+  });
+
+  return normalized;
 }
 
 

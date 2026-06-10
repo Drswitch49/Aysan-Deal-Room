@@ -1,0 +1,111 @@
+/**
+ * Deal Stage Transition API Endpoint
+ *
+ * POST /api/admin/deals/transition
+ *
+ * The centralized gateway for all deal stage changes.
+ * This is the ONLY endpoint that should mutate deal stage.
+ *
+ * Body:
+ *   dealId    — Airtable record ID of the deal
+ *   toStage   — Target canonical stage (INTRO | DISCOVERY | LOI | ...)
+ *   notes     — Optional context for the audit log
+ *   role      — User role (defaults to "admin" until per-user auth ships)
+ *   changedBy — Display name / email of the user (from session)
+ *
+ * Returns:
+ *   201 — { success, dealId, dealRef, fromStage, toStage, auditId, timestamp }
+ *   400 — { error } — missing params
+ *   404 — { error } — deal not found
+ *   422 — { error } — invalid transition or insufficient permissions
+ *   500 — { error } — internal error
+ */
+
+import { authenticateAdmin } from "../lenders.js";
+import {
+  moveDealToStage,
+  getDealStageHistory,
+  validateTransition,
+  normalizeStage,
+  STAGE_CONFIG,
+  DEAL_STAGES,
+  type DealStage,
+  type UserRole,
+} from "../../_services/deal-lifecycle.js";
+import { airtableFetch, airtableFetchRecord } from "../../_utils/airtable.js";
+import { TABLES } from "../../../src/lib/airtable/schema.js";
+
+export default async function handler(req: any, res: any) {
+  try {
+    await authenticateAdmin(req);
+  } catch {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  // ── GET — fetch stage history for a deal ────────────────────────────────
+  if (req.method === "GET") {
+    const { dealId } = req.query;
+    if (!dealId) {
+      return res.status(400).json({ error: "dealId is required" });
+    }
+
+    try {
+      const history = await getDealStageHistory(String(dealId));
+      return res.status(200).json({ success: true, history });
+    } catch (err: any) {
+      return res.status(err.status || 500).json({ error: err.message });
+    }
+  }
+
+  // ── POST — execute a stage transition ───────────────────────────────────
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
+
+  const {
+    dealId,
+    toStage,
+    notes = "",
+    role = "admin",
+    changedBy = "Admin",
+  } = req.body || {};
+
+  // ── Validation ───────────────────────────────────────────────────────────
+  if (!dealId) {
+    return res.status(400).json({ error: "dealId is required" });
+  }
+  if (!toStage) {
+    return res.status(400).json({ error: "toStage is required" });
+  }
+
+  const canonicalTarget = normalizeStage(toStage);
+  const validStages: DealStage[] = [...DEAL_STAGES, "KILLED"];
+  if (!validStages.includes(canonicalTarget)) {
+    return res.status(400).json({
+      error: `Invalid stage '${toStage}'. Valid stages: ${validStages.join(", ")}`,
+    });
+  }
+
+  const validRoles: UserRole[] = ["analyst", "manager", "admin"];
+  if (!validRoles.includes(role)) {
+    return res.status(400).json({
+      error: `Invalid role '${role}'. Valid roles: ${validRoles.join(", ")}`,
+    });
+  }
+
+  // ── Execute Transition ───────────────────────────────────────────────────
+  try {
+    const result = await moveDealToStage(dealId, canonicalTarget, {
+      changedBy: String(changedBy),
+      role: role as UserRole,
+      notes: String(notes || ""),
+    });
+
+    return res.status(201).json(result);
+  } catch (err: any) {
+    const status = err.status || 500;
+    const error = err.message || "Transition failed";
+    console.error(`[Transition API] ${status} — ${error}`);
+    return res.status(status).json({ error });
+  }
+}

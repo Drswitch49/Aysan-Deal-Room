@@ -1,17 +1,17 @@
 import { FormEvent, useState, useEffect } from "react";
-import { LockKeyhole, ShieldCheck, Key, ArrowLeft, CheckCircle2 } from "lucide-react";
-import { config } from "../../config/env";
-import { resetAdminPassword } from "../../api/admin";
+import { LockKeyhole, ShieldCheck, Key, ArrowLeft, CheckCircle2, Mail, Loader2 } from "lucide-react";
 
 type AdminGuardProps = {
   children: React.ReactNode;
 };
 
 export function AdminGuard({ children }: AdminGuardProps) {
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
 
   // Recovery States
   const [isResetting, setIsResetting] = useState(false);
@@ -23,10 +23,23 @@ export function AdminGuard({ children }: AdminGuardProps) {
   const [isResetSubmitting, setIsResetSubmitting] = useState(false);
 
   useEffect(() => {
-    const isAuthed = sessionStorage.getItem("admin_authenticated");
-    if (isAuthed === "true") {
-      setIsAuthorized(true);
+    // Check session on mount
+    async function checkSession() {
+      try {
+        const response = await fetch("/api/auth/session");
+        if (response.ok) {
+          const data = await response.json();
+          if (data.authenticated && (data.user.role === "admin" || data.user.role === "analyst")) {
+            setIsAuthorized(true);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch session status:", err);
+      } finally {
+        setIsCheckingSession(false);
+      }
     }
+    checkSession();
   }, []);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -35,30 +48,26 @@ export function AdminGuard({ children }: AdminGuardProps) {
     setIsVerifying(true);
     setError("");
 
-    const requiredPass = config.lenderRoomPassword || "acp-deal-room";
-
-    if (password === requiredPass) {
-      sessionStorage.setItem("admin_authenticated", "true");
-      sessionStorage.setItem("admin_passcode", password);
-      setIsAuthorized(true);
-      setError("");
-      setIsVerifying(false);
-      return;
-    }
-
     try {
-      const response = await fetch("/api/admin/lenders", {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
         headers: {
-          "x-admin-passcode": password
-        }
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ email: email.trim(), password })
       });
+      
       if (response.ok) {
-        sessionStorage.setItem("admin_authenticated", "true");
-        sessionStorage.setItem("admin_passcode", password);
-        setIsAuthorized(true);
-        setError("");
+        const data = await response.json();
+        if (data.user.role === "admin" || data.user.role === "analyst") {
+          setIsAuthorized(true);
+          setError("");
+        } else {
+          setError("Forbidden: Access restricted to admins and analysts.");
+        }
       } else {
-        setError("Incorrect administrator password.");
+        const errData = await response.json();
+        setError(errData.error || "Incorrect email or password.");
       }
     } catch (err) {
       setError("Failed to connect. Please verify your connection.");
@@ -92,22 +101,44 @@ export function AdminGuard({ children }: AdminGuardProps) {
     setIsResetSubmitting(true);
 
     try {
-      await resetAdminPassword(masterPasscode, newPasscode);
+      const response = await fetch("/api/admin/action", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-admin-passcode": masterPasscode
+        },
+        body: JSON.stringify({ action: "change-admin-password", newPassword: newPasscode })
+      });
+
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || "Failed to reset passcode.");
+      }
+
       setResetSuccess(true);
       
       // Auto-authenticate with the new passcode!
-      sessionStorage.setItem("admin_authenticated", "true");
-      sessionStorage.setItem("admin_passcode", newPasscode);
-      
-      // Transition into dashboard after success
-      setTimeout(() => {
-        setIsAuthorized(true);
-        setIsResetting(false);
-        setMasterPasscode("");
-        setNewPasscode("");
-        setConfirmPasscode("");
-        setResetSuccess(false);
-      }, 1500);
+      // For fallback recovery, we can auto-login the default admin user with the new password
+      const loginRes = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ email: "admin@aysancapital.com", password: newPasscode })
+      });
+
+      if (loginRes.ok) {
+        setTimeout(() => {
+          setIsAuthorized(true);
+          setIsResetting(false);
+          setMasterPasscode("");
+          setNewPasscode("");
+          setConfirmPasscode("");
+          setResetSuccess(false);
+        }, 1500);
+      } else {
+        throw new Error("Reset succeeded but automatic login failed. Please log in manually.");
+      }
     } catch (err: any) {
       setResetError(err.message || "Failed to reset passcode. Verify master passcode.");
     } finally {
@@ -115,6 +146,18 @@ export function AdminGuard({ children }: AdminGuardProps) {
     }
   }
 
+  if (isCheckingSession) {
+    return (
+      <div className="min-h-screen bg-[#0A0A0B] flex items-center justify-center relative overflow-hidden">
+        <div className="absolute -left-20 -top-20 h-80 w-80 rounded-full bg-acp-bronze/5 blur-[100px] pointer-events-none" />
+        <div className="absolute -right-20 -bottom-20 h-80 w-80 rounded-full bg-acp-bronze/5 blur-[100px] pointer-events-none" />
+        <div className="flex flex-col items-center gap-4 text-slate-400">
+          <Loader2 className="h-8 w-8 animate-spin text-acp-bronze" />
+          <p className="text-[10px] font-extrabold uppercase tracking-widest text-slate-500">Checking credentials...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (isAuthorized) {
     return <>{children}</>;
@@ -277,14 +320,33 @@ export function AdminGuard({ children }: AdminGuardProps) {
           <div className="mt-8 space-y-5">
             <div className="rounded-xl border border-white/5 bg-white/[0.01] p-4 text-center">
               <p className="text-[11px] leading-relaxed text-slate-400">
-                This area contains sensitive operational records and deal flow tools. Input the administrator passcode to proceed.
+                This area contains sensitive operational records and deal flow tools. Input credentials to proceed.
               </p>
             </div>
 
             <div>
-              <div className="flex justify-between items-center">
+              <label className="block text-[9px] font-extrabold uppercase tracking-[0.18em] text-slate-400 mb-2" htmlFor="admin-email">
+                Email Address
+              </label>
+              <div className="relative">
+                <input
+                  id="admin-email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="admin@aysancapital.com"
+                  className="h-11 w-full rounded-xl border border-white/10 bg-white/5 pl-10 pr-4 text-sm text-white placeholder-slate-650 outline-none transition-all duration-300 focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze"
+                  required
+                  autoComplete="email"
+                />
+                <Mail className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-500" />
+              </div>
+            </div>
+
+            <div>
+              <div className="flex justify-between items-center mb-2">
                 <label className="block text-[9px] font-extrabold uppercase tracking-[0.18em] text-slate-400" htmlFor="admin-password">
-                  Admin Password
+                  Password
                 </label>
                 <button
                   type="button"
@@ -294,7 +356,7 @@ export function AdminGuard({ children }: AdminGuardProps) {
                   }}
                   className="text-[9px] font-extrabold uppercase tracking-[0.18em] text-acp-bronze hover:underline transition cursor-pointer"
                 >
-                  Forgot Passcode?
+                  Forgot Password?
                 </button>
               </div>
               <input
@@ -303,8 +365,9 @@ export function AdminGuard({ children }: AdminGuardProps) {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="mt-2 h-11 w-full rounded-xl border border-white/10 bg-white/5 px-4 text-sm text-white placeholder-slate-650 outline-none transition-all duration-300 focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze"
+                className="h-11 w-full rounded-xl border border-white/10 bg-white/5 px-4 text-sm text-white placeholder-slate-650 outline-none transition-all duration-300 focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze"
                 autoComplete="current-password"
+                required
               />
             </div>
 

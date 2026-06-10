@@ -3,29 +3,16 @@ import type { ChatMessage } from "../types/deal";
 
 // Helper to retrieve lender headers from sessionStorage
 const getLenderHeaders = (portalSlug: string): Record<string, string> => {
-  const sessionStr = sessionStorage.getItem(`lender_session_${portalSlug}`);
-  if (!sessionStr) return {};
-  try {
-    const session = JSON.parse(sessionStr);
-    return {
-      "Content-Type": "application/json",
-      "x-lender-slug": portalSlug,
-      "x-lender-password": session.password || ""
-    };
-  } catch {
-    return {
-      "Content-Type": "application/json"
-    };
-  }
+  return {
+    "Content-Type": "application/json",
+    "x-lender-slug": portalSlug
+  };
 };
 
 // Helper to retrieve admin headers from sessionStorage
 const getAdminHeaders = () => {
-  const sessionPasscode = sessionStorage.getItem("admin_passcode");
-  const adminPasscode = sessionPasscode || config.lenderRoomPassword || "acp-deal-room";
   return {
-    "Content-Type": "application/json",
-    "x-admin-passcode": adminPasscode
+    "Content-Type": "application/json"
   };
 };
 

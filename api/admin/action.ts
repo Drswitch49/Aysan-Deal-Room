@@ -11,6 +11,7 @@ import {
   normalizeLenderFields
 } from "../_utils/airtable.js";
 import { authenticateAdmin } from "./lenders.js";
+import bcrypt from "bcryptjs";
 
 function generatePassword(): string {
   const chars = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789!@#$%&*";
@@ -260,6 +261,32 @@ export default async function handler(req: any, res: any) {
           return res.status(400).json({ error: "New password is required" });
         }
 
+        // 1. Hash the new password
+        const salt = bcrypt.genSaltSync(10);
+        const hash = bcrypt.hashSync(newPassword, salt);
+
+        // 2. Update the Users table record for the admin
+        const usersRes = await airtableFetch("Users", {
+          filterByFormula: `{Email} = 'admin@aysancapital.com'`,
+          maxRecords: 1
+        });
+
+        if (usersRes.records && usersRes.records.length > 0) {
+          await airtableUpdate("Users", usersRes.records[0].id, {
+            PasswordHash: hash
+          });
+        } else {
+          // If Users record is missing for some reason, create it
+          await airtableCreate("Users", {
+            Email: "admin@aysancapital.com",
+            PasswordHash: hash,
+            Role: "admin",
+            Status: "Active",
+            CreatedAt: new Date().toISOString()
+          });
+        }
+
+        // 3. Fallback: Update Lenders table admin record for legacy compatibility
         const adminRecords = await airtableFetch(TABLES.LENDERS, {
           filterByFormula: `{Lender_ID} = 'admin'`,
           maxRecords: 1
@@ -284,11 +311,50 @@ export default async function handler(req: any, res: any) {
       case "get-recent-messages": {
         try {
           const chatData = await airtableFetch(TABLES.CHAT);
+          
+          // Fetch deals and lenders to build robust lookup maps
+          const [dealsRes, lendersRes] = await Promise.all([
+            airtableFetch(TABLES.PIPELINE).catch(() => ({ records: [] })),
+            airtableFetch(TABLES.LENDERS).catch(() => ({ records: [] }))
+          ]);
+
+          const dealLookup = new Map<string, string>();
+          dealsRes.records.forEach((rec: any) => {
+            const id = rec.id;
+            const refNo = rec.fields["REF No."] || rec.fields.Deal_Ref || rec.fields.dealRef || "";
+            const dealName = rec.fields["Deal Name"] || "";
+            const companyName = rec.fields["Company Name"] || rec.fields.Company_Name || "";
+
+            dealLookup.set(id.toLowerCase(), id);
+            if (refNo) dealLookup.set(String(refNo).toLowerCase(), id);
+            if (dealName) dealLookup.set(String(dealName).toLowerCase(), id);
+            if (companyName) dealLookup.set(String(companyName).toLowerCase(), id);
+          });
+
+          const lenderLookup = new Map<string, string>();
+          lendersRes.records.forEach((rec: any) => {
+            const id = rec.id;
+            const name = rec.fields.Name || "";
+            const companyName = rec.fields.Company_Name || "";
+            const lenderIdText = rec.fields.Lender_ID || "";
+
+            lenderLookup.set(id.toLowerCase(), id);
+            if (name) lenderLookup.set(String(name).toLowerCase(), id);
+            if (companyName) lenderLookup.set(String(companyName).toLowerCase(), id);
+            if (lenderIdText) lenderLookup.set(String(lenderIdText).toLowerCase(), id);
+          });
+
           const messages = chatData.records.map((rec: any) => {
+            const rawDealVal = Array.isArray(rec.fields.Deal_Ref) ? rec.fields.Deal_Ref[0] : (rec.fields.Deal_Ref || "");
+            const rawLenderVal = Array.isArray(rec.fields.Lender_ID) ? rec.fields.Lender_ID[0] : (rec.fields.Lender_ID || "");
+
+            const resolvedDealId = dealLookup.get(String(rawDealVal).toLowerCase()) || rawDealVal;
+            const resolvedLenderId = lenderLookup.get(String(rawLenderVal).toLowerCase()) || rawLenderVal;
+
             return {
               id: rec.id,
-              dealId: Array.isArray(rec.fields.Deal_Ref) ? rec.fields.Deal_Ref[0] : (rec.fields.Deal_Ref || ""),
-              lenderId: Array.isArray(rec.fields.Lender_ID) ? rec.fields.Lender_ID[0] : (rec.fields.Lender_ID || ""),
+              dealId: resolvedDealId,
+              lenderId: resolvedLenderId,
               sender: rec.fields.Sender || "",
               message: rec.fields.Message || "",
               timestamp: rec.fields.Timestamp || rec.createdTime || ""
@@ -312,6 +378,8 @@ export default async function handler(req: any, res: any) {
         try {
           const lenderData = await airtableFetchRecord(TABLES.LENDERS, lenderRecordId);
           const lenderName = lenderData.fields.Name || lenderData.fields.Company_Name || "";
+          const lenderCompanyName = lenderData.fields.Company_Name || "";
+          const lenderTextId = lenderData.fields.Lender_ID || "";
 
           const pipelineData = await airtableFetch(TABLES.PIPELINE);
           const activeDeal = pipelineData.records.find((rec: any) => {
@@ -319,12 +387,30 @@ export default async function handler(req: any, res: any) {
             return rec.id === dealId || (refNo && String(refNo).toLowerCase() === dealId.toLowerCase());
           });
           if (!activeDeal) {
-            return res.status(404).json({ error: "Acquisition deal not found in active pipeline." });
+            return res.status(404).json({ error: `Acquisition deal '${dealId}' not found in active pipeline.` });
           }
           const resolvedDealId = activeDeal.id;
-          const dealName = activeDeal.fields["Deal Name"] || "";
 
-          const formula = `AND({Lender_ID} = '${escapeFormulaString(lenderName)}', {Deal_Ref} = '${escapeFormulaString(dealName)}')`;
+          const dealRef = activeDeal.fields["REF No."] || activeDeal.fields.Deal_Ref || activeDeal.fields.dealRef || "";
+          const dealName = activeDeal.fields["Deal Name"] || "";
+          const dealCompany = activeDeal.fields["Company Name"] || activeDeal.fields.Company_Name || "";
+
+          const lenderConditions = [
+            `{Lender_ID} = '${escapeFormulaString(lenderRecordId)}'`,
+            lenderName ? `{Lender_ID} = '${escapeFormulaString(lenderName)}'` : "",
+            lenderCompanyName ? `{Lender_ID} = '${escapeFormulaString(lenderCompanyName)}'` : "",
+            lenderTextId ? `{Lender_ID} = '${escapeFormulaString(lenderTextId)}'` : ""
+          ].filter(Boolean);
+
+          const dealConditions = [
+            `{Deal_Ref} = '${escapeFormulaString(resolvedDealId)}'`,
+            dealRef ? `{Deal_Ref} = '${escapeFormulaString(dealRef)}'` : "",
+            dealName ? `{Deal_Ref} = '${escapeFormulaString(dealName)}'` : "",
+            dealCompany ? `{Deal_Ref} = '${escapeFormulaString(dealCompany)}'` : ""
+          ].filter(Boolean);
+
+          const formula = `AND(OR(${lenderConditions.join(", ")}), OR(${dealConditions.join(", ")}))`;
+
           const chatData = await airtableFetch(TABLES.CHAT, {
             filterByFormula: formula
           });
@@ -332,8 +418,8 @@ export default async function handler(req: any, res: any) {
           const messages = chatData.records.map((rec: any) => {
             return {
               id: rec.id,
-              dealId: Array.isArray(rec.fields.Deal_Ref) ? rec.fields.Deal_Ref[0] : (rec.fields.Deal_Ref || ""),
-              lenderId: Array.isArray(rec.fields.Lender_ID) ? rec.fields.Lender_ID[0] : (rec.fields.Lender_ID || ""),
+              dealId: resolvedDealId,
+              lenderId: lenderRecordId,
               sender: rec.fields.Sender || "",
               message: rec.fields.Message || "",
               timestamp: rec.fields.Timestamp || rec.createdTime || ""
@@ -401,6 +487,103 @@ export default async function handler(req: any, res: any) {
             });
           }
           throw err;
+        }
+      }
+
+      case "add-hiring-brief": {
+        const { role, company, statusText, accentColor } = req.body;
+        if (!role || !company) {
+          return res.status(400).json({ error: "Role and Company are required" });
+        }
+        try {
+          const fields: Record<string, any> = {
+            "Role": role,
+            "Company": company,
+            "Status_Text": statusText || "",
+            "Accent_Color": accentColor || "amber"
+          };
+          const result = await airtableCreate(TABLES.HIRING, fields);
+          return res.status(200).json({ success: true, result });
+        } catch (err: any) {
+          if (err.status === 404 || err.type === "TABLE_NOT_FOUND") {
+            return res.status(404).json({
+              error: "Hiring briefs table not setup",
+              type: "TABLE_NOT_FOUND",
+              message: `The '${TABLES.HIRING}' table was not found in Airtable. Please create this table to add hiring briefs.`
+            });
+          }
+          throw err;
+        }
+      }
+
+      case "delete-hiring-brief": {
+        const { id } = req.body;
+        if (!id) {
+          return res.status(400).json({ error: "Hiring brief record ID is required" });
+        }
+        try {
+          await airtableDelete(TABLES.HIRING, id);
+          return res.status(200).json({ success: true, message: "Hiring brief successfully deleted." });
+        } catch (err: any) {
+          if (err.status === 404 || err.type === "TABLE_NOT_FOUND") {
+            return res.status(404).json({
+              error: "Hiring briefs table not setup",
+              type: "TABLE_NOT_FOUND",
+              message: `The '${TABLES.HIRING}' table was not found in Airtable.`
+            });
+          }
+          throw err;
+        }
+      }
+
+      case "trigger-osint": {
+        const { dealId } = req.body;
+        if (!dealId) {
+          return res.status(400).json({ error: "Deal ID is required" });
+        }
+        try {
+          const dealRecord = await airtableFetchRecord(TABLES.PIPELINE, dealId);
+          if (!dealRecord) {
+            return res.status(404).json({ error: "Deal not found" });
+          }
+          
+          const companyName = dealRecord.fields.Company_Name || dealRecord.fields["Company Name"] || dealRecord.fields.Deal_Ref || dealRecord.fields["Deal Name"] || "";
+          const website = dealRecord.fields.Website || dealRecord.fields.Company_Website || "";
+          
+          const { emitEvent } = await import("../_events/emit.js");
+          await emitEvent("osint/scrape_requested", {
+            dealId,
+            companyName: String(companyName),
+            website: website ? String(website) : undefined,
+          });
+          
+          return res.status(200).json({ success: true, message: "OSINT enrichment triggered." });
+        } catch (err: any) {
+          return res.status(500).json({ error: `Failed to trigger OSINT: ${err.message}` });
+        }
+      }
+
+      case "trigger-financial": {
+        const { dealId, documentId } = req.body;
+        if (!dealId) {
+          return res.status(400).json({ error: "Deal ID is required" });
+        }
+        try {
+          const dealRecord = await airtableFetchRecord(TABLES.PIPELINE, dealId);
+          if (!dealRecord) {
+            return res.status(404).json({ error: "Deal not found" });
+          }
+          
+          const { emitEvent } = await import("../_events/emit.js");
+          await emitEvent("financial/analysis_requested", {
+            dealId,
+            documentId: documentId || undefined,
+            manuallyTriggered: true,
+          });
+          
+          return res.status(200).json({ success: true, message: "Financial analysis triggered." });
+        } catch (err: any) {
+          return res.status(500).json({ error: `Failed to trigger financial analysis: ${err.message}` });
         }
       }
 

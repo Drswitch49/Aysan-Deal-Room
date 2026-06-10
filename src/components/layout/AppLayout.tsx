@@ -1,46 +1,96 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import type { ReactNode } from "react";
-import { 
-  Building2, Database, FolderOpen, LockKeyhole, ShieldCheck, Table2, Shield, LogOut, Menu, X, Key, MessageSquare,
-  LayoutDashboard, Kanban, FileText, LineChart, Users, Compass, Settings
+import {
+  Building2, Database, LogOut, Menu, X,
+  LayoutDashboard, Kanban, Users, Settings, KeyRound
 } from "lucide-react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import { cx } from "../../utils/cx";
 import { changeAdminPassword, fetchAdminLenders } from "../../api/admin";
 import { fetchRecentAdminChat } from "../../api/chat";
 import { ChatNotificationWatcher } from "../ui/ChatNotificationWatcher";
-import { useEffect } from "react";
+import { Modal } from "../ui/Modal";
+import { FormField, inputClass } from "../ui/FormField";
+
+// ─── Navigation items data ──────────────────────────────────────────────────
+const NAV_SECTIONS = [
+  {
+    group: "Operations",
+    items: [
+      { to: "/", icon: <LayoutDashboard className="h-4 w-4" />, label: "Dashboard", end: true },
+      { to: "/deals", icon: <Kanban className="h-4 w-4" />, label: "Deal Pipeline", end: true },
+    ],
+  },
+  {
+    group: "Intelligence",
+    items: [
+      { to: "/admin/lenders", icon: <Building2 className="h-4 w-4" />, label: "Lender Intel" },
+    ],
+  },
+  {
+    group: "People",
+    items: [
+      { to: "/admin/hr", icon: <Users className="h-4 w-4" />, label: "HR & Stakeholders" },
+    ],
+  },
+  {
+    group: "System",
+    items: [
+      { to: "/admin/settings", icon: <Settings className="h-4 w-4" />, label: "Settings" },
+    ],
+  },
+];
 
 export function AppLayout() {
   const location = useLocation();
-  const isPipelinePage = location.pathname === "/deals" || location.pathname === "/";
-  const isDealDetailPage = location.pathname.startsWith("/deals") && location.pathname !== "/deals";
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
   const [unreadMessages, setUnreadMessages] = useState<number>(0);
+
+  // Close mobile menu on route change
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [location.pathname]);
+
+  // Close mobile menu on Escape key
+  useEffect(() => {
+    if (!isMobileMenuOpen) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setIsMobileMenuOpen(false);
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [isMobileMenuOpen]);
+
+  // Prevent body scroll when mobile menu is open
+  useEffect(() => {
+    document.body.style.overflow = isMobileMenuOpen ? "hidden" : "";
+    return () => { document.body.style.overflow = ""; };
+  }, [isMobileMenuOpen]);
 
   useEffect(() => {
     const calculateAdminUnread = async () => {
       try {
         const [lenders, messages] = await Promise.all([
           fetchAdminLenders().catch(() => []),
-          fetchRecentAdminChat().catch(() => [])
+          fetchRecentAdminChat().catch(() => []),
         ]);
 
         let unread = 0;
         lenders.forEach((l: any) => {
-          const msgs = messages.filter((m) => m.lenderId === l.id && m.sender !== "Admin");
+          const msgs = messages.filter((m: any) => m.lenderId === l.id && m.sender !== "Admin");
           if (msgs.length === 0) return;
 
           const msgsByDeal: Record<string, any[]> = {};
-          msgs.forEach((m) => {
+          msgs.forEach((m: any) => {
             if (!msgsByDeal[m.dealId]) msgsByDeal[m.dealId] = [];
             msgsByDeal[m.dealId].push(m);
           });
 
           const hasAnyUnreadDeal = Object.entries(msgsByDeal).some(([dealId, dealMsgs]) => {
-            const lastReadTimeStr = localStorage.getItem(`admin_last_read_${l.id}_${dealId}`) || 
-                                   localStorage.getItem(`admin_last_read_${l.id}`);
+            const lastReadTimeStr =
+              localStorage.getItem(`admin_last_read_${l.id}_${dealId}`) ||
+              localStorage.getItem(`admin_last_read_${l.id}`);
             const lastReadTime = lastReadTimeStr ? new Date(lastReadTimeStr).getTime() : 0;
             return dealMsgs.some((m) => new Date(m.timestamp).getTime() > lastReadTime);
           });
@@ -59,108 +109,54 @@ export function AppLayout() {
     return () => clearInterval(interval);
   }, []);
 
-  const handleLogout = () => {
+  const handleLogout = useCallback(async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch (err) {
+      console.error("Logout request failed:", err);
+    }
     sessionStorage.removeItem("admin_authenticated");
     window.location.reload();
-  };
+  }, []);
 
   return (
-    <div className="min-h-screen text-slate-100 lg:grid lg:grid-cols-[284px_minmax(0,1fr)] bg-acp-ink">
-      {/* Desktop Sidebar */}
-      <aside className="hidden h-screen sticky top-0 border-r border-white/[0.06] bg-[#0D0D0E] text-white lg:block relative overflow-hidden">
-        {/* Subtle decorative glow in sidebar background */}
-        <div className="absolute -left-12 -top-12 h-48 w-48 rounded-full bg-acp-bronze/5 blur-3xl pointer-events-none" />
-        <div className="absolute -right-20 bottom-10 h-64 w-64 rounded-full bg-acp-bronze/5 blur-3xl pointer-events-none" />
+    <div className="min-h-screen text-slate-100 lg:grid lg:grid-cols-[260px_minmax(0,1fr)] bg-acp-ink">
+      {/* ── Desktop Sidebar ───────────────────────────────────────────── */}
+      <aside className="hidden h-screen sticky top-0 border-r border-white/[0.06] bg-[#0C0C0D] text-white lg:flex flex-col relative overflow-hidden">
+        {/* Decorative ambient glows */}
+        <div className="absolute -left-16 -top-16 h-56 w-56 rounded-full bg-acp-bronze/5 blur-3xl pointer-events-none" />
+        <div className="absolute -right-24 bottom-8 h-72 w-72 rounded-full bg-acp-bronze/5 blur-3xl pointer-events-none" />
 
-        <div className="flex h-full flex-col px-6 py-7 z-10">
+        <div className="flex flex-col h-full px-5 py-7 z-10 relative">
           <BrandBlock />
-
-          <nav className="mt-8 flex-1 space-y-6 overflow-y-auto pr-1 select-none">
-            {/* OPERATIONS SECTION */}
-            <div className="space-y-1">
-              <p className="text-[9px] font-extrabold uppercase tracking-[0.2em] text-slate-500 px-3.5 mb-1.5">Operations</p>
-              <SideNavItem to="/" icon={<LayoutDashboard className="h-4 w-4" />} label="Dashboard" end />
-              <SideNavItem to="/deals" icon={<Kanban className="h-4 w-4" />} label="Deal Pipeline" end />
-            </div>
-
-            {/* INTELLIGENCE SECTION */}
-            <div className="space-y-1">
-              <p className="text-[9px] font-extrabold uppercase tracking-[0.2em] text-slate-500 px-3.5 mb-1.5">Intelligence</p>
-              <SideNavItem 
-                to="/admin/lenders" 
-                icon={<Building2 className="h-4 w-4" />} 
-                label="Lender Intel" 
-                badge={unreadMessages > 0 ? (
-                  <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1.5 text-[9px] font-black text-white shadow-[0_0_8px_rgba(239,68,68,0.4)] ml-auto">
-                    {unreadMessages}
-                  </span>
-                ) : null}
-              />
-            </div>
-
-            {/* PEOPLE SECTION */}
-            <div className="space-y-1">
-              <p className="text-[9px] font-extrabold uppercase tracking-[0.2em] text-slate-500 px-3.5 mb-1.5">People</p>
-              <SideNavItem to="/admin/hr" icon={<Users className="h-4 w-4" />} label="HR & Stakeholders" />
-            </div>
-
-            {/* SYSTEM SECTION */}
-            <div className="space-y-1">
-              <p className="text-[9px] font-extrabold uppercase tracking-[0.2em] text-slate-500 px-3.5 mb-1.5">System</p>
-              <SideNavItem to="/admin/settings" icon={<Settings className="h-4 w-4" />} label="Settings" />
-            </div>
-          </nav>
-
-          {/* User Profile Footer */}
-          <div className="mt-auto pt-4 border-t border-white/[0.06]">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#F5C443] text-xs font-black text-slate-950 shadow-sm border border-[#F5C443]/20">
-                  AO
-                </div>
-                <div className="min-w-0">
-                  <p className="truncate text-xs font-bold text-white tracking-wide leading-none mb-1">
-                    Ayo Oyesanya
-                  </p>
-                  <p className="truncate text-[9px] font-extrabold uppercase tracking-wider text-acp-bronze">
-                    Managing Partner
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={handleLogout}
-                className="h-8 w-8 flex items-center justify-center rounded-lg border border-white/10 bg-white/5 text-slate-400 hover:text-rose-450 hover:bg-rose-500/10 hover:border-rose-500/20 transition cursor-pointer"
-                title="Log Out Session"
-                type="button"
-              >
-                <LogOut className="h-4 w-4" aria-hidden="true" />
-              </button>
-            </div>
-          </div>
+          <NavContent
+            unreadMessages={unreadMessages}
+            className="mt-6 flex-1 overflow-y-auto"
+          />
+          <UserFooter onLogout={handleLogout} onChangePassword={() => setIsChangePasswordOpen(true)} />
         </div>
       </aside>
 
-      {/* Mobile Sidebar Navigation Drawer */}
+      {/* ── Mobile Drawer ─────────────────────────────────────────────── */}
       {isMobileMenuOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden flex">
+        <div className="fixed inset-0 z-50 lg:hidden flex" role="dialog" aria-modal="true" aria-label="Navigation menu">
           {/* Backdrop */}
-          <div 
-            className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm transition-opacity duration-300"
+          <div
+            className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm animate-fade-in"
             onClick={() => setIsMobileMenuOpen(false)}
+            aria-hidden="true"
           />
-          
-          {/* Drawer Sidebar */}
-          <aside className="relative flex w-[284px] max-w-[85vw] flex-col border-r border-white/[0.06] bg-[#0D0D0E] text-white h-full px-6 py-7 shadow-2xl animate-slide-in-left overflow-hidden">
-            {/* Subtle decorative glow in drawer background */}
-            <div className="absolute -left-12 -top-12 h-48 w-48 rounded-full bg-acp-bronze/5 blur-3xl pointer-events-none" />
-            <div className="absolute -right-20 bottom-10 h-64 w-64 rounded-full bg-acp-bronze/5 blur-3xl pointer-events-none" />
 
-            <div className="flex h-full flex-col z-10">
-              <div className="flex items-center justify-between gap-3">
+          {/* Drawer */}
+          <aside className="relative flex w-[260px] max-w-[88vw] flex-col border-r border-white/[0.06] bg-[#0C0C0D] text-white h-full px-5 py-7 shadow-2xl animate-slide-in-left overflow-hidden">
+            <div className="absolute -left-12 -top-12 h-48 w-48 rounded-full bg-acp-bronze/5 blur-3xl pointer-events-none" />
+
+            <div className="flex flex-col h-full z-10">
+              <div className="flex items-center justify-between mb-6">
                 <BrandBlock />
                 <button
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className="h-8 w-8 flex items-center justify-center rounded-lg border border-white/10 bg-white/5 text-slate-400 hover:text-white transition cursor-pointer"
+                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/[0.08] bg-white/[0.04] text-slate-400 hover:text-white transition cursor-pointer"
                   aria-label="Close menu"
                   type="button"
                 >
@@ -168,112 +164,70 @@ export function AppLayout() {
                 </button>
               </div>
 
-              <nav className="mt-8 flex-1 space-y-6 overflow-y-auto pr-1 select-none">
-                {/* OPERATIONS SECTION */}
-                <div className="space-y-1">
-                  <p className="text-[9px] font-extrabold uppercase tracking-[0.2em] text-slate-500 px-3.5 mb-1.5">Operations</p>
-                  <SideNavItem to="/" icon={<LayoutDashboard className="h-4 w-4" />} label="Dashboard" end onClick={() => setIsMobileMenuOpen(false)} />
-                  <SideNavItem to="/deals" icon={<Kanban className="h-4 w-4" />} label="Deal Pipeline" end onClick={() => setIsMobileMenuOpen(false)} />
-                </div>
-
-                {/* INTELLIGENCE SECTION */}
-                <div className="space-y-1">
-                  <p className="text-[9px] font-extrabold uppercase tracking-[0.2em] text-slate-500 px-3.5 mb-1.5">Intelligence</p>
-                  <SideNavItem 
-                    to="/admin/lenders" 
-                    icon={<Building2 className="h-4 w-4" />} 
-                    label="Lender Intel" 
-                    onClick={() => setIsMobileMenuOpen(false)} 
-                    badge={unreadMessages > 0 ? (
-                      <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1.5 text-[9px] font-black text-white shadow-[0_0_8px_rgba(239,68,68,0.4)] ml-auto">
-                        {unreadMessages}
-                      </span>
-                    ) : null}
-                  />
-                </div>
-
-                {/* PEOPLE SECTION */}
-                <div className="space-y-1">
-                  <p className="text-[9px] font-extrabold uppercase tracking-[0.2em] text-slate-500 px-3.5 mb-1.5">People</p>
-                  <SideNavItem to="/admin/hr" icon={<Users className="h-4 w-4" />} label="HR & Stakeholders" onClick={() => setIsMobileMenuOpen(false)} />
-                </div>
-
-                {/* SYSTEM SECTION */}
-                <div className="space-y-1">
-                  <p className="text-[9px] font-extrabold uppercase tracking-[0.2em] text-slate-500 px-3.5 mb-1.5">System</p>
-                  <SideNavItem to="/admin/settings" icon={<Settings className="h-4 w-4" />} label="Settings" onClick={() => setIsMobileMenuOpen(false)} />
-                </div>
-              </nav>
-
-              {/* User Profile Footer */}
-              <div className="mt-auto pt-4 border-t border-white/[0.06]">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#F5C443] text-xs font-black text-slate-950 shadow-sm border border-[#F5C443]/20">
-                      AO
-                    </div>
-                    <div className="min-w-0">
-                      <p className="truncate text-xs font-bold text-white tracking-wide leading-none mb-1">
-                        Ayo Oyesanya
-                      </p>
-                      <p className="truncate text-[9px] font-extrabold uppercase tracking-wider text-acp-bronze">
-                        Managing Partner
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => {
-                      setIsMobileMenuOpen(false);
-                      handleLogout();
-                    }}
-                    className="h-8 w-8 flex items-center justify-center rounded-lg border border-white/10 bg-white/5 text-slate-400 hover:text-rose-450 hover:bg-rose-500/10 hover:border-rose-500/20 transition cursor-pointer"
-                    title="Log Out Session"
-                    type="button"
-                  >
-                    <LogOut className="h-4 w-4" aria-hidden="true" />
-                  </button>
-                </div>
-              </div>
+              <NavContent
+                unreadMessages={unreadMessages}
+                className="flex-1 overflow-y-auto"
+                onNavigate={() => setIsMobileMenuOpen(false)}
+              />
+              <UserFooter onLogout={handleLogout} onChangePassword={() => setIsChangePasswordOpen(true)} />
             </div>
           </aside>
         </div>
       )}
 
-      {/* Main Content Area */}
+      {/* ── Main Content Area ─────────────────────────────────────────── */}
       <div className="min-w-0 flex flex-col min-h-screen relative z-10">
-        <header className="sticky top-0 z-20 border-b border-white/[0.06] bg-[#0A0A0B]/40 backdrop-blur-md shadow-soft lg:bg-[#0A0A0B]/20">
-          <div className="flex items-center justify-between gap-4 px-6 py-4 sm:px-8">
+        {/* Top Header */}
+        <header className="sticky top-0 z-20 border-b border-white/[0.06] bg-[#0A0A0B]/60 backdrop-blur-xl">
+          <div className="flex items-center justify-between gap-4 px-5 py-3.5 sm:px-8">
+            {/* Mobile: Hamburger + Brand */}
             <div className="lg:hidden flex shrink-0 items-center gap-3 min-w-0">
               <button
                 onClick={() => setIsMobileMenuOpen(true)}
-                className="h-9 w-9 flex shrink-0 items-center justify-center rounded-xl bg-white/10 border border-white/15 text-white hover:bg-white/20 transition cursor-pointer"
-                title="Open menu"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/[0.06] border border-white/[0.1] text-white hover:bg-white/[0.1] transition cursor-pointer"
+                aria-label="Open navigation menu"
                 type="button"
               >
-                <Menu className="h-5 w-5 text-white" />
+                <Menu className="h-4 w-4" />
               </button>
               <BrandBlock compact />
             </div>
-            <div className="hidden min-w-0 lg:block">
-              <p className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-slate-400">Secure Environment</p>
-              <Link to="/deals" className="block mt-1 text-xs font-bold text-slate-300 tracking-wide uppercase hover:text-white transition-colors">
-                Aysan Capital Partners Pipeline
-              </Link>
+
+            {/* Desktop: Breadcrumb / Context */}
+            <div className="hidden lg:flex items-center gap-2 min-w-0">
+              <span className="text-[10px] font-extrabold uppercase tracking-[0.15em] text-slate-500">
+                ACP Deal OS
+              </span>
+              <span className="text-slate-600 text-[10px]">/</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">
+                {getBreadcrumb(location.pathname)}
+              </span>
             </div>
-            <div className="hidden items-center gap-2.5 md:flex">
-              <Pill icon={<Database className="h-3.5 w-3.5 text-acp-bronze" aria-hidden="true" />} label="Active Pipeline" to="/deals" />
-              <Pill icon={<ShieldCheck className="h-3.5 w-3.5 text-acp-emerald" aria-hidden="true" />} label="Secure Access" />
+
+            {/* Right side: Status pill */}
+            <div className="flex items-center gap-2.5">
+              <div className="hidden sm:flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/[0.06] px-3 py-1">
+                <span className="relative flex h-1.5 w-1.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
+                </span>
+                <span className="text-[9px] font-bold uppercase tracking-wider text-emerald-400/80">
+                  Live
+                </span>
+              </div>
             </div>
           </div>
         </header>
+
         <main className="flex-1 px-4 py-6 sm:px-8 sm:py-8">
-          <div className="mx-auto max-w-[1280px]">
+          <div className="mx-auto max-w-[1320px]">
             <Outlet />
           </div>
         </main>
-        <ChangePasswordModal 
-          isOpen={isChangePasswordOpen} 
-          onClose={() => setIsChangePasswordOpen(false)} 
+
+        <ChangePasswordModal
+          isOpen={isChangePasswordOpen}
+          onClose={() => setIsChangePasswordOpen(false)}
         />
         <ChatNotificationWatcher mode="admin" />
       </div>
@@ -281,6 +235,184 @@ export function AppLayout() {
   );
 }
 
+// ─── Breadcrumb helper ──────────────────────────────────────────────────────
+function getBreadcrumb(pathname: string): string {
+  if (pathname === "/" || pathname === "") return "Command Centre";
+  if (pathname === "/deals") return "Deal Pipeline";
+  if (pathname.startsWith("/deals/")) return "Deal Detail";
+  if (pathname === "/admin/lenders") return "Lender Intelligence";
+  if (pathname === "/admin/hr") return "HR & Stakeholders";
+  if (pathname === "/admin/settings") return "Settings";
+  if (pathname === "/admin/messages") return "Messages";
+  return "Dashboard";
+}
+
+// ─── Brand Block ─────────────────────────────────────────────────────────────
+function BrandBlock({ compact = false }: { compact?: boolean }) {
+  if (compact) {
+    return (
+      <Link to="/" className="flex min-w-0 items-center gap-2.5 hover:opacity-90 transition">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#C5A059]/10 border border-[#C5A059]/20">
+          <Building2 className="h-4 w-4 text-[#C5A059]" aria-hidden="true" />
+        </div>
+        <div className="min-w-0">
+          <p className="truncate font-heading text-sm font-semibold tracking-tight text-white uppercase leading-none">
+            Aysan Capital
+          </p>
+          <p className="truncate text-[9px] font-bold uppercase tracking-widest text-[#C5A059]/80 leading-none mt-0.5">
+            Deal OS
+          </p>
+        </div>
+      </Link>
+    );
+  }
+
+  return (
+    <Link to="/" className="block hover:opacity-90 transition select-none">
+      <p className="text-[9px] font-bold uppercase tracking-[0.22em] text-slate-500 leading-none">
+        AYSAN CAPITAL PARTNERS
+      </p>
+      <h1 className="font-heading text-lg font-bold text-white leading-none uppercase tracking-tight mt-1.5">
+        ACP Deal OS
+      </h1>
+      <p className="text-[8px] font-bold tracking-wider text-[#C5A059]/80 uppercase mt-1">
+        Operator-Investor Platform
+      </p>
+    </Link>
+  );
+}
+
+// ─── Shared Nav Content (used in both desktop and mobile) ───────────────────
+function NavContent({
+  unreadMessages,
+  className = "",
+  onNavigate,
+}: {
+  unreadMessages: number;
+  className?: string;
+  onNavigate?: () => void;
+}) {
+  return (
+    <nav className={cx("space-y-5 pr-1 select-none", className)}>
+      {NAV_SECTIONS.map((section) => (
+        <div key={section.group} className="space-y-0.5">
+          <p className="text-[8.5px] font-extrabold uppercase tracking-[0.2em] text-slate-550 px-3 mb-2">
+            {section.group}
+          </p>
+          {section.items.map((item) => {
+            const badge =
+              item.to === "/admin/lenders" && unreadMessages > 0 ? (
+                <span className="inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-rose-500 px-1 text-[8px] font-bold text-white ml-auto shadow-[0_0_6px_rgba(239,68,68,0.3)]">
+                  {unreadMessages}
+                </span>
+              ) : null;
+
+            return (
+              <SideNavItem
+                key={item.to}
+                to={item.to}
+                icon={item.icon}
+                label={item.label}
+                end={"end" in item ? (item as any).end : false}
+                onClick={onNavigate}
+                badge={badge}
+              />
+            );
+          })}
+        </div>
+      ))}
+    </nav>
+  );
+}
+
+// ─── Side Nav Item ────────────────────────────────────────────────────────────
+function SideNavItem({
+  to,
+  icon,
+  label,
+  onClick,
+  end = false,
+  badge,
+}: {
+  to: string;
+  icon: ReactNode;
+  label: ReactNode;
+  onClick?: () => void;
+  end?: boolean;
+  badge?: ReactNode;
+}) {
+  return (
+    <NavLink
+      to={to}
+      end={end}
+      onClick={onClick}
+      className={({ isActive }) =>
+        cx(
+          "flex h-9 items-center gap-2.5 rounded-lg px-3 text-xs font-semibold transition-all duration-150 relative group border",
+          isActive
+            ? "nav-item-active bg-white/[0.03] border-white/[0.05] text-white"
+            : "border-transparent text-slate-400 hover:bg-white/[0.02] hover:text-slate-200 hover:border-white/[0.03]"
+        )
+      }
+      aria-current={undefined}
+    >
+      {({ isActive }) => (
+        <>
+          <span className={cx("shrink-0 transition-colors", isActive ? "text-[#C5A059]" : "text-slate-550 group-hover:text-slate-300")}>
+            {icon}
+          </span>
+          <span className="flex-1 truncate">{label}</span>
+          {badge}
+        </>
+      )}
+    </NavLink>
+  );
+}
+
+// ─── User Footer ──────────────────────────────────────────────────────────────
+function UserFooter({ onLogout, onChangePassword }: { onLogout: () => void; onChangePassword: () => void }) {
+  return (
+    <div className="mt-auto pt-4 border-t border-white/[0.04]">
+      <div className="flex items-center justify-between gap-2.5">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-[#C5A059] to-[#D4B876] text-[10px] font-bold text-slate-950 border border-[#C5A059]/20 shadow-inner">
+            AO
+          </div>
+          <div className="min-w-0">
+            <p className="truncate text-xs font-semibold text-white tracking-wide leading-none mb-0.5">
+              Ayo Oyesanya
+            </p>
+            <p className="truncate text-[9px] font-bold uppercase tracking-wider text-[#C5A059]/80 leading-none">
+              Managing Partner
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-1 ml-auto shrink-0">
+          <button
+            onClick={onChangePassword}
+            className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/[0.06] bg-white/[0.02] text-slate-400 hover:text-[#C5A059] hover:bg-[#C5A059]/10 hover:border-[#C5A059]/25 transition cursor-pointer"
+            title="Change Passcode"
+            type="button"
+            aria-label="Change passcode"
+          >
+            <KeyRound className="h-3.5 w-3.5" aria-hidden="true" />
+          </button>
+          <button
+            onClick={onLogout}
+            className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/[0.06] bg-white/[0.02] text-slate-400 hover:text-rose-455 hover:bg-rose-500/10 hover:border-rose-500/25 transition cursor-pointer"
+            title="Log Out Session"
+            type="button"
+            aria-label="Log out"
+          >
+            <LogOut className="h-3.5 w-3.5" aria-hidden="true" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Change Password Modal ────────────────────────────────────────────────────
 function ChangePasswordModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -288,18 +420,15 @@ function ChangePasswordModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
   const [success, setSuccess] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  if (!isOpen) return null;
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setSuccess(false);
 
-    if (!newPassword || newPassword.trim() === "") {
+    if (!newPassword.trim()) {
       setError("Password cannot be empty.");
       return;
     }
-
     if (newPassword !== confirmPassword) {
       setError("Passwords do not match.");
       return;
@@ -309,7 +438,6 @@ function ChangePasswordModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
     try {
       await changeAdminPassword(newPassword);
       setSuccess(true);
-      sessionStorage.setItem("admin_passcode", newPassword); // Update active session passcode
       setNewPassword("");
       setConfirmPassword("");
       setTimeout(() => {
@@ -324,75 +452,48 @@ function ChangePasswordModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop */}
-      <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={onClose} />
-      
-      {/* Modal Card */}
-      <form 
-        onSubmit={handleSubmit}
-        className="relative z-10 w-full max-w-sm rounded-2xl border border-white/10 bg-[#0D0D0E] p-6 shadow-2xl backdrop-blur-xl animate-fade-in-up"
-      >
-        <div className="flex items-center justify-between pb-4 border-b border-white/5">
-          <h3 className="font-display text-lg text-white font-normal italic tracking-wide">
-            Change Admin Passcode
-          </h3>
-          <button 
-            type="button" 
-            onClick={onClose} 
-            className="text-slate-400 hover:text-white transition"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-
-        <div className="mt-5 space-y-4">
-          {error && (
-            <div className="rounded-lg border border-rose-500/10 bg-rose-500/5 p-3 text-center text-xs font-semibold text-rose-400">
-              {error}
-            </div>
-          )}
-
-          {success && (
-            <div className="rounded-lg border border-emerald-500/10 bg-emerald-500/5 p-3 text-center text-xs font-semibold text-acp-emerald">
-              Passcode successfully updated!
-            </div>
-          )}
-
-          <div className="space-y-1.5">
-            <label className="block text-[9px] font-extrabold uppercase tracking-wider text-slate-400">
-              New Passcode
-            </label>
-            <input
-              type="password"
-              required
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="••••••••"
-              className="h-10 w-full rounded-xl border border-white/10 bg-white/5 px-3 text-xs text-white placeholder-slate-650 outline-none focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze transition"
-            />
+    <Modal isOpen={isOpen} onClose={onClose} title="Change Admin Passcode">
+      <form onSubmit={handleSubmit} className="space-y-4 font-sans">
+        {error && (
+          <div className="rounded-lg border border-rose-500/20 bg-rose-500/5 p-3 text-center text-xs font-semibold text-rose-400">
+            {error}
           </div>
-
-          <div className="space-y-1.5">
-            <label className="block text-[9px] font-extrabold uppercase tracking-wider text-slate-400">
-              Confirm New Passcode
-            </label>
-            <input
-              type="password"
-              required
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="••••••••"
-              className="h-10 w-full rounded-xl border border-white/10 bg-white/5 px-3 text-xs text-white placeholder-slate-650 outline-none focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze transition"
-            />
+        )}
+        {success && (
+          <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3 text-center text-xs font-semibold text-emerald-400">
+            Passcode successfully updated!
           </div>
-        </div>
+        )}
 
-        <div className="mt-6 flex justify-end gap-2.5">
+        <FormField label="New Passcode" required id="change-pwd-new">
+          <input
+            id="change-pwd-new"
+            type="password"
+            required
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            placeholder="••••••••"
+            className="h-10 w-full rounded-xl border border-white/10 bg-white/5 px-3 text-xs text-white placeholder-slate-600 outline-none focus:border-acp-bronze transition"
+          />
+        </FormField>
+
+        <FormField label="Confirm New Passcode" required id="change-pwd-confirm">
+          <input
+            id="change-pwd-confirm"
+            type="password"
+            required
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            placeholder="••••••••"
+            className="h-10 w-full rounded-xl border border-white/10 bg-white/5 px-3 text-xs text-white placeholder-slate-600 outline-none focus:border-acp-bronze transition"
+          />
+        </FormField>
+
+        <div className="flex justify-end gap-2.5 pt-2">
           <button
             type="button"
             onClick={onClose}
-            className="h-9 px-4 rounded-xl border border-white/10 text-slate-350 text-xs font-bold uppercase tracking-wider hover:bg-white/5 transition"
+            className="h-9 px-4 rounded-xl border border-white/10 text-slate-350 text-xs font-bold uppercase tracking-wider hover:bg-white/5 transition cursor-pointer"
           >
             Cancel
           </button>
@@ -405,127 +506,6 @@ function ChangePasswordModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
           </button>
         </div>
       </form>
-    </div>
-  );
-}
-
-
-function BrandBlock({ compact = false }: { compact?: boolean }) {
-  if (compact) {
-    return (
-      <Link to="/" className="flex min-w-0 items-center gap-3 hover:opacity-90 transition">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#C5A059]/20 to-[#C5A059]/20 text-white border border-[#C5A059]/30">
-          <Building2 className="h-5 w-5 text-white" aria-hidden="true" />
-        </div>
-        <div className="min-w-0">
-          <p className="truncate font-heading text-base font-black tracking-tight text-white uppercase">
-            Aysan Capital
-          </p>
-          <p className="truncate text-[10px] font-extrabold uppercase tracking-[0.18em] text-acp-bronze">
-            Deal Room Portal
-          </p>
-        </div>
-      </Link>
-    );
-  }
-
-  return (
-    <Link to="/" className="min-w-0 space-y-0.5 select-none text-left mb-6 block hover:opacity-90 transition">
-      <p className="text-[9px] font-bold uppercase tracking-[0.25em] text-slate-500">
-        AYSAN CAPITAL
-      </p>
-      <h1 className="font-heading text-xl font-black text-white leading-none uppercase tracking-tight">
-        ACP Deal OS
-      </h1>
-      <p className="text-[8px] font-bold tracking-wide text-acp-bronze uppercase">
-        Operator-Investor Platform
-      </p>
-    </Link>
-  );
-}
-
-function SideNavItem({ 
-  to, 
-  icon, 
-  label, 
-  onClick, 
-  disabled = false, 
-  end = false, 
-  activeOverride,
-  badge
-}: { 
-  to: string; 
-  icon: ReactNode; 
-  label: ReactNode; 
-  onClick?: () => void; 
-  disabled?: boolean;
-  end?: boolean;
-  activeOverride?: boolean;
-  badge?: ReactNode;
-}) {
-  if (disabled) {
-    return (
-      <div
-        className="flex h-10 items-center gap-3 rounded-lg px-3.5 text-xs font-bold text-slate-655 cursor-not-allowed select-none border border-transparent"
-      >
-        <span className="opacity-40">{icon}</span>
-        <span className="opacity-40">{label}</span>
-      </div>
-    );
-  }
-
-  return (
-    <NavLink
-      to={to}
-      end={end}
-      onClick={onClick}
-      className={({ isActive }) => {
-        const isCurrentActive = activeOverride !== undefined ? activeOverride : isActive;
-        return cx(
-          "flex h-10 items-center gap-3 rounded-lg px-3.5 text-xs font-bold transition-all duration-300 relative group border",
-          isCurrentActive
-            ? "bg-white/[0.04] border-white/10 text-white shadow-soft"
-            : "border-transparent text-slate-400 hover:bg-white/[0.02] hover:text-white",
-        );
-      }}
-    >
-      <span className="transition-transform duration-300 group-hover:scale-105">{icon}</span>
-      <span className="flex-1 truncate">{label}</span>
-      {badge}
-    </NavLink>
-  );
-}
-
-function SideFact({ icon, label }: { icon: ReactNode; label: string }) {
-  return (
-    <div className="flex items-center gap-3 text-xs font-semibold text-slate-300">
-      <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/[0.03] border border-white/5 text-acp-bronze/80">{icon}</span>
-      {label}
-    </div>
-  );
-}
-
-function Pill({ icon, label, to }: { icon: ReactNode; label: string; to?: string }) {
-  const content = (
-    <>
-      {icon}
-      {label}
-    </>
-  );
-
-  const className = "inline-flex h-8 items-center gap-2 rounded-full border border-white/10 bg-white/[0.02] backdrop-blur-sm px-3.5 text-xs font-bold tracking-wide text-slate-300 shadow-sm transition-all duration-300 hover:border-white/25 hover:bg-white/5 hover:text-white cursor-pointer";
-
-  if (to) {
-    return (
-      <Link to={to} className={className}>
-        {content}
-      </Link>
-    );
-  }
-
-  return (
-    <span className={className}>
-      {content}
-    </span>
+    </Modal>
   );
 }

@@ -1,15 +1,22 @@
 import { useState, useEffect, useMemo } from "react";
 import { 
-  LayoutDashboard, Kanban, FileText, Building2, LineChart, Users, Compass, Settings, 
-  Plus, X, Calendar, User, Clock, AlertTriangle, TrendingUp, CheckCircle2, ShieldCheck, Database
+  Plus, X, LineChart, AlertTriangle, CheckCircle2,
+  Kanban, Building2, Clock, TrendingUp, MessageSquare,
+  FileText, Flag, Database
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { getAllDocuments, getAllSubmissionLog } from "../api/airtable";
-import { fetchAdminLenders, createAdminDeal } from "../api/admin";
+import { fetchAdminLenders, createAdminDeal, fetchActivityFeed, type ActivityEvent } from "../api/admin";
 import { fetchRecentAdminChat } from "../api/chat";
 import type { PipelineDeal, DealDocument, SubmissionLogEntry } from "../types/deal";
 import { cx } from "../utils/cx";
 import { usePipeline } from "../context/PipelineContext";
+import { StatCard } from "../components/ui/StatCard";
+import { Modal } from "../components/ui/Modal";
+import { FormField, inputClass, selectClass, textareaClass } from "../components/ui/FormField";
+import { LoadingState } from "../components/ui/LoadingState";
+import { SectionHeader } from "../components/ui/SectionHeader";
+
 
 export function DashboardPage() {
   const { deals, refresh: refreshPipeline } = usePipeline();
@@ -17,6 +24,7 @@ export function DashboardPage() {
   const [submissions, setSubmissions] = useState<SubmissionLogEntry[]>([]);
   const [lenders, setLenders] = useState<any[]>([]);
   const [chats, setChats] = useState<any[]>([]);
+  const [activityEvents, setActivityEvents] = useState<ActivityEvent[]>([]);
   
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
@@ -41,13 +49,15 @@ export function DashboardPage() {
       getAllDocuments().catch(() => []),
       getAllSubmissionLog().catch(() => []),
       fetchAdminLenders().catch(() => []),
-      fetchRecentAdminChat().catch(() => [])
+      fetchRecentAdminChat().catch(() => []),
+      fetchActivityFeed({ limit: 4 }).catch(() => [])
     ])
-      .then(([docsData, subsData, lendersData, chatsData]) => {
+      .then(([docsData, subsData, lendersData, chatsData, activityData]) => {
         setDocuments(docsData);
         setSubmissions(subsData);
         setLenders(lendersData);
         setChats(chatsData);
+        setActivityEvents(activityData);
       })
       .catch((err) => {
         console.error("Error loading dashboard data:", err);
@@ -329,86 +339,62 @@ export function DashboardPage() {
 
   // Dynamic Recent Activity Log
   const activityList = useMemo(() => {
-    const list: Array<{
-      id: string;
-      color: "green" | "blue" | "yellow" | "red";
-      title: string;
-      dateStr: string;
-      author: string;
-    }> = [];
+    if (activityEvents && activityEvents.length > 0) {
+      return activityEvents.slice(0, 4).map((e) => {
+        let color: "green" | "blue" | "yellow" | "red" = "blue";
+        if (e.color === "emerald") color = "green";
+        else if (e.color === "amber") color = "yellow";
+        else if (e.color === "red") color = "red";
+        else if (e.color === "bronze" || e.color === "purple") color = "yellow";
 
-    // 1. Process recent chat messages
-    chats.slice(0, 3).forEach(c => {
-      const deal = deals.find(d => d.id === c.dealId);
-      const company = deal ? deal.companyName : "Lender";
-      const timestamp = c.timestamp ? new Date(c.timestamp) : new Date();
-      const formattedDate = timestamp.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+        const titleText = e.companyName
+          ? `${e.title} — ${e.companyName}`
+          : e.title;
 
-      list.push({
-        id: c.id,
-        color: "blue",
-        title: `Message from ${c.sender === "Admin" ? "Admin" : company} — ${c.message.slice(0, 50)}${c.message.length > 50 ? "..." : ""}`,
-        dateStr: `${formattedDate}`,
-        author: c.sender === "Admin" ? "Ayo" : "Lender"
+        return {
+          id: e.id,
+          color,
+          title: e.detail ? `${titleText} • ${e.detail}` : titleText,
+          dateStr: e.timestamp
+            ? new Date(e.timestamp).toLocaleDateString("en-GB", { day: "numeric", month: "short" })
+            : "Just now",
+          author: e.changedBy || "System"
+        };
       });
-    });
+    }
 
-    // 2. Process recent documents
-    documents.slice(0, 2).forEach(doc => {
-      const deal = deals.find(d => d.id === doc.dealRef);
-      const company = deal ? deal.companyName : "Deal";
-      const dateStr = doc.dateReceived || new Date().toISOString();
-      const formattedDate = new Date(dateStr).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
-
-      list.push({
-        id: doc.id,
-        color: "green",
-        title: `Document received: ${doc.documentName} — ${company}`,
-        dateStr: `${formattedDate}`,
-        author: doc.source || "System"
-      });
-    });
-
-    // Mock fallbacks (from the screenshot) to ensure exactly 4 items show beautifully
-    const mockActivities: typeof list = [
+    // Fallback if no real activities are loaded yet
+    return [
       {
         id: "act-mock-1",
-        color: "green",
+        color: "green" as const,
         title: "Scorecard updated — Morgan Environmental • 38/50 • Progress to IC",
         dateStr: "22 May 2026",
         author: "Auto via Claude + Make.com"
       },
       {
         id: "act-mock-2",
-        color: "blue",
+        color: "blue" as const,
         title: "Pre-call brief generated — Clear Water Cleaning • Seller call booked",
         dateStr: "21 May 2026",
         author: "Ayo"
       },
       {
         id: "act-mock-3",
-        color: "yellow",
+        color: "yellow" as const,
         title: "EV override required — Master Air Cool • 7.8x EV (Amber threshold breached)",
         dateStr: "20 May 2026",
         author: "System flag - awaiting Ayo written sign-off"
       },
       {
         id: "act-mock-4",
-        color: "red",
+        color: "red" as const,
         title: "Deal killed — Elec Training Ltd • High-risk assessment • diligence required pre-engagement",
         dateStr: "18 May 2026",
         author: "Ayo"
       }
     ];
-
-    // Combine and sort
-    let index = 0;
-    while (list.length < 4 && index < mockActivities.length) {
-      list.push(mockActivities[index++]);
-    }
-
-    return list.slice(0, 4);
-  }, [chats, documents, deals]);
+  }, [activityEvents]);
 
   // Handle New Deal Submission
   const handleCreateDeal = async (e: React.FormEvent) => {
@@ -450,237 +436,215 @@ export function DashboardPage() {
   };
 
   return (
-    <div className="space-y-7 animate-fade-in-up">
+    <div className="space-y-8 animate-fade-in-up">
       {/* Top Header Block */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-4 border-b border-white/5">
-        <div className="space-y-1">
-          <h1 className="font-heading text-4xl font-black text-white uppercase tracking-tight leading-none select-none">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 pb-6 border-b border-white/[0.04]">
+        <div className="space-y-2">
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#C5A059] select-none">
+            ACP Deal Intelligence
+          </p>
+          <h1 className="font-heading text-2xl font-bold text-white uppercase tracking-tight leading-none select-none">
             Command Centre
           </h1>
-          <div className="flex flex-wrap items-center gap-3 text-xs font-semibold text-slate-400">
-            <span>{currentDateString}</span>
-            <span>•</span>
-            <span>{pendingActionsCount} actions due today</span>
-            
-            <span className="inline-flex items-center rounded-full bg-acp-bronze/10 border border-acp-bronze/25 px-2.5 py-0.5 text-[10px] font-bold text-acp-bronze">
-              {overdueCount} overdue tasks
-            </span>
-            <span className="inline-flex items-center rounded-full bg-blue-500/10 border border-blue-500/25 px-2.5 py-0.5 text-[10px] font-bold text-blue-400">
-              {activeDeals.length} live deals
+          <div className="flex flex-wrap items-center gap-2.5 mt-2">
+            <span className="text-[10px] font-semibold text-slate-500">{currentDateString}</span>
+            <span className="text-slate-650">·</span>
+            <span className="text-[10px] font-semibold text-slate-500">{pendingActionsCount} actions pending</span>
+            {overdueCount > 0 && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-rose-500/5 border border-rose-500/10 px-2.5 py-0.5 text-[9px] font-semibold text-rose-400 select-none">
+                <AlertTriangle className="h-2.5 w-2.5" />
+                {overdueCount} overdue
+              </span>
+            )}
+            <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/5 border border-blue-500/10 px-2.5 py-0.5 text-[9px] font-semibold text-blue-400 select-none">
+              {activeDeals.length} live
             </span>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 shrink-0">
-          {/* Assignee Filter Dropdown */}
+        <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+          {/* Owner Filter */}
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-505">Filter By Owner:</span>
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 hidden sm:block select-none">Owner:</span>
             <select
               value={selectedAssignee}
               onChange={(e) => setSelectedAssignee(e.target.value)}
-              className="h-9 rounded-xl border border-white/10 bg-[#0E121A] px-3.5 text-xs font-semibold text-white outline-none focus:border-acp-bronze cursor-pointer"
+              className="h-8 rounded-xl border border-white/[0.06] bg-[#0B0B0C] px-3.5 text-xs font-semibold text-white outline-none focus:border-[#C5A059] cursor-pointer shadow-inner hover:border-white/[0.12] transition"
             >
               {assignees.map(a => (
-                <option key={a} value={a} className="bg-[#0D0D0E] text-white">{a}</option>
+                <option key={a} value={a} className="bg-[#0B0B0C] text-white">{a}</option>
               ))}
             </select>
           </div>
 
-          {/* Export CSV Button */}
           <button
             onClick={handleExportCSV}
-            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-white/5 hover:border-white/20 px-4 text-xs font-bold uppercase tracking-wider text-slate-350 hover:text-white transition cursor-pointer select-none"
+            className="inline-flex h-8 items-center gap-1.5 rounded-xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.05] px-3.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-white transition cursor-pointer select-none"
           >
-            <LineChart className="h-4 w-4" />
-            <span>Export CSV</span>
+            <LineChart className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Export CSV</span>
           </button>
 
-          {/* New Deal Button */}
           <button
             onClick={() => setIsModalOpen(true)}
-            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-acp-bronze to-acp-bronze-dark text-white hover:opacity-90 px-4 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer shadow-md select-none"
+            className="inline-flex h-8 items-center gap-1.5 rounded-xl bg-[#C5A059] hover:bg-[#b5904a] text-slate-950 px-3.5 text-[10px] font-bold uppercase tracking-wider transition cursor-pointer shadow-sm select-none"
           >
-            <Plus className="h-4 w-4" />
+            <Plus className="h-3.5 w-3.5 text-slate-950" />
             <span>New Deal</span>
           </button>
         </div>
       </div>
 
-      {isLoading && (
-        <div className="rounded-2xl border border-white/[0.06] bg-[#0D0D0E] p-12 text-center shadow-premium-card card-sheen">
-          <Database className="mx-auto h-8 w-8 text-acp-bronze animate-pulse mb-3" />
-          <p className="text-xs font-bold text-slate-350">Loading Command Centre...</p>
-        </div>
-      )}
+      {isLoading && <LoadingState variant="cards" label="Loading Command Centre" />}
 
       {error && (
-        <div className="rounded-2xl border border-rose-500/10 bg-rose-500/5 p-6 text-center text-xs font-semibold text-rose-400 border-l-4 border-l-rose-500">
+        <div className="rounded-xl border border-rose-500/10 bg-rose-500/5 p-4 flex items-center gap-3 text-xs font-semibold text-rose-455">
+          <AlertTriangle className="h-4 w-4 shrink-0" />
           {error}
         </div>
       )}
 
       {!isLoading && !error && (
-        <div className="space-y-6">
+        <div className="space-y-8">
           {unreadMessagesCount > 0 && (
-            <div className="rounded-2xl border border-rose-500/15 bg-rose-500/5 p-4.5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-fade-in-up shadow-glow-rose/5">
+            <div className="rounded-2xl border border-rose-500/10 bg-rose-500/5 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-fade-in-up shadow-glow-rose/5">
               <div className="flex items-center gap-3">
-                <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-rose-500/10 border border-rose-500/25 text-rose-500 shadow-sm animate-pulse">
+                <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-rose-500/5 border border-rose-500/15 text-rose-400 shadow-sm animate-pulse">
                   <AlertTriangle className="h-4.5 w-4.5" />
                 </span>
                 <div>
-                  <p className="text-xs font-bold text-white uppercase tracking-wider">Unread Lender Messages ({unreadMessagesCount})</p>
-                  <p className="text-[10px] text-slate-450 font-semibold mt-0.5">Lenders have sent new chat messages regarding active deals. Please review the threads in Lender Intel.</p>
+                  <p className="text-xs font-semibold text-white uppercase tracking-wider">Unread Lender Messages ({unreadMessagesCount})</p>
+                  <p className="text-[10px] text-slate-400 mt-1">Lenders have sent new chat messages regarding active deals. Please review the threads in Lender Intel.</p>
                 </div>
               </div>
               <Link 
                 to="/admin/lenders"
-                className="inline-flex h-8 items-center justify-center rounded-xl bg-[#EF4444] hover:bg-[#DC2626] px-4 text-[10px] font-black uppercase tracking-wider text-white transition cursor-pointer self-start sm:self-auto"
+                className="inline-flex h-8 items-center justify-center rounded-xl bg-rose-500 hover:bg-rose-600 px-4 text-[10px] font-bold uppercase tracking-wider text-white transition cursor-pointer self-start sm:self-auto"
               >
                 Open Chat Portal
               </Link>
             </div>
           )}
+
           {/* 4 Summary metric cards */}
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {/* Active Pipeline Card */}
-            <Link 
-              to="/deals" 
-              className="block rounded-2xl border border-white/[0.06] bg-[#0D0D0E] p-5 shadow-premium-card card-sheen select-none hover:border-white/15 transition group"
-            >
-              <p className="text-[9px] font-extrabold uppercase tracking-wider text-slate-500 group-hover:text-slate-400 transition-colors">Active Pipeline</p>
-              <h2 className="text-3xl font-black text-white mt-1.5 tracking-tight">{activeDeals.length}</h2>
-              <p className="text-[10px] font-bold text-acp-bronze mt-1">{imReviewCount} In IM Review</p>
-            </Link>
-
-            {/* Pending Actions Card */}
-            <Link 
-              to="/deals" 
-              className="block rounded-2xl border border-white/[0.06] bg-[#0D0D0E] p-5 shadow-premium-card card-sheen select-none hover:border-white/15 transition group"
-            >
-              <p className="text-[9px] font-extrabold uppercase tracking-wider text-slate-500 group-hover:text-slate-400 transition-colors">Pending Actions</p>
-              <h2 className="text-3xl font-black text-acp-bronze mt-1.5 tracking-tight">{pendingActionsCount}</h2>
-              <p className="text-[10px] font-bold text-acp-bronze mt-1">{overdueCount} overdue</p>
-            </Link>
-
-            {/* Lender Records Card */}
-            <Link 
-              to="/admin/lenders" 
-              className="block rounded-2xl border border-white/[0.06] bg-[#0D0D0E] p-5 shadow-premium-card card-sheen select-none hover:border-white/15 transition group"
-            >
-              <p className="text-[9px] font-extrabold uppercase tracking-wider text-slate-500 group-hover:text-slate-400 transition-colors">Lender Records</p>
-              <h2 className="text-3xl font-black text-white mt-1.5 tracking-tight">{lenders.length}</h2>
-              <p className="text-[10px] font-bold text-slate-500 mt-1">{staleLendersCount} stale (&gt;90d)</p>
-            </Link>
-
-            {/* Target Closes Card */}
-            <div className="rounded-2xl border border-white/[0.06] bg-[#0D0D0E] p-5 shadow-premium-card card-sheen select-none">
-              <p className="text-[9px] font-extrabold uppercase tracking-wider text-slate-500">Target Closes</p>
-              <h2 className="text-3xl font-black text-white mt-1.5 tracking-tight">{targetClosesCount}</h2>
-              <p className="text-[10px] font-bold text-slate-500 mt-1">Within 6 weeks</p>
-            </div>
+            <StatCard
+              label="Active Pipeline"
+              value={activeDeals.length}
+              subLabel={`${imReviewCount} in IM Review`}
+              icon={<Kanban className="h-4 w-4" />}
+              tone="default"
+              to="/deals"
+            />
+            <StatCard
+              label="Pending Actions"
+              value={pendingActionsCount}
+              subLabel={overdueCount > 0 ? `${overdueCount} overdue` : "All on track"}
+              icon={<Clock className="h-4 w-4" />}
+              tone={overdueCount > 0 ? "rose" : "bronze"}
+              to="/deals"
+            />
+            <StatCard
+              label="Lender Records"
+              value={lenders.length}
+              subLabel={`${staleLendersCount} stale (>90d)`}
+              icon={<Building2 className="h-4 w-4" />}
+              tone="default"
+              to="/admin/lenders"
+            />
+            <StatCard
+              label="Target Closes"
+              value={targetClosesCount}
+              subLabel="Within 6 weeks"
+              icon={<TrendingUp className="h-4 w-4" />}
+              tone="emerald"
+            />
           </div>
 
           {/* Two-Column Middle Section */}
-          <div className="grid gap-6 lg:grid-cols-[1fr_1.3fr]">
+          <div className="grid gap-6 lg:grid-cols-[1fr_1.4fr]">
             {/* Pipeline by Stage Card */}
-            <div className="rounded-2xl border border-white/[0.06] bg-[#0D0D0E] p-5 shadow-premium-card card-sheen">
-              <h3 className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-400 border-b border-white/[0.04] pb-2.5">
-                Pipeline By Stage
-              </h3>
+            <div className="rounded-2xl p-6 premium-card card-sheen">
+              <SectionHeader>Pipeline By Stage</SectionHeader>
               <div className="mt-5 space-y-4 font-sans">
-                {/* Inbound Progress */}
-                <div className="space-y-1.5">
-                  <div className="flex justify-between text-xs font-semibold text-white">
-                    <span>Inbound</span>
-                    <span className="font-bold">{stageCounts.inbound}</span>
-                  </div>
-                  <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-emerald-500 rounded-full transition-all duration-500" 
-                      style={{ width: `${(stageCounts.inbound / Math.max(activeDeals.length, 1)) * 100}%` }}
-                    />
-                  </div>
-                </div>
-
-                {/* Seller Call Progress */}
-                <div className="space-y-1.5">
-                  <div className="flex justify-between text-xs font-semibold text-white">
-                    <span>Seller Call</span>
-                    <span className="font-bold">{stageCounts.sellerCall}</span>
-                  </div>
-                  <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-orange-400 rounded-full transition-all duration-500" 
-                      style={{ width: `${(stageCounts.sellerCall / Math.max(activeDeals.length, 1)) * 100}%` }}
-                    />
-                  </div>
-                </div>
-
-                {/* IM Review Progress */}
-                <div className="space-y-1.5">
-                  <div className="flex justify-between text-xs font-semibold text-white">
-                    <span>IM Review</span>
-                    <span className="font-bold">{stageCounts.imReview}</span>
-                  </div>
-                  <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-orange-500 rounded-full transition-all duration-500" 
-                      style={{ width: `${(stageCounts.imReview / Math.max(activeDeals.length, 1)) * 100}%` }}
-                    />
-                  </div>
-                </div>
-
-                {/* Due Diligence Progress */}
-                <div className="space-y-1.5">
-                  <div className="flex justify-between text-xs font-semibold text-white">
-                    <span>Due Diligence</span>
-                    <span className="font-bold">{stageCounts.dueDiligence}</span>
-                  </div>
-                  <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-slate-600 rounded-full transition-all duration-500" 
-                      style={{ width: `${(stageCounts.dueDiligence / Math.max(activeDeals.length, 1)) * 100}%` }}
-                    />
-                  </div>
-                </div>
+                {[
+                  { label: "Inbound", count: stageCounts.inbound, color: "bg-blue-400/70" },
+                  { label: "Seller Call", count: stageCounts.sellerCall, color: "bg-indigo-400/70" },
+                  { label: "IM Review", count: stageCounts.imReview, color: "bg-[#C5A059]/80" },
+                  { label: "Due Diligence", count: stageCounts.dueDiligence, color: "bg-emerald-400/70" },
+                ].map(({ label, count, color }) => {
+                  const pct = Math.round((count / Math.max(activeDeals.length, 1)) * 100);
+                  return (
+                    <div key={label} className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-semibold text-slate-300">{label}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-semibold text-slate-500">{pct}%</span>
+                          <span className="text-xs font-semibold text-white w-4 text-right">{count}</span>
+                        </div>
+                      </div>
+                      <div className="h-1.5 w-full bg-white/[0.02] border border-white/[0.04] rounded-full overflow-hidden">
+                        <div
+                          className={`h-full ${color} rounded-full transition-all duration-700 ease-out`}
+                          style={{ width: `${Math.max(pct, count > 0 ? 4 : 0)}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
             {/* Actions Due Today Card */}
-            <div className="rounded-2xl border border-white/[0.06] bg-[#0D0D0E] p-5 shadow-premium-card card-sheen">
-              <h3 className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-400 border-b border-white/[0.04] pb-2.5">
-                Actions Due Today
-              </h3>
-              <div className="mt-4 divide-y divide-white/[0.04] font-sans">
+            <div className="rounded-2xl p-6 premium-card card-sheen">
+              <SectionHeader>Actions Due Today</SectionHeader>
+              <div className="mt-4 divide-y divide-white/[0.03] font-sans">
                 {actionsList.map(act => (
-                  <div key={act.id} className="py-3 flex items-start gap-3 first:pt-1 last:pb-1">
-                    {/* Status Dot */}
+                  <div key={act.id} className="py-3.5 flex items-start gap-3.5 first:pt-1">
+                    {/* Status icon */}
                     <div className={cx(
-                      "mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full",
-                      act.color === "red" ? "bg-rose-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]" :
-                      act.color === "yellow" ? "bg-[#F5C443] shadow-[0_0_8px_rgba(245,196,67,0.5)]" :
-                      act.color === "blue" ? "bg-blue-400 shadow-[0_0_8px_rgba(96,165,250,0.5)]" :
-                      "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"
-                    )} />
+                      "mt-0.5 flex h-6.5 w-6.5 shrink-0 items-center justify-center rounded-lg border",
+                      act.color === "red"
+                        ? "bg-rose-500/5 border-rose-500/10 text-rose-400"
+                        : act.color === "yellow"
+                        ? "bg-amber-500/5 border-amber-500/10 text-amber-400"
+                        : act.color === "blue"
+                        ? "bg-blue-500/5 border-blue-500/10 text-blue-400"
+                        : "bg-emerald-500/5 border-emerald-500/10 text-emerald-400"
+                    )}>
+                      {act.color === "red" ? (
+                        <AlertTriangle className="h-3.5 w-3.5" />
+                      ) : act.color === "yellow" ? (
+                        <Clock className="h-3.5 w-3.5" />
+                      ) : act.color === "blue" ? (
+                        <MessageSquare className="h-3.5 w-3.5" />
+                      ) : (
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                      )}
+                    </div>
 
                     {/* Action Detail */}
                     <div className="min-w-0 flex-1">
-                      <p className="text-xs font-bold text-white tracking-wide leading-tight">
+                      <p className="text-[11px] font-semibold text-white leading-tight">
                         {act.title}
                       </p>
-                      <p className="mt-1 text-[10px] font-semibold text-slate-500">
-                        {act.dealRef} • {act.assignee} • <span className={cx(
-                          act.statusText === "OVERDUE" ? "text-rose-450" :
-                          act.statusText === "DUE TODAY" ? "text-acp-bronze" :
-                          "text-slate-400"
+                      <div className="mt-1 flex items-center gap-1.5 flex-wrap select-none">
+                        <span className="text-[9px] font-mono text-slate-500">{act.dealRef}</span>
+                        <span className="text-slate-700">·</span>
+                        <span className="text-[9px] font-semibold text-slate-400">{act.assignee}</span>
+                        <span className="text-slate-700">·</span>
+                        <span className={cx(
+                          "text-[9px] font-bold uppercase tracking-wider",
+                          act.statusText === "OVERDUE" ? "text-rose-455" :
+                          act.statusText === "DUE TODAY" ? "text-amber-400" :
+                          "text-slate-500"
                         )}>{act.statusText}</span>
-                      </p>
+                      </div>
                     </div>
 
-                    {/* Deadline text */}
-                    <div className="shrink-0 text-[10px] font-bold text-slate-400">
+                    <span className="shrink-0 text-[10px] font-semibold text-slate-500 whitespace-nowrap select-none">
                       {act.dateStr}
-                    </div>
+                    </span>
                   </div>
                 ))}
               </div>
@@ -688,31 +652,28 @@ export function DashboardPage() {
           </div>
 
           {/* Recent Activity Log */}
-          <div className="rounded-2xl border border-white/[0.06] bg-[#0D0D0E] p-5 shadow-premium-card card-sheen">
-            <h3 className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-400 border-b border-white/[0.04] pb-2.5">
-              Recent Activity
-            </h3>
-            <div className="mt-4 divide-y divide-white/[0.04] font-sans">
+          <div className="rounded-2xl p-6 premium-card card-sheen">
+            <SectionHeader>Recent Activity</SectionHeader>
+            <div className="mt-4 divide-y divide-white/[0.03] font-sans">
               {activityList.map(act => (
-                <div key={act.id} className="py-3.5 flex items-start justify-between gap-4 first:pt-1 last:pb-1">
-                  <div className="flex items-start gap-3 min-w-0">
-                    {/* Activity Dot */}
-                    <div className={cx(
-                      "mt-1.5 h-2 w-2 shrink-0 rounded-full",
-                      act.color === "green" ? "bg-emerald-500" :
-                      act.color === "blue" ? "bg-blue-400" :
-                      act.color === "yellow" ? "bg-[#F5C443]" :
-                      "bg-rose-500"
-                    )} />
+                <div key={act.id} className="py-3.5 flex items-start gap-3.5 first:pt-1">
+                  {/* Colored left border accent via icon */}
+                  <div className={cx(
+                    "mt-0.5 w-0.5 h-8 self-stretch shrink-0 rounded-full",
+                    act.color === "green" ? "bg-emerald-400/50" :
+                    act.color === "blue" ? "bg-blue-400/50" :
+                    act.color === "yellow" ? "bg-amber-400/50" :
+                    "bg-rose-500/50"
+                  )} />
 
-                    <div className="min-w-0">
-                      <p className="text-xs font-bold text-white tracking-wide">
-                        {act.title}
-                      </p>
-                      <p className="mt-1 text-[10px] font-semibold text-slate-500">
-                        {act.dateStr} • {act.author}
-                      </p>
-                    </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[11px] font-semibold text-white/90 leading-snug">
+                      {act.title}
+                    </p>
+                    <p className="mt-1 text-[10px] font-medium text-slate-500 select-none">
+                      {act.dateStr}
+                      {act.author && <> · <span className="text-slate-600">{act.author}</span></>}
+                    </p>
                   </div>
                 </div>
               ))}
@@ -722,130 +683,98 @@ export function DashboardPage() {
       )}
 
       {/* New Deal Creation Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          {/* Backdrop */}
-          <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={() => setIsModalOpen(false)} />
-
-          {/* Modal Card */}
-          <form 
-            onSubmit={handleCreateDeal}
-            className="relative z-10 w-full max-w-md rounded-2xl border border-white/10 bg-[#0D0D0E] p-6 shadow-2xl backdrop-blur-xl animate-fade-in-up"
-          >
-            <div className="flex items-center justify-between pb-4 border-b border-white/5">
-              <h3 className="font-heading text-lg text-white font-normal italic tracking-wide">
-                Add New Deal to Pipeline
-              </h3>
-              <button 
-                type="button" 
-                onClick={() => setIsModalOpen(false)} 
-                className="text-slate-400 hover:text-white transition"
-              >
-                <X className="h-4 w-4" />
-              </button>
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title="Add New Deal to Pipeline"
+      >
+        <form onSubmit={handleCreateDeal} className="space-y-4 font-sans">
+          {dealSubmitError && (
+            <div className="rounded-lg border border-rose-500/20 bg-rose-500/5 p-3 text-xs font-semibold text-rose-400 flex items-center gap-2">
+              <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+              {dealSubmitError}
             </div>
+          )}
 
-            <div className="mt-5 space-y-4 font-sans">
-              {dealSubmitError && (
-                <div className="rounded-lg border border-rose-500/10 bg-rose-500/5 p-3 text-center text-xs font-semibold text-rose-450 border-l-2 border-l-rose-500">
-                  {dealSubmitError}
-                </div>
-              )}
+          <FormField label="Deal / Company Name" required id="new-deal-company">
+            <input
+              id="new-deal-company"
+              type="text"
+              required
+              value={newDealName}
+              onChange={(e) => setNewDealName(e.target.value)}
+              placeholder="e.g. Acme Manufacturing Ltd"
+              className={inputClass}
+            />
+          </FormField>
 
-              {/* Deal Name */}
-              <div className="space-y-1.5">
-                <label className="block text-[9px] font-extrabold uppercase tracking-wider text-slate-400">
-                  Deal / Company Name *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={newDealName}
-                  onChange={(e) => setNewDealName(e.target.value)}
-                  placeholder="e.g. Acme Manufacturing Ltd"
-                  className="h-10 w-full rounded-xl border border-white/10 bg-white/5 px-3 text-xs text-white placeholder-slate-600 outline-none focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze transition"
-                />
-              </div>
+          <FormField label="ACP Reference No." id="new-deal-ref">
+            <input
+              id="new-deal-ref"
+              type="text"
+              value={newDealRef}
+              onChange={(e) => setNewDealRef(e.target.value)}
+              placeholder="e.g. ACP-CFS-008"
+              className={inputClass}
+            />
+          </FormField>
 
-              {/* ACP Ref No */}
-              <div className="space-y-1.5">
-                <label className="block text-[9px] font-extrabold uppercase tracking-wider text-slate-400">
-                  ACP Reference No. (optional)
-                </label>
-                <input
-                  type="text"
-                  value={newDealRef}
-                  onChange={(e) => setNewDealRef(e.target.value)}
-                  placeholder="e.g. ACP-CFS-008"
-                  className="h-10 w-full rounded-xl border border-white/10 bg-white/5 px-3 text-xs text-white placeholder-slate-600 outline-none focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze transition"
-                />
-              </div>
+          <FormField label="Pipeline Stage" id="new-deal-stage">
+            <select
+              id="new-deal-stage"
+              value={newDealStage}
+              onChange={(e) => setNewDealStage(e.target.value)}
+              className={selectClass}
+            >
+              <option value="Intro">Intro</option>
+              <option value="IM Review">IM Review</option>
+              <option value="Information Requested">Information Requested</option>
+              <option value="Offer Submitted">Offer Submitted</option>
+              <option value="Seller Call">Seller Call</option>
+            </select>
+          </FormField>
 
-              {/* Stage Select */}
-              <div className="space-y-1.5">
-                <label className="block text-[9px] font-extrabold uppercase tracking-wider text-slate-400">
-                  Pipeline Stage
-                </label>
-                <select
-                  value={newDealStage}
-                  onChange={(e) => setNewDealStage(e.target.value)}
-                  className="h-10 w-full rounded-xl border border-white/10 bg-slate-900 px-3 text-xs text-white outline-none focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze transition"
-                >
-                  <option value="Intro">Intro</option>
-                  <option value="IM Review">IM Review</option>
-                  <option value="Information Requested">Information Requested</option>
-                  <option value="Offer Submitted">Offer Submitted</option>
-                  <option value="Seller Call">Seller Call</option>
-                </select>
-              </div>
+          <FormField label="Next Action Details" id="new-deal-next-action">
+            <textarea
+              id="new-deal-next-action"
+              value={newDealNextAction}
+              onChange={(e) => setNewDealNextAction(e.target.value)}
+              placeholder="Describe the immediate next action required..."
+              rows={3}
+              className={textareaClass}
+            />
+          </FormField>
 
-              {/* Next Action Text */}
-              <div className="space-y-1.5">
-                <label className="block text-[9px] font-extrabold uppercase tracking-wider text-slate-400">
-                  Next Action Details
-                </label>
-                <textarea
-                  value={newDealNextAction}
-                  onChange={(e) => setNewDealNextAction(e.target.value)}
-                  placeholder="Describe the immediate next action required..."
-                  rows={3}
-                  className="w-full rounded-xl border border-white/10 bg-white/5 p-3 text-xs text-white placeholder-slate-600 outline-none focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze transition resize-none"
-                />
-              </div>
+          <FormField label="Next Action Target Date" id="new-deal-target-date">
+            <input
+              id="new-deal-target-date"
+              type="date"
+              value={newDealNextActionDate}
+              onChange={(e) => setNewDealNextActionDate(e.target.value)}
+              className={inputClass}
+            />
+          </FormField>
 
-              {/* Next Action Date */}
-              <div className="space-y-1.5">
-                <label className="block text-[9px] font-extrabold uppercase tracking-wider text-slate-400">
-                  Next Action Target Date
-                </label>
-                <input
-                  type="date"
-                  value={newDealNextActionDate}
-                  onChange={(e) => setNewDealNextActionDate(e.target.value)}
-                  className="h-10 w-full rounded-xl border border-white/10 bg-white/5 px-3 text-xs text-white outline-none focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze transition"
-                />
-              </div>
-            </div>
-
-            <div className="mt-6 flex justify-end gap-2.5 font-sans">
-              <button
-                type="button"
-                onClick={() => setIsModalOpen(false)}
-                className="h-9 px-4 rounded-xl border border-white/10 text-slate-350 text-xs font-bold uppercase tracking-wider hover:bg-white/5 transition"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={isSubmittingDeal}
-                className="h-9 px-4 rounded-xl bg-gradient-to-r from-acp-bronze to-acp-bronze-dark text-white text-xs font-bold uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none hover:shadow-glow-bronze transition cursor-pointer"
-              >
-                {isSubmittingDeal ? "Adding..." : "Add Deal"}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
+          <div className="flex justify-end gap-2.5 pt-1">
+            <button
+              type="button"
+              onClick={() => setIsModalOpen(false)}
+              className="h-9 px-4 rounded-xl border border-white/10 text-slate-400 text-xs font-bold uppercase tracking-wider hover:bg-white/5 transition cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmittingDeal}
+              className="h-9 px-4 rounded-xl bg-gradient-to-r from-acp-bronze to-acp-bronze-dark text-white text-xs font-bold uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none hover:shadow-glow-bronze transition cursor-pointer"
+            >
+              {isSubmittingDeal ? "Adding..." : "Add Deal"}
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }
+
+

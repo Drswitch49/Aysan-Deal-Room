@@ -11,3 +11,7 @@ scratch/
 
 .vercel
 .env*
+
+# LinkedIn session (OSINT auth)
+.linkedin-session
+scripts/playwright-auth.session.json

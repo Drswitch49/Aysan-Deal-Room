@@ -6,6 +6,7 @@ import { changeAdminPassword } from "../api/admin";
 import { clearAirtableCache } from "../api/airtable";
 import { cx } from "../utils/cx";
 import { HeaderMetrics } from "../components/ui/HeaderMetrics";
+import { FormField, inputClass } from "../components/ui/FormField";
 
 export function SettingsPage() {
   const [newPassword, setNewPassword] = useState("");
@@ -45,7 +46,6 @@ export function SettingsPage() {
     try {
       await changeAdminPassword(newPassword);
       setSuccess(true);
-      sessionStorage.setItem("admin_passcode", newPassword); // Update active session passcode
       setNewPassword("");
       setConfirmPassword("");
       setTimeout(() => setSuccess(false), 3000);
@@ -218,33 +218,29 @@ export function SettingsPage() {
               )}
 
               <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-1.5">
-                  <label className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-500">
-                    New Passcode
-                  </label>
+                <FormField label="New Passcode" id="settings-new-passcode">
                   <input
+                    id="settings-new-passcode"
                     type="password"
                     required
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="h-10 w-full rounded-xl border border-white/10 bg-white/5 px-3 text-xs text-white placeholder-slate-650 outline-none focus:border-[#C5A059] focus:ring-1 focus:ring-[#C5A059] transition"
+                    className={inputClass}
                   />
-                </div>
+                </FormField>
 
-                <div className="space-y-1.5">
-                  <label className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-500">
-                    Confirm New Passcode
-                  </label>
+                <FormField label="Confirm New Passcode" id="settings-confirm-passcode">
                   <input
+                    id="settings-confirm-passcode"
                     type="password"
                     required
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="h-10 w-full rounded-xl border border-white/10 bg-white/5 px-3 text-xs text-white placeholder-slate-650 outline-none focus:border-[#C5A059] focus:ring-1 focus:ring-[#C5A059] transition"
+                    className={inputClass}
                   />
-                </div>
+                </FormField>
               </div>
 
               <button

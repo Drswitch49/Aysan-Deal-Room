@@ -102,8 +102,6 @@ function AirtablePermissionState({ message }: { message: string }) {
 
 function AirtableConfigState({ message }: { message: string }) {
   const required = [
-    "VITE_AIRTABLE_API_KEY",
-    "VITE_AIRTABLE_BASE_ID",
     "VITE_AIRTABLE_PIPELINE_TABLE",
     "VITE_AIRTABLE_DOCUMENTS_TABLE",
     "VITE_AIRTABLE_SUBMISSION_TABLE",

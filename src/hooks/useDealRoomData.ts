@@ -43,11 +43,11 @@ export function useDealListRows(refreshTrigger?: number) {
   }, [refreshTrigger]);
 }
 
-export function useDeal(ref: string | undefined) {
+export function useDeal(ref: string | undefined, refreshTrigger?: number) {
   return useAsyncData<PipelineDeal | null>(() => {
     if (!ref) return Promise.resolve(null);
     return getDealByRef(ref);
-  }, [ref]);
+  }, [ref, refreshTrigger]);
 }
 
 export function useDealDocuments(ref: string | undefined, refreshTrigger?: number) {

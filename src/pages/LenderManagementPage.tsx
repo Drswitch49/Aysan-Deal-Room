@@ -6,6 +6,8 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { LoadingState } from "../components/ui/LoadingState";
+import { Modal } from "../components/ui/Modal";
+import { FormField, inputClass, selectClass } from "../components/ui/FormField";
 import { 
   fetchAdminLenders, createLender, assignDealToLender, 
   removeDealAssignment, resetLenderPassword, regenerateLenderPortal, deleteLender,
@@ -815,264 +817,229 @@ export function LenderManagementPage() {
               )}
             </div>
           </div>
-
         </div>
       )}
 
       {/* MODAL 1: CREATE NEW LENDER */}
-      {isAddModalOpen && (
-        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0E121A] p-6 shadow-2xl relative font-sans animate-fade-in-up">
+      <Modal isOpen={isAddModalOpen} onClose={closeAddModal} title={createdLenderDetails ? "Portal Access Ready" : "Create New Lender"}>
+        {!createdLenderDetails ? (
+          <form onSubmit={handleAddLender} className="space-y-4">
+            <FormField label="Company Name" required id="add-lender-company">
+              <input
+                id="add-lender-company"
+                type="text"
+                required
+                value={newCompanyName}
+                onChange={(e) => setNewCompanyName(e.target.value)}
+                placeholder="e.g. Moorfields Capital"
+                className={inputClass}
+              />
+            </FormField>
+
+            <FormField label="Contact Name" id="add-lender-contact">
+              <input
+                id="add-lender-contact"
+                type="text"
+                value={newContactName}
+                onChange={(e) => setNewContactName(e.target.value)}
+                placeholder="e.g. Lee Coutanche"
+                className={inputClass}
+              />
+            </FormField>
+
+            <div className="grid grid-cols-2 gap-3">
+              <FormField label="Email Address" id="add-lender-email">
+                <input
+                  id="add-lender-email"
+                  type="email"
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                  placeholder="e.g. contact@moorfields.com"
+                  className={inputClass}
+                />
+              </FormField>
+              <FormField label="Phone Number" id="add-lender-phone">
+                <input
+                  id="add-lender-phone"
+                  type="text"
+                  value={newPhone}
+                  onChange={(e) => setNewPhone(e.target.value)}
+                  placeholder="e.g. +44 790 798 1105"
+                  className={inputClass}
+                />
+              </FormField>
+            </div>
+
+            <button
+              type="submit"
+              disabled={submitting}
+              className="w-full inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-acp-bronze to-acp-bronze-dark text-xs font-bold uppercase tracking-wider text-white shadow-md hover:shadow-glow-bronze disabled:opacity-40 select-none cursor-pointer mt-4"
+            >
+              {submitting ? "Creating..." : "Generate Portal Access"}
+            </button>
+          </form>
+        ) : (
+          <div className="space-y-5 text-center">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-450 border border-emerald-500/20 mx-auto">
+              <CheckCircle className="h-6 w-6" />
+            </div>
+            <p className="text-xs text-slate-400">Lender portal generated successfully for {createdLenderDetails.company}.</p>
+
+            <div className="text-left space-y-3.5 bg-white/5 border border-white/10 rounded-xl p-4">
+              {/* URL */}
+              <div>
+                <span className="block text-[8px] font-extrabold uppercase tracking-wider text-slate-500">Secure URL</span>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="text-[11px] font-mono text-white truncate flex-1 bg-white/5 border border-white/5 rounded-lg px-2.5 py-1">{createdLenderDetails.url}</span>
+                  <button
+                    onClick={() => handleCopy(createdLenderDetails.url, "modal-url")}
+                    className="h-7 w-7 flex items-center justify-center rounded-lg bg-white/5 border border-white/10 text-slate-355 hover:text-white"
+                  >
+                    {copiedId === "modal-url" ? <Check className="h-3.5 w-3.5 text-emerald-455" /> : <Copy className="h-3.5 w-3.5" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Password */}
+              <div>
+                <span className="block text-[8px] font-extrabold uppercase tracking-wider text-slate-500">Temporary Passcode</span>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="text-[12px] font-mono font-bold text-acp-bronze bg-white/5 border border-white/5 rounded-lg px-2.5 py-1 flex-1">{createdLenderDetails.pass}</span>
+                  <button
+                    onClick={() => handleCopy(createdLenderDetails.pass, "modal-pass")}
+                    className="h-7 w-7 flex items-center justify-center rounded-lg bg-white/5 border border-white/10 text-slate-355 hover:text-white"
+                  >
+                    {copiedId === "modal-pass" ? <Check className="h-3.5 w-3.5 text-emerald-455" /> : <Copy className="h-3.5 w-3.5" />}
+                  </button>
+                </div>
+              </div>
+            </div>
+
             <button
               onClick={closeAddModal}
-              className="absolute right-4 top-4 text-slate-450 hover:text-white"
+              className="w-full inline-flex h-10 items-center justify-center rounded-xl bg-white/5 border border-white/10 text-xs font-bold uppercase tracking-wider text-white hover:bg-white/10 mt-4"
             >
-              <X className="h-5 w-5" />
+              Done
             </button>
-
-            {!createdLenderDetails ? (
-              <form onSubmit={handleAddLender} className="space-y-4">
-                <h3 className="text-sm font-bold text-white uppercase tracking-wider mb-2 border-b border-white/5 pb-2">Create New Lender</h3>
-                
-                <div className="space-y-1.5">
-                  <label className="block text-[8px] font-extrabold uppercase tracking-wider text-slate-500">Company Name *</label>
-                  <input
-                    type="text"
-                    required
-                    value={newCompanyName}
-                    onChange={(e) => setNewCompanyName(e.target.value)}
-                    placeholder="e.g. Moorfields Capital"
-                    className="h-10 w-full rounded-xl border border-white/10 bg-white/5 px-3 text-xs text-white placeholder-slate-600 outline-none focus:border-acp-bronze"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="block text-[8px] font-extrabold uppercase tracking-wider text-slate-500">Contact Name</label>
-                  <input
-                    type="text"
-                    value={newContactName}
-                    onChange={(e) => setNewContactName(e.target.value)}
-                    placeholder="e.g. Lee Coutanche"
-                    className="h-10 w-full rounded-xl border border-white/10 bg-white/5 px-3 text-xs text-white placeholder-slate-600 outline-none focus:border-acp-bronze"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <label className="block text-[8px] font-extrabold uppercase tracking-wider text-slate-500">Email Address</label>
-                    <input
-                      type="email"
-                      value={newEmail}
-                      onChange={(e) => setNewEmail(e.target.value)}
-                      placeholder="e.g. contact@moorfields.com"
-                      className="h-10 w-full rounded-xl border border-white/10 bg-white/5 px-3 text-xs text-white placeholder-slate-600 outline-none focus:border-acp-bronze"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="block text-[8px] font-extrabold uppercase tracking-wider text-slate-500">Phone Number</label>
-                    <input
-                      type="text"
-                      value={newPhone}
-                      onChange={(e) => setNewPhone(e.target.value)}
-                      placeholder="e.g. +44 790 798 1105"
-                      className="h-10 w-full rounded-xl border border-white/10 bg-white/5 px-3 text-xs text-white placeholder-slate-600 outline-none focus:border-acp-bronze"
-                    />
-                  </div>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="w-full inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-acp-bronze to-acp-bronze-dark text-xs font-bold uppercase tracking-wider text-white shadow-md hover:shadow-glow-bronze disabled:opacity-40 select-none cursor-pointer mt-4"
-                >
-                  {submitting ? "Creating..." : "Generate Portal Access"}
-                </button>
-              </form>
-            ) : (
-              <div className="space-y-5 text-center">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-450 border border-emerald-500/20 mx-auto">
-                  <CheckCircle className="h-6 w-6" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-white uppercase tracking-wider">Portal Access Ready</h3>
-                  <p className="text-xs text-slate-450 mt-1">Lender portal generated successfully for {createdLenderDetails.company}.</p>
-                </div>
-
-                <div className="text-left space-y-3.5 bg-white/5 border border-white/10 rounded-xl p-4">
-                  {/* URL */}
-                  <div>
-                    <span className="block text-[8px] font-extrabold uppercase tracking-wider text-slate-500">Secure URL</span>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-[11px] font-mono text-white truncate flex-1 bg-white/5 border border-white/5 rounded-lg px-2.5 py-1">{createdLenderDetails.url}</span>
-                      <button
-                        onClick={() => handleCopy(createdLenderDetails.url, "modal-url")}
-                        className="h-7 w-7 flex items-center justify-center rounded-lg bg-white/5 border border-white/10 text-slate-350 hover:text-white"
-                      >
-                        {copiedId === "modal-url" ? <Check className="h-3.5 w-3.5 text-emerald-455" /> : <Copy className="h-3.5 w-3.5" />}
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Password */}
-                  <div>
-                    <span className="block text-[8px] font-extrabold uppercase tracking-wider text-slate-500">Temporary Passcode</span>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-[12px] font-mono font-bold text-acp-bronze bg-white/5 border border-white/5 rounded-lg px-2.5 py-1 flex-1">{createdLenderDetails.pass}</span>
-                      <button
-                        onClick={() => handleCopy(createdLenderDetails.pass, "modal-pass")}
-                        className="h-7 w-7 flex items-center justify-center rounded-lg bg-white/5 border border-white/10 text-slate-355 hover:text-white"
-                      >
-                        {copiedId === "modal-pass" ? <Check className="h-3.5 w-3.5 text-emerald-455" /> : <Copy className="h-3.5 w-3.5" />}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                <button
-                  onClick={closeAddModal}
-                  className="w-full inline-flex h-10 items-center justify-center rounded-xl bg-white/5 border border-white/10 text-xs font-bold uppercase tracking-wider text-white hover:bg-white/10 mt-4"
-                >
-                  Done
-                </button>
-              </div>
-            )}
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
 
       {/* MODAL 2: ASSIGN DEALS */}
-      {isAssignModalOpen && selectedLender && (
-        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0E121A] p-6 shadow-2xl relative font-sans animate-scale-in">
-            <button
-              onClick={() => {
-                setIsAssignModalOpen(false);
-                setSelectedLender(null);
-                setModalNdaApproved(false);
-              }}
-              className="absolute right-4 top-4 text-slate-450 hover:text-white cursor-pointer"
-              type="button"
-            >
-              <X className="h-5 w-5" />
-            </button>
+      <Modal 
+        isOpen={isAssignModalOpen && selectedLender !== null} 
+        onClose={() => {
+          setIsAssignModalOpen(false);
+          setSelectedLender(null);
+          setModalNdaApproved(false);
+        }} 
+        title="Assign Deal Access"
+      >
+        {selectedLender && (
+          <form onSubmit={handleAssignDeal} className="space-y-4">
+            <p className="text-xs text-slate-400 leading-relaxed">Grant portal review access to {selectedLender.Company_Name}.</p>
 
-            <form onSubmit={handleAssignDeal} className="space-y-4">
-              <h3 className="text-sm font-bold text-white uppercase tracking-wider border-b border-white/5 pb-2">Assign Deal Access</h3>
-              <p className="text-xs text-slate-450 leading-relaxed">Grant portal review access to {selectedLender.Company_Name}.</p>
+            <FormField label="Select Acquisition Deal" id="deal-search-input">
+              {/* Search Bar Input */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
+                <input
+                  id="deal-search-input"
+                  type="text"
+                  placeholder="Search by Deal ID or Company Name..."
+                  value={dealSearchQuery}
+                  onChange={(e) => setDealSearchQuery(e.target.value)}
+                  className={cx(inputClass, "pl-9")}
+                />
+              </div>
+            </FormField>
 
-              <div className="space-y-2">
-                <label className="block text-[8px] font-extrabold uppercase tracking-wider text-slate-500">Select Acquisition Deal</label>
-                
-                {/* Search Bar Input */}
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
-                  <input
-                    type="text"
-                    placeholder="Search by Deal ID or Company Name..."
-                    value={dealSearchQuery}
-                    onChange={(e) => setDealSearchQuery(e.target.value)}
-                    className="h-10 w-full rounded-xl border border-white/10 bg-[#0A0A0B] pl-8.5 pr-4 text-xs text-white placeholder-slate-600 outline-none focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze"
-                  />
-                </div>
-
-                {/* Searchable Scroll Container */}
-                <div className="max-h-48 overflow-y-auto rounded-xl border border-white/10 bg-[#0A0A0B] divide-y divide-white/[0.04] custom-scrollbar select-none">
-                  {deals
-                    .filter(deal => !selectedLender.assignments.some(a => a.dealRef === deal.dealRef))
-                    .filter(deal => {
-                      if (!dealSearchQuery.trim()) return true;
-                      const q = dealSearchQuery.toLowerCase();
-                      const refStr = String(deal.dealRef || "").toLowerCase();
-                      const company = String(deal.companyName || "").toLowerCase();
-                      return refStr.includes(q) || company.includes(q);
-                    })
-                    .map(deal => {
-                      const isSelected = selectedDealRef === deal.dealRef;
-                      return (
-                        <button
-                          key={deal.id}
-                          type="button"
-                          onClick={() => setSelectedDealRef(deal.dealRef)}
-                          className={cx(
-                            "w-full text-left px-3.5 py-2.5 text-xs transition-colors flex items-center justify-between cursor-pointer",
-                            isSelected 
-                              ? "bg-acp-bronze/10 text-white font-bold" 
-                              : "text-slate-300 hover:bg-white/5"
-                          )}
-                        >
-                          <div className="min-w-0">
-                            <span className="font-semibold text-white">{deal.dealRef}</span>
-                            <span className="text-slate-450 ml-2">— {deal.companyName || "Not specified"}</span>
-                          </div>
-                          {isSelected && <Check className="h-4 w-4 text-acp-bronze shrink-0" />}
-                        </button>
-                      );
-                    })}
-
-                  {deals
-                    .filter(deal => !selectedLender.assignments.some(a => a.dealRef === deal.dealRef))
-                    .filter(deal => {
-                      if (!dealSearchQuery.trim()) return true;
-                      const q = dealSearchQuery.toLowerCase();
-                      const refStr = String(deal.dealRef || "").toLowerCase();
-                      const company = String(deal.companyName || "").toLowerCase();
-                      return refStr.includes(q) || company.includes(q);
-                    }).length === 0 && (
-                      <div className="p-4 text-center text-xs text-slate-550 font-medium">
-                        No assignable deals found
+            {/* Searchable Scroll Container */}
+            <div className="max-h-48 overflow-y-auto rounded-xl border border-white/10 bg-[#0A0A0B] divide-y divide-white/[0.04] custom-scrollbar select-none">
+              {deals
+                .filter(deal => !selectedLender.assignments.some(a => a.dealRef === deal.dealRef))
+                .filter(deal => {
+                  if (!dealSearchQuery.trim()) return true;
+                  const q = dealSearchQuery.toLowerCase();
+                  const refStr = String(deal.dealRef || "").toLowerCase();
+                  const company = String(deal.companyName || "").toLowerCase();
+                  return refStr.includes(q) || company.includes(q);
+                })
+                .map(deal => {
+                  const isSelected = selectedDealRef === deal.dealRef;
+                  return (
+                    <button
+                      key={deal.id}
+                      type="button"
+                      onClick={() => setSelectedDealRef(deal.dealRef)}
+                      className={cx(
+                        "w-full text-left px-3.5 py-2.5 text-xs transition-colors flex items-center justify-between cursor-pointer",
+                        isSelected 
+                          ? "bg-acp-bronze/10 text-white font-bold" 
+                          : "text-slate-350 hover:bg-white/5"
+                      )}
+                    >
+                      <div className="min-w-0">
+                        <span className="font-semibold text-white">{deal.dealRef}</span>
+                        <span className="text-slate-400 ml-2">— {deal.companyName || "Not specified"}</span>
                       </div>
-                    )}
-                </div>
-              </div>
+                      {isSelected && <Check className="h-4 w-4 text-acp-bronze shrink-0" />}
+                    </button>
+                  );
+                })}
 
-              {/* NDA Approval Toggle Option */}
-              <div className="space-y-1.5">
-                <label className="block text-[8px] font-extrabold uppercase tracking-wider text-slate-500">
-                  NDA Status
-                </label>
-                <select
-                  value={modalNdaApproved ? "Yes" : "No"}
-                  onChange={(e) => setModalNdaApproved(e.target.value === "Yes")}
-                  className="h-10 w-full rounded-xl border border-white/10 bg-[#0A0A0B] px-3 text-xs text-white outline-none focus:border-acp-bronze cursor-pointer"
-                  style={{ appearance: "auto" }}
-                >
-                  <option value="No">NDA Approved: No</option>
-                  <option value="Yes">NDA Approved: Yes</option>
-                </select>
-              </div>
+              {deals
+                .filter(deal => !selectedLender.assignments.some(a => a.dealRef === deal.dealRef))
+                .filter(deal => {
+                  if (!dealSearchQuery.trim()) return true;
+                  const q = dealSearchQuery.toLowerCase();
+                  const refStr = String(deal.dealRef || "").toLowerCase();
+                  const company = String(deal.companyName || "").toLowerCase();
+                  return refStr.includes(q) || company.includes(q);
+                }).length === 0 && (
+                  <div className="p-4 text-center text-xs text-slate-500 font-medium">
+                    No assignable deals found
+                  </div>
+                )}
+            </div>
 
-              <button
-                type="submit"
-                disabled={submitting || !selectedDealRef}
-                className="w-full inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-acp-bronze to-acp-bronze-dark text-xs font-bold uppercase tracking-wider text-white shadow-md hover:shadow-glow-bronze disabled:opacity-40 cursor-pointer mt-4"
+            <FormField label="NDA Status" id="modal-nda-select">
+              <select
+                id="modal-nda-select"
+                value={modalNdaApproved ? "Yes" : "No"}
+                onChange={(e) => setModalNdaApproved(e.target.value === "Yes")}
+                className={selectClass}
               >
-                {submitting ? "Assigning..." : "Assign Access"}
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
+                <option value="No">NDA Approved: No</option>
+                <option value="Yes">NDA Approved: Yes</option>
+              </select>
+            </FormField>
+
+            <button
+              type="submit"
+              disabled={submitting || !selectedDealRef}
+              className="w-full inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-acp-bronze to-acp-bronze-dark text-xs font-bold uppercase tracking-wider text-white shadow-md hover:shadow-glow-bronze disabled:opacity-40 cursor-pointer mt-4"
+            >
+              {submitting ? "Assigning..." : "Assign Access"}
+            </button>
+          </form>
+        )}
+      </Modal>
 
       {/* MODAL 3: PASSWORD RESET CONFIRMATION */}
-      {isResetConfirmOpen && selectedLender && (
-        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0E121A] p-6 shadow-2xl relative text-center font-sans">
-            <button
-              onClick={closeResetModal}
-              className="absolute right-4 top-4 text-slate-450 hover:text-white"
-            >
-              <X className="h-5 w-5" />
-            </button>
-
+      <Modal 
+        isOpen={isResetConfirmOpen && selectedLender !== null} 
+        onClose={closeResetModal} 
+        title={newResetPassword ? "Passcode Reset Complete" : "Reset Passcode?"}
+      >
+        {selectedLender && (
+          <div className="text-center">
             {!newResetPassword ? (
               <div className="space-y-4">
                 <div className="flex h-12 w-12 items-center justify-center rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/20 mx-auto">
                   <RotateCcw className="h-6 w-6" />
                 </div>
-                <div>
-                  <h3 className="text-sm font-bold text-white uppercase tracking-wider">Reset Passcode?</h3>
-                  <p className="text-xs text-slate-450 mt-1.5 leading-relaxed">This will immediately revoke the current passcode for {selectedLender.Company_Name}.</p>
-                </div>
+                <p className="text-xs text-slate-400 mt-1.5 leading-relaxed">This will immediately revoke the current passcode for {selectedLender.Company_Name}.</p>
                 <div className="flex gap-3 pt-4">
                   <button
                     onClick={closeResetModal}
@@ -1094,10 +1061,7 @@ export function LenderManagementPage() {
                 <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-450 border border-emerald-500/20 mx-auto">
                   <CheckCircle className="h-6 w-6" />
                 </div>
-                <div>
-                  <h3 className="text-sm font-bold text-white uppercase tracking-wider">Passcode Reset Complete</h3>
-                  <p className="text-xs text-slate-450 mt-1">The new passcode is successfully written to database.</p>
-                </div>
+                <p className="text-xs text-slate-400 mt-1">The new passcode is successfully written to database.</p>
 
                 <div className="bg-white/5 border border-white/10 rounded-xl p-4 text-left">
                   <span className="block text-[8px] font-extrabold uppercase tracking-wider text-slate-500">New Passcode</span>
@@ -1105,9 +1069,9 @@ export function LenderManagementPage() {
                     <span className="text-[12px] font-mono font-bold text-acp-bronze bg-white/5 border border-white/5 rounded-lg px-2.5 py-1 flex-1">{newResetPassword}</span>
                     <button
                       onClick={() => handleCopy(newResetPassword || "", "modal-reset-pass")}
-                      className="h-7 w-7 flex items-center justify-center rounded-lg bg-white/5 border border-white/10 text-slate-355 hover:text-white"
+                      className="h-7 w-7 flex items-center justify-center rounded-lg bg-white/5 border border-white/10 text-slate-350 hover:text-white"
                     >
-                      {copiedId === "modal-reset-pass" ? <Check className="h-3.5 w-3.5 text-emerald-455" /> : <Copy className="h-3.5 w-3.5" />}
+                      {copiedId === "modal-reset-pass" ? <Check className="h-3.5 w-3.5 text-emerald-450" /> : <Copy className="h-3.5 w-3.5" />}
                     </button>
                   </div>
                 </div>
@@ -1121,66 +1085,55 @@ export function LenderManagementPage() {
               </div>
             )}
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
 
       {/* MODAL 4: DELETE LENDER CONFIRMATION */}
-      {isDeleteConfirmOpen && selectedLender && (
-        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0E121A] p-6 shadow-2xl relative text-center animate-scale-in font-sans">
-            <button
-              onClick={closeDeleteModal}
-              className="absolute right-4 top-4 text-slate-455 hover:text-white cursor-pointer"
-              type="button"
-            >
-              <X className="h-5 w-5" />
-            </button>
+      <Modal 
+        isOpen={isDeleteConfirmOpen && selectedLender !== null} 
+        onClose={closeDeleteModal} 
+        title="Delete Lender?"
+      >
+        {selectedLender && (
+          <div className="space-y-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-rose-500/10 text-rose-450 border border-rose-500/20 mx-auto">
+              <Trash2 className="h-6 w-6" />
+            </div>
+            <p className="text-xs text-slate-400 mt-1.5 leading-relaxed text-center">
+              Are you sure you want to delete <strong>{selectedLender.Company_Name}</strong>? This will permanently remove their portal access and all active deal assignments in Airtable.
+            </p>
 
-            <div className="space-y-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-rose-500/10 text-rose-450 border border-rose-500/20 mx-auto">
-                <Trash2 className="h-6 w-6" />
-              </div>
-              <div>
-                <h3 className="text-sm font-bold text-white uppercase tracking-wider">Delete Lender?</h3>
-                <p className="text-xs text-slate-450 mt-1.5 leading-relaxed">
-                  Are you sure you want to delete <strong>{selectedLender.Company_Name}</strong>? This will permanently remove their portal access and all active deal assignments in Airtable.
-                </p>
-              </div>
+            <FormField label="Type company name to confirm" id="delete-confirm-input">
+              <input
+                id="delete-confirm-input"
+                type="text"
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                placeholder={selectedLender.Company_Name}
+                className={cx(inputClass, "focus:border-rose-500")}
+              />
+            </FormField>
 
-              <div className="text-left space-y-1.5">
-                <label className="block text-[8px] font-extrabold uppercase tracking-wider text-slate-500">
-                  Type company name to confirm
-                </label>
-                <input
-                  type="text"
-                  value={deleteConfirmText}
-                  onChange={(e) => setDeleteConfirmText(e.target.value)}
-                  placeholder={selectedLender.Company_Name}
-                  className="h-10 w-full rounded-xl border border-white/10 bg-[#0A0A0B] px-3 text-xs text-white placeholder-slate-655 outline-none focus:border-rose-500 transition-all"
-                />
-              </div>
-
-              <div className="flex gap-3 pt-4">
-                <button
-                  onClick={closeDeleteModal}
-                  className="flex-1 inline-flex h-10 items-center justify-center rounded-xl bg-white/5 border border-white/10 text-xs font-bold uppercase tracking-wider text-white hover:bg-white/10 cursor-pointer"
-                  type="button"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleDeleteLender}
-                  disabled={submitting || deleteConfirmText.trim() !== selectedLender.Company_Name.trim()}
-                  className="flex-1 inline-flex h-10 items-center justify-center rounded-xl bg-rose-500 text-xs font-bold uppercase tracking-wider text-white hover:bg-rose-600 disabled:opacity-40 cursor-pointer"
-                  type="button"
-                >
-                  {submitting ? "Deleting..." : "Confirm Delete"}
-                </button>
-              </div>
+            <div className="flex gap-3 pt-4">
+              <button
+                onClick={closeDeleteModal}
+                className="flex-1 inline-flex h-10 items-center justify-center rounded-xl bg-white/5 border border-white/10 text-xs font-bold uppercase tracking-wider text-white hover:bg-white/10 cursor-pointer"
+                type="button"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteLender}
+                disabled={submitting || deleteConfirmText.trim() !== selectedLender.Company_Name.trim()}
+                className="flex-1 inline-flex h-10 items-center justify-center rounded-xl bg-rose-500 text-xs font-bold uppercase tracking-wider text-white hover:bg-rose-600 disabled:opacity-40 cursor-pointer"
+                type="button"
+              >
+                {submitting ? "Deleting..." : "Confirm Delete"}
+              </button>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
     </div>
   );
 }

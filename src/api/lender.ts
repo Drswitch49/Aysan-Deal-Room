@@ -2,17 +2,9 @@ import type { DealDocument, PipelineDeal, SubmissionLogEntry } from "../types/de
 
 // Retrieve lender credentials from sessionStorage
 const getLenderHeaders = (portalSlug: string): Record<string, string> => {
-  const sessionStr = sessionStorage.getItem(`lender_session_${portalSlug}`);
-  if (!sessionStr) return {};
-  try {
-    const session = JSON.parse(sessionStr);
-    return {
-      "x-lender-slug": portalSlug,
-      "x-lender-password": session.password || ""
-    };
-  } catch {
-    return {};
-  }
+  return {
+    "x-lender-slug": portalSlug
+  };
 };
 
 export async function loginLender(portalSlug: string, passcode: string) {
@@ -29,19 +21,7 @@ export async function loginLender(portalSlug: string, passcode: string) {
     throw new Error(err.error || "Incorrect portal credentials");
   }
 
-  const data = await response.json();
-  
-  // Save credentials in sessionStorage
-  sessionStorage.setItem(
-    `lender_session_${portalSlug}`,
-    JSON.stringify({
-      password: passcode,
-      profile: data.lender,
-      assignedDeals: data.assignedDeals
-    })
-  );
-
-  return data;
+  return response.json();
 }
 
 export async function fetchLenderDeals(portalSlug: string): Promise<PipelineDeal[]> {

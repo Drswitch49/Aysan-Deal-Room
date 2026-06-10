@@ -103,7 +103,11 @@ export function AdminMessagesPage() {
         const latestDealMsg = sortedDealMsgs[0];
 
         // Find the deal info
-        const dealInfo = deals.find((d) => d.id === dealId);
+        const dealInfo = deals.find((d) => 
+          d.id === dealId || 
+          (d.dealRef && dealId && d.dealRef.toLowerCase() === dealId.toLowerCase()) ||
+          (d.companyName && dealId && d.companyName.toLowerCase() === dealId.toLowerCase())
+        );
         const dealRef = dealInfo ? dealInfo.dealRef : "";
         const companyName = dealInfo ? dealInfo.companyName : "Assigned Deal";
 
