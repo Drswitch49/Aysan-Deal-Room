@@ -158,7 +158,7 @@ export function HrStakeholdersPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/5 pb-4">
         <div className="space-y-1">
           <h1 className="text-xl font-bold text-white tracking-tight">
-            HR & <span className="text-[#C5A059]">Stakeholders</span>
+            HR & <span className="text-[#C6A66B]">Stakeholders</span>
           </h1>
           <p className="text-xs text-slate-550 font-medium">
             {isLoading ? (
@@ -177,7 +177,7 @@ export function HrStakeholdersPage() {
           
           <button
             onClick={() => navigate("/deals?create=true")}
-            className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-[#C5A059] px-3.5 text-[10px] font-extrabold uppercase tracking-wider text-slate-950 shadow-sm hover:bg-[#C5A059]/90 cursor-pointer transition"
+            className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-[#C6A66B] px-3.5 text-[10px] font-extrabold uppercase tracking-wider text-slate-950 shadow-sm hover:bg-[#C6A66B]/90 cursor-pointer transition"
           >
             + New Deal
           </button>
@@ -197,14 +197,14 @@ export function HrStakeholdersPage() {
       {/* Main Panels Grid */}
       <div className="grid gap-6 lg:grid-cols-12">
         {/* ACP TEAM (Left Column) */}
-        <div className="col-span-12 lg:col-span-5 rounded-2xl border border-white/[0.06] bg-[#0E121A] p-5 shadow-premium-card card-sheen">
-          <h3 className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-slate-400 border-b border-white/[0.04] pb-3 mb-4 select-none">
+        <div className="col-span-12 lg:col-span-5 rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 shadow-premium-card card-sheen">
+          <h3 className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-slate-400 border-b border-white/[0.02] pb-3 mb-4 select-none">
             ACP Team
           </h3>
           
           {isLoading ? (
             <div className="py-12 flex flex-col items-center justify-center gap-2 text-slate-500 text-xs">
-              <Loader2 className="h-5 w-5 animate-spin text-[#C5A059]" />
+              <Loader2 className="h-5 w-5 animate-spin text-[#C6A66B]" />
               <span>Loading team members...</span>
             </div>
           ) : team.length === 0 ? (
@@ -247,14 +247,14 @@ export function HrStakeholdersPage() {
         {/* Right Column Panels */}
         <div className="col-span-12 lg:col-span-7 space-y-6">
           {/* OPEN HIRING — PORTCO CEO & OPERATORS */}
-          <div className="rounded-2xl border border-white/[0.06] bg-[#0E121A] p-5 shadow-premium-card card-sheen">
-            <h3 className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-400 border-b border-white/[0.04] pb-3 mb-4 select-none">
+          <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 shadow-premium-card card-sheen">
+            <h3 className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-400 border-b border-white/[0.02] pb-3 mb-4 select-none">
               Open Hiring — PortCo CEO & Operators
             </h3>
 
             {isLoading ? (
               <div className="py-12 flex flex-col items-center justify-center gap-2 text-slate-500 text-xs">
-                <Loader2 className="h-5 w-5 animate-spin text-[#C5A059]" />
+                <Loader2 className="h-5 w-5 animate-spin text-[#C6A66B]" />
                 <span>Loading hiring pipelines...</span>
               </div>
             ) : (
@@ -268,7 +268,7 @@ export function HrStakeholdersPage() {
                     <div 
                       key={idx} 
                       className={cx(
-                        "rounded-xl border border-white/[0.03] bg-white/[0.01] p-3.5 border-l-4 flex items-center justify-between group/card transition duration-300 hover:bg-white/[0.02]",
+                        "rounded-xl border border-white/[0.02] bg-white/[0.01] p-3.5 border-l-4 flex items-center justify-between group/card transition duration-300 hover:bg-white/[0.02]",
                         hire.accentColor === "amber" ? "border-l-amber-500/60" :
                         hire.accentColor === "blue" ? "border-l-blue-500/60" : "border-l-emerald-500/60"
                       )}
@@ -284,7 +284,7 @@ export function HrStakeholdersPage() {
 
                       <button 
                         onClick={() => handleDeleteBrief(hire, idx)}
-                        className="ml-3 shrink-0 opacity-0 group-hover/card:opacity-100 text-slate-500 hover:text-rose-500 transition cursor-pointer p-1.5 rounded hover:bg-white/5"
+                        className="ml-3 shrink-0 opacity-0 group-hover/card:opacity-100 text-slate-500 hover:text-rose-500 transition cursor-pointer p-1.5 rounded hover:bg-white/[0.015]"
                         title="Delete hiring brief"
                       >
                         <Trash className="h-3.5 w-3.5" />
@@ -299,7 +299,7 @@ export function HrStakeholdersPage() {
                     setModalError(null);
                     setIsModalOpen(true);
                   }}
-                  className="w-full flex h-10 items-center justify-center gap-1.5 rounded-xl border border-dashed border-white/10 hover:border-white/20 bg-white/[0.01] hover:bg-white/[0.03] text-[10px] font-bold uppercase tracking-wider text-slate-500 hover:text-slate-300 transition cursor-pointer mt-2 animate-fade-in"
+                  className="w-full flex h-10 items-center justify-center gap-1.5 rounded-xl border border-dashed border-white/[0.02] hover:border-white/20 bg-white/[0.01] hover:bg-white/[0.03] text-[10px] font-bold uppercase tracking-wider text-slate-500 hover:text-slate-300 transition cursor-pointer mt-2 animate-fade-in"
                 >
                   <Plus className="h-3.5 w-3.5" />
                   <span>Add hiring brief</span>
@@ -309,14 +309,14 @@ export function HrStakeholdersPage() {
           </div>
 
           {/* EXTERNAL STAKEHOLDERS */}
-          <div className="rounded-2xl border border-white/[0.06] bg-[#0E121A] p-5 shadow-premium-card card-sheen">
-            <h3 className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-400 border-b border-white/[0.04] pb-3 mb-4 select-none">
+          <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 shadow-premium-card card-sheen">
+            <h3 className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-400 border-b border-white/[0.02] pb-3 mb-4 select-none">
               External Stakeholders
             </h3>
 
             {isLoading ? (
               <div className="py-12 flex flex-col items-center justify-center gap-2 text-slate-500 text-xs">
-                <Loader2 className="h-5 w-5 animate-spin text-[#C5A059]" />
+                <Loader2 className="h-5 w-5 animate-spin text-[#C6A66B]" />
                 <span>Loading external partners...</span>
               </div>
             ) : stakeholders.length === 0 ? (
@@ -329,7 +329,7 @@ export function HrStakeholdersPage() {
                   <div 
                     key={idx} 
                     className={cx(
-                      "rounded-xl border border-white/[0.03] bg-white/[0.01] p-3.5 border-l-4 flex flex-col justify-center transition hover:bg-white/[0.02] duration-300",
+                      "rounded-xl border border-white/[0.02] bg-white/[0.01] p-3.5 border-l-4 flex flex-col justify-center transition hover:bg-white/[0.02] duration-300",
                       sh.accentColor === "amber" ? "border-l-amber-500/60" :
                       sh.accentColor === "blue" ? "border-l-blue-500/60" : "border-l-emerald-500/60"
                     )}
@@ -414,7 +414,7 @@ export function HrStakeholdersPage() {
             <button
               type="button"
               onClick={() => setIsModalOpen(false)}
-              className="h-9 rounded-lg border border-white/10 bg-transparent px-4 text-[10px] font-extrabold uppercase tracking-wider text-slate-400 hover:text-white transition cursor-pointer"
+              className="h-9 rounded-lg border border-white/[0.02] bg-transparent px-4 text-[10px] font-extrabold uppercase tracking-wider text-slate-400 hover:text-white transition cursor-pointer"
             >
               Cancel
             </button>
@@ -422,7 +422,7 @@ export function HrStakeholdersPage() {
             <button
               type="submit"
               disabled={isSaving}
-              className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-[#C5A059] px-4 text-[10px] font-extrabold uppercase tracking-wider text-slate-950 shadow-sm hover:bg-[#C5A059]/90 disabled:opacity-50 cursor-pointer transition"
+              className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-[#C6A66B] px-4 text-[10px] font-extrabold uppercase tracking-wider text-slate-950 shadow-sm hover:bg-[#C6A66B]/90 disabled:opacity-50 cursor-pointer transition"
             >
               {isSaving ? (
                 <>

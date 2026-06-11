@@ -148,7 +148,7 @@ export function AdminGuard({ children }: AdminGuardProps) {
 
   if (isCheckingSession) {
     return (
-      <div className="min-h-screen bg-[#0A0A0B] flex items-center justify-center relative overflow-hidden">
+      <div className="min-h-screen bg-[#0F1115] flex items-center justify-center relative overflow-hidden">
         <div className="absolute -left-20 -top-20 h-80 w-80 rounded-full bg-acp-bronze/5 blur-[100px] pointer-events-none" />
         <div className="absolute -right-20 -bottom-20 h-80 w-80 rounded-full bg-acp-bronze/5 blur-[100px] pointer-events-none" />
         <div className="flex flex-col items-center gap-4 text-slate-400">
@@ -164,7 +164,7 @@ export function AdminGuard({ children }: AdminGuardProps) {
   }
 
   return (
-    <div className="min-h-screen bg-[#0A0A0B] flex items-center justify-center p-4 relative overflow-hidden">
+    <div className="min-h-screen bg-[#0F1115] flex items-center justify-center p-4 relative overflow-hidden">
       {/* Decorative ambient glows */}
       <div className="absolute -left-20 -top-20 h-80 w-80 rounded-full bg-acp-bronze/5 blur-[100px] pointer-events-none" />
       <div className="absolute -right-20 -bottom-20 h-80 w-80 rounded-full bg-acp-bronze/5 blur-[100px] pointer-events-none" />
@@ -172,7 +172,7 @@ export function AdminGuard({ children }: AdminGuardProps) {
       {isResetting ? (
         <form
           onSubmit={handleResetSubmit}
-          className="w-full max-w-md relative z-10 rounded-2xl border border-white/10 bg-[#0D0D0E] backdrop-blur-xl p-8 shadow-2xl card-sheen"
+          className="w-full max-w-md relative z-10 rounded-2xl border border-white/[0.02] bg-[#161B22] backdrop-blur-xl p-8 shadow-2xl card-sheen"
         >
           {/* Recovery Form Header */}
           <div className="flex flex-col items-center text-center">
@@ -183,7 +183,7 @@ export function AdminGuard({ children }: AdminGuardProps) {
               >
                 <circle cx="50" cy="50" r="45" stroke="currentColor" strokeWidth="1" strokeDasharray="6 4" fill="none" />
               </svg>
-              <div className="relative z-10 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-acp-bronze to-acp-bronze-dark text-white shadow-lg border border-white/10">
+              <div className="relative z-10 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-acp-bronze to-acp-bronze-dark text-white shadow-lg border border-white/[0.02]">
                 <Key className="h-5 w-5" aria-hidden="true" />
               </div>
             </div>
@@ -228,7 +228,7 @@ export function AdminGuard({ children }: AdminGuardProps) {
                     value={masterPasscode}
                     onChange={(e) => setMasterPasscode(e.target.value)}
                     placeholder="••••••••"
-                    className="mt-2 h-11 w-full rounded-xl border border-white/10 bg-white/5 px-4 text-sm text-white placeholder-slate-650 outline-none transition-all duration-300 focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze"
+                    className="mt-2 h-11 w-full rounded-xl border border-white/[0.02] bg-white/[0.015] px-4 text-sm text-white placeholder-slate-650 outline-none transition-all duration-300 focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze"
                     required
                   />
                 </div>
@@ -243,7 +243,7 @@ export function AdminGuard({ children }: AdminGuardProps) {
                     value={newPasscode}
                     onChange={(e) => setNewPasscode(e.target.value)}
                     placeholder="••••••••"
-                    className="mt-2 h-11 w-full rounded-xl border border-white/10 bg-white/5 px-4 text-sm text-white placeholder-slate-650 outline-none transition-all duration-300 focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze"
+                    className="mt-2 h-11 w-full rounded-xl border border-white/[0.02] bg-white/[0.015] px-4 text-sm text-white placeholder-slate-650 outline-none transition-all duration-300 focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze"
                     required
                   />
                 </div>
@@ -258,7 +258,7 @@ export function AdminGuard({ children }: AdminGuardProps) {
                     value={confirmPasscode}
                     onChange={(e) => setConfirmPasscode(e.target.value)}
                     placeholder="••••••••"
-                    className="mt-2 h-11 w-full rounded-xl border border-white/10 bg-white/5 px-4 text-sm text-white placeholder-slate-650 outline-none transition-all duration-300 focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze"
+                    className="mt-2 h-11 w-full rounded-xl border border-white/[0.02] bg-white/[0.015] px-4 text-sm text-white placeholder-slate-650 outline-none transition-all duration-300 focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze"
                     required
                   />
                 </div>
@@ -279,7 +279,7 @@ export function AdminGuard({ children }: AdminGuardProps) {
                       setIsResetting(false);
                       setResetError("");
                     }}
-                    className="w-full inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 text-xs font-bold uppercase tracking-wider text-slate-300 hover:text-white transition-all duration-300 cursor-pointer"
+                    className="w-full inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-white/[0.02] bg-white/[0.015] px-4 text-xs font-bold uppercase tracking-wider text-slate-300 hover:text-white transition-all duration-300 cursor-pointer"
                   >
                     <ArrowLeft className="h-4 w-4" aria-hidden="true" />
                     Back to Login
@@ -292,7 +292,7 @@ export function AdminGuard({ children }: AdminGuardProps) {
       ) : (
         <form
           onSubmit={handleSubmit}
-          className="w-full max-w-md relative z-10 rounded-2xl border border-white/10 bg-[#0D0D0E] backdrop-blur-xl p-8 shadow-2xl card-sheen"
+          className="w-full max-w-md relative z-10 rounded-2xl border border-white/[0.02] bg-[#161B22] backdrop-blur-xl p-8 shadow-2xl card-sheen"
         >
           {/* Header */}
           <div className="flex flex-col items-center text-center">
@@ -304,7 +304,7 @@ export function AdminGuard({ children }: AdminGuardProps) {
               >
                 <circle cx="50" cy="50" r="45" stroke="currentColor" strokeWidth="1" strokeDasharray="6 4" fill="none" />
               </svg>
-              <div className="relative z-10 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-acp-bronze to-acp-bronze-dark text-white shadow-lg border border-white/10">
+              <div className="relative z-10 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-acp-bronze to-acp-bronze-dark text-white shadow-lg border border-white/[0.02]">
                 <LockKeyhole className="h-5 w-5" aria-hidden="true" />
               </div>
             </div>
@@ -335,7 +335,7 @@ export function AdminGuard({ children }: AdminGuardProps) {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="admin@aysancapital.com"
-                  className="h-11 w-full rounded-xl border border-white/10 bg-white/5 pl-10 pr-4 text-sm text-white placeholder-slate-650 outline-none transition-all duration-300 focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze"
+                  className="h-11 w-full rounded-xl border border-white/[0.02] bg-white/[0.015] pl-10 pr-4 text-sm text-white placeholder-slate-650 outline-none transition-all duration-300 focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze"
                   required
                   autoComplete="email"
                 />
@@ -365,7 +365,7 @@ export function AdminGuard({ children }: AdminGuardProps) {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="h-11 w-full rounded-xl border border-white/10 bg-white/5 px-4 text-sm text-white placeholder-slate-650 outline-none transition-all duration-300 focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze"
+                className="h-11 w-full rounded-xl border border-white/[0.02] bg-white/[0.015] px-4 text-sm text-white placeholder-slate-650 outline-none transition-all duration-300 focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze"
                 autoComplete="current-password"
                 required
               />

@@ -209,14 +209,14 @@ export function LenderPortalPage() {
   // Login Gate View
   if (!isAuthorized) {
     return (
-      <div className="min-h-screen bg-[#0A0A0B] flex items-center justify-center p-4 relative overflow-hidden">
+      <div className="min-h-screen bg-[#0F1115] flex items-center justify-center p-4 relative overflow-hidden">
         {/* Decorative ambient glows */}
         <div className="absolute -left-20 -top-20 h-80 w-80 rounded-full bg-acp-bronze/5 blur-[100px] pointer-events-none" />
         <div className="absolute -right-20 -bottom-20 h-80 w-80 rounded-full bg-acp-bronze/5 blur-[100px] pointer-events-none" />
 
         <form
           onSubmit={handleLogin}
-          className="w-full max-w-md relative z-10 rounded-2xl border border-white/10 bg-[#0D0D0E] backdrop-blur-xl p-8 shadow-2xl card-sheen"
+          className="w-full max-w-md relative z-10 rounded-2xl border border-white/[0.02] bg-[#161B22] backdrop-blur-xl p-8 shadow-2xl card-sheen"
         >
           <div className="flex flex-col items-center text-center">
             <div className="relative mb-6 flex items-center justify-center h-20 w-20">
@@ -227,7 +227,7 @@ export function LenderPortalPage() {
               >
                 <circle cx="50" cy="50" r="45" stroke="currentColor" strokeWidth="1" strokeDasharray="6 4" fill="none" />
               </svg>
-              <div className="relative z-10 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-acp-bronze to-acp-bronze-dark text-white shadow-lg border border-white/10">
+              <div className="relative z-10 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-acp-bronze to-acp-bronze-dark text-white shadow-lg border border-white/[0.02]">
                 <LockKeyhole className="h-5 w-5" aria-hidden="true" />
               </div>
             </div>
@@ -257,7 +257,7 @@ export function LenderPortalPage() {
                 value={passcode}
                 onChange={(e) => setPasscode(e.target.value)}
                 placeholder="••••••••"
-                className="mt-2.5 h-11 w-full rounded-xl border border-white/10 bg-white/5 px-4 text-sm text-white placeholder-slate-650 outline-none transition-all duration-300 focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze"
+                className="mt-2.5 h-11 w-full rounded-xl border border-white/[0.02] bg-white/[0.015] px-4 text-sm text-white placeholder-slate-650 outline-none transition-all duration-300 focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze"
                 autoComplete="current-password"
               />
             </div>
@@ -283,14 +283,14 @@ export function LenderPortalPage() {
   return (
     <div className="min-h-screen text-slate-100 lg:grid lg:grid-cols-[284px_minmax(0,1fr)] bg-acp-ink">
       {/* Lender Portal Sidebar */}
-      <aside className="hidden min-h-screen border-r border-white/[0.06] bg-[#0D0D0E] text-white lg:block relative overflow-hidden">
+      <aside className="hidden min-h-screen border-r border-white/[0.02] bg-[#161B22] text-white lg:block relative overflow-hidden">
         <div className="absolute -left-12 -top-12 h-48 w-48 rounded-full bg-acp-bronze/5 blur-3xl pointer-events-none" />
         <div className="absolute -right-20 bottom-10 h-64 w-64 rounded-full bg-acp-bronze/5 blur-3xl pointer-events-none" />
 
         <div className="sticky top-0 flex h-screen flex-col px-6 py-7 z-10">
           {/* Logo */}
           <div className="flex min-w-0 items-center gap-3">
-            <div className="flex shrink-0 h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-[#C5A059]/20 to-[#C5A059]/20 text-white shadow-md border border-[#C5A059]/30">
+            <div className="flex shrink-0 h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-[#C6A66B]/20 to-[#C6A66B]/20 text-white shadow-md border border-[#C6A66B]/30">
               <Building2 className="h-5 w-5 text-white" aria-hidden="true" />
             </div>
             <div className="min-w-0">
@@ -305,7 +305,7 @@ export function LenderPortalPage() {
 
           {/* Profile Card */}
           {lenderProfile && (
-            <div className="mt-10 rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 shadow-sm backdrop-blur-md">
+            <div className="mt-10 rounded-xl border border-white/[0.02] bg-white/[0.02] p-4 shadow-sm backdrop-blur-md">
               <div className="flex items-center gap-2.5">
                 <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-acp-bronze/10 text-acp-bronze text-xs font-bold border border-acp-bronze/20">
                   {lenderProfile.Company_Name.charAt(0).toUpperCase()}
@@ -315,7 +315,7 @@ export function LenderPortalPage() {
                   <p className="truncate text-[9px] font-semibold text-slate-450 mt-1 uppercase">Lender Portal Node</p>
                 </div>
               </div>
-              <div className="mt-4 pt-3.5 border-t border-white/[0.04] space-y-2 text-[10px] text-slate-400 font-medium leading-relaxed">
+              <div className="mt-4 pt-3.5 border-t border-white/[0.02] space-y-2 text-[10px] text-slate-400 font-medium leading-relaxed">
                 {lenderProfile.Contact_Name && <div>Contact: {lenderProfile.Contact_Name}</div>}
                 {lenderProfile.Email && <div>Email: {lenderProfile.Email}</div>}
               </div>
@@ -335,7 +335,7 @@ export function LenderPortalPage() {
           {/* Logout Button */}
           <button
             onClick={handleLogout}
-            className="mt-auto inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 text-xs font-bold uppercase tracking-wider text-slate-300 hover:bg-white/10 transition"
+            className="mt-auto inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-white/[0.02] bg-white/[0.015] text-xs font-bold uppercase tracking-wider text-slate-300 hover:bg-white/[0.02] transition"
           >
             <LogOut className="h-4 w-4" />
             Exit Portal
@@ -353,7 +353,7 @@ export function LenderPortalPage() {
           />
           
           {/* Drawer Sidebar */}
-          <aside className="relative flex w-[284px] max-w-[85vw] flex-col border-r border-white/[0.06] bg-[#0D0D0E] text-white h-full px-6 py-7 shadow-2xl animate-slide-in-left overflow-hidden">
+          <aside className="relative flex w-[284px] max-w-[85vw] flex-col border-r border-white/[0.02] bg-[#161B22] text-white h-full px-6 py-7 shadow-2xl animate-slide-in-left overflow-hidden">
             {/* Ambient glows matching styling */}
             <div className="absolute -left-12 -top-12 h-48 w-48 rounded-full bg-acp-bronze/5 blur-3xl pointer-events-none" />
             <div className="absolute -right-20 bottom-10 h-64 w-64 rounded-full bg-acp-bronze/5 blur-3xl pointer-events-none" />
@@ -362,7 +362,7 @@ export function LenderPortalPage() {
               {/* Header inside drawer */}
               <div className="flex items-center justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-3">
-                  <div className="flex shrink-0 h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#C5A059]/20 to-[#C5A059]/20 text-white shadow-md border border-[#C5A059]/30">
+                  <div className="flex shrink-0 h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#C6A66B]/20 to-[#C6A66B]/20 text-white shadow-md border border-[#C6A66B]/30">
                     <Building2 className="h-5 w-5 text-white" aria-hidden="true" />
                   </div>
                   <div className="min-w-0">
@@ -377,7 +377,7 @@ export function LenderPortalPage() {
 
                 <button
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className="h-8 w-8 flex items-center justify-center rounded-lg border border-white/10 bg-white/5 text-slate-400 hover:text-white transition cursor-pointer"
+                  className="h-8 w-8 flex items-center justify-center rounded-lg border border-white/[0.02] bg-white/[0.015] text-slate-400 hover:text-white transition cursor-pointer"
                   aria-label="Close menu"
                   type="button"
                 >
@@ -387,7 +387,7 @@ export function LenderPortalPage() {
 
               {/* Profile Card */}
               {lenderProfile && (
-                <div className="mt-10 rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 shadow-sm backdrop-blur-md">
+                <div className="mt-10 rounded-xl border border-white/[0.02] bg-white/[0.02] p-4 shadow-sm backdrop-blur-md">
                   <div className="flex items-center gap-2.5">
                     <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-acp-bronze/10 text-acp-bronze text-xs font-bold border border-acp-bronze/20">
                       {lenderProfile.Company_Name.charAt(0).toUpperCase()}
@@ -397,7 +397,7 @@ export function LenderPortalPage() {
                       <p className="truncate text-[9px] font-semibold text-slate-450 mt-1 uppercase">Lender Portal Node</p>
                     </div>
                   </div>
-                  <div className="mt-4 pt-3.5 border-t border-white/[0.04] space-y-2 text-[10px] text-slate-400 font-medium leading-relaxed">
+                  <div className="mt-4 pt-3.5 border-t border-white/[0.02] space-y-2 text-[10px] text-slate-400 font-medium leading-relaxed">
                     {lenderProfile.Contact_Name && <div>Contact: {lenderProfile.Contact_Name}</div>}
                     {lenderProfile.Email && <div>Email: {lenderProfile.Email}</div>}
                   </div>
@@ -420,7 +420,7 @@ export function LenderPortalPage() {
                   setIsMobileMenuOpen(false);
                   handleLogout();
                 }}
-                className="mt-auto inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 text-xs font-bold uppercase tracking-wider text-slate-300 hover:bg-white/10 transition"
+                className="mt-auto inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-white/[0.02] bg-white/[0.015] text-xs font-bold uppercase tracking-wider text-slate-300 hover:bg-white/[0.02] transition"
               >
                 <LogOut className="h-4 w-4" />
                 Exit Portal
@@ -432,12 +432,12 @@ export function LenderPortalPage() {
 
       {/* Main Content Area */}
       <div className="min-w-0 flex flex-col min-h-screen relative z-10">
-        <header className="sticky top-0 z-20 border-b border-white/[0.06] bg-[#0A0A0B]/45 backdrop-blur-md shadow-soft">
+        <header className="sticky top-0 z-20 border-b border-white/[0.02] bg-[#0F1115]/45 backdrop-blur-md shadow-soft">
           <div className="flex items-center justify-between gap-4 px-6 py-4 sm:px-8">
             <div className="lg:hidden flex shrink-0 items-center gap-2 min-w-0">
               <button
                 onClick={() => setIsMobileMenuOpen(true)}
-                className="h-9 w-9 flex shrink-0 items-center justify-center rounded-xl bg-white/10 border border-white/15 text-white hover:bg-white/20 transition cursor-pointer mr-1"
+                className="h-9 w-9 flex shrink-0 items-center justify-center rounded-xl bg-white/[0.02] border border-white/15 text-white hover:bg-white/20 transition cursor-pointer mr-1"
                 title="Open menu"
                 type="button"
               >
@@ -455,13 +455,13 @@ export function LenderPortalPage() {
             </div>
 
             <div className="flex items-center gap-3">
-              <span className="hidden md:inline-flex h-8 items-center gap-2 rounded-full border border-white/10 bg-white/[0.02] px-3.5 text-xs font-bold text-slate-300">
+              <span className="hidden md:inline-flex h-8 items-center gap-2 rounded-full border border-white/[0.02] bg-white/[0.02] px-3.5 text-xs font-bold text-slate-300">
                 <ShieldCheck className="h-3.5 w-3.5 text-acp-emerald" />
                 Lender-Safe Sandbox
               </span>
               <button
                 onClick={handleLogout}
-                className="lg:hidden h-8 w-8 flex items-center justify-center rounded bg-white/5 border border-white/10 text-slate-400 hover:text-white"
+                className="lg:hidden h-8 w-8 flex items-center justify-center rounded bg-white/[0.015] border border-white/[0.02] text-slate-400 hover:text-white"
                 title="Logout"
               >
                 <LogOut className="h-4 w-4" />
@@ -487,7 +487,7 @@ export function LenderPortalPage() {
             {!loadingData && !error && deals.length > 0 && selectedDeal ? (
               <div className="space-y-8">
                 {/* Deal Selection Banner */}
-                <div className="rounded-2xl border border-white/[0.08] bg-[#0D0D0E] p-6 shadow-premium-card card-sheen flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div className="rounded-2xl border border-white/[0.08] bg-[#161B22] p-6 shadow-premium-card card-sheen flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                   <div>
                     <span className="text-[10px] font-extrabold uppercase tracking-widest text-acp-bronze">Deal Room Review</span>
                     <h1 className="text-xl font-bold text-white mt-1 leading-none">
@@ -506,7 +506,7 @@ export function LenderPortalPage() {
                         const target = deals.find(d => d.id === e.target.value);
                         if (target) setSelectedDeal(target);
                       }}
-                      className="h-10 rounded-xl border border-white/10 bg-[#0A0A0B] px-4 text-xs font-bold text-white outline-none focus:border-acp-bronze cursor-pointer shadow-sm"
+                      className="h-10 rounded-xl border border-white/[0.02] bg-[#0F1115] px-4 text-xs font-bold text-white outline-none focus:border-acp-bronze cursor-pointer shadow-sm"
                     >
                       {deals.map(deal => (
                         <option key={deal.id} value={deal.id}>
@@ -531,13 +531,13 @@ export function LenderPortalPage() {
                 </div>
 
                 {/* Tab Switcher */}
-                <div className="flex gap-1.5 overflow-x-auto rounded-xl border border-white/[0.06] bg-[#0D0D0E] p-1.5 shadow-inner backdrop-blur-md">
+                <div className="flex gap-1.5 overflow-x-auto rounded-xl border border-white/[0.02] bg-[#161B22] p-1.5 shadow-inner backdrop-blur-md">
                   <button
                     className={cx(
                       "inline-flex min-h-9 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-4 text-xs font-extrabold uppercase tracking-wider transition-all duration-300 flex-1 sm:flex-initial cursor-pointer",
                       activeTab === "overview"
                         ? "bg-gradient-to-r from-acp-bronze to-acp-bronze-dark text-white shadow-md shadow-glow-purple-card"
-                        : "text-slate-400 hover:bg-white/5 hover:text-white",
+                        : "text-slate-400 hover:bg-white/[0.015] hover:text-white",
                     )}
                     onClick={() => setActiveTab("overview")}
                     type="button"
@@ -551,7 +551,7 @@ export function LenderPortalPage() {
                       "inline-flex min-h-9 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-4 text-xs font-extrabold uppercase tracking-wider transition-all duration-300 flex-1 sm:flex-initial cursor-pointer relative",
                       activeTab === "chat"
                         ? "bg-gradient-to-r from-acp-bronze to-acp-bronze-dark text-white shadow-md shadow-glow-purple-card"
-                        : "text-slate-400 hover:bg-white/5 hover:text-white",
+                        : "text-slate-400 hover:bg-white/[0.015] hover:text-white",
                     )}
                     onClick={() => setActiveTab("chat")}
                     type="button"
@@ -574,7 +574,7 @@ export function LenderPortalPage() {
                     {/* Approved Documents Checklist */}
                     <section className="space-y-4">
                       <div className="flex items-center gap-3">
-                        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/5 border border-white/10 text-acp-bronze shadow-sm">
+                        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/[0.015] border border-white/[0.02] text-acp-bronze shadow-sm">
                           <Files className="h-5 w-5" />
                         </span>
                         <h2 className="text-sm font-bold uppercase tracking-wider text-white">Approved Documents</h2>
@@ -583,7 +583,7 @@ export function LenderPortalPage() {
                       {selectedDeal.ndaApproved ? (
                         <DocumentChecklist documents={activeDocs} audience="lender" />
                       ) : (
-                        <div className="rounded-2xl border border-white/[0.06] bg-[#0D0D0E] p-8 text-center relative overflow-hidden shadow-premium-card card-sheen max-w-2xl mx-auto my-4 animate-scale-in">
+                        <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-8 text-center relative overflow-hidden shadow-premium-card card-sheen max-w-2xl mx-auto my-4 animate-scale-in">
                           <div className="absolute -left-12 -top-12 h-32 w-32 rounded-full bg-amber-500/5 blur-2xl pointer-events-none" />
                           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 mx-auto mb-4 animate-pulse">
                             <LockKeyhole className="h-6 w-6" />
@@ -610,7 +610,7 @@ export function LenderPortalPage() {
                     {selectedDeal.ndaApproved && (
                       <section className="space-y-4 animate-fade-in">
                         <div className="flex items-center gap-3">
-                          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/5 border border-white/10 text-acp-bronze shadow-sm">
+                          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/[0.015] border border-white/[0.02] text-acp-bronze shadow-sm">
                             <History className="h-5 w-5" />
                           </span>
                           <h2 className="text-sm font-bold uppercase tracking-wider text-white">Submission Timeline</h2>

@@ -59,10 +59,10 @@ export function Modal({
 
       {/* Modal Panel */}
       <div
-        className={`relative z-10 w-full ${maxWidth} rounded-2xl border border-white/[0.1] bg-[#0D0D0E] p-6 shadow-2xl animate-scale-in`}
+        className={`relative z-10 w-full ${maxWidth} rounded-2xl border border-white/[0.1] bg-[#161B22] p-6 shadow-2xl animate-scale-in`}
       >
         {/* Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-white/[0.06]">
+        <div className="flex items-center justify-between pb-4 border-b border-white/[0.02]">
           <h3
             id={titleId}
             className="text-sm font-bold text-white tracking-tight"

@@ -118,6 +118,18 @@ export function DealListPage() {
     return `${num.toFixed(1)}x`;
   };
 
+  // Clean references and names helpers
+  const formatRefDisplay = (ref: string): string => {
+    if (!ref) return "";
+    const clean = ref.split(/[—\-\s]+/)[0].trim();
+    return clean || ref;
+  };
+
+  const cleanCompanyName = (name: string): string => {
+    if (!name) return "Not Specified";
+    return name.replace(/^[A-Z0-9]+\s*[—\-:]\s*/i, "").replace(/^(PARKED|KILLED|INBOUND|INTRO)\s*[—\-:]\s*/i, "").trim();
+  };
+
   // Process & Join deals with Inbox data
   const joinedDeals = useMemo(() => {
     return deals.map(d => {
@@ -315,7 +327,7 @@ export function DealListPage() {
   // Handle Owner Avatars formatting to match high-fidelity circles
   const getOwnerAvatar = (initials: string) => {
     if (initials === "AY") {
-      return <div className="flex h-5.5 w-5.5 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-[#C5A059] to-[#D4B876] text-slate-950 text-[9px] font-bold border border-[#C5A059]/10 shadow-inner select-none">AY</div>;
+      return <div className="flex h-5.5 w-5.5 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-[#C6A66B] to-[#D4B06A] text-slate-950 text-[9px] font-bold border border-[#C6A66B]/10 shadow-inner select-none">AY</div>;
     }
     if (initials === "CH") {
       return <div className="flex h-5.5 w-5.5 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-purple-500/80 to-purple-400/80 text-white text-[9px] font-bold border border-purple-500/10 shadow-inner select-none">CH</div>;
@@ -326,7 +338,7 @@ export function DealListPage() {
     if (initials === "DA" || initials === "DM") {
       return <div className="flex h-5.5 w-5.5 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-emerald-500/80 to-emerald-400/80 text-slate-950 text-[9px] font-bold border border-emerald-500/10 shadow-inner select-none">DM</div>;
     }
-    return <div className="flex h-5.5 w-5.5 shrink-0 items-center justify-center rounded-full bg-white/5 border border-white/10 text-slate-400 text-[9px] font-bold shadow-sm select-none">?</div>;
+    return <div className="flex h-5.5 w-5.5 shrink-0 items-center justify-center rounded-full bg-white/[0.015] border border-white/[0.02] text-slate-400 text-[9px] font-bold shadow-sm select-none">?</div>;
   };
 
   const handleCreateDeal = async (e: React.FormEvent) => {
@@ -369,7 +381,7 @@ export function DealListPage() {
     <div className="space-y-8 text-[#E2E8F0] font-sans animate-fade-in-up">
       
       {/* Header section with Dynamic overview & Warning Pills */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/[0.04] pb-5">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/[0.02] pb-5">
         <div className="space-y-2">
           <h1 className="text-2xl font-bold text-white tracking-tight">Deal Pipeline</h1>
           <p className="text-xs text-slate-500 font-medium">
@@ -379,7 +391,7 @@ export function DealListPage() {
         
         <div className="flex items-center gap-2 select-none">
           {overdueCount > 0 && (
-            <span className="inline-flex items-center rounded-full bg-rose-500/5 border border-rose-500/10 px-2.5 py-0.5 text-[9px] font-semibold text-rose-455 tracking-wide select-none animate-pulse">
+            <span className="inline-flex items-center rounded-full bg-rose-500/5 border border-rose-500/10 px-2.5 py-0.5 text-[9px] font-semibold text-rose-400 tracking-wide select-none animate-pulse">
               {overdueCount} OVERDUE TASKS
             </span>
           )}
@@ -389,7 +401,7 @@ export function DealListPage() {
           
           <button
             onClick={() => setIsModalOpen(true)}
-            className="inline-flex h-8 items-center gap-1.5 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-white cursor-pointer transition"
+            className="inline-flex h-8 items-center gap-1.5 rounded-xl border border-white/[0.02] bg-white/[0.02] px-3.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-white cursor-pointer transition"
           >
             + NEW DEAL
           </button>
@@ -406,8 +418,8 @@ export function DealListPage() {
               className={cx(
                 "px-3.5 py-1.5 rounded-full border transition cursor-pointer font-bold",
                 selectedStageFilter === "All"
-                  ? "border-[#C5A059] bg-[#C5A059]/5 text-[#C5A059]"
-                  : "border-white/[0.04] bg-white/[0.01] text-slate-400 hover:text-white hover:bg-white/[0.03]"
+                  ? "border-[#C6A66B] bg-[#C6A66B]/5 text-[#C6A66B]"
+                  : "border-white/[0.02] bg-white/[0.01] text-slate-400 hover:text-white hover:bg-white/[0.03]"
               )}
             >
               All ({baseFilteredDeals.length})
@@ -420,7 +432,7 @@ export function DealListPage() {
                 "px-3.5 py-1.5 rounded-full border transition cursor-pointer font-bold",
                 selectedStageFilter === "Inbound"
                   ? "border-blue-500/30 bg-blue-500/5 text-blue-400"
-                  : "border-white/[0.04] bg-white/[0.01] text-slate-400 hover:text-white hover:bg-white/[0.03]"
+                  : "border-white/[0.02] bg-white/[0.01] text-slate-400 hover:text-white hover:bg-white/[0.03]"
               )}
             >
               Inbound ({baseFilteredDeals.filter(d => {
@@ -436,7 +448,7 @@ export function DealListPage() {
                 "px-3.5 py-1.5 rounded-full border transition cursor-pointer font-bold",
                 selectedStageFilter === "Seller Call"
                   ? "border-indigo-500/30 bg-indigo-500/5 text-indigo-400"
-                  : "border-white/[0.04] bg-white/[0.01] text-slate-400 hover:text-white hover:bg-white/[0.03]"
+                  : "border-white/[0.02] bg-white/[0.01] text-slate-400 hover:text-white hover:bg-white/[0.03]"
               )}
             >
               Seller Call ({baseFilteredDeals.filter(d => (d.status || "").toLowerCase() === "seller call").length})
@@ -449,7 +461,7 @@ export function DealListPage() {
                 "px-3.5 py-1.5 rounded-full border transition cursor-pointer font-bold",
                 selectedStageFilter === "IM Review"
                   ? "border-amber-500/30 bg-amber-500/5 text-amber-500"
-                  : "border-white/[0.04] bg-white/[0.01] text-slate-400 hover:text-white hover:bg-white/[0.03]"
+                  : "border-white/[0.02] bg-white/[0.01] text-slate-400 hover:text-white hover:bg-white/[0.03]"
               )}
             >
               IM Review ({baseFilteredDeals.filter(d => (d.status || "").toLowerCase() === "im review").length})
@@ -462,7 +474,7 @@ export function DealListPage() {
                 "px-3.5 py-1.5 rounded-full border transition cursor-pointer font-bold",
                 selectedStageFilter === "DD"
                   ? "border-emerald-500/30 bg-emerald-500/5 text-emerald-400"
-                  : "border-white/[0.04] bg-white/[0.01] text-slate-400 hover:text-white hover:bg-white/[0.03]"
+                  : "border-white/[0.02] bg-white/[0.01] text-slate-400 hover:text-white hover:bg-white/[0.03]"
               )}
             >
               DD ({baseFilteredDeals.filter(d => {
@@ -485,7 +497,7 @@ export function DealListPage() {
             </button>
           </div>
         ) : (
-          <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider select-none bg-white/[0.02] border border-white/[0.04] px-3.5 py-2 rounded-xl">
+          <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider select-none bg-white/[0.02] border border-white/[0.02] px-3.5 py-2 rounded-xl">
             Drag cards to progress stages · Checked by deal lifecycle engine
           </div>
         )}
@@ -502,27 +514,27 @@ export function DealListPage() {
                 setSearchQuery(e.target.value);
                 setCurrentPage(1);
               }}
-              className="h-9 w-36 rounded-xl border border-white/[0.06] bg-[#0B0B0C] pl-9 pr-3 text-xs text-white placeholder-slate-650 outline-none transition focus:border-[#C5A059] focus:w-44 shadow-inner"
+              className="h-9 w-36 rounded-xl border border-white/[0.02] bg-[#0B0B0C] pl-9 pr-3 text-xs text-white placeholder-slate-500 outline-none transition focus:border-[#C6A66B] focus:w-44 shadow-inner"
             />
           </div>
 
           <button
             onClick={() => setShowFilterDropdown(!showFilterDropdown)}
-            className="inline-flex h-9 items-center gap-2 rounded-xl border border-white/[0.06] bg-[#0B0B0C] px-3.5 text-xs font-semibold text-slate-300 hover:bg-white/[0.03] transition cursor-pointer shadow-inner"
+            className="inline-flex h-9 items-center gap-2 rounded-xl border border-white/[0.02] bg-[#0B0B0C] px-3.5 text-xs font-semibold text-slate-300 hover:bg-white/[0.03] transition cursor-pointer shadow-inner"
           >
             <Filter className="h-4 w-4" />
             <span>Filter</span>
           </button>
 
           {/* View Toggles */}
-          <div className="flex rounded-xl border border-white/[0.06] bg-[#0B0B0C] p-0.5 shadow-inner">
+          <div className="flex rounded-xl border border-white/[0.02] bg-[#0B0B0C] p-0.5 shadow-inner">
             <button
               onClick={() => setViewMode("list")}
               className={cx(
                 "flex h-8 w-8 items-center justify-center rounded-lg transition-all cursor-pointer",
                 viewMode === "list"
-                  ? "bg-white/[0.03] text-white border border-white/[0.06] shadow-sm"
-                  : "text-slate-550 hover:text-white"
+                  ? "bg-white/[0.03] text-white border border-white/[0.02] shadow-sm"
+                  : "text-slate-400 hover:text-white"
               )}
               title="Table View"
             >
@@ -533,8 +545,8 @@ export function DealListPage() {
               className={cx(
                 "flex h-8 w-8 items-center justify-center rounded-lg transition-all cursor-pointer",
                 viewMode === "kanban"
-                  ? "bg-white/[0.03] text-white border border-white/[0.06] shadow-sm"
-                  : "text-slate-555 hover:text-white"
+                  ? "bg-white/[0.03] text-white border border-white/[0.02] shadow-sm"
+                  : "text-slate-400 hover:text-white"
               )}
               title="Kanban Board"
             >
@@ -557,7 +569,7 @@ export function DealListPage() {
                 setSelectedOwnerFilter(e.target.value);
                 setCurrentPage(1);
               }}
-              className="h-10 w-full rounded-xl border border-white/[0.06] bg-[#070708] px-3.5 text-xs text-white outline-none focus:border-[#C5A059] transition cursor-pointer shadow-inner"
+              className="h-10 w-full rounded-xl border border-white/[0.02] bg-[#0F1115] px-3.5 text-xs text-white outline-none focus:border-[#C6A66B] transition cursor-pointer shadow-inner"
             >
               {owners.map(o => (
                 <option key={o} value={o} className="bg-[#0B0B0C]">{o}</option>
@@ -575,7 +587,7 @@ export function DealListPage() {
                 setSelectedSectorFilter(e.target.value);
                 setCurrentPage(1);
               }}
-              className="h-10 w-full rounded-xl border border-white/[0.06] bg-[#070708] px-3.5 text-xs text-white outline-none focus:border-[#C5A059] transition cursor-pointer shadow-inner"
+              className="h-10 w-full rounded-xl border border-white/[0.02] bg-[#0F1115] px-3.5 text-xs text-white outline-none focus:border-[#C6A66B] transition cursor-pointer shadow-inner"
             >
               {sectors.map(s => (
                 <option key={s} value={s} className="bg-[#0B0B0C]">{s}</option>
@@ -601,7 +613,7 @@ export function DealListPage() {
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse table-fixed min-w-[950px]">
                   <thead>
-                    <tr className="border-b border-white/[0.04] bg-white/[0.01] select-none text-slate-400">
+                    <tr className="border-b border-white/[0.02] bg-white/[0.01] select-none text-slate-400">
                       <th className="w-[200px] px-5 py-3.5 text-[10px] font-semibold tracking-wide uppercase">Deal</th>
                       <th className="w-[85px] px-4 py-3.5 text-[10px] font-semibold tracking-wide uppercase">Ref</th>
                       <th className="w-[100px] px-4 py-3.5 text-[10px] font-semibold tracking-wide uppercase">Sector</th>
@@ -623,25 +635,25 @@ export function DealListPage() {
                         <tr 
                           key={deal.id} 
                           onClick={() => navigate(`/deals/${encodeURIComponent(deal.dealRef)}`)}
-                          className="table-row-hover border-b border-white/[0.03]"
+                          className="table-row-hover border-b border-white/[0.02]"
                         >
                           {/* Company Details */}
                           <td className="px-5 py-4 min-w-0">
                             <Link 
                               to={`/deals/${encodeURIComponent(deal.dealRef)}`}
-                              className="block font-sans font-semibold text-xs text-white hover:text-[#C5A059] transition-colors truncate"
+                              className="block font-sans font-semibold text-xs text-white hover:text-[#C6A66B] transition-colors truncate"
                             >
-                              {deal.companyName || "Not Specified"}
+                              {cleanCompanyName(deal.companyName)}
                             </Link>
                             <p className="mt-1 text-[10px] text-slate-500 truncate leading-tight select-none">
-                              {deal.location} — KBS {deal.dealRef}
+                              {deal.location} — Ref: {formatRefDisplay(deal.dealRef)}
                             </p>
                           </td>
 
                           {/* Deal Ref */}
                           <td className="px-4 py-4 select-none">
-                            <span className="inline-flex items-center rounded-lg bg-white/[0.02] border border-white/[0.04] px-2 py-0.5 text-[10px] font-medium text-slate-400 font-mono">
-                              {deal.dealRef}
+                            <span className="inline-flex items-center rounded-lg bg-white/[0.02] border border-white/[0.02] px-2 py-0.5 text-[10px] font-medium text-slate-400 font-mono">
+                              {formatRefDisplay(deal.dealRef)}
                             </span>
                           </td>
 
@@ -671,7 +683,7 @@ export function DealListPage() {
                           <td className="px-4 py-4 font-sans text-xs font-medium">
                             <span className={cx(
                               "inline-flex items-center gap-1",
-                              isHighMultiplier ? "text-amber-500 font-semibold" : "text-emerald-450"
+                              isHighMultiplier ? "text-amber-500 font-semibold" : "text-emerald-400"
                             )}>
                               {formatMultiplier(deal.multiplier)}
                               {isHighMultiplier && (
@@ -700,7 +712,7 @@ export function DealListPage() {
                                 if (s === "killed") {
                                     return "bg-rose-500/5 text-rose-500 border-rose-500/10";
                                 }
-                                return "bg-[#C5A059]/5 text-[#C5A059] border-[#C5A059]/10";
+                                return "bg-[#C6A66B]/5 text-[#C6A66B] border-[#C6A66B]/10";
                               })()
                             )}>
                               {deal.status}
@@ -713,7 +725,7 @@ export function DealListPage() {
                               <span className={cx(
                                 "mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full",
                                 deal.nextActionColor === "red" ? "bg-rose-500" :
-                                deal.nextActionColor === "yellow" ? "bg-amber-450" : "bg-blue-400"
+                                deal.nextActionColor === "yellow" ? "bg-amber-500" : "bg-blue-400"
                               )} />
                               <div className="min-w-0">
                                 <p className="text-[10px] font-semibold text-white leading-tight truncate">
@@ -749,7 +761,7 @@ export function DealListPage() {
               </div>
 
               {/* Pagination Controls */}
-              <div className="flex items-center justify-between border-t border-white/[0.04] bg-white/[0.01] px-5 py-3.5 select-none">
+              <div className="flex items-center justify-between border-t border-white/[0.02] bg-white/[0.01] px-5 py-3.5 select-none">
                 <div className="text-[9px] font-bold uppercase tracking-wider text-slate-500">
                   Showing {Math.min((currentPage - 1) * itemsPerPage + 1, filteredDeals.length)}–{Math.min(currentPage * itemsPerPage, filteredDeals.length)} of {filteredDeals.length}
                 </div>
@@ -862,14 +874,14 @@ export function DealListPage() {
             <button
               type="button"
               onClick={() => setIsModalOpen(false)}
-              className="h-9 px-4 rounded-xl border border-white/10 text-slate-400 text-xs font-bold uppercase tracking-wider hover:bg-white/5 transition cursor-pointer"
+              className="h-9 px-4 rounded-xl border border-white/[0.02] text-slate-400 text-xs font-bold uppercase tracking-wider hover:bg-white/[0.015] transition cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmittingDeal}
-              className="h-9 px-4 rounded-xl bg-gradient-to-r from-[#C5A059] to-[#A8873F] text-slate-950 text-xs font-bold uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none hover:shadow-glow-bronze transition cursor-pointer"
+              className="h-9 px-4 rounded-xl bg-gradient-to-r from-[#C6A66B] to-[#B8924F] text-slate-950 text-xs font-bold uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none hover:shadow-glow-bronze transition cursor-pointer"
             >
               {isSubmittingDeal ? "Adding..." : "Add Deal"}
             </button>

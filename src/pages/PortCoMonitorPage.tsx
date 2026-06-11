@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { cx } from "../utils/cx";
 import { fetchPortfolioData, triggerPortfolioAnalysis, getJobStatus } from "../api/admin";
+import { StatCard } from "../components/ui/StatCard";
 import type { PortfolioMetricRecord, PortfolioAlertRecord, PortfolioHealthRecord } from "../../lib/portfolio/db";
 
 // ─── Inline Premium Sparkline ──────────────────────────────────────────────────
@@ -73,7 +74,7 @@ function Sparkline({
           cy={lastPoint.y.toFixed(1)}
           r="3"
           fill={strokeColor}
-          stroke="#0E121A"
+          stroke="#161B22"
           strokeWidth="1.5"
         />
       </svg>
@@ -244,7 +245,7 @@ export function PortCoMonitorPage() {
   if (isLoading) {
     return (
       <div className="flex h-[400px] flex-col items-center justify-center space-y-4 text-slate-400">
-        <RefreshCw className="h-8 w-8 animate-spin text-[#C5A059]" />
+        <RefreshCw className="h-8 w-8 animate-spin text-[#C6A66B]" />
         <p className="text-sm font-semibold tracking-wide">Loading portfolio intelligence feed...</p>
       </div>
     );
@@ -256,7 +257,7 @@ export function PortCoMonitorPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/5 pb-4">
         <div className="space-y-1">
           <h1 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
-            PortCo <span className="text-[#C5A059]">Intelligence Monitor</span>
+            PortCo <span className="text-[#C6A66B]">Intelligence Monitor</span>
             {isLocalFallbackActive && (
               <span className="inline-flex items-center rounded bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-500">
                 Fallback Database
@@ -271,7 +272,7 @@ export function PortCoMonitorPage() {
         <button
           onClick={handleRunAnalysis}
           disabled={isProcessing}
-          className="inline-flex h-9 items-center gap-2 rounded-xl border border-white/10 bg-[#C5A059]/10 hover:bg-[#C5A059]/20 px-4 text-xs font-extrabold uppercase tracking-wider text-[#C5A059] shadow-sm cursor-pointer disabled:opacity-50 transition"
+          className="inline-flex h-9 items-center gap-2 rounded-xl border border-white/[0.02] bg-[#C6A66B]/10 hover:bg-[#C6A66B]/20 px-4 text-xs font-extrabold uppercase tracking-wider text-[#C6A66B] shadow-sm cursor-pointer disabled:opacity-50 transition"
         >
           <RefreshCw className={cx("h-3.5 w-3.5", isProcessing && "animate-spin")} />
           <span>{isProcessing ? "Analyzing..." : "Run Portfolio Analysis"}</span>
@@ -287,8 +288,8 @@ export function PortCoMonitorPage() {
       )}
 
       {isProcessing && (
-        <div className="rounded-3xl border border-white/[0.06] bg-[#0E121A]/50 p-6 flex flex-col items-center justify-center text-center space-y-4 animate-pulse relative overflow-hidden backdrop-blur-sm">
-          <RefreshCw className="h-7 w-7 animate-spin text-[#C5A059]" />
+        <div className="rounded-3xl border border-white/[0.02] bg-[#161B22]/50 p-6 flex flex-col items-center justify-center text-center space-y-4 animate-pulse relative overflow-hidden backdrop-blur-sm">
+          <RefreshCw className="h-7 w-7 animate-spin text-[#C6A66B]" />
           <div className="space-y-1">
             <p className="text-sm font-black text-white">{processStatusText}</p>
             <p className="text-[10px] text-slate-500 uppercase tracking-widest font-extrabold">Inngest Worker Pipeline Active</p>
@@ -299,63 +300,62 @@ export function PortCoMonitorPage() {
       {!isProcessing && (
         <>
           {/* Top KPI Cards Grid */}
-          <div className="grid gap-4 grid-cols-2 lg:grid-cols-4 select-none">
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4 select-none">
             {/* Health Index */}
-            <div className="rounded-2xl border border-white/[0.04] bg-[#0E121A] p-4.5 flex items-center justify-between shadow-premium-card">
-              <div className="space-y-1">
-                <p className="text-[9px] font-extrabold uppercase tracking-widest text-slate-500 flex items-center gap-1">
-                  <Heart className="h-3 w-3 text-rose-500" />
+            <div className="group block rounded-2xl p-6 select-none premium-card card-sheen flex items-start justify-between gap-3">
+              <div className="min-w-0 flex-1 space-y-2">
+                <p className="text-[9.5px] font-bold uppercase tracking-widest text-slate-400 group-hover:text-slate-350 transition-colors flex items-center gap-1.5">
+                  <Heart className="h-3.5 w-3.5 text-rose-500 animate-pulse" />
                   Health Index
                 </p>
-                <p className="text-2xl font-black text-white tracking-tight">{healthIndex}%</p>
-                <p className="text-[10px] text-slate-400 font-semibold">Portfolio-wide avg</p>
+                <div className="text-2xl font-semibold tracking-tight mt-1 text-white">
+                  {healthIndex}%
+                </div>
+                <p className="text-[9.5px] font-semibold text-slate-500 mt-2 tracking-wide leading-none">
+                  Portfolio-wide avg
+                </p>
               </div>
-              <HealthGauge score={healthIndex} />
+              <div className="shrink-0 pt-0.5">
+                <HealthGauge score={healthIndex} />
+              </div>
             </div>
 
             {/* Total PortCos */}
-            <div className="rounded-2xl border border-white/[0.04] bg-[#0E121A] p-4.5 space-y-1 shadow-premium-card">
-              <p className="text-[9px] font-extrabold uppercase tracking-widest text-slate-500 flex items-center gap-1">
-                <Building2 className="h-3 w-3 text-blue-500" />
-                Active PortCos
-              </p>
-              <p className="text-2xl font-black text-white tracking-tight">{portfolioCompanies.length}</p>
-              <p className="text-[10px] text-slate-400 font-semibold">Under monitoring</p>
-            </div>
+            <StatCard
+              label="Active PortCos"
+              value={portfolioCompanies.length}
+              subLabel="Under monitoring"
+              icon={<Building2 className="h-4.5 w-4.5" />}
+              tone="default"
+            />
 
             {/* Active Alerts */}
-            <div className="rounded-2xl border border-white/[0.04] bg-[#0E121A] p-4.5 space-y-1 shadow-premium-card">
-              <p className="text-[9px] font-extrabold uppercase tracking-widest text-slate-500 flex items-center gap-1">
-                <AlertTriangle className="h-3 w-3 text-amber-500" />
-                Active Alerts
-              </p>
-              <p className="text-2xl font-black text-white tracking-tight">
-                {activeAlerts.length}
-              </p>
-              <p className="text-[10px] text-slate-450 font-semibold">
-                {criticalAlertsCount} critical · {mediumAlertsCount} medium
-              </p>
-            </div>
+            <StatCard
+              label="Active Alerts"
+              value={activeAlerts.length}
+              subLabel={`${criticalAlertsCount} critical · ${mediumAlertsCount} medium`}
+              icon={<AlertTriangle className="h-4.5 w-4.5" />}
+              tone={activeAlerts.length > 0 ? "rose" : "emerald"}
+            />
 
-            {/* Reporting Cadence */}
-            <div className="rounded-2xl border border-white/[0.04] bg-[#0E121A] p-4.5 space-y-1 shadow-premium-card">
-              <p className="text-[9px] font-extrabold uppercase tracking-widest text-slate-500 flex items-center gap-1">
-                <ClipboardCheck className="h-3 w-3 text-emerald-500" />
-                Reporting Status
-              </p>
-              <p className="text-2xl font-black text-white tracking-tight">{reportingStatusText}</p>
-              <p className="text-[10px] text-slate-400 font-semibold">Monthly metrics check</p>
-            </div>
+            {/* Reporting Status */}
+            <StatCard
+              label="Reporting Status"
+              value={reportingStatusText}
+              subLabel="Monthly metrics check"
+              icon={<ClipboardCheck className="h-4.5 w-4.5" />}
+              tone="default"
+            />
           </div>
 
           {/* Claude Portfolio Briefing & Alert Center */}
           <div className="grid gap-6 grid-cols-1 lg:grid-cols-3">
             {/* Claude Summary Briefing */}
-            <div className="lg:col-span-2 rounded-3xl border border-[#C5A059]/20 bg-gradient-to-br from-[#0E121A] to-[#121622] p-6 shadow-premium-card relative overflow-hidden flex flex-col justify-between">
-              <div className="absolute top-0 right-0 w-64 h-64 bg-[#C5A059]/5 blur-3xl pointer-events-none" />
+            <div className="lg:col-span-2 rounded-3xl border border-[#C6A66B]/20 bg-gradient-to-br from-[#161B22] to-[#121622] p-6 shadow-premium-card relative overflow-hidden flex flex-col justify-between">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-[#C6A66B]/5 blur-3xl pointer-events-none" />
               <div className="relative z-10 space-y-4">
                 <div className="flex items-center gap-2">
-                  <Sparkles className="h-4.5 w-4.5 text-[#C5A059]" />
+                  <Sparkles className="h-4.5 w-4.5 text-[#C6A66B]" />
                   <h3 className="text-xs font-extrabold uppercase tracking-widest text-slate-350">
                     Claude AI Review & Briefing
                   </h3>
@@ -377,7 +377,7 @@ export function PortCoMonitorPage() {
             </div>
 
             {/* Alert Center */}
-            <div className="rounded-3xl border border-white/[0.06] bg-[#0E121A] p-6 shadow-premium-card space-y-4 max-h-[350px] overflow-y-auto">
+            <div className="rounded-3xl border border-white/[0.02] bg-[#161B22] p-6 shadow-premium-card space-y-4 max-h-[350px] overflow-y-auto">
               <div className="flex items-center gap-2 pb-2 border-b border-white/5">
                 <ShieldAlert className="h-4.5 w-4.5 text-rose-500" />
                 <h3 className="text-xs font-extrabold uppercase tracking-widest text-white">
@@ -469,7 +469,7 @@ export function PortCoMonitorPage() {
                 return (
                   <div
                     key={comp.companyId}
-                    className="rounded-3xl border border-white/[0.06] bg-[#0E121A] p-6 sm:p-8 shadow-premium-card card-sheen relative overflow-hidden"
+                    className="rounded-3xl border border-white/[0.02] bg-[#161B22] p-6 sm:p-8 shadow-premium-card card-sheen relative overflow-hidden"
                   >
                     <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-white/[0.01] to-transparent pointer-events-none blur-3xl" />
 
@@ -517,7 +517,7 @@ export function PortCoMonitorPage() {
                       {/* Main Metrics Panels */}
                       <div className="grid gap-4 grid-cols-2 lg:grid-cols-6 select-none">
                         {/* Revenue */}
-                        <div className="rounded-2xl border border-white/[0.04] bg-white/[0.01] p-4.5 space-y-1 hover:border-white/10 transition-colors">
+                        <div className="rounded-2xl border border-white/[0.02] bg-white/[0.01] p-4.5 space-y-1 hover:border-white/[0.02] transition-colors">
                           <p className="text-[9px] font-extrabold uppercase tracking-widest text-slate-500">
                             Revenue (MTD)
                           </p>
@@ -531,7 +531,7 @@ export function PortCoMonitorPage() {
                         </div>
 
                         {/* EBITDA */}
-                        <div className="rounded-2xl border border-white/[0.04] bg-white/[0.01] p-4.5 space-y-1 hover:border-white/10 transition-colors">
+                        <div className="rounded-2xl border border-white/[0.02] bg-white/[0.01] p-4.5 space-y-1 hover:border-white/[0.02] transition-colors">
                           <p className="text-[9px] font-extrabold uppercase tracking-widest text-slate-500">
                             EBITDA (MTD)
                           </p>
@@ -544,7 +544,7 @@ export function PortCoMonitorPage() {
                         </div>
 
                         {/* DSCR */}
-                        <div className="rounded-2xl border border-white/[0.04] bg-white/[0.01] p-4.5 space-y-1 hover:border-white/10 transition-colors">
+                        <div className="rounded-2xl border border-white/[0.02] bg-white/[0.01] p-4.5 space-y-1 hover:border-white/[0.02] transition-colors">
                           <p className="text-[9px] font-extrabold uppercase tracking-widest text-slate-500">
                             DSCR actual
                           </p>
@@ -557,12 +557,12 @@ export function PortCoMonitorPage() {
                           </p>
                           <div className="pt-2 flex items-center justify-between gap-2">
                             <span className="text-[9px] font-bold text-slate-500">Trend</span>
-                            <Sparkline data={dscrs} strokeColor="#C5A059" />
+                            <Sparkline data={dscrs} strokeColor="#C6A66B" />
                           </div>
                         </div>
 
                         {/* Leverage */}
-                        <div className="rounded-2xl border border-white/[0.04] bg-white/[0.01] p-4.5 space-y-1 hover:border-white/10 transition-colors">
+                        <div className="rounded-2xl border border-white/[0.02] bg-white/[0.01] p-4.5 space-y-1 hover:border-white/[0.02] transition-colors">
                           <p className="text-[9px] font-extrabold uppercase tracking-widest text-slate-500">
                             Leverage ratio
                           </p>
@@ -577,7 +577,7 @@ export function PortCoMonitorPage() {
                         </div>
 
                         {/* Headcount */}
-                        <div className="rounded-2xl border border-white/[0.04] bg-white/[0.01] p-4.5 space-y-1 hover:border-white/10 transition-colors">
+                        <div className="rounded-2xl border border-white/[0.02] bg-white/[0.01] p-4.5 space-y-1 hover:border-white/[0.02] transition-colors">
                           <p className="text-[9px] font-extrabold uppercase tracking-widest text-slate-500">
                             Headcount
                           </p>
@@ -588,7 +588,7 @@ export function PortCoMonitorPage() {
                         </div>
 
                         {/* Churn Rate */}
-                        <div className="rounded-2xl border border-white/[0.04] bg-white/[0.01] p-4.5 space-y-1 hover:border-white/10 transition-colors">
+                        <div className="rounded-2xl border border-white/[0.02] bg-white/[0.01] p-4.5 space-y-1 hover:border-white/[0.02] transition-colors">
                           <p className="text-[9px] font-extrabold uppercase tracking-widest text-slate-500">
                             Customer Churn
                           </p>
@@ -603,7 +603,7 @@ export function PortCoMonitorPage() {
                       </div>
 
                       {/* Trend Summary Description text */}
-                      <div className="rounded-2xl border border-white/[0.03] bg-white/[0.005] px-5 py-3.5 flex items-center justify-between text-xs font-semibold leading-relaxed text-slate-400 select-none">
+                      <div className="rounded-2xl border border-white/[0.02] bg-white/[0.005] px-5 py-3.5 flex items-center justify-between text-xs font-semibold leading-relaxed text-slate-400 select-none">
                         <span className="flex items-center gap-2">
                           <Activity className="h-3.5 w-3.5 text-slate-500" />
                           <span>{health.trendSummary}</span>

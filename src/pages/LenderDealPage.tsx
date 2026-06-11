@@ -49,7 +49,7 @@ function PasswordGate({ dealRef, onUnlock }: { dealRef: string; onUnlock: () => 
 
       <form 
         onSubmit={handleSubmit} 
-        className="w-full max-w-md relative z-10 rounded-2xl border border-white/10 bg-acp-card backdrop-blur-xl p-8 shadow-2xl"
+        className="w-full max-w-md relative z-10 rounded-2xl border border-white/[0.02] bg-acp-card backdrop-blur-xl p-8 shadow-2xl"
       >
         <div className="flex flex-col items-center text-center">
           {/* Rotating vault dial graphic around lock icon */}
@@ -62,7 +62,7 @@ function PasswordGate({ dealRef, onUnlock }: { dealRef: string; onUnlock: () => 
               <circle cx="50" cy="50" r="45" stroke="currentColor" strokeWidth="1.2" strokeDasharray="6 4" fill="none" />
               <circle cx="50" cy="50" r="38" stroke="currentColor" strokeWidth="0.6" strokeDasharray="2 12" fill="none" />
             </svg>
-            <div className="relative z-10 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-acp-bronze to-acp-bronze-dark text-white shadow-lg border border-white/10 group">
+            <div className="relative z-10 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-acp-bronze to-acp-bronze-dark text-white shadow-lg border border-white/[0.02] group">
               <LockKeyhole className="h-6 w-6 transition-transform duration-500 group-hover:scale-110" aria-hidden="true" />
               {password.length > 0 && (
                 <span className="absolute inset-0 rounded-2xl animate-ping bg-acp-bronze/20 opacity-30 pointer-events-none" />
@@ -76,7 +76,7 @@ function PasswordGate({ dealRef, onUnlock }: { dealRef: string; onUnlock: () => 
           <p className="mt-1 text-[10px] font-extrabold uppercase tracking-[0.2em] text-acp-bronze">
             Secure Lender Portal
           </p>
-          <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-white/5 px-3 py-1 text-[10px] font-bold text-slate-400 border border-white/5">
+          <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-white/[0.015] px-3 py-1 text-[10px] font-bold text-slate-400 border border-white/5">
             Reference: {dealRef}
           </div>
         </div>
@@ -98,7 +98,7 @@ function PasswordGate({ dealRef, onUnlock }: { dealRef: string; onUnlock: () => 
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               placeholder="••••••••"
-              className="mt-2.5 h-11 w-full rounded-xl border border-white/10 bg-white/5 px-4 text-sm text-white placeholder-slate-600 outline-none transition-all duration-300 focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze"
+              className="mt-2.5 h-11 w-full rounded-xl border border-white/[0.02] bg-white/[0.015] px-4 text-sm text-white placeholder-slate-600 outline-none transition-all duration-300 focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze"
               autoComplete="current-password"
             />
           </div>
@@ -155,7 +155,7 @@ function UnlockedLenderPage({ dealRef }: { dealRef: string }) {
       
       <section className="space-y-4">
         <div className="flex items-center gap-3">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/5 border border-white/10 text-acp-bronze shadow-sm">
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/[0.015] border border-white/[0.02] text-acp-bronze shadow-sm">
             <ShieldCheck className="h-5 w-5" aria-hidden="true" />
           </span>
           <h2 className="text-sm font-bold uppercase tracking-wider text-white">Approved Documents</h2>

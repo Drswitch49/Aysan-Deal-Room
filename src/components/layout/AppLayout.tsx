@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import type { ReactNode } from "react";
 import {
   Building2, Database, LogOut, Menu, X,
-  LayoutDashboard, Kanban, Users, Settings, KeyRound
+  LayoutDashboard, Kanban, Users, Settings, KeyRound, Activity
 } from "lucide-react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import { cx } from "../../utils/cx";
@@ -19,6 +19,7 @@ const NAV_SECTIONS = [
     items: [
       { to: "/", icon: <LayoutDashboard className="h-4 w-4" />, label: "Dashboard", end: true },
       { to: "/deals", icon: <Kanban className="h-4 w-4" />, label: "Deal Pipeline", end: true },
+      { to: "/admin/portco", icon: <Activity className="h-4 w-4" />, label: "Portfolio Monitor" },
     ],
   },
   {
@@ -122,11 +123,7 @@ export function AppLayout() {
   return (
     <div className="min-h-screen text-slate-100 lg:grid lg:grid-cols-[260px_minmax(0,1fr)] bg-acp-ink">
       {/* ── Desktop Sidebar ───────────────────────────────────────────── */}
-      <aside className="hidden h-screen sticky top-0 border-r border-white/[0.06] bg-[#0C0C0D] text-white lg:flex flex-col relative overflow-hidden">
-        {/* Decorative ambient glows */}
-        <div className="absolute -left-16 -top-16 h-56 w-56 rounded-full bg-acp-bronze/5 blur-3xl pointer-events-none" />
-        <div className="absolute -right-24 bottom-8 h-72 w-72 rounded-full bg-acp-bronze/5 blur-3xl pointer-events-none" />
-
+      <aside className="hidden h-screen sticky top-0 border-r border-white/[0.02] bg-[#101317] text-white lg:flex flex-col relative overflow-hidden">
         <div className="flex flex-col h-full px-5 py-7 z-10 relative">
           <BrandBlock />
           <NavContent
@@ -148,9 +145,7 @@ export function AppLayout() {
           />
 
           {/* Drawer */}
-          <aside className="relative flex w-[260px] max-w-[88vw] flex-col border-r border-white/[0.06] bg-[#0C0C0D] text-white h-full px-5 py-7 shadow-2xl animate-slide-in-left overflow-hidden">
-            <div className="absolute -left-12 -top-12 h-48 w-48 rounded-full bg-acp-bronze/5 blur-3xl pointer-events-none" />
-
+          <aside className="relative flex w-[260px] max-w-[88vw] flex-col border-r border-white/[0.02] bg-[#101317] text-white h-full px-5 py-7 shadow-2xl animate-slide-in-left overflow-hidden">
             <div className="flex flex-col h-full z-10">
               <div className="flex items-center justify-between mb-6">
                 <BrandBlock />
@@ -178,7 +173,7 @@ export function AppLayout() {
       {/* ── Main Content Area ─────────────────────────────────────────── */}
       <div className="min-w-0 flex flex-col min-h-screen relative z-10">
         {/* Top Header */}
-        <header className="sticky top-0 z-20 border-b border-white/[0.06] bg-[#0A0A0B]/60 backdrop-blur-xl">
+        <header className="sticky top-0 z-20 border-b border-white/[0.02] bg-[#0F1115]/60 backdrop-blur-xl">
           <div className="flex items-center justify-between gap-4 px-5 py-3.5 sm:px-8">
             {/* Mobile: Hamburger + Brand */}
             <div className="lg:hidden flex shrink-0 items-center gap-3 min-w-0">
@@ -244,6 +239,7 @@ function getBreadcrumb(pathname: string): string {
   if (pathname === "/admin/hr") return "HR & Stakeholders";
   if (pathname === "/admin/settings") return "Settings";
   if (pathname === "/admin/messages") return "Messages";
+  if (pathname === "/admin/portco") return "Portfolio Monitor";
   return "Dashboard";
 }
 
@@ -251,15 +247,15 @@ function getBreadcrumb(pathname: string): string {
 function BrandBlock({ compact = false }: { compact?: boolean }) {
   if (compact) {
     return (
-      <Link to="/" className="flex min-w-0 items-center gap-2.5 hover:opacity-90 transition">
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#C5A059]/10 border border-[#C5A059]/20">
-          <Building2 className="h-4 w-4 text-[#C5A059]" aria-hidden="true" />
+      <Link to="/" className="flex min-w-0 items-center gap-2.5 hover:opacity-85 transition">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#C6A66B]/10 border border-[#C6A66B]/15">
+          <Building2 className="h-4 w-4 text-[#C6A66B]" aria-hidden="true" />
         </div>
         <div className="min-w-0">
-          <p className="truncate font-heading text-sm font-semibold tracking-tight text-white uppercase leading-none">
+          <p className="truncate font-heading text-xs font-semibold tracking-tight text-white uppercase leading-none">
             Aysan Capital
           </p>
-          <p className="truncate text-[9px] font-bold uppercase tracking-widest text-[#C5A059]/80 leading-none mt-0.5">
+          <p className="truncate text-[8px] font-bold uppercase tracking-widest text-[#C6A66B]/85 leading-none mt-0.5">
             Deal OS
           </p>
         </div>
@@ -268,15 +264,15 @@ function BrandBlock({ compact = false }: { compact?: boolean }) {
   }
 
   return (
-    <Link to="/" className="block hover:opacity-90 transition select-none">
-      <p className="text-[9px] font-bold uppercase tracking-[0.22em] text-slate-500 leading-none">
-        AYSAN CAPITAL PARTNERS
+    <Link to="/" className="block hover:opacity-85 transition select-none">
+      <p className="text-[8.5px] font-semibold uppercase tracking-[0.2em] text-slate-500 leading-none">
+        Aysan Capital Partners
       </p>
-      <h1 className="font-heading text-lg font-bold text-white leading-none uppercase tracking-tight mt-1.5">
+      <h1 className="font-heading text-[15px] font-black text-white leading-none uppercase tracking-tight mt-2">
         ACP Deal OS
       </h1>
-      <p className="text-[8px] font-bold tracking-wider text-[#C5A059]/80 uppercase mt-1">
-        Operator-Investor Platform
+      <p className="text-[8px] font-medium tracking-wide text-[#C6A66B]/90 uppercase mt-1">
+        Operational Intelligence
       </p>
     </Link>
   );
@@ -293,10 +289,10 @@ function NavContent({
   onNavigate?: () => void;
 }) {
   return (
-    <nav className={cx("space-y-5 pr-1 select-none", className)}>
+    <nav className={cx("space-y-6 pr-1 select-none", className)}>
       {NAV_SECTIONS.map((section) => (
-        <div key={section.group} className="space-y-0.5">
-          <p className="text-[8.5px] font-extrabold uppercase tracking-[0.2em] text-slate-550 px-3 mb-2">
+        <div key={section.group} className="space-y-1">
+          <p className="text-[8.5px] font-extrabold uppercase tracking-[0.2em] text-slate-500 px-3 mb-2">
             {section.group}
           </p>
           {section.items.map((item) => {
@@ -348,20 +344,20 @@ function SideNavItem({
       onClick={onClick}
       className={({ isActive }) =>
         cx(
-          "flex h-9 items-center gap-2.5 rounded-lg px-3 text-xs font-semibold transition-all duration-150 relative group border",
+          "flex h-9.5 items-center gap-2.5 rounded-lg px-3.5 text-xs font-medium transition-all duration-200 ease-in-out relative group border",
           isActive
-            ? "nav-item-active bg-white/[0.03] border-white/[0.05] text-white"
-            : "border-transparent text-slate-400 hover:bg-white/[0.02] hover:text-slate-200 hover:border-white/[0.03]"
+            ? "bg-white/[0.03] border-white/[0.02] text-white shadow-sm"
+            : "border-transparent text-slate-450 hover:bg-white/[0.015] hover:text-slate-200 hover:border-white/[0.02]"
         )
       }
       aria-current={undefined}
     >
       {({ isActive }) => (
         <>
-          <span className={cx("shrink-0 transition-colors", isActive ? "text-[#C5A059]" : "text-slate-550 group-hover:text-slate-300")}>
+          <span className={cx("shrink-0 transition-colors duration-200", isActive ? "text-[#C6A66B]" : "text-slate-500 group-hover:text-slate-300")}>
             {icon}
           </span>
-          <span className="flex-1 truncate">{label}</span>
+          <span className="flex-1 truncate tracking-wide">{label}</span>
           {badge}
         </>
       )}
@@ -372,17 +368,17 @@ function SideNavItem({
 // ─── User Footer ──────────────────────────────────────────────────────────────
 function UserFooter({ onLogout, onChangePassword }: { onLogout: () => void; onChangePassword: () => void }) {
   return (
-    <div className="mt-auto pt-4 border-t border-white/[0.04]">
+    <div className="mt-auto pt-4 border-t border-white/[0.02]">
       <div className="flex items-center justify-between gap-2.5">
         <div className="flex items-center gap-2.5 min-w-0">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-[#C5A059] to-[#D4B876] text-[10px] font-bold text-slate-950 border border-[#C5A059]/20 shadow-inner">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/[0.02] text-[#C6A66B] border border-white/[0.05] text-[10px] font-bold">
             AO
           </div>
           <div className="min-w-0">
             <p className="truncate text-xs font-semibold text-white tracking-wide leading-none mb-0.5">
               Ayo Oyesanya
             </p>
-            <p className="truncate text-[9px] font-bold uppercase tracking-wider text-[#C5A059]/80 leading-none">
+            <p className="truncate text-[9px] font-bold uppercase tracking-wider text-[#C6A66B]/80 leading-none">
               Managing Partner
             </p>
           </div>
@@ -390,7 +386,7 @@ function UserFooter({ onLogout, onChangePassword }: { onLogout: () => void; onCh
         <div className="flex items-center gap-1 ml-auto shrink-0">
           <button
             onClick={onChangePassword}
-            className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/[0.06] bg-white/[0.02] text-slate-400 hover:text-[#C5A059] hover:bg-[#C5A059]/10 hover:border-[#C5A059]/25 transition cursor-pointer"
+            className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/[0.02] bg-white/[0.02] text-slate-400 hover:text-[#C6A66B] hover:bg-[#C6A66B]/10 hover:border-[#C6A66B]/25 transition cursor-pointer"
             title="Change Passcode"
             type="button"
             aria-label="Change passcode"
@@ -399,7 +395,7 @@ function UserFooter({ onLogout, onChangePassword }: { onLogout: () => void; onCh
           </button>
           <button
             onClick={onLogout}
-            className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/[0.06] bg-white/[0.02] text-slate-400 hover:text-rose-455 hover:bg-rose-500/10 hover:border-rose-500/25 transition cursor-pointer"
+            className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/[0.02] bg-white/[0.02] text-slate-400 hover:text-rose-455 hover:bg-rose-500/10 hover:border-rose-500/25 transition cursor-pointer"
             title="Log Out Session"
             type="button"
             aria-label="Log out"
@@ -473,7 +469,7 @@ function ChangePasswordModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
             placeholder="••••••••"
-            className="h-10 w-full rounded-xl border border-white/10 bg-white/5 px-3 text-xs text-white placeholder-slate-600 outline-none focus:border-acp-bronze transition"
+            className="h-10 w-full rounded-xl border border-white/[0.02] bg-white/[0.015] px-3 text-xs text-white placeholder-slate-600 outline-none focus:border-acp-bronze transition"
           />
         </FormField>
 
@@ -485,7 +481,7 @@ function ChangePasswordModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
             placeholder="••••••••"
-            className="h-10 w-full rounded-xl border border-white/10 bg-white/5 px-3 text-xs text-white placeholder-slate-600 outline-none focus:border-acp-bronze transition"
+            className="h-10 w-full rounded-xl border border-white/[0.02] bg-white/[0.015] px-3 text-xs text-white placeholder-slate-600 outline-none focus:border-acp-bronze transition"
           />
         </FormField>
 
@@ -493,7 +489,7 @@ function ChangePasswordModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
           <button
             type="button"
             onClick={onClose}
-            className="h-9 px-4 rounded-xl border border-white/10 text-slate-350 text-xs font-bold uppercase tracking-wider hover:bg-white/5 transition cursor-pointer"
+            className="h-9 px-4 rounded-xl border border-white/[0.02] text-slate-350 text-xs font-bold uppercase tracking-wider hover:bg-white/[0.015] transition cursor-pointer"
           >
             Cancel
           </button>

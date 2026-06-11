@@ -1,4 +1,4 @@
-import { EventSchemas, Inngest } from "inngest";
+import { Inngest } from "inngest";
 
 // ─── Platform Event Schema ────────────────────────────────────────────────────
 // Every event in the system is defined here with its full TypeScript type.
@@ -148,7 +148,6 @@ type Events = {
 // functions or send events.
 export const inngest = new Inngest({
   id: "acp-deal-os",
-  schemas: new EventSchemas().fromRecord<Events>(),
 });
 
 export type { Events as PlatformEvents };

@@ -39,7 +39,7 @@ const STAGE_COLORS: Record<DealStage, { bg: string; border: string; text: string
   LOI:           { bg: "bg-amber-500/8",   border: "border-amber-500/20",  text: "text-amber-400",   badge: "bg-amber-500/12 text-amber-400 border-amber-500/20" },
   DUE_DILIGENCE: { bg: "bg-purple-500/8",  border: "border-purple-500/20", text: "text-purple-400",  badge: "bg-purple-500/12 text-purple-400 border-purple-500/20" },
   CLOSING:       { bg: "bg-emerald-500/8", border: "border-emerald-500/20",text: "text-emerald-400", badge: "bg-emerald-500/12 text-emerald-400 border-emerald-500/20" },
-  PORTFOLIO:     { bg: "bg-[#c5a059]/8",   border: "border-[#c5a059]/20",  text: "text-[#c5a059]",   badge: "bg-[#c5a059]/12 text-[#c5a059] border-[#c5a059]/20" },
+  PORTFOLIO:     { bg: "bg-[#C6A66B]/8",   border: "border-[#C6A66B]/20",  text: "text-[#C6A66B]",   badge: "bg-[#C6A66B]/12 text-[#C6A66B] border-[#C6A66B]/20" },
   KILLED:        { bg: "bg-red-500/8",     border: "border-red-500/20",    text: "text-red-400",     badge: "bg-red-500/12 text-red-400 border-red-500/20" },
 };
 
@@ -107,8 +107,8 @@ function DealCard({ deal, isDragging = false, isTransitioning = false }: DealCar
         "group relative rounded-xl border bg-[#0e0e10] p-3.5 transition-all duration-200",
         "hover:border-white/[0.12] hover:bg-[#141417]",
         isDragging
-          ? "opacity-50 scale-95 border-white/10"
-          : "border-white/[0.06]",
+          ? "opacity-50 scale-95 border-white/[0.02]"
+          : "border-white/[0.02]",
         isTransitioning && "opacity-60 pointer-events-none"
       )}
     >
@@ -133,7 +133,7 @@ function DealCard({ deal, isDragging = false, isTransitioning = false }: DealCar
         className="block mb-2 pr-5"
         onClick={(e) => e.stopPropagation()}
       >
-        <p className="text-[12px] font-semibold text-white leading-snug hover:text-[#c5a059] transition line-clamp-2">
+        <p className="text-[12px] font-semibold text-white leading-snug hover:text-[#C6A66B] transition line-clamp-2">
           {deal.companyName || deal.dealRef}
         </p>
       </Link>
@@ -144,7 +144,7 @@ function DealCard({ deal, isDragging = false, isTransitioning = false }: DealCar
           <span className="text-[9px] font-mono text-slate-600">{deal.dealRef}</span>
         )}
         {deal.sector && (
-          <span className="inline-flex items-center gap-1 rounded-md border border-white/[0.04] bg-white/[0.02] px-1.5 py-0.5 text-[9px] font-medium text-slate-500">
+          <span className="inline-flex items-center gap-1 rounded-md border border-white/[0.02] bg-white/[0.02] px-1.5 py-0.5 text-[9px] font-medium text-slate-500">
             {deal.sector}
           </span>
         )}
@@ -202,7 +202,7 @@ function KanbanColumn({ stage, deals, transitioningDealId, isDropTarget = false 
           isOver
             ? cx("border-opacity-60", colors.border, colors.bg)
             : isDropTarget
-            ? "border-white/[0.06] bg-white/[0.01]"
+            ? "border-white/[0.02] bg-white/[0.01]"
             : "border-transparent"
         )}
       >

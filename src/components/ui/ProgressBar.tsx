@@ -55,7 +55,7 @@ export function ProgressRing({ value, size = 64, strokeWidth = 5 }: { value: num
         />
         <defs>
           <linearGradient id="progressRingGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#C5A059" />
+            <stop offset="0%" stopColor="#C6A66B" />
             <stop offset="50%" stopColor="#6366f1" />
             <stop offset="100%" stopColor="#10b981" />
           </linearGradient>

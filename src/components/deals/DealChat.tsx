@@ -145,7 +145,7 @@ export function DealChat({
           </h3>
         </div>
         <p className="text-sm text-slate-300 mb-6 leading-relaxed">
-          The deal-room chat function requires a new table named <code className="bg-white/10 px-1.5 py-0.5 rounded text-acp-bronze font-mono">Chat_Messages</code> in your Airtable base to store conversation histories securely.
+          The deal-room chat function requires a new table named <code className="bg-white/[0.02] px-1.5 py-0.5 rounded text-acp-bronze font-mono">Chat_Messages</code> in your Airtable base to store conversation histories securely.
         </p>
 
         <div className="border-t border-white/5 pt-4">
@@ -155,7 +155,7 @@ export function DealChat({
           <ol className="space-y-3.5 text-xs text-slate-300">
             <li className="flex gap-2">
               <span className="text-acp-bronze font-bold">1.</span>
-              <span><strong>Table Name:</strong> <code className="bg-white/5 px-1 rounded text-white font-mono">Chat_Messages</code></span>
+              <span><strong>Table Name:</strong> <code className="bg-white/[0.015] px-1 rounded text-white font-mono">Chat_Messages</code></span>
             </li>
             <li className="flex gap-2">
               <span className="text-acp-bronze font-bold">2.</span>
@@ -179,7 +179,7 @@ export function DealChat({
               setLoading(true);
               loadChat();
             }}
-            className="flex items-center gap-2 rounded-xl bg-white/5 border border-white/10 px-4 py-2 text-xs font-semibold text-white transition-all hover:bg-white/10 hover:border-acp-bronze"
+            className="flex items-center gap-2 rounded-xl bg-white/[0.015] border border-white/[0.02] px-4 py-2 text-xs font-semibold text-white transition-all hover:bg-white/[0.02] hover:border-acp-bronze"
           >
             <RefreshCw className="h-3 w-3" />
             Check Connection
@@ -190,7 +190,7 @@ export function DealChat({
   }
 
   return (
-    <div className="flex flex-col h-[550px] w-full rounded-2xl border border-white/10 bg-acp-card backdrop-blur-md shadow-premium-card overflow-hidden">
+    <div className="flex flex-col h-[550px] w-full rounded-2xl border border-white/[0.02] bg-acp-card backdrop-blur-md shadow-premium-card overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between border-b border-white/5 px-6 py-4 bg-white/[0.01]">
         <div className="flex items-center gap-3">
@@ -209,7 +209,7 @@ export function DealChat({
         <button
           onClick={loadChat}
           disabled={loading}
-          className="text-slate-400 hover:text-white transition-colors p-1.5 rounded-lg hover:bg-white/5 disabled:opacity-40"
+          className="text-slate-400 hover:text-white transition-colors p-1.5 rounded-lg hover:bg-white/[0.015] disabled:opacity-40"
           title="Refresh messages"
         >
           <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
@@ -225,7 +225,7 @@ export function DealChat({
           </div>
         ) : messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center p-6">
-            <div className="rounded-full bg-white/5 p-4 border border-white/5 text-slate-400 mb-3">
+            <div className="rounded-full bg-white/[0.015] p-4 border border-white/5 text-slate-400 mb-3">
               <MessageSquare className="h-6 w-6" />
             </div>
             <h4 className="text-sm font-medium text-slate-200">No Messages Yet</h4>
@@ -253,7 +253,7 @@ export function DealChat({
                   className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed break-words whitespace-pre-wrap max-w-[80%] ${
                     currentSenderIsSelf
                       ? "bg-acp-bronze text-white rounded-tr-none shadow-glow-bronze/10"
-                      : "bg-white/5 border border-white/10 text-slate-100 rounded-tl-none"
+                      : "bg-white/[0.015] border border-white/[0.02] text-slate-100 rounded-tl-none"
                   }`}
                 >
                   {msg.message}
@@ -285,7 +285,7 @@ export function DealChat({
               placeholder="Type your message here..."
               disabled={submitting}
               rows={2}
-              className="w-full rounded-xl bg-white/5 border border-white/10 px-4 py-2.5 pr-14 text-sm text-white placeholder-slate-400 focus:border-acp-bronze focus:outline-none focus:ring-1 focus:ring-acp-bronze resize-none transition-all disabled:opacity-50"
+              className="w-full rounded-xl bg-white/[0.015] border border-white/[0.02] px-4 py-2.5 pr-14 text-sm text-white placeholder-slate-400 focus:border-acp-bronze focus:outline-none focus:ring-1 focus:ring-acp-bronze resize-none transition-all disabled:opacity-50"
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
@@ -307,7 +307,7 @@ export function DealChat({
           <button
             type="submit"
             disabled={!inputText.trim() || submitting || inputText.length > maxChars}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-acp-bronze text-white transition-all hover:bg-acp-bronze-dark disabled:bg-white/5 disabled:text-slate-500 disabled:cursor-not-allowed hover:shadow-glow-bronze"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-acp-bronze text-white transition-all hover:bg-acp-bronze-dark disabled:bg-white/[0.015] disabled:text-slate-500 disabled:cursor-not-allowed hover:shadow-glow-bronze"
             title="Send message"
           >
             {submitting ? (

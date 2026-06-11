@@ -11,16 +11,16 @@ export function SubmissionTimeline({ entries }: { entries: SubmissionLogEntry[] 
   }
 
   return (
-    <ol className="relative space-y-6 before:absolute before:left-5 before:top-3 before:h-[calc(100%-1.5rem)] before:w-0.5 before:bg-white/5 pl-0">
+    <ol className="relative space-y-6 before:absolute before:left-5 before:top-3 before:h-[calc(100%-1.5rem)] before:w-0.5 before:bg-white/[0.015] pl-0">
       {entries.map((entry) => (
         <li key={entry.id} className="relative pl-14 animate-fade-in-up">
           {/* Timeline node dot */}
-          <div className="absolute left-0 top-2 flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-acp-bronze shadow-md transition-all duration-300 hover:border-acp-bronze hover:shadow-glow-bronze">
+          <div className="absolute left-0 top-2 flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.02] bg-white/[0.015] text-acp-bronze shadow-md transition-all duration-300 hover:border-acp-bronze hover:shadow-glow-bronze">
             <Send className="h-4 w-4" aria-hidden="true" />
           </div>
           
           {/* Card */}
-          <div className="rounded-2xl border border-white/10 bg-acp-card backdrop-blur-md p-6 shadow-premium-card hover-glow-card">
+          <div className="rounded-2xl border border-white/[0.02] bg-acp-card backdrop-blur-md p-6 shadow-premium-card hover-glow-card">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <p className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-slate-400">

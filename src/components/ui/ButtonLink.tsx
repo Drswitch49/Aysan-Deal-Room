@@ -42,7 +42,7 @@ export function ButtonLink({ children, className, icon, variant = "secondary", h
           ? "bg-gradient-to-r from-acp-bronze to-acp-bronze text-white hover:shadow-glow-bronze border border-transparent"
           : variant === "purple"
             ? "bg-gradient-to-r from-acp-bronze to-acp-bronze-dark text-white hover:shadow-glow-bronze border border-transparent"
-            : "border border-white/10 bg-white/5 text-slate-350 hover:border-white/20 hover:bg-white/10 hover:text-white",
+            : "border border-white/[0.02] bg-white/[0.015] text-slate-350 hover:border-white/20 hover:bg-white/[0.02] hover:text-white",
         className
       )}
       target={hasHref ? "_blank" : undefined}

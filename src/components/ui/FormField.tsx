@@ -24,7 +24,7 @@ export function FormField({
         className="block text-[10px] font-semibold tracking-wide text-slate-400/95 select-none"
       >
         {label}
-        {required && <span className="ml-0.5 text-[#C5A059]">*</span>}
+        {required && <span className="ml-0.5 text-[#C6A66B]">*</span>}
       </label>
       {children}
       {hint && (
@@ -38,16 +38,16 @@ export function FormField({
  * Shared input class string for consistent input styling.
  */
 export const inputClass =
-  "h-10 w-full rounded-xl border border-white/[0.06] bg-[#070708] px-3.5 text-xs text-white placeholder-slate-650 outline-none focus:border-[#C5A059] focus:bg-[#0A0A0B] focus:ring-1 focus:ring-[#C5A059]/20 transition duration-150 shadow-inner";
+  "h-10 w-full rounded-xl border border-white/[0.02] bg-[#0F1115] px-3.5 text-xs text-white placeholder-slate-650 outline-none focus:border-[#C6A66B] focus:bg-[#0F1115] focus:ring-1 focus:ring-[#C6A66B]/20 transition duration-150 shadow-inner";
 
 /**
  * Shared select class string.
  */
 export const selectClass =
-  "h-10 w-full rounded-xl border border-white/[0.06] bg-[#070708] px-3.5 text-xs text-white outline-none focus:border-[#C5A059] focus:ring-1 focus:ring-[#C5A059]/20 transition duration-150 cursor-pointer shadow-inner";
+  "h-10 w-full rounded-xl border border-white/[0.02] bg-[#0F1115] px-3.5 text-xs text-white outline-none focus:border-[#C6A66B] focus:ring-1 focus:ring-[#C6A66B]/20 transition duration-150 cursor-pointer shadow-inner";
 
 /**
  * Shared textarea class string.
  */
 export const textareaClass =
-  "w-full rounded-xl border border-white/[0.06] bg-[#070708] px-3.5 py-3 text-xs text-white placeholder-slate-650 outline-none focus:border-[#C5A059] focus:bg-[#0A0A0B] focus:ring-1 focus:ring-[#C5A059]/20 transition duration-150 resize-none font-sans leading-relaxed shadow-inner";
+  "w-full rounded-xl border border-white/[0.02] bg-[#0F1115] px-3.5 py-3 text-xs text-white placeholder-slate-650 outline-none focus:border-[#C6A66B] focus:bg-[#0F1115] focus:ring-1 focus:ring-[#C6A66B]/20 transition duration-150 resize-none font-sans leading-relaxed shadow-inner";

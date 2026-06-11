@@ -32,7 +32,7 @@ const STAGE_STYLES: Record<string, { bg: string; text: string; border: string; b
   LOI:           { bg: "bg-amber-500/10",   text: "text-amber-400",   border: "border-amber-500/20",  badge: "bg-amber-500/12 text-amber-400 border-amber-500/20" },
   DUE_DILIGENCE: { bg: "bg-purple-500/10",  text: "text-purple-400",  border: "border-purple-500/20", badge: "bg-purple-500/12 text-purple-400 border-purple-500/20" },
   CLOSING:       { bg: "bg-emerald-500/10", text: "text-emerald-400", border: "border-emerald-500/20",badge: "bg-emerald-500/12 text-emerald-400 border-emerald-500/20" },
-  PORTFOLIO:     { bg: "bg-[#c5a059]/10",   text: "text-[#c5a059]",   border: "border-[#c5a059]/20",  badge: "bg-[#c5a059]/12 text-[#c5a059] border-[#c5a059]/20" },
+  PORTFOLIO:     { bg: "bg-[#C6A66B]/10",   text: "text-[#C6A66B]",   border: "border-[#C6A66B]/20",  badge: "bg-[#C6A66B]/12 text-[#C6A66B] border-[#C6A66B]/20" },
   KILLED:        { bg: "bg-red-500/10",     text: "text-red-400",     border: "border-red-500/20",    badge: "bg-red-500/12 text-red-400 border-red-500/20" },
 };
 
@@ -106,11 +106,11 @@ export function StageHistory({ dealId }: StageHistoryProps) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between border-b border-white/[0.04] pb-3 select-none">
+      <div className="flex items-center justify-between border-b border-white/[0.02] pb-3 select-none">
         <h3 className="text-xs font-bold uppercase tracking-wider text-white">Deal Stage Audit Trail</h3>
         <button
           onClick={() => setRefreshKey((prev) => prev + 1)}
-          className="p-1.5 rounded-lg border border-white/[0.04] bg-white/[0.01] hover:bg-white/[0.04] text-slate-500 hover:text-white transition cursor-pointer"
+          className="p-1.5 rounded-lg border border-white/[0.02] bg-white/[0.01] hover:bg-white/[0.04] text-slate-500 hover:text-white transition cursor-pointer"
           title="Refresh history"
         >
           <RefreshCw className={cx("h-3.5 w-3.5", isLoading && "animate-spin")} />
@@ -119,7 +119,7 @@ export function StageHistory({ dealId }: StageHistoryProps) {
 
       {isLoading && (
         <div className="py-8 text-center text-xs font-semibold text-slate-500 flex items-center justify-center gap-2 select-none">
-          <RefreshCw className="h-4 w-4 animate-spin text-[#c5a059]" />
+          <RefreshCw className="h-4 w-4 animate-spin text-[#C6A66B]" />
           <span>Loading transition history...</span>
         </div>
       )}
@@ -132,7 +132,7 @@ export function StageHistory({ dealId }: StageHistoryProps) {
       )}
 
       {!isLoading && !error && presentationTimeline.length === 0 && (
-        <div className="py-8 border border-dashed border-white/[0.04] rounded-2xl text-center select-none">
+        <div className="py-8 border border-dashed border-white/[0.02] rounded-2xl text-center select-none">
           <Clock className="mx-auto h-6 w-6 text-slate-700 mb-2" />
           <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">No Transition History</p>
           <p className="text-[10px] text-slate-600 mt-1">
@@ -142,7 +142,7 @@ export function StageHistory({ dealId }: StageHistoryProps) {
       )}
 
       {!isLoading && !error && presentationTimeline.length > 0 && (
-        <div className="relative border-l border-white/[0.06] pl-6 ml-3 space-y-8 font-sans">
+        <div className="relative border-l border-white/[0.02] pl-6 ml-3 space-y-8 font-sans">
           {presentationTimeline.map((item, index) => {
             const fromStyles = STAGE_STYLES[item.fromStage] || STAGE_STYLES.INTRO;
             const toStyles = STAGE_STYLES[item.toStage] || STAGE_STYLES.INTRO;
@@ -154,12 +154,12 @@ export function StageHistory({ dealId }: StageHistoryProps) {
                 <span className={cx(
                   "absolute -left-[31px] top-1 flex h-4 w-4 items-center justify-center rounded-full border bg-[#09090b] transition duration-200",
                   isCurrent 
-                    ? "border-[#c5a059] ring-4 ring-[#c5a059]/10" 
-                    : "border-white/10 group-hover:border-white/30"
+                    ? "border-[#C6A66B] ring-4 ring-[#C6A66B]/10" 
+                    : "border-white/[0.02] group-hover:border-white/30"
                 )}>
                   <span className={cx(
                     "h-1.5 w-1.5 rounded-full",
-                    isCurrent ? "bg-[#c5a059]" : "bg-slate-750"
+                    isCurrent ? "bg-[#C6A66B]" : "bg-slate-750"
                   )} />
                 </span>
 
@@ -168,7 +168,7 @@ export function StageHistory({ dealId }: StageHistoryProps) {
                   "rounded-xl border p-4 transition-all duration-200 bg-[#0c0c0e]/50",
                   isCurrent 
                     ? "border-white/[0.08] bg-[#0c0c0e]" 
-                    : "border-white/[0.04] hover:border-white/[0.08]"
+                    : "border-white/[0.02] hover:border-white/[0.08]"
                 )}>
                   {/* Transition path Header */}
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
@@ -201,7 +201,7 @@ export function StageHistory({ dealId }: StageHistoryProps) {
 
                   {/* Notes description */}
                   {item.notes ? (
-                    <div className="mt-2.5 rounded-lg border border-white/[0.04] bg-white/[0.01] p-3 text-xs text-slate-300 leading-relaxed font-medium">
+                    <div className="mt-2.5 rounded-lg border border-white/[0.02] bg-white/[0.01] p-3 text-xs text-slate-300 leading-relaxed font-medium">
                       <p className="whitespace-pre-line">{item.notes}</p>
                     </div>
                   ) : (
@@ -209,13 +209,13 @@ export function StageHistory({ dealId }: StageHistoryProps) {
                   )}
 
                   {/* Footer metadata */}
-                  <div className="mt-3.5 flex flex-wrap items-center justify-between gap-3 text-[10px] font-semibold text-slate-500 border-t border-white/[0.04] pt-2.5 select-none">
+                  <div className="mt-3.5 flex flex-wrap items-center justify-between gap-3 text-[10px] font-semibold text-slate-500 border-t border-white/[0.02] pt-2.5 select-none">
                     <div className="flex items-center gap-1.5">
                       <User className="h-3.5 w-3.5 text-slate-600" />
                       <span>
                         {item.changedBy}
                       </span>
-                      <span className="inline-flex items-center rounded-md bg-white/5 border border-white/10 px-1 py-0.2 text-[8px] font-bold uppercase text-slate-450 tracking-wider">
+                      <span className="inline-flex items-center rounded-md bg-white/[0.015] border border-white/[0.02] px-1 py-0.2 text-[8px] font-bold uppercase text-slate-450 tracking-wider">
                         {item.changedByRole}
                       </span>
                     </div>

@@ -12,8 +12,8 @@ export function SectionHeader({
   action?: ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between border-b border-white/[0.04] pb-3 mb-2">
-      <h3 className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 select-none">
+    <div className="flex items-center justify-between border-b border-white/[0.02] pb-3 mb-2">
+      <h3 className="text-[9px] font-bold uppercase tracking-widest text-slate-450 select-none">
         {children}
       </h3>
       {action && (

@@ -15,7 +15,7 @@ import { runPortfolioIntelligence } from "../_services/portfolio.js";
 
 // ─── Claude Synthesis ─────────────────────────────────────────────────────────
 
-async function synthesizeWithClaude(
+export async function synthesizeWithClaude(
   companyName: string,
   enrichmentData: {
     website?: any;

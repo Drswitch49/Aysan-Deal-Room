@@ -44,7 +44,7 @@ export function LoadingState({
               <div
                 key={i}
                 className={cx(
-                  "rounded-2xl border border-white/[0.05] bg-[#0D0D0E] p-5 space-y-3",
+                  "rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 space-y-3",
                   `stagger-${i + 1}`
                 )}
               >
@@ -59,7 +59,7 @@ export function LoadingState({
             {[...Array(2)].map((_, i) => (
               <div
                 key={i}
-                className="rounded-2xl border border-white/[0.05] bg-[#0D0D0E] p-5 space-y-4"
+                className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 space-y-4"
               >
                 <Skeleton height="h-3" className="w-36" />
                 {[...Array(4)].map((_, j) => (
@@ -76,9 +76,9 @@ export function LoadingState({
       )}
 
       {variant === "table" && (
-        <div className="rounded-2xl border border-white/[0.05] bg-[#0E121A] overflow-hidden">
+        <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] overflow-hidden">
           {/* Table header */}
-          <div className="border-b border-white/[0.06] bg-white/[0.01] px-5 py-3 flex gap-4">
+          <div className="border-b border-white/[0.02] bg-white/[0.01] px-5 py-3 flex gap-4">
             {["w-44", "w-20", "w-24", "w-16", "w-16", "w-16", "w-16", "w-24", "w-36", "w-24"].map((w, i) => (
               <Skeleton key={i} height="h-2.5" className={w} />
             ))}
@@ -88,7 +88,7 @@ export function LoadingState({
             <div
               key={i}
               className={cx(
-                "border-b border-white/[0.04] px-5 py-4 flex items-center gap-4",
+                "border-b border-white/[0.02] px-5 py-4 flex items-center gap-4",
                 `stagger-${Math.min(i + 1, 5)}`
               )}
             >
@@ -118,7 +118,7 @@ export function LoadingState({
       {variant === "detail" && (
         <div className="space-y-6">
           {/* Header block */}
-          <div className="rounded-2xl border border-white/[0.05] bg-[#0D0D0E] p-6 space-y-4">
+          <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-6 space-y-4">
             <div className="flex items-center gap-4">
               <Skeleton height="h-12" className="w-12 rounded-xl" />
               <div className="space-y-2 flex-1">
@@ -136,7 +136,7 @@ export function LoadingState({
             </div>
           </div>
           {/* Tab content */}
-          <div className="rounded-2xl border border-white/[0.05] bg-[#0D0D0E] p-6 space-y-4">
+          <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-6 space-y-4">
             <Skeleton height="h-3" className="w-48" />
             {[...Array(5)].map((_, i) => (
               <div key={i} className="space-y-1.5">
@@ -154,7 +154,7 @@ export function LoadingState({
             <div
               key={i}
               className={cx(
-                "rounded-2xl border border-white/[0.05] bg-[#0D0D0E] p-4 flex items-center gap-4",
+                "rounded-2xl border border-white/[0.02] bg-[#161B22] p-4 flex items-center gap-4",
                 `stagger-${Math.min(i + 1, 5)}`
               )}
             >

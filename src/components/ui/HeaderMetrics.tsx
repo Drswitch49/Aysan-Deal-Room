@@ -6,8 +6,8 @@ export function HeaderMetrics() {
   if (loading) {
     return (
       <div className="flex items-center gap-2 animate-pulse">
-        <span className="h-5 w-24 rounded-full bg-white/5 border border-white/10" />
-        <span className="h-5 w-20 rounded-full bg-white/5 border border-white/10" />
+        <span className="h-5 w-24 rounded-full bg-white/[0.015] border border-white/[0.02]" />
+        <span className="h-5 w-20 rounded-full bg-white/[0.015] border border-white/[0.02]" />
       </div>
     );
   }

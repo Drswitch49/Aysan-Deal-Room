@@ -5,17 +5,17 @@ export default {
     extend: {
       colors: {
         acp: {
-          ink: "#0A0A0B",
-          navy: "#0D0D0E",
-          bronze: "#C5A059",
-          "bronze-dark": "#A8873F",
-          "bronze-light": "#D4B876",
-          mist: "rgba(197, 160, 89, 0.05)",
-          line: "rgba(255, 255, 255, 0.06)",
-          paper: "#0D0D0E",
-          platinum: "#1e293b",
+          ink: "#0F1115",          // Evolved Primary Background
+          navy: "#101317",
+          bronze: "#C6A66B",       // Champagne Gold
+          "bronze-dark": "#B8924F",
+          "bronze-light": "#D4B06A",
+          mist: "rgba(198, 166, 107, 0.03)",
+          line: "rgba(255, 255, 255, 0.02)", // Softened borders
+          paper: "#161B22",        // Secondary Surface
+          platinum: "#1A1F27",     // Elevated Surface
           emerald: "#10b981",
-          card: "rgba(13, 13, 14, 0.65)",
+          card: "#161B22",         // Card background
         },
       },
       fontFamily: {
@@ -24,15 +24,11 @@ export default {
         heading: ["Inter", "sans-serif"],
       },
       boxShadow: {
-        soft: "0 12px 34px rgba(0, 0, 0, 0.5)",
+        soft: "0 8px 24px rgba(0, 0, 0, 0.4)",
         panel: "0 1px 3px rgba(0, 0, 0, 0.4), 0 16px 48px rgba(0, 0, 0, 0.6)",
-        inset: "inset 0 1px 0 rgba(255, 255, 255, 0.05)",
-        "premium-card": "0 8px 32px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.05)",
-        "glow-bronze": "0 0 20px rgba(197, 160, 89, 0.25)",
-        "glow-bronze-lg": "0 0 25px rgba(197, 160, 89, 0.25)",
-        "glow-bronze-card": "0 8px 30px rgba(197, 160, 89, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.05)",
-        "glow-teal-card": "0 8px 30px rgba(16, 185, 129, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.05)",
-        "ring-bronze": "0 0 0 2px rgba(197, 160, 89, 0.5)",
+        inset: "inset 0 1px 0 rgba(255, 255, 255, 0.02)",
+        "premium-card": "0 4px 16px rgba(0, 0, 0, 0.2)",
+        "ring-bronze": "0 0 0 2px rgba(198, 166, 107, 0.4)",
       },
       animation: {
         "pulse-glow": "pulseGlow 2.5s cubic-bezier(0.4, 0, 0.6, 1) infinite",

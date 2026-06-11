@@ -39,7 +39,7 @@ export function CoverSheet({ deal, audience }: CoverSheetProps) {
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_1.15fr]">
       {/* Company card */}
-      <section className="rounded-2xl border border-white/[0.06] bg-[#0D0D0E] backdrop-blur-md p-6 shadow-premium-card hover:border-white/15 card-sheen transition-all duration-300">
+      <section className="rounded-2xl border border-white/[0.02] bg-[#161B22] backdrop-blur-md p-6 shadow-premium-card hover:border-white/15 card-sheen transition-all duration-300">
         <SectionTitle icon={<MapPin className="h-5 w-5" />} title="Company Details" />
         <dl className="mt-6 grid gap-4 sm:grid-cols-2">
           <Field label="Company Name" value={deal.companyName} emphasis />
@@ -50,7 +50,7 @@ export function CoverSheet({ deal, audience }: CoverSheetProps) {
       </section>
 
       {/* Transaction card */}
-      <section className="rounded-2xl border border-white/[0.06] bg-[#0D0D0E] backdrop-blur-md p-6 shadow-premium-card hover:border-white/15 card-sheen transition-all duration-300">
+      <section className="rounded-2xl border border-white/[0.02] bg-[#161B22] backdrop-blur-md p-6 shadow-premium-card hover:border-white/15 card-sheen transition-all duration-300">
         <SectionTitle icon={<TrendingUp className="h-5 w-5" />} title="Transaction Overview" />
         <dl className="mt-6 grid gap-4 sm:grid-cols-2">
           <Field label="Enterprise Value (EV)" value={deal.ev} emphasis />
@@ -67,7 +67,7 @@ export function CoverSheet({ deal, audience }: CoverSheetProps) {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <SectionTitle icon={<Landmark className="h-5 w-5" />} title="Funding & Capital Structure" />
           {audience === "lender" && (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/5 border border-white/10 px-3 py-1 text-[10px] font-bold text-slate-400">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.015] border border-white/[0.02] px-3 py-1 text-[10px] font-bold text-slate-400">
               <HelpCircle className="h-3 w-3" /> Note: Proportions shown, exact amounts hidden for confidentiality
             </span>
           )}
@@ -75,9 +75,9 @@ export function CoverSheet({ deal, audience }: CoverSheetProps) {
 
         {/* Visual Stack Chart */}
         {capitalStructure.length > 0 && totalStackVal > 0 ? (
-          <div className="rounded-2xl border border-white/[0.06] bg-[#0D0D0E] backdrop-blur-md p-6 shadow-premium-card card-sheen">
+          <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] backdrop-blur-md p-6 shadow-premium-card card-sheen">
             <h3 className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-slate-400 mb-4">Funding breakdown</h3>
-            <div className="h-4 w-full flex rounded-full overflow-hidden bg-white/5 border border-white/[0.06] shadow-inner">
+            <div className="h-4 w-full flex rounded-full overflow-hidden bg-white/[0.015] border border-white/[0.02] shadow-inner">
               {stackWithValues.map((row) => {
                 const percentage = totalStackVal > 0 ? (row.parsedVal / totalStackVal) * 100 : 0;
                 if (percentage === 0) return null;
@@ -90,7 +90,7 @@ export function CoverSheet({ deal, audience }: CoverSheetProps) {
                     style={{ width: `${percentage}%` }}
                     title={`${row.label}: ${row.amount} (${Math.round(percentage)}%)`}
                   >
-                    <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <div className="absolute inset-0 bg-white/[0.02] opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
                 );
               })}
@@ -102,7 +102,7 @@ export function CoverSheet({ deal, audience }: CoverSheetProps) {
                 const percentage = totalStackVal > 0 ? (row.parsedVal / totalStackVal) * 100 : 0;
                 const colors = STACK_COLORS[row.label] || { bg: "bg-slate-400", text: "text-slate-400", dot: "bg-slate-400" };
                 return (
-                  <div key={row.label} className="flex items-start gap-2.5 p-3 rounded-xl bg-white/5 border border-white/[0.06] hover:bg-white/[0.08] hover:border-white/20 transition-all duration-300">
+                  <div key={row.label} className="flex items-start gap-2.5 p-3 rounded-xl bg-white/[0.015] border border-white/[0.02] hover:bg-white/[0.08] hover:border-white/20 transition-all duration-300">
                     <span className={`h-2.5 w-2.5 rounded-full ${colors.dot} mt-1`} />
                     <div className="min-w-0">
                       <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">{row.label}</p>
@@ -161,7 +161,7 @@ export function CoverSheet({ deal, audience }: CoverSheetProps) {
             </tbody>
           </Table>
         ) : (
-          <div className="rounded-2xl border border-dashed border-white/10 bg-white/5 p-8 text-center text-sm text-slate-400 shadow-soft">
+          <div className="rounded-2xl border border-dashed border-white/[0.02] bg-white/[0.015] p-8 text-center text-sm text-slate-400 shadow-soft">
             No capital structure data is available for this deal.
           </div>
         )}
@@ -173,7 +173,7 @@ export function CoverSheet({ deal, audience }: CoverSheetProps) {
 function SectionTitle({ icon, title }: { icon: ReactNode; title: string }) {
   return (
     <div className="flex items-center gap-2.5">
-      <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/5 border border-white/[0.06] text-acp-bronze shadow-sm">
+      <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/[0.015] border border-white/[0.02] text-acp-bronze shadow-sm">
         {icon}
       </span>
       <h2 className="text-sm font-bold uppercase tracking-wider text-white">{title}</h2>
@@ -183,7 +183,7 @@ function SectionTitle({ icon, title }: { icon: ReactNode; title: string }) {
 
 function Field({ label, value, emphasis = false, className = "" }: { label: string; value: string; emphasis?: boolean; className?: string }) {
   return (
-    <div className={cx("rounded-xl border border-white/[0.04] bg-white/[0.01] px-4 py-3.5 hover:bg-white/[0.04] hover:border-white/[0.08] transition-colors", className)}>
+    <div className={cx("rounded-xl border border-white/[0.02] bg-white/[0.01] px-4 py-3.5 hover:bg-white/[0.04] hover:border-white/[0.08] transition-colors", className)}>
       <dt className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-400">{label}</dt>
       <dd className={cx("mt-1.5 text-xs font-semibold leading-relaxed", emphasis ? "text-white font-bold" : "text-slate-300")}>
         {value || "Not specified"}

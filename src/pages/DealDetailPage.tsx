@@ -3,7 +3,7 @@ import {
   Lock, UserPlus, Check, X, KeyRound, Copy, MessageSquare, TrendingUp, Sparkles, 
   Upload, Users, Globe, ExternalLink, HelpCircle, CheckSquare, Square, AlertCircle, 
   ArrowRight, BrainCircuit, RefreshCw, Star, Info, MessageSquareCode, AlertTriangle,
-  FolderClosed, ChevronRight, Clock, CheckCircle2, Plus, Loader2
+  FolderClosed, ChevronRight, Clock, CheckCircle2, Plus, Loader2, ShieldAlert, Building2
 } from "lucide-react";
 import type { ComponentType } from "react";
 import { useMemo, useState, useEffect } from "react";
@@ -89,7 +89,7 @@ const STAGE_BADGE_COLORS: Record<DealStage, string> = {
   LOI:           "bg-amber-500/10 text-amber-500 border-amber-500/20 hover:border-amber-550/40 hover:bg-amber-500/20",
   DUE_DILIGENCE: "bg-purple-500/10 text-purple-400 border-purple-500/20 hover:border-purple-550/40 hover:bg-purple-500/20",
   CLOSING:       "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:border-emerald-550/40 hover:bg-emerald-500/20",
-  PORTFOLIO:     "bg-[#c5a059]/10 text-[#c5a059] border-[#c5a059]/20 hover:border-[#c5a059]/40 hover:bg-[#c5a059]/20",
+  PORTFOLIO:     "bg-[#C6A66B]/10 text-[#C6A66B] border-[#C6A66B]/20 hover:border-[#C6A66B]/40 hover:bg-[#C6A66B]/20",
   KILLED:        "bg-red-500/10 text-red-400 border-red-500/20 hover:border-red-550/40 hover:bg-red-500/20",
 };
 
@@ -440,24 +440,31 @@ export function DealDetailPage() {
       <div>
         {/* Mockup styled Header with double pills */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/5 pb-4">
-          <div className="space-y-1">
-            <div className="flex items-center gap-3">
-              <h1 className="text-xl font-bold text-white tracking-tight">
-                Deal Detail — {joinedDeal.companyName || joinedDeal.dealRef}
-              </h1>
-              <div className="flex items-center gap-2">
-                <HeaderMetrics />
-              </div>
+          <div className="flex items-center gap-3.5 min-w-0">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr from-[#C6A66B]/20 to-[#D4B06A]/10 border border-[#C6A66B]/30 text-white shadow-inner">
+              <Building2 className="h-5 w-5 text-[#C6A66B]" aria-hidden="true" />
             </div>
-            <p className="text-[10px] text-slate-500 font-mono tracking-wider">
-              {joinedDeal.dealRef} - KBS-159154 - {joinedDeal.location}
-            </p>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 select-none text-[9px] font-extrabold uppercase tracking-widest text-slate-500">
+                <span>Deals</span>
+                <span className="text-slate-700 text-[10px] font-bold">/</span>
+                <span className="text-[#C6A66B] font-mono">{joinedDeal.dealRef}</span>
+                <span className="text-slate-700 text-[10px] font-bold">·</span>
+                <span>{joinedDeal.location}</span>
+              </div>
+              <h1 className="text-xl font-black text-white tracking-tight mt-1 truncate leading-tight">
+                {joinedDeal.companyName || joinedDeal.dealRef}
+              </h1>
+            </div>
+            <div className="flex items-center gap-2 shrink-0 ml-1">
+              <HeaderMetrics />
+            </div>
           </div>
           
           <div className="flex items-center gap-2 shrink-0">
             <Link
               to="/deals?create=true"
-              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3.5 text-[10px] font-extrabold uppercase tracking-wider text-slate-300 shadow-sm transition hover:border-white/20 hover:text-white hover:bg-white/10 cursor-pointer"
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-white/[0.02] bg-white/[0.015] px-3.5 text-[10px] font-extrabold uppercase tracking-wider text-slate-300 shadow-sm transition hover:border-white/20 hover:text-white hover:bg-white/[0.02] cursor-pointer"
             >
               + NEW DEAL
             </Link>
@@ -465,7 +472,7 @@ export function DealDetailPage() {
         </div>
 
         {/* High-Fidelity Deal Card */}
-        <div className="mt-5 rounded-2xl border border-white/[0.06] bg-[#0E121A] p-5 flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-inner">
+        <div className="mt-5 rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-inner">
           <div className="space-y-3.5">
             <h2 className="text-lg font-bold text-white tracking-tight">
               {joinedDeal.companyName || joinedDeal.dealRef}
@@ -545,7 +552,7 @@ export function DealDetailPage() {
 
             <button
               onClick={() => setActiveTab("loi")}
-              className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-white/10 hover:border-white/20 bg-white/5 px-4 text-xs font-bold uppercase tracking-wider text-slate-300 transition cursor-pointer"
+              className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-[#C6A66B] hover:bg-[#B8924F] px-4 text-xs font-bold uppercase tracking-wider text-slate-950 transition cursor-pointer"
             >
               <Send className="h-3.5 w-3.5" />
               Send LOI
@@ -555,21 +562,21 @@ export function DealDetailPage() {
       </div>
 
       {/* Tabs navigation with scroll support */}
-      <div className="flex items-center gap-1">
-        <div className="flex gap-1 overflow-x-auto rounded-xl border border-white/[0.04] bg-[#0A0A0B]/40 p-1 shadow-inner backdrop-blur-md flex-1">
+      <div className="border-b border-white/[0.02] w-full flex items-center mb-6">
+        <div className="flex gap-8 overflow-x-auto flex-1 -mb-[1px]">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               className={cx(
-                "inline-flex h-8 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-4 text-[10px] font-semibold uppercase tracking-wider transition-all duration-200 cursor-pointer flex-1",
+                "inline-flex h-9 items-center justify-center gap-2 whitespace-nowrap text-[10px] font-bold uppercase tracking-widest transition-all duration-150 cursor-pointer border-b-2 pb-2.5 px-1",
                 activeTab === tab.id
-                  ? "bg-white/[0.03] text-white border border-white/[0.06] shadow-sm"
-                  : "text-slate-450 hover:text-white hover:bg-white/[0.01]",
+                  ? "border-[#C6A66B] text-white"
+                  : "border-transparent text-slate-450 hover:text-slate-200",
               )}
               onClick={() => setActiveTab(tab.id)}
               type="button"
             >
-              <tab.icon className="h-3.5 w-3.5 text-slate-500" aria-hidden="true" />
+              <tab.icon className={cx("h-3.5 w-3.5 transition-colors duration-150", activeTab === tab.id ? "text-[#C6A66B]" : "text-slate-500")} aria-hidden="true" />
               {tab.label}
             </button>
           ))}
@@ -589,6 +596,13 @@ export function DealDetailPage() {
             isTriggeringOsint={isTriggeringOsint}
             osintTriggerError={osintTriggerError}
             handleTriggerOsint={handleTriggerOsint}
+            documents={documentState.data || []}
+            currentStage={currentStage}
+            allowedNext={allowedNext}
+            setTargetStage={setTargetStage}
+            setIsTransitionModalOpen={setIsTransitionModalOpen}
+            setTransitionNotes={setTransitionNotes}
+            setTransitionError={setTransitionError}
           />
         )}
         
@@ -622,10 +636,10 @@ export function DealDetailPage() {
 
         {activeTab === "activity" && (
           <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-6 items-start animate-fade-in-up">
-            <div className="rounded-2xl border border-white/[0.06] bg-[#0E121A] p-5 shadow-inner">
+            <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 shadow-inner">
               <StageHistory dealId={joinedDeal.id} />
             </div>
-            <div className="rounded-2xl border border-white/[0.06] bg-[#0E121A] p-5 shadow-inner">
+            <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 shadow-inner">
               <ActivityFeed dealId={joinedDeal.id} limit={30} showFilters={true} />
             </div>
           </div>
@@ -635,7 +649,7 @@ export function DealDetailPage() {
         {activeTab === "chat" && (
           <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-6 items-start animate-fade-in-up">
             {/* Lenders List */}
-            <div className="rounded-2xl border border-white/[0.06] bg-[#0E121A] p-4 space-y-4">
+            <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-4 space-y-4">
               <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 select-none pb-2 border-b border-white/5">
                 Assigned Lenders
               </h4>
@@ -659,7 +673,7 @@ export function DealDetailPage() {
                         className={cx(
                           "w-full text-left px-3 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all border block cursor-pointer",
                           isActive
-                            ? "bg-[#C5A059]/10 border-[#C5A059] text-white shadow-glow-bronze/5"
+                            ? "bg-[#C6A66B]/10 border-[#C6A66B] text-white shadow-glow-bronze/5"
                             : "bg-white/[0.02] border-white/5 text-slate-350 hover:bg-white/[0.04] hover:text-white"
                         )}
                       >
@@ -687,7 +701,7 @@ export function DealDetailPage() {
                   lenderName={assignedLenders.find(l => l.id === activeChatLenderId)?.Company_Name}
                 />
               ) : (
-                <div className="flex flex-col items-center justify-center h-[350px] rounded-2xl border border-white/10 bg-acp-card text-center p-6">
+                <div className="flex flex-col items-center justify-center h-[350px] rounded-2xl border border-white/[0.02] bg-acp-card text-center p-6">
                   <MessageSquare className="h-8 w-8 text-slate-500 mb-3" />
                   <h4 className="text-sm font-medium text-slate-200">No Lender Selected</h4>
                   <p className="text-xs text-slate-400 mt-1 max-w-xs leading-relaxed">
@@ -729,7 +743,7 @@ export function DealDetailPage() {
                   />
                   <button
                     onClick={() => handleCopy(createdLenderDetails.url, "url")}
-                    className="h-9 w-9 shrink-0 flex items-center justify-center rounded-xl bg-white/5 border border-white/10 hover:border-white/20 text-slate-400 hover:text-white cursor-pointer"
+                    className="h-9 w-9 shrink-0 flex items-center justify-center rounded-xl bg-white/[0.015] border border-white/[0.02] hover:border-white/20 text-slate-400 hover:text-white cursor-pointer"
                     type="button"
                   >
                     {copiedId === "url" ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
@@ -748,7 +762,7 @@ export function DealDetailPage() {
                   />
                   <button
                     onClick={() => handleCopy(createdLenderDetails.pass, "pass")}
-                    className="h-9 w-9 shrink-0 flex items-center justify-center rounded-xl bg-white/5 border border-white/10 hover:border-white/20 text-slate-400 hover:text-white cursor-pointer"
+                    className="h-9 w-9 shrink-0 flex items-center justify-center rounded-xl bg-white/[0.015] border border-white/[0.02] hover:border-white/20 text-slate-400 hover:text-white cursor-pointer"
                     type="button"
                   >
                     {copiedId === "pass" ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
@@ -777,7 +791,7 @@ export function DealDetailPage() {
                   setErrorMessage("");
                   setAssignmentSuccess(false);
                 }}
-                className="text-[10px] font-black uppercase tracking-wider text-[#C5A059] hover:underline cursor-pointer"
+                className="text-[10px] font-black uppercase tracking-wider text-[#C6A66B] hover:underline cursor-pointer"
                 type="button"
               >
                 {isCreatingNew ? "Use Existing" : "Create New"}
@@ -906,7 +920,7 @@ export function DealDetailPage() {
           )}
 
           <div className="text-xs text-slate-350 leading-relaxed select-none">
-            You are changing the deal stage from <span className="font-bold text-white">{STAGE_LABELS[currentStage] || currentStage}</span> to <span className="font-bold text-[#c5a059]">{targetStage ? STAGE_LABELS[targetStage] : ""}</span>.
+            You are changing the deal stage from <span className="font-bold text-white">{STAGE_LABELS[currentStage] || currentStage}</span> to <span className="font-bold text-[#C6A66B]">{targetStage ? STAGE_LABELS[targetStage] : ""}</span>.
             This action will record an entry in the immutable audit trail and trigger downstream workflows.
           </div>
 
@@ -928,14 +942,14 @@ export function DealDetailPage() {
                 setIsTransitionModalOpen(false);
                 setTargetStage(null);
               }}
-              className="h-9 px-4 rounded-xl border border-white/10 text-slate-400 text-xs font-bold uppercase tracking-wider hover:bg-white/5 transition cursor-pointer"
+              className="h-9 px-4 rounded-xl border border-white/[0.02] text-slate-400 text-xs font-bold uppercase tracking-wider hover:bg-white/[0.015] transition cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isTransitioning}
-              className="h-9 px-4 rounded-xl bg-gradient-to-r from-[#C5A059] to-[#A8873F] text-slate-950 text-xs font-bold uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none hover:shadow-glow-bronze transition cursor-pointer"
+              className="h-9 px-4 rounded-xl bg-gradient-to-r from-[#C6A66B] to-[#B8924F] text-slate-950 text-xs font-bold uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none hover:shadow-glow-bronze transition cursor-pointer"
             >
               {isTransitioning ? "Transitioning..." : "Confirm Move"}
             </button>
@@ -950,11 +964,55 @@ function BackLink() {
   return (
     <Link 
       to="/deals" 
-      className="group mb-5 inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-400 hover:text-acp-bronze transition-colors duration-300"
+      className="group mb-5 inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-400 hover:text-[#C6A66B] transition-colors duration-300"
     >
       <ArrowLeft className="h-3.5 w-3.5 transition-transform duration-300 group-hover:-translate-x-1" aria-hidden="true" />
       Back to Pipeline
     </Link>
+  );
+}
+  // ---------------------------------------------------------------------
+// Accordion Helper Component
+// ---------------------------------------------------------------------
+function AccordionPanel({
+  title,
+  headerBadge,
+  isOpen,
+  onToggle,
+  icon,
+  children
+}: {
+  title: string;
+  headerBadge?: React.ReactNode;
+  isOpen: boolean;
+  onToggle: () => void;
+  icon: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] overflow-hidden transition-all duration-200">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="w-full flex items-center justify-between p-5 text-left hover:bg-white/[0.015] transition-colors outline-none focus:bg-white/[0.02]"
+      >
+        <div className="flex items-center gap-3.5 min-w-0">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/[0.02] text-slate-400">
+            {icon}
+          </div>
+          <h4 className="text-[10px] font-bold text-white uppercase tracking-widest">{title}</h4>
+        </div>
+        <div className="flex items-center gap-3 shrink-0">
+          {headerBadge}
+          <ChevronRight className={cx("h-4 w-4 text-slate-500 transition-transform duration-200", isOpen && "rotate-90 text-white")} />
+        </div>
+      </button>
+      {isOpen && (
+        <div className="p-6 border-t border-white/[0.02] bg-white/[0.005] animate-slide-down">
+          {children}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -971,7 +1029,14 @@ function OverviewTab({
   osintError,
   isTriggeringOsint,
   osintTriggerError,
-  handleTriggerOsint
+  handleTriggerOsint,
+  documents = [],
+  currentStage,
+  allowedNext,
+  setTargetStage,
+  setIsTransitionModalOpen,
+  setTransitionNotes,
+  setTransitionError
 }: { 
   deal: any; 
   assignedLenders: any[]; 
@@ -982,6 +1047,13 @@ function OverviewTab({
   isTriggeringOsint?: boolean;
   osintTriggerError?: string | null;
   handleTriggerOsint?: () => Promise<void>;
+  documents?: any[];
+  currentStage: DealStage;
+  allowedNext: DealStage[];
+  setTargetStage: (stage: DealStage | null) => void;
+  setIsTransitionModalOpen: (open: boolean) => void;
+  setTransitionNotes: (val: string) => void;
+  setTransitionError: (err: string | null) => void;
 }) {
   const ebitdaVal = Number(deal.ebitda) || 0;
   const multVal = Number(deal.multiplier) || 0;
@@ -1042,368 +1114,127 @@ function OverviewTab({
     ];
   }, [deal.capitalStructure]);
 
+  // Collapsible Accordion State
+  const [isOsintOpen, setIsOsintOpen] = useState(false);
+  const [isScorecardOpen, setIsScorecardOpen] = useState(false);
+  const [isKillScreenOpen, setIsKillScreenOpen] = useState(false);
+  const [isFinancialsOpen, setIsFinancialsOpen] = useState(false);
+
+  // Computed Blockers
+  const blockerDocs = useMemo(() => {
+    return documents.filter(doc => doc.ablCritical && doc.status === "Outstanding");
+  }, [documents]);
+
+  // Dynamic Intelligence Recommendations
+  const recommendations = useMemo(() => {
+    const list: string[] = [];
+    
+    // 1. Missing Critical Documents
+    const missingDocs = documents.filter(d => d.ablCritical && d.status === "Outstanding");
+    if (missingDocs.length > 0) {
+      list.push(`Missing critical diligence: ${missingDocs.map(d => d.documentName).join(", ")}`);
+    }
+    
+    // 2. Financial Verification
+    const hasFinancialDoc = documents.some(d => d.category === "Financials" && d.status === "Received");
+    if (!hasFinancialDoc) {
+      list.push("Upload trailing 12-month financials to run Underwriting calculations");
+    }
+    
+    // 3. OSINT Status
+    if (!osintStatus || osintStatus === "Not Started") {
+      list.push("OSINT scan not started — trigger scan under the OSINT tab");
+    } else if (osintStatus === "Failed") {
+      list.push("OSINT enrichment failed — check company credentials and retry");
+    } else if (["Queued", "Scraping Website", "Extracting Metadata", "Analyzing Company"].includes(osintStatus)) {
+      list.push("OSINT scan currently in progress");
+    }
+    
+    // 4. Stage Progression checks
+    if (currentStage === "DISCOVERY" && missingDocs.length > 0) {
+      list.push("Deal cannot progress to LOI with outstanding ABL critical files");
+    }
+    if (currentStage === "INTRO") {
+      list.push("Evaluate company criteria checklist to transition to Discovery");
+    }
+    
+    // Fallback recommendation
+    if (list.length === 0) {
+      list.push("All current operational criteria met. Await lender feedback.");
+    }
+    
+    return list;
+  }, [documents, deal, osintStatus, currentStage]);
+
   return (
-    <div className="space-y-6 animate-fade-in-up font-sans">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div className="space-y-6 animate-fade-in-up font-sans text-slate-100">
+      <div className="grid grid-cols-1 lg:grid-cols-[1.8fr_1.2fr] gap-6 items-start">
         
-        {/* Card 1: Kill Screen */}
-        <div className="rounded-2xl border border-white/[0.06] bg-[#0E121A] p-5 flex flex-col justify-between h-full">
-          <div>
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-350 pb-3 border-b border-white/5">
-              Kill Screen
-            </h3>
-            <ul className="mt-4 space-y-4">
-              <li className="flex items-center justify-between text-xs">
-                <span className="text-slate-400 font-medium">EBITDA &ge; £150k</span>
-                <span className="flex items-center gap-2 font-bold text-slate-200">
-                  {formatGBP(ebitdaVal)}
-                  {isEbitdaPass ? (
-                    <span className="inline-flex h-4.5 w-4.5 items-center justify-center rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px]">✓</span>
-                  ) : (
-                    <span className="inline-flex h-4.5 w-4.5 items-center justify-center rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[10px]">✗</span>
-                  )}
-                </span>
-              </li>
-              <li className="flex items-center justify-between text-xs">
-                <span className="text-slate-400 font-medium">EV multiple &le; 9x</span>
-                <span className="flex items-center gap-2 font-bold text-slate-200">
-                  {multVal > 0 ? `${multVal.toFixed(1)}x` : "TBC"}
-                  {isMultPass ? (
-                    <span className="inline-flex h-4.5 w-4.5 items-center justify-center rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px]">✓</span>
-                  ) : (
-                    <span className="inline-flex h-4.5 w-4.5 items-center justify-center rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[10px]">✗</span>
-                  )}
-                </span>
-              </li>
-              <li className="flex items-center justify-between text-xs">
-                <span className="text-slate-400 font-medium">Sector: Comm. Cleaning</span>
-                <span className="flex items-center gap-2 font-bold text-slate-200">
-                  {deal.sector || "General"}
-                  <span className="inline-flex h-4.5 w-4.5 items-center justify-center rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px]">✓</span>
-                </span>
-              </li>
-              <li className="flex items-center justify-between text-xs">
-                <span className="text-slate-400 font-medium">UK Geography: Kent</span>
-                <span className="flex items-center gap-2 font-bold text-slate-200">
-                  {deal.location || "Kent"}
-                  <span className="inline-flex h-4.5 w-4.5 items-center justify-center rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px]">✓</span>
-                </span>
-              </li>
-              <li className="flex items-center justify-between text-xs">
-                <span className="text-slate-400 font-medium">No CVA / Legal Encumbrance</span>
-                <span className="flex items-center gap-2 font-bold text-slate-200">
-                  Clear
-                  <span className="inline-flex h-4.5 w-4.5 items-center justify-center rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px]">✓</span>
-                </span>
-              </li>
-            </ul>
-          </div>
+        {/* LEFT COLUMN: Progressive Disclosure Accordions */}
+        <div className="space-y-4">
           
-          <div className="pt-5 border-t border-white/5 mt-5">
-            {allPassed ? (
-              <div className="rounded-xl border border-emerald-500/10 bg-emerald-500/5 py-2.5 text-center">
-                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400 flex items-center justify-center gap-1.5">
-                  <span className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-                  </span>
-                  PASS: ALL CRITERIA MET
-                </span>
-              </div>
-            ) : (
-              <div className="rounded-xl border border-amber-500/10 bg-amber-500/5 py-2.5 text-center">
-                <span className="text-[10px] font-black uppercase tracking-widest text-amber-400 flex items-center justify-center gap-1.5">
-                  <AlertCircle className="h-4 w-4" />
-                  WARN: EXCEEDS CRITERIA
-                </span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Card 2: Deal Scorecard */}
-        <div className="rounded-2xl border border-white/[0.06] bg-[#0E121A] p-5 flex flex-col justify-between h-full">
-          <div>
-            <div className="flex items-center justify-between border-b border-white/5 pb-3">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-350">
-                Deal Scorecard
-              </h3>
-              <span className="text-[9px] font-extrabold uppercase tracking-widest text-slate-500">
-                Weighted Total
-              </span>
-            </div>
-            
-            <div className="mt-4 space-y-3.5">
-              {scorecardItems.map((item, idx) => (
-                <div key={idx} className="space-y-1">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-slate-400 font-medium">{item.label}</span>
-                    <span className="font-bold text-slate-200">{item.value}%</span>
+          {/* Card 1: Claude AI Verdict (Expanded by default) */}
+          <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-6 shadow-premium-card card-sheen relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-[#C6A66B]/5 blur-3xl pointer-events-none" />
+            <div className="relative z-10 space-y-4">
+              <div className="flex items-center justify-between pb-3.5 border-b border-white/5">
+                <div className="flex items-center gap-2.5">
+                  <div className="h-8 w-8 rounded-lg bg-[#C6A66B]/10 border border-[#C6A66B]/20 flex items-center justify-center">
+                    <BrainCircuit className="h-4.5 w-4.5 text-[#C6A66B]" />
                   </div>
-                  <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full rounded-full bg-[#C5A059]" 
-                      style={{ width: `${item.value}%` }} 
-                    />
+                  <div>
+                    <h4 className="text-xs font-black uppercase tracking-widest text-slate-350">Claude AI Investment Verdict</h4>
+                    <span className="text-[9px] font-extrabold text-[#C6A66B] uppercase tracking-widest">Recommendation: {verdict}</span>
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between pt-4 border-t border-white/5 mt-5">
-            <div>
-              <span className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-500">Aggregated Verdict</span>
-              <span className="text-lg font-bold text-white tracking-tight">{scoreTotal}/25</span>
-            </div>
-            <span className={`inline-flex rounded-lg px-2.5 py-1 text-[9px] font-black uppercase tracking-widest ${
-              verdict === "ADVANCE" 
-                ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-400" 
-                : "bg-amber-500/10 border border-amber-500/20 text-amber-400"
-            }`}>
-              {verdict}
-            </span>
-          </div>
-        </div>
-
-        {/* Card 3: Key Financials */}
-        <div className="rounded-2xl border border-white/[0.06] bg-[#0E121A] p-5 flex flex-col justify-between h-full">
-          <div>
-            <div className="flex items-center justify-between border-b border-white/5 pb-3">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-350">
-                Key Financials
-              </h3>
-              <Globe className="h-4 w-4 text-slate-500" />
-            </div>
-            
-            <ul className="mt-4 space-y-3.5">
-              <li className="flex items-center justify-between text-xs">
-                <span className="text-slate-400 font-medium">Revenue</span>
-                <span className="font-bold text-slate-200">{formatGBP(revenueVal)}</span>
-              </li>
-              <li className="flex items-center justify-between text-xs">
-                <span className="text-slate-400 font-medium">EBITDA (Normalized)</span>
-                <span className="font-bold text-slate-200">{formatGBP(realEbitdaVal)}</span>
-              </li>
-              <li className="flex items-center justify-between text-xs">
-                <span className="text-slate-400 font-medium">EBITDA Margin</span>
-                <span className="flex items-center gap-1 font-bold text-slate-200">
-                  {marginVal}%
-                  {Number(marginVal) < 12 && (
-                    <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-                  )}
-                </span>
-              </li>
-              <li className="flex items-center justify-between text-xs">
-                <span className="text-slate-400 font-medium">ACP Entry EV</span>
-                <span className="font-bold text-slate-200">
-                  {deal.ev ? formatGBP(Number(String(deal.ev).replace(/[^0-9]/g, "")) || 450000) : "£450k"} - £525k
-                </span>
-              </li>
-              <li className="flex items-center justify-between text-xs">
-                <span className="text-slate-400 font-medium">DSCR (Base Case)</span>
-                <span className="flex items-center gap-1 font-bold text-slate-200">
-                  {deal.dscrBase || "1.38x"}
-                  <Info className="h-3.5 w-3.5 text-slate-600 shrink-0" />
-                </span>
-              </li>
-            </ul>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3 pt-4 border-t border-white/5 mt-5">
-            <div className="bg-white/[0.02] border border-white/[0.04] rounded-xl p-2 text-center">
-              <span className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-500">Multiple</span>
-              <span className="block text-base font-serif italic text-white mt-0.5">
-                {multVal > 0 ? `${multVal.toFixed(1)}x` : "2.7x"}
-              </span>
-            </div>
-            <div className="bg-white/[0.02] border border-white/[0.04] rounded-xl p-2 text-center">
-              <span className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-500">Yield</span>
-              <span className="block text-base font-serif italic text-white mt-0.5">
-                {multVal > 0 ? `${(100 / multVal).toFixed(1)}%` : "14.2%"}
-              </span>
-            </div>
-          </div>
-        </div>
-
-      </div>
-
-      {/* Card 4: Claude AI Verdict */}
-      <div className="rounded-2xl border border-white/[0.06] bg-[#0E121A] p-6 shadow-premium-card card-sheen">
-        <div className="flex flex-col lg:flex-row gap-8 items-stretch">
-          
-          <div className="flex-1 space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-white/5">
-              <div className="flex items-center gap-2.5">
-                <div className="h-8 w-8 rounded-lg bg-acp-bronze/10 border border-acp-bronze/20 flex items-center justify-center">
-                  <BrainCircuit className="h-4 w-4 text-acp-bronze" />
-                </div>
-                <div>
-                  <h4 className="text-xs font-black uppercase tracking-widest text-slate-400">Claude AI Investment Verdict</h4>
-                  <span className="text-[8px] font-extrabold text-[#C5A059] uppercase tracking-widest">Recommendation: Advance</span>
-                </div>
-              </div>
-            </div>
-
-            <p className="text-xs leading-relaxed text-slate-350 font-sans">
-              The deal presents a compelling low-multiple entry in a defensive sector. While the {marginVal}% EBITDA margin sits below the institutional 15% threshold, the regional dominance in {deal.location || "Kent"} provides a stable moat for post-acquisition optimization and contract growth.
-            </p>
-
-            <div className="space-y-2 pt-1.5">
-              <span className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-500">Risk Analysis</span>
-              <div className="space-y-2">
-                <div className="flex items-start gap-2 text-[11px] leading-relaxed text-slate-400 font-sans">
-                  <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0 mt-0.5" />
-                  <span>
-                    <strong className="text-slate-300">Margin Threshold:</strong> Sub-12% margins increase sensitivity to wage inflation and operational cost spikes.
-                  </span>
-                </div>
-                <div className="flex items-start gap-2 text-[11px] leading-relaxed text-slate-400 font-sans">
-                  <Lock className="h-3.5 w-3.5 text-[#C5A059] shrink-0 mt-0.5" />
-                  <span>
-                    <strong className="text-slate-300">Key Person Risk:</strong> High dependency on founder-level relationship management. Vendor loan structures should align owner transition incentives.
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="w-full lg:w-[340px] border-t lg:border-t-0 lg:border-l border-white/5 pt-6 lg:pt-0 lg:pl-6 flex flex-col justify-between">
-            <div className="space-y-4">
-              <h5 className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400">Proposed Capital Stack</h5>
-              
-              <div className="h-6 w-full rounded-lg overflow-hidden flex text-[8px] font-black uppercase tracking-wider text-slate-900 border border-white/10 shadow-inner">
-                {capitalStack.map((item: any, idx: number) => {
-                  const colors = [
-                    "bg-[#13161C] text-slate-300 border-r border-white/5",
-                    "bg-[#C5A059] text-slate-950 border-r border-white/5",
-                    "bg-[#E8DEC9] text-slate-950"
-                  ];
-                  return (
-                    <div 
-                      key={idx} 
-                      className={`${colors[idx % colors.length]} flex items-center justify-center transition-all duration-300 hover:brightness-110`} 
-                      style={{ width: `${item.pct}%` }}
-                      title={`${item.label}: ${item.pct}%`}
-                    >
-                      {item.label} ({item.pct}%)
-                    </div>
-                  );
-                })}
+                <span className="text-[10px] font-mono text-slate-500 uppercase font-semibold">AI Assistant</span>
               </div>
 
-              <p className="text-[10px] leading-relaxed text-slate-400 font-medium">
-                Note: Vendor loan should be structured on a 3-year amortising rate to align owner transition incentives and de-risk handover.
+              <p className="text-xs leading-relaxed text-slate-300 font-normal">
+                The deal presents a compelling low-multiple entry in a defensive sector. While the {marginVal}% EBITDA margin sits below the institutional 15% threshold, the regional dominance in {deal.location || "Kent"} provides a stable moat for post-acquisition optimization and contract growth.
               </p>
-            </div>
 
-            <div className="grid grid-cols-2 gap-3 pt-6">
-              <button 
-                type="button"
-                onClick={() => setActiveTab("brief")}
-                className="h-9 rounded-xl border border-white/10 hover:border-white/20 bg-white/5 hover:bg-white/10 text-xs font-bold uppercase tracking-wider text-slate-300 transition cursor-pointer"
-              >
-                Review Memo
-              </button>
-              <button 
-                type="button"
-                onClick={() => setActiveTab("loi")}
-                className="h-9 rounded-xl bg-gradient-to-r from-[#C5A059] to-[#A8873F] hover:opacity-90 text-xs font-black uppercase tracking-wider text-white transition cursor-pointer shadow-glow-bronze/10"
-              >
-                Adjust Stack
-              </button>
+              <div className="space-y-2 pt-2 border-t border-white/[0.02]">
+                <span className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-500">Key Risk Factors</span>
+                <div className="space-y-2.5">
+                  <div className="flex items-start gap-2.5 text-xs text-slate-400 font-normal">
+                    <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+                    <span>
+                      <strong className="text-slate-200">Margin Threshold:</strong> Sub-12% margins increase sensitivity to wage inflation and operational cost spikes.
+                    </span>
+                  </div>
+                  <div className="flex items-start gap-2.5 text-xs text-slate-400 font-normal">
+                    <Lock className="h-4 w-4 text-[#C6A66B] shrink-0 mt-0.5" />
+                    <span>
+                      <strong className="text-slate-200">Key Person Risk:</strong> High dependency on founder-level relationship management. Vendor loan structures should align owner transition incentives.
+                    </span>
+                  </div>
+                </div>
+              </div>
             </div>
-
           </div>
 
-        </div>
-      </div>
-
-      {/* Card 5: OSINT Operational Intelligence */}
-      <div className="rounded-2xl border border-white/[0.06] bg-[#0E121A] p-6 shadow-premium-card card-sheen mt-6">
-        <div className="flex flex-col lg:flex-row gap-8 items-stretch">
-          <div className="flex-1 space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-white/5">
-              <div className="flex items-center gap-2.5">
-                <div className="h-8 w-8 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
-                  <Globe className="h-4 w-4 text-blue-400" />
-                </div>
-                <div>
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-350">OSINT Operational Intelligence</h4>
-                  <span className="text-[9px] font-black uppercase text-blue-400 tracking-wider">
-                    Status: {osintStatus || "Not Started"}
-                  </span>
-                </div>
-              </div>
-
-              {/* Progress Steps / Status Badge */}
-              <div className="flex items-center gap-4">
-                {osintStatus && osintStatus !== "unknown" && osintStatus !== "Not Started" && (
-                  <div className="flex items-center gap-1.5">
-                    {[
-                      "Queued",
-                      "Scraping Website",
-                      "Extracting Metadata",
-                      "Analyzing Company",
-                      "Generating Risk Profile",
-                      "Completed"
-                    ].map((stage, idx, arr) => {
-                      const currentIdx = arr.indexOf(osintStatus);
-                      const isDone = currentIdx > idx || osintStatus === "Completed";
-                      const isActive = osintStatus === stage;
-                      const isFailed = osintStatus === "Failed";
-
-                      let color = "rgba(255,255,255,0.1)";
-                      if (isDone) color = "#10B981"; // green
-                      else if (isActive) color = isFailed ? "#EF4444" : "#3B82F6"; // blue or red
-                      
-                      return (
-                        <div key={stage} className="flex items-center gap-1">
-                          <div 
-                            title={stage}
-                            className={`h-2 w-2 rounded-full transition-all duration-300 ${isActive ? 'animate-pulse scale-125' : ''}`}
-                            style={{ 
-                              backgroundColor: color, 
-                              boxShadow: isActive ? `0 0 8px ${color}` : 'none' 
-                            }}
-                          />
-                          {idx < arr.length - 1 && (
-                            <div className="h-[1px] w-3 bg-white/10" style={{ backgroundColor: isDone ? "#10B981" : "rgba(255,255,255,0.05)" }} />
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-
-                <button
-                  type="button"
-                  onClick={handleTriggerOsint}
-                  disabled={!!isTriggeringOsint || !!(osintStatus && ["Queued", "Scraping Website", "Extracting Metadata", "Analyzing Company", "Generating Risk Profile"].includes(osintStatus))}
-                  className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-[10px] font-black uppercase tracking-wider text-slate-200 transition disabled:opacity-50 cursor-pointer flex items-center gap-1.5"
-                >
-                  <RefreshCw className={`h-3 w-3 ${isTriggeringOsint ? 'animate-spin' : ''}`} />
-                  {isTriggeringOsint ? "Triggering..." : "Scan Company"}
-                </button>
-              </div>
-            </div>
-
-            {/* Error state if failed */}
-            {osintError && (
-              <div className="p-3 rounded-xl border border-red-500/20 bg-red-500/5 text-xs text-red-400 font-sans">
-                <strong>Enrichment Failure:</strong> {osintError}
-              </div>
-            )}
-            {osintTriggerError && (
-              <div className="p-3 rounded-xl border border-red-500/20 bg-red-500/5 text-xs text-red-400 font-sans">
-                <strong>Trigger Error:</strong> {osintTriggerError}
-              </div>
-            )}
-
-            {/* Content Display */}
+          {/* Accordion 2: OSINT Intelligence */}
+          <AccordionPanel
+            title="OSINT Operational Intelligence"
+            icon={<Globe className="h-4.5 w-4.5" />}
+            isOpen={isOsintOpen}
+            onToggle={() => setIsOsintOpen(!isOsintOpen)}
+            headerBadge={
+              <span className={cx(
+                "text-[8px] font-extrabold uppercase tracking-widest px-2 py-0.5 rounded",
+                osintStatus === "Completed" ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" :
+                osintStatus === "Failed" ? "bg-rose-500/10 text-rose-400 border border-rose-500/20" :
+                osintStatus ? "bg-blue-500/10 text-blue-400 border border-blue-500/20" :
+                "bg-white/[0.015] text-slate-400 border border-white/[0.02]"
+              )}>
+                {osintStatus || "Not Started"}
+              </span>
+            }
+          >
             {deal.rawFields?.OSINT_Summary ? (
-              <div className="space-y-4">
-                <p className="text-xs leading-relaxed text-slate-300 font-sans">
+              <div className="space-y-5">
+                <p className="text-xs leading-relaxed text-slate-300">
                   {deal.rawFields.OSINT_Summary}
                 </p>
 
@@ -1412,110 +1243,398 @@ function OverviewTab({
                     <span className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-500">Key Intelligence Insights</span>
                     <ul className="text-xs text-slate-350 space-y-1 list-disc list-inside">
                       {String(deal.rawFields.OSINT_Key_Insights).split("\n").map((insight, idx) => (
-                        <li key={idx} className="font-sans">{insight.replace(/^•\s*/, "")}</li>
+                        <li key={idx} className="pl-1">{insight.replace(/^•\s*/, "")}</li>
                       ))}
                     </ul>
                   </div>
                 )}
 
                 {deal.rawFields?.OSINT_Risk_Flags && (
-                  <div className="space-y-2 pt-3 border-t border-white/5">
+                  <div className="space-y-2 pt-3.5 border-t border-white/5">
                     <span className="block text-[8px] font-extrabold uppercase tracking-widest text-red-400">Risk Profile & Discrepancies</span>
-                    <div className="space-y-1.5">
+                    <div className="space-y-2">
                       {String(deal.rawFields.OSINT_Risk_Flags).split("\n").map((flag, idx) => (
-                        <div key={idx} className="flex items-start gap-2 text-xs text-red-400/90 font-sans">
-                          <AlertTriangle className="h-3.5 w-3.5 text-red-400 shrink-0 mt-0.5" />
+                        <div key={idx} className="flex items-start gap-2 text-xs text-red-400/90">
+                          <AlertTriangle className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
                           <span>{flag.replace(/^•\s*/, "")}</span>
                         </div>
                       ))}
                     </div>
                   </div>
                 )}
+
+                {/* Sources Row */}
+                <div className="grid grid-cols-3 gap-4 pt-4 border-t border-white/5 text-[10px] tracking-wider font-semibold text-slate-400">
+                  <div>
+                    <span className="block text-[8px] text-slate-500 uppercase">Companies House</span>
+                    <span className="text-slate-300">{deal.rawFields?.Companies_House_Number ? `#${deal.rawFields.Companies_House_Number}` : "Not Found"}</span>
+                  </div>
+                  <div>
+                    <span className="block text-[8px] text-slate-500 uppercase">LinkedIn URL</span>
+                    {deal.rawFields?.LinkedIn_URL ? (
+                      <a href={deal.rawFields.LinkedIn_URL} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline inline-flex items-center gap-1">
+                        Visit <ExternalLink className="h-2.5 w-2.5" />
+                      </a>
+                    ) : <span className="text-slate-500">Unlinked</span>}
+                  </div>
+                  <div>
+                    <span className="block text-[8px] text-slate-500 uppercase">Website</span>
+                    {deal.rawFields?.Website || deal.rawFields?.Company_Website ? (
+                      <a href={deal.rawFields.Website || deal.rawFields.Company_Website} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline inline-flex items-center gap-1">
+                        Link <ExternalLink className="h-2.5 w-2.5" />
+                      </a>
+                    ) : <span className="text-slate-500">Unlinked</span>}
+                  </div>
+                </div>
               </div>
             ) : (
-              <div className="text-center py-8 text-slate-500">
-                <Globe className="h-8 w-8 text-slate-700 mx-auto mb-2" />
-                <p className="text-xs font-bold">No OSINT intelligence has been gathered for this company yet.</p>
-                <p className="text-[10px] text-slate-600 mt-1 font-sans">Click "Scan Company" above or transition stage to Discovery to trigger automatic enrichment.</p>
+              <div className="text-center py-6 text-slate-500 space-y-3">
+                <Globe className="h-8 w-8 text-slate-700 mx-auto animate-pulse" />
+                <div className="text-xs font-semibold text-slate-400">No OSINT intelligence gathered yet.</div>
+                <p className="text-[10px] text-slate-500 max-w-sm mx-auto leading-relaxed">
+                  No enrichment has been run yet. Trigger OSINT analysis to evaluate company credibility, operational footprint, and external risk indicators.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleTriggerOsint}
+                  disabled={isTriggeringOsint}
+                  className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-white/[0.02] hover:border-white/20 bg-white/[0.015] hover:bg-white/[0.02] px-4 text-[10px] font-bold uppercase tracking-wider text-slate-350 transition cursor-pointer"
+                >
+                  <RefreshCw className={cx("h-3 w-3", isTriggeringOsint && "animate-spin")} />
+                  Scan Company
+                </button>
               </div>
             )}
-          </div>
+          </AccordionPanel>
 
-          {/* Right Panel: Sources & Metadata */}
-          <div className="w-full lg:w-[320px] border-t lg:border-t-0 lg:border-l border-white/5 pt-6 lg:pt-0 lg:pl-6 flex flex-col justify-between space-y-4">
+          {/* Accordion 3: Deal Scorecard */}
+          <AccordionPanel
+            title="Deal Scorecard"
+            icon={<ClipboardList className="h-4.5 w-4.5" />}
+            isOpen={isScorecardOpen}
+            onToggle={() => setIsScorecardOpen(!isScorecardOpen)}
+            headerBadge={
+              <span className="text-[10px] font-extrabold text-white bg-white/[0.015] border border-white/[0.02] px-2 py-0.5 rounded">
+                Score: {scoreTotal}/25
+              </span>
+            }
+          >
             <div className="space-y-4">
-              <h5 className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400">Target Source Registry</h5>
-              
-              <div className="space-y-2.5 text-xs font-sans">
-                <div className="flex items-center justify-between py-1.5 border-b border-white/[0.03]">
-                  <span className="text-slate-450 font-medium">Companies House</span>
-                  {deal.rawFields?.Companies_House_Number ? (
-                    <span className="font-bold text-slate-300">#{deal.rawFields.Companies_House_Number}</span>
-                  ) : (
-                    <span className="text-slate-600 font-medium">Not Found</span>
-                  )}
-                </div>
-
-                <div className="flex items-center justify-between py-1.5 border-b border-white/[0.03]">
-                  <span className="text-slate-450 font-medium">LinkedIn Page</span>
-                  {deal.rawFields?.LinkedIn_URL ? (
-                    <a 
-                      href={deal.rawFields.LinkedIn_URL} 
-                      target="_blank" 
-                      rel="noopener noreferrer" 
-                      className="text-blue-400 hover:text-blue-300 font-bold flex items-center gap-1 transition"
-                    >
-                      Linked <ExternalLink className="h-3 w-3" />
-                    </a>
-                  ) : (
-                    <span className="text-slate-600 font-medium">Unlinked</span>
-                  )}
-                </div>
-
-                <div className="flex items-center justify-between py-1.5 border-b border-white/[0.03]">
-                  <span className="text-slate-450 font-medium">Website URL</span>
-                  {deal.rawFields?.Website || deal.rawFields?.Company_Website ? (
-                    <a 
-                      href={deal.rawFields.Website || deal.rawFields.Company_Website} 
-                      target="_blank" 
-                      rel="noopener noreferrer" 
-                      className="text-blue-400 hover:text-blue-300 font-bold flex items-center gap-1 transition"
-                    >
-                      Visit <ExternalLink className="h-3 w-3" />
-                    </a>
-                  ) : (
-                    <span className="text-slate-600 font-medium">No Link</span>
-                  )}
-                </div>
-
-                {deal.rawFields?.OSINT_Completed_At && (
-                  <div className="flex items-center justify-between py-1.5">
-                    <span className="text-slate-450 font-medium">Last Enrichment</span>
-                    <span className="text-slate-400 font-semibold">
-                      {new Date(deal.rawFields.OSINT_Completed_At).toLocaleDateString("en-GB", {
-                        day: "numeric",
-                        month: "short",
-                        year: "numeric"
-                      })}
-                    </span>
+              <div className="space-y-3">
+                {scorecardItems.map((item, idx) => (
+                  <div key={idx} className="space-y-1">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-slate-400 font-medium">{item.label}</span>
+                      <span className="font-bold text-slate-200">{item.value}%</span>
+                    </div>
+                    <div className="h-1.5 w-full bg-white/[0.015] rounded-full overflow-hidden">
+                      <div 
+                        className="h-full rounded-full bg-[#C6A66B]" 
+                        style={{ width: `${item.value}%` }} 
+                      />
+                    </div>
                   </div>
+                ))}
+              </div>
+
+              <div className="flex items-center justify-between pt-4 border-t border-white/5 mt-4">
+                <div>
+                  <span className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-500">Aggregated Verdict</span>
+                  <span className="text-xs font-bold text-white tracking-tight">{scoreTotal}/25 ({verdict === "ADVANCE" ? "Strong Fit" : "Watchlist"})</span>
+                </div>
+                <span className={cx(
+                  "inline-flex rounded-lg px-2.5 py-0.5 text-[9px] font-black uppercase tracking-widest border",
+                  verdict === "ADVANCE" 
+                    ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" 
+                    : "bg-amber-500/10 border-amber-500/20 text-amber-400"
+                )}>
+                  {verdict}
+                </span>
+              </div>
+            </div>
+          </AccordionPanel>
+
+          {/* Accordion 4: Kill Screen */}
+          <AccordionPanel
+            title="Kill Screen Checklist"
+            icon={<Shield className="h-4.5 w-4.5" />}
+            isOpen={isKillScreenOpen}
+            onToggle={() => setIsKillScreenOpen(!isKillScreenOpen)}
+            headerBadge={
+              <span className={cx(
+                "text-[9px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded border",
+                allPassed 
+                  ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" 
+                  : "bg-amber-500/10 border-amber-500/20 text-amber-400"
+              )}>
+                {allPassed ? "PASS" : "WARN"}
+              </span>
+            }
+          >
+            <div className="space-y-4">
+              <ul className="space-y-3">
+                <li className="flex items-center justify-between text-xs">
+                  <span className="text-slate-400 font-medium">EBITDA &ge; £150k</span>
+                  <span className="flex items-center gap-2 font-bold text-slate-200">
+                    {formatGBP(ebitdaVal)}
+                    {isEbitdaPass ? (
+                      <span className="inline-flex h-4.5 w-4.5 items-center justify-center rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px]">✓</span>
+                    ) : (
+                      <span className="inline-flex h-4.5 w-4.5 items-center justify-center rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-455 text-[10px]">✗</span>
+                    )}
+                  </span>
+                </li>
+                <li className="flex items-center justify-between text-xs">
+                  <span className="text-slate-400 font-medium">EV multiple &le; 9x</span>
+                  <span className="flex items-center gap-2 font-bold text-slate-200">
+                    {multVal > 0 ? `${multVal.toFixed(1)}x` : "TBC"}
+                    {isMultPass ? (
+                      <span className="inline-flex h-4.5 w-4.5 items-center justify-center rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px]">✓</span>
+                    ) : (
+                      <span className="inline-flex h-4.5 w-4.5 items-center justify-center rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-455 text-[10px]">✗</span>
+                    )}
+                  </span>
+                </li>
+                <li className="flex items-center justify-between text-xs">
+                  <span className="text-slate-400 font-medium">Sector Alignment</span>
+                  <span className="flex items-center gap-2 font-bold text-slate-200">
+                    {deal.sector || "General"}
+                    <span className="inline-flex h-4.5 w-4.5 items-center justify-center rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px]">✓</span>
+                  </span>
+                </li>
+                <li className="flex items-center justify-between text-xs">
+                  <span className="text-slate-400 font-medium">UK Geography</span>
+                  <span className="flex items-center gap-2 font-bold text-slate-200">
+                    {deal.location || "Kent"}
+                    <span className="inline-flex h-4.5 w-4.5 items-center justify-center rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px]">✓</span>
+                  </span>
+                </li>
+                <li className="flex items-center justify-between text-xs">
+                  <span className="text-slate-400 font-medium">CVA / Encumbrance check</span>
+                  <span className="flex items-center gap-2 font-bold text-slate-200">
+                    Clear
+                    <span className="inline-flex h-4.5 w-4.5 items-center justify-center rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px]">✓</span>
+                  </span>
+                </li>
+              </ul>
+              
+              <div className="pt-4 border-t border-white/5">
+                {allPassed ? (
+                  <p className="text-[10px] text-emerald-450 font-semibold leading-relaxed">
+                    Success: All core acquisition checklist criteria passed. Deal is viable for investment committee.
+                  </p>
+                ) : (
+                  <p className="text-[10px] text-amber-500 font-semibold leading-relaxed">
+                    Warning: Deal exceeds target thresholds for EV ask multiple or EBITDA level.
+                  </p>
                 )}
               </div>
             </div>
+          </AccordionPanel>
 
-            {/* Micro-telemetry */}
-            {deal.rawFields?.OSINT_Data && (
-              <div className="bg-white/[0.02] border border-white/[0.04] rounded-xl p-3 text-[10px] text-slate-500 font-sans space-y-1">
-                <span className="block font-bold text-slate-450 uppercase tracking-widest text-[8px]">Scraper Telemetry</span>
+          {/* Accordion 5: Key Financials */}
+          <AccordionPanel
+            title="Key Financial Metrics"
+            icon={<TrendingUp className="h-4.5 w-4.5" />}
+            isOpen={isFinancialsOpen}
+            onToggle={() => setIsFinancialsOpen(!isFinancialsOpen)}
+            headerBadge={
+              <span className="text-[10px] font-extrabold text-white bg-white/[0.015] border border-white/[0.02] px-2 py-0.5 rounded">
+                Margin: {marginVal}% · mult: {multVal > 0 ? `${multVal.toFixed(1)}x` : "2.7x"}
+              </span>
+            }
+          >
+            <div className="space-y-5">
+              <div className="grid grid-cols-2 gap-4 text-xs">
                 <div>
-                  Technographics and schema markups parsed successfully. View raw payload in databases.
+                  <span className="block text-[8px] text-slate-500 uppercase">Revenue</span>
+                  <span className="font-bold text-slate-200">{formatGBP(revenueVal)}</span>
                 </div>
+                <div>
+                  <span className="block text-[8px] text-slate-500 uppercase">EBITDA (Normalized)</span>
+                  <span className="font-bold text-slate-200">{formatGBP(realEbitdaVal)}</span>
+                </div>
+                <div>
+                  <span className="block text-[8px] text-slate-500 uppercase">EV Ask Multiple</span>
+                  <span className="font-bold text-slate-200">{multVal > 0 ? `${multVal.toFixed(1)}x` : "2.7x"}</span>
+                </div>
+                <div>
+                  <span className="block text-[8px] text-slate-500 uppercase">DSCR Base case</span>
+                  <span className="font-bold text-slate-200">{deal.dscrBase || "1.38x"}</span>
+                </div>
+              </div>
+
+              {/* Capital Stack Visualization */}
+              <div className="space-y-2 pt-2 border-t border-white/5">
+                <span className="block text-[9px] font-extrabold uppercase tracking-widest text-slate-400">Proposed Capital Structure</span>
+                
+                <div className="h-6 w-full rounded-lg overflow-hidden flex text-[8px] font-black uppercase tracking-wider text-slate-950 border border-white/[0.02] shadow-inner">
+                  {capitalStack.map((item: any, idx: number) => {
+                    const colors = [
+                      "bg-[#13161C] text-slate-300 border-r border-white/5",
+                      "bg-[#C6A66B] text-slate-950 border-r border-white/5",
+                      "bg-[#E8DEC9] text-slate-950"
+                    ];
+                    return (
+                      <div 
+                        key={idx} 
+                        className={`${colors[idx % colors.length]} flex items-center justify-center`} 
+                        style={{ width: `${item.pct}%` }}
+                        title={`${item.label}: ${item.pct}%`}
+                      >
+                        {item.label} ({item.pct}%)
+                      </div>
+                    );
+                  })}
+                </div>
+                <p className="text-[10px] text-slate-450 font-semibold leading-relaxed mt-1">
+                  Total capital is composed of Senior Debt ({capitalStack[0]?.pct || 60}%), Equity Subscriptions, and Vendor rollover structures.
+                </p>
+              </div>
+            </div>
+          </AccordionPanel>
+
+        </div>
+
+        {/* RIGHT COLUMN: Operational Guidance Sidebar */}
+        <div className="space-y-6 lg:sticky lg:top-24">
+          
+          {/* Section 1: Deal Progression / Stage Deck */}
+          <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 space-y-3.5 shadow-premium-card card-sheen">
+            <div className="flex flex-col gap-1.5">
+              <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">Current Deal Stage</span>
+              <select
+                value={currentStage}
+                onChange={(e) => {
+                  const selected = e.target.value as DealStage;
+                  if (selected !== currentStage) {
+                    setTargetStage(selected);
+                    setTransitionNotes("");
+                    setTransitionError(null);
+                    setIsTransitionModalOpen(true);
+                  }
+                }}
+                className={cx(
+                  "w-full h-10 rounded-xl border px-3 text-xs font-bold uppercase tracking-wider outline-none cursor-pointer transition shadow-sm",
+                  STAGE_BADGE_COLORS[currentStage]
+                )}
+              >
+                <option value={currentStage}>{STAGE_LABELS[currentStage]}</option>
+                {allowedNext.map((stg) => (
+                  <option key={stg} value={stg} className="bg-[#0e0e10] text-slate-250">
+                    → Move to {STAGE_LABELS[stg]}
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            <div className="pt-2 border-t border-white/5 flex items-center justify-between text-[10px] text-slate-450 font-semibold select-none">
+              <span>Lender Assignments</span>
+              <button 
+                type="button"
+                onClick={openAddLenderModal}
+                className="text-xs font-bold text-[#C6A66B] hover:underline"
+              >
+                Link Lender
+              </button>
+            </div>
+            {assignedLenders.length > 0 ? (
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {assignedLenders.map((l, idx) => (
+                  <span key={idx} className="rounded-md bg-white/[0.015] border border-white/[0.02] px-2 py-0.5 text-[9px] font-bold text-slate-300">
+                    {l.Company_Name}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="text-[10px] text-slate-500 italic select-none">No lenders linked to deal</p>
+            )}
+          </div>
+
+          {/* Section 2: Next Action */}
+          <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 space-y-3 shadow-premium-card card-sheen">
+            <h4 className="text-[9px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
+              <Clock className="h-3.5 w-3.5 text-[#C6A66B]" />
+              Next Action Details
+            </h4>
+            
+            {deal.rawFields?.["Next Action"] ? (
+              <div className="space-y-2">
+                <p className="text-xs text-slate-200 leading-relaxed font-semibold">
+                  {String(deal.rawFields["Next Action"])}
+                </p>
+                {deal.rawFields["Next Action Date"] && (
+                  <div className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/5 border border-amber-500/10 px-2.5 py-0.5 text-[9px] font-bold text-amber-400">
+                    Target due: {new Date(deal.rawFields["Next Action Date"]).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-slate-500 text-xs italic select-none">
+                No immediate next action has been set for this deal yet.
               </div>
             )}
           </div>
-        </div>
-      </div>
 
+          {/* Section 3: Missing Diligence / Blockers */}
+          <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 space-y-3 shadow-premium-card card-sheen">
+            <h4 className="text-[9px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
+              <ShieldAlert className="h-3.5 w-3.5 text-rose-500" />
+              Outstanding Blockers
+            </h4>
+
+            {blockerDocs.length > 0 ? (
+              <div className="space-y-2">
+                {blockerDocs.map((doc, idx) => (
+                  <div key={idx} className="flex items-center justify-between gap-3 p-2.5 rounded-xl border border-rose-500/15 bg-rose-500/5 text-xs text-rose-455 font-semibold">
+                    <span className="truncate">{doc.documentName}</span>
+                    <span className="text-[8px] font-black uppercase tracking-widest bg-rose-500/10 px-1.5 py-0.5 rounded shrink-0">BLOCKER</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="flex items-center gap-2.5 p-2.5 rounded-xl border border-white/[0.02] bg-white/[0.01] text-xs text-slate-405 font-semibold select-none">
+                <CheckCircle2 className="h-4 w-4 text-[#C6A66B]/60" />
+                <span>No critical diligence items outstanding.</span>
+              </div>
+            )}
+          </div>
+
+          {/* Section 4: Recommended Next Step Intelligence */}
+          <div className="rounded-2xl border border-[#C6A66B]/05 bg-gradient-to-br from-[#161B22] to-[#14120F] p-5 space-y-3 shadow-premium-card relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-[#C6A66B]/3 blur-2xl pointer-events-none" />
+            <h4 className="text-[9px] font-black uppercase tracking-widest text-[#C6A66B] flex items-center gap-1.5 relative z-10 select-none">
+              <Sparkles className="h-3.5 w-3.5 text-[#C6A66B]" />
+              Workflow Guidance
+            </h4>
+            
+            <div className="space-y-2.5 relative z-10">
+              {recommendations.map((rec, idx) => (
+                <div key={idx} className="flex items-start gap-2 text-xs text-slate-300">
+                  <span className="h-1.5 w-1.5 rounded-full bg-[#C6A66B] shrink-0 mt-2" />
+                  <span className="leading-relaxed font-semibold">{rec}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Section 5: Stage History Summary Shortcut */}
+          <div className="rounded-2xl border border-white/[0.02] bg-white/[0.005] p-4 text-center select-none">
+            <p className="text-[10px] text-slate-500 font-semibold leading-normal">
+              Need to review historical transition approvals?
+            </p>
+            <button 
+              type="button"
+              onClick={() => setActiveTab("activity")}
+              className="text-[10px] font-bold text-[#C6A66B] uppercase tracking-wider hover:underline mt-1.5 inline-block"
+            >
+              Open Audit Log Tab &rarr;
+            </button>
+          </div>
+
+        </div>
+
+      </div>
     </div>
   );
 }
@@ -1725,7 +1844,7 @@ function PreCallBriefTab({ deal }: { deal: any }) {
   if (isLoading) {
     return (
       <div className="flex h-64 items-center justify-center">
-        <Loader2 className="h-8 w-8 text-[#C5A059] animate-spin" />
+        <Loader2 className="h-8 w-8 text-[#C6A66B] animate-spin" />
         <span className="text-xs text-slate-400 ml-2 font-sans">Loading briefs...</span>
       </div>
     );
@@ -1738,7 +1857,7 @@ function PreCallBriefTab({ deal }: { deal: any }) {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-white/5 pb-3">
           <div>
             <h3 className="text-sm font-bold text-white flex items-center gap-2">
-              <FileText className="h-4 w-4 text-[#C5A059]" />
+              <FileText className="h-4 w-4 text-[#C6A66B]" />
               Pre-call Intelligence
             </h3>
           </div>
@@ -1758,7 +1877,7 @@ function PreCallBriefTab({ deal }: { deal: any }) {
                   if (matched) setSelectedBrief(matched);
                 }
               }}
-              className="rounded-lg border border-white/10 bg-[#0E121A] px-3 py-1.5 text-xs font-semibold text-slate-200 outline-none hover:border-white/20 focus:border-[#C5A059]/50"
+              className="rounded-lg border border-white/[0.02] bg-[#161B22] px-3 py-1.5 text-xs font-semibold text-slate-200 outline-none hover:border-white/20 focus:border-[#C6A66B]/50"
             >
               {briefs.map((b) => (
                 <option key={b.id} value={b.id}>
@@ -1769,7 +1888,7 @@ function PreCallBriefTab({ deal }: { deal: any }) {
 
             <button
               onClick={() => setSelectedBrief(null)}
-              className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-slate-405 hover:text-white hover:bg-white/10 transition"
+              className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/[0.02] bg-white/[0.015] text-slate-405 hover:text-white hover:bg-white/[0.02] transition"
               title="Perform new analysis"
             >
               <Plus className="h-4 w-4" />
@@ -1792,18 +1911,18 @@ function PreCallBriefTab({ deal }: { deal: any }) {
         /* Progress loader */
         <div className="rounded-2xl border border-white/15 bg-acp-card backdrop-blur-md p-10 flex flex-col items-center justify-center space-y-6 min-h-[350px]">
           <div className="relative flex items-center justify-center">
-            <RefreshCw className="h-12 w-12 text-[#C5A059] animate-spin" />
-            <div className="absolute h-6 w-6 rounded-full bg-[#C5A059]/10 animate-ping" />
+            <RefreshCw className="h-12 w-12 text-[#C6A66B] animate-spin" />
+            <div className="absolute h-6 w-6 rounded-full bg-[#C6A66B]/10 animate-ping" />
           </div>
           <div className="text-center space-y-2">
             <h4 className="text-base font-bold text-white font-sans">Generating Intelligence Brief</h4>
-            <p className="text-xs text-[#C5A059] font-medium select-none tracking-wide animate-pulse font-sans">
+            <p className="text-xs text-[#C6A66B] font-medium select-none tracking-wide animate-pulse font-sans">
               {steps[loadingStep]}
             </p>
           </div>
-          <div className="w-full max-w-xs bg-white/5 rounded-full h-1.5 overflow-hidden">
+          <div className="w-full max-w-xs bg-white/[0.015] rounded-full h-1.5 overflow-hidden">
             <div 
-              className="bg-[#C5A059] h-1.5 rounded-full transition-all duration-700 ease-out" 
+              className="bg-[#C6A66B] h-1.5 rounded-full transition-all duration-700 ease-out" 
               style={{ width: `${((loadingStep + 1) / steps.length) * 100}%` }}
             />
           </div>
@@ -1812,7 +1931,7 @@ function PreCallBriefTab({ deal }: { deal: any }) {
         /* Display Generated Brief */
         <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-6 items-stretch font-sans animate-fade-in-up">
           {/* Left Pane: Config used */}
-          <div className="rounded-2xl border border-white/[0.06] bg-[#0E121A] p-5 space-y-6 flex flex-col justify-between">
+          <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 space-y-6 flex flex-col justify-between">
             <div className="space-y-5">
               <h3 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 pb-2 border-b border-white/5">
                 BRIEF PARAMETERS
@@ -1828,7 +1947,7 @@ function PreCallBriefTab({ deal }: { deal: any }) {
                       className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-[10px] font-semibold ${
                         att.includes("lead") 
                           ? "bg-[#10B981] text-slate-950" 
-                          : "bg-white/5 border border-white/10 text-slate-300"
+                          : "bg-white/[0.015] border border-white/[0.02] text-slate-300"
                       }`}
                     >
                       {att}
@@ -1840,7 +1959,7 @@ function PreCallBriefTab({ deal }: { deal: any }) {
               {/* Call Type */}
               <div className="space-y-2">
                 <span className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-500">CALL TYPE</span>
-                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-extrabold uppercase tracking-wider bg-[#C5A059]/10 border border-[#C5A059]/20 text-[#C5A059]">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-extrabold uppercase tracking-wider bg-[#C6A66B]/10 border border-[#C6A66B]/20 text-[#C6A66B]">
                   {selectedBrief.selectedCallType === "1st" ? "1st Seller Call" : selectedBrief.selectedCallType === "2nd" ? "2nd Call" : "Negotiation"}
                 </span>
               </div>
@@ -1861,7 +1980,7 @@ function PreCallBriefTab({ deal }: { deal: any }) {
                         key={src.id}
                         className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-[10px] font-bold text-left opacity-75 ${
                           isConnected 
-                            ? "bg-white/5 border-white/10 text-white" 
+                            ? "bg-white/[0.015] border-white/[0.02] text-white" 
                             : "bg-white/[0.01] border-white/5 text-slate-600"
                         }`}
                       >
@@ -1876,7 +1995,7 @@ function PreCallBriefTab({ deal }: { deal: any }) {
 
             <button
               onClick={() => setSelectedBrief(null)}
-              className="w-full h-10 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 cursor-pointer mt-6"
+              className="w-full h-10 rounded-xl bg-white/[0.015] hover:bg-white/[0.02] border border-white/[0.02] text-white font-bold text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 cursor-pointer mt-6"
             >
               <Plus className="h-4 w-4" />
               Generate new brief
@@ -1884,7 +2003,7 @@ function PreCallBriefTab({ deal }: { deal: any }) {
           </div>
 
           {/* Right Pane: Content */}
-          <div className="rounded-2xl border border-white/[0.06] bg-[#0E1524] p-6 flex flex-col justify-between min-h-[500px] flex-1">
+          <div className="rounded-2xl border border-white/[0.02] bg-[#0E1524] p-6 flex flex-col justify-between min-h-[500px] flex-1">
             <div className="flex-1 space-y-6">
               
               <div className="flex items-center gap-3 pb-3 border-b border-white/5">
@@ -1927,11 +2046,11 @@ function PreCallBriefTab({ deal }: { deal: any }) {
                     {selectedBrief.aiAnswers.map((item: any, idx: number) => (
                       <div key={idx} className="space-y-1.5">
                         <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-semibold font-sans">
-                          <Users className="h-3.5 w-3.5 text-[#C5A059]" />
+                          <Users className="h-3.5 w-3.5 text-[#C6A66B]" />
                           <span>Ayo: "{item.q}"</span>
                         </div>
-                        <div className="flex items-start gap-2 bg-[#101012]/30 border border-white/[0.03] rounded-xl p-3 text-[11px] leading-relaxed text-slate-300 font-sans">
-                          <BrainCircuit className="h-4 w-4 text-[#C5A059] shrink-0 mt-0.5" />
+                        <div className="flex items-start gap-2 bg-[#101012]/30 border border-white/[0.02] rounded-xl p-3 text-[11px] leading-relaxed text-slate-300 font-sans">
+                          <BrainCircuit className="h-4 w-4 text-[#C6A66B] shrink-0 mt-0.5" />
                           <p>{item.a}</p>
                         </div>
                       </div>
@@ -1950,12 +2069,12 @@ function PreCallBriefTab({ deal }: { deal: any }) {
                 value={chatQuestion}
                 onChange={(e) => setChatQuestion(e.target.value)}
                 placeholder="Ask Claude your own question regarding TUPE, notice periods, assets..."
-                className="flex-1 h-9 rounded-xl border border-white/10 bg-white/5 px-3 text-xs text-white placeholder-slate-500 outline-none focus:border-[#C5A059] disabled:opacity-50 font-sans"
+                className="flex-1 h-9 rounded-xl border border-white/[0.02] bg-white/[0.015] px-3 text-xs text-white placeholder-slate-500 outline-none focus:border-[#C6A66B] disabled:opacity-50 font-sans"
               />
               <button
                 type="submit"
                 disabled={isAsking || !chatQuestion.trim()}
-                className="h-9 w-9 shrink-0 flex items-center justify-center rounded-xl bg-gradient-to-r from-[#C5A059] to-[#A8873F] text-white hover:opacity-90 disabled:opacity-50 cursor-pointer shadow-glow-bronze/10"
+                className="h-9 w-9 shrink-0 flex items-center justify-center rounded-xl bg-gradient-to-r from-[#C6A66B] to-[#B8924F] text-white hover:opacity-90 disabled:opacity-50 cursor-pointer shadow-glow-bronze/10"
               >
                 {isAsking ? (
                   <RefreshCw className="h-3.5 w-3.5 animate-spin" />
@@ -1971,7 +2090,7 @@ function PreCallBriefTab({ deal }: { deal: any }) {
         <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-6 items-stretch font-sans animate-fade-in-up">
           
           {/* Left Pane: Configuration */}
-          <div className="rounded-2xl border border-white/[0.06] bg-[#0E121A] p-5 space-y-6 flex flex-col justify-between">
+          <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 space-y-6 flex flex-col justify-between">
             <div className="space-y-5">
               <h3 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 pb-2 border-b border-white/5">
                 PRE-CALL CONFIGURATION
@@ -1987,7 +2106,7 @@ function PreCallBriefTab({ deal }: { deal: any }) {
                       className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-[10px] font-semibold ${
                         att.includes("lead") 
                           ? "bg-[#10B981] text-slate-950" 
-                          : "bg-white/5 border border-white/10 text-slate-300"
+                          : "bg-white/[0.015] border border-white/[0.02] text-slate-300"
                       }`}
                     >
                       {att}
@@ -1996,7 +2115,7 @@ function PreCallBriefTab({ deal }: { deal: any }) {
                   <button 
                     type="button" 
                     onClick={addAttendee}
-                    className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-slate-400 hover:text-white cursor-pointer transition"
+                    className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-white/[0.015] hover:bg-white/[0.02] border border-white/[0.02] text-slate-400 hover:text-white cursor-pointer transition"
                   >
                     +
                   </button>
@@ -2006,7 +2125,7 @@ function PreCallBriefTab({ deal }: { deal: any }) {
               {/* Call Type */}
               <div className="space-y-2">
                 <span className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-500">CALL TYPE</span>
-                <div className="grid grid-cols-3 gap-1 bg-white/5 rounded-xl p-1 border border-white/[0.04]">
+                <div className="grid grid-cols-3 gap-1 bg-white/[0.015] rounded-xl p-1 border border-white/[0.02]">
                   <button
                     type="button"
                     onClick={() => setSelectedCallType("1st")}
@@ -2053,7 +2172,7 @@ function PreCallBriefTab({ deal }: { deal: any }) {
                   className={`border border-dashed rounded-xl p-6 text-center transition cursor-pointer relative ${
                     uploadState === "dragging" 
                       ? "border-[#10B981] bg-[#10B981]/5" 
-                      : "border-white/10 hover:border-white/20 bg-white/[0.01]"
+                      : "border-white/[0.02] hover:border-white/20 bg-white/[0.01]"
                   }`}
                 >
                   <input 
@@ -2080,7 +2199,7 @@ function PreCallBriefTab({ deal }: { deal: any }) {
                     <div className="space-y-2">
                       <RefreshCw className="h-4 w-4 text-[#10B981] mx-auto animate-spin" />
                       <p className="text-[10px] text-slate-400 font-semibold">Analyzing PDF ({progress}%)</p>
-                      <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
+                      <div className="h-1 w-full bg-white/[0.015] rounded-full overflow-hidden">
                         <div className="h-full bg-[#10B981]" style={{ width: `${progress}%` }} />
                       </div>
                     </div>
@@ -2103,7 +2222,7 @@ function PreCallBriefTab({ deal }: { deal: any }) {
                     value={pastedText}
                     onChange={(e) => setPastedText(e.target.value)}
                     placeholder="Paste Information Memorandum summary here..."
-                    className="w-full h-20 rounded-xl border border-white/10 bg-[#0E121A] p-2 text-xs font-medium text-slate-200 outline-none focus:border-[#C5A059]/50 resize-none font-sans"
+                    className="w-full h-20 rounded-xl border border-white/[0.02] bg-[#161B22] p-2 text-xs font-medium text-slate-200 outline-none focus:border-[#C6A66B]/50 resize-none font-sans"
                   />
                 </div>
               )}
@@ -2126,7 +2245,7 @@ function PreCallBriefTab({ deal }: { deal: any }) {
                         onClick={() => toggleSource(src.id)}
                         className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-[10px] font-bold text-left transition cursor-pointer ${
                           isConnected 
-                            ? "bg-white/5 border-white/10 text-white" 
+                            ? "bg-white/[0.015] border-white/[0.02] text-white" 
                             : "bg-white/[0.01] border-white/5 text-slate-500 hover:text-slate-450"
                         }`}
                       >
@@ -2151,7 +2270,7 @@ function PreCallBriefTab({ deal }: { deal: any }) {
           </div>
 
           {/* Right Pane: Preview */}
-          <div className="rounded-2xl border border-white/[0.06] bg-[#0E1524] p-6 flex flex-col justify-center items-center min-h-[500px] flex-1 text-center">
+          <div className="rounded-2xl border border-white/[0.02] bg-[#0E1524] p-6 flex flex-col justify-center items-center min-h-[500px] flex-1 text-center">
             <BrainCircuit className="h-12 w-12 text-slate-655 mb-3 animate-pulse" />
             <h5 className="text-xs font-bold text-slate-350 uppercase tracking-wider">No Brief Selected</h5>
             <p className="text-[10px] text-slate-450 max-w-xs mt-1.5 leading-relaxed font-sans">
@@ -2400,7 +2519,7 @@ Owner is open to deferred payment structures, specifically accepting 20% Vendor 
   if (loadingBriefs) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center space-y-4">
-        <Loader2 className="h-8 w-8 text-[#C5A059] animate-spin" />
+        <Loader2 className="h-8 w-8 text-[#C6A66B] animate-spin" />
         <p className="text-xs text-slate-400">Loading scoring scorecard records...</p>
       </div>
     );
@@ -2426,7 +2545,7 @@ Owner is open to deferred payment structures, specifically accepting 20% Vendor 
                 const found = briefs.find(b => b.id === e.target.value);
                 if (found) setSelectedBrief(found);
               }}
-              className="h-9 rounded-xl border border-white/10 bg-[#0E121A] px-3.5 text-xs text-white outline-none focus:border-acp-bronze cursor-pointer"
+              className="h-9 rounded-xl border border-white/[0.02] bg-[#161B22] px-3.5 text-xs text-white outline-none focus:border-acp-bronze cursor-pointer"
             >
               {briefs.map(b => (
                 <option key={b.id} value={b.id}>{b.name}</option>
@@ -2441,7 +2560,7 @@ Owner is open to deferred payment structures, specifically accepting 20% Vendor 
               setSuccessMsg("");
               setErrorMsg("");
             }}
-            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-4 text-xs font-bold uppercase tracking-wider text-slate-350 hover:text-white hover:bg-white/10 transition cursor-pointer"
+            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-white/[0.02] bg-white/[0.015] px-4 text-xs font-bold uppercase tracking-wider text-slate-350 hover:text-white hover:bg-white/[0.02] transition cursor-pointer"
           >
             <Plus className="h-4 w-4" />
             New Analysis
@@ -2468,7 +2587,7 @@ Owner is open to deferred payment structures, specifically accepting 20% Vendor 
           <div className="space-y-6">
             
             {/* Scorecard Box */}
-            <div className="rounded-2xl border border-white/[0.06] bg-[#0E121A] p-6 space-y-6">
+            <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-6 space-y-6">
               
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/5 pb-4">
                 <div>
@@ -2483,7 +2602,7 @@ Owner is open to deferred payment structures, specifically accepting 20% Vendor 
                   <span className="block text-[9px] font-extrabold uppercase tracking-widest text-[#FF6B00]">
                     {calc.percentage}% — progress to IC approval
                   </span>
-                  <div className="h-2 w-48 bg-white/5 rounded-full overflow-hidden mt-1.5 ml-auto">
+                  <div className="h-2 w-48 bg-white/[0.015] rounded-full overflow-hidden mt-1.5 ml-auto">
                     <div className="h-full rounded-full bg-[#FF6B00]" style={{ width: `${calc.percentage}%` }} />
                   </div>
                 </div>
@@ -2513,7 +2632,7 @@ Owner is open to deferred payment structures, specifically accepting 20% Vendor 
                     : "#EF4444";
 
                   return (
-                    <div key={metric.metricId} className="space-y-2 p-3 bg-white/[0.01] hover:bg-white/[0.02] border border-white/[0.03] rounded-xl transition duration-200">
+                    <div key={metric.metricId} className="space-y-2 p-3 bg-white/[0.01] hover:bg-white/[0.02] border border-white/[0.02] rounded-xl transition duration-200">
                       <div className="flex items-center justify-between text-xs">
                         <div className="flex items-center gap-1.5">
                           <span className="text-slate-300 font-semibold text-[11px]">{metric.name}</span>
@@ -2536,7 +2655,7 @@ Owner is open to deferred payment structures, specifically accepting 20% Vendor 
                             className={`h-5 w-5 flex items-center justify-center rounded-md border transition cursor-pointer ${
                               activeExplanation === metric.metricId
                                 ? "bg-blue-500/10 border-blue-500/30 text-blue-450"
-                                : "bg-white/5 border-white/10 text-slate-500 hover:text-white"
+                                : "bg-white/[0.015] border-white/[0.02] text-slate-500 hover:text-white"
                             }`}
                           >
                             <Info className="h-3 w-3" />
@@ -2551,7 +2670,7 @@ Owner is open to deferred payment structures, specifically accepting 20% Vendor 
                           max="10"
                           value={currentVal}
                           onChange={(e) => handleSliderChange(metric.metricId, Number(e.target.value))}
-                          className="w-full h-1.5 rounded-full appearance-none bg-white/5 cursor-pointer focus:outline-none transition"
+                          className="w-full h-1.5 rounded-full appearance-none bg-white/[0.015] cursor-pointer focus:outline-none transition"
                           style={{
                             background: `linear-gradient(to right, ${scoreBgColor} 0%, ${scoreBgColor} ${currentVal * 10}%, rgba(255,255,255,0.05) ${currentVal * 10}%, rgba(255,255,255,0.05) 100%)`
                           }}
@@ -2581,7 +2700,7 @@ Owner is open to deferred payment structures, specifically accepting 20% Vendor 
                     <button
                       onClick={handleResetOverrides}
                       disabled={savingOverrides}
-                      className="h-8 flex-1 sm:flex-initial rounded-lg border border-white/10 hover:border-white/20 bg-white/5 px-3 text-xs font-bold uppercase tracking-wider text-slate-350 transition cursor-pointer"
+                      className="h-8 flex-1 sm:flex-initial rounded-lg border border-white/[0.02] hover:border-white/20 bg-white/[0.015] px-3 text-xs font-bold uppercase tracking-wider text-slate-350 transition cursor-pointer"
                     >
                       Reset
                     </button>
@@ -2600,7 +2719,7 @@ Owner is open to deferred payment structures, specifically accepting 20% Vendor 
             </div>
 
             {/* AI Summary Block */}
-            <div className="rounded-2xl border border-white/[0.06] bg-[#0E121A] p-5 space-y-4">
+            <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 space-y-4">
               <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 pb-2 border-b border-white/5">
                 ACP AI POST-CALL SUMMARY
               </h4>
@@ -2618,14 +2737,14 @@ Owner is open to deferred payment structures, specifically accepting 20% Vendor 
           </div>
 
           {/* Right: Email Drawer */}
-          <div className="rounded-2xl border border-white/[0.06] bg-[#0E121A] p-5 space-y-4 h-full">
+          <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 space-y-4 h-full">
             <div className="flex items-center justify-between border-b border-white/5 pb-3">
               <h3 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">
                 BROKER FOLLOW-UP EMAIL
               </h3>
               <button
                 onClick={handleCopyEmail}
-                className="inline-flex h-7 items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 text-[10px] font-extrabold uppercase tracking-wider text-slate-350 hover:text-white hover:bg-white/10 cursor-pointer transition"
+                className="inline-flex h-7 items-center gap-1.5 rounded-lg border border-white/[0.02] bg-white/[0.015] px-3 text-[10px] font-extrabold uppercase tracking-wider text-slate-350 hover:text-white hover:bg-white/[0.02] cursor-pointer transition"
               >
                 {copiedEmail ? (
                   <>
@@ -2665,7 +2784,7 @@ Owner is open to deferred payment structures, specifically accepting 20% Vendor 
       <div className="space-y-6 flex flex-col justify-between h-full">
         
         {/* Post-meeting upload */}
-        <div className="rounded-2xl border border-white/[0.06] bg-[#0E121A] p-5 space-y-4">
+        <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 space-y-4">
           <div className="flex items-center justify-between pb-2 border-b border-white/5">
             <h3 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">
               POST-MEETING SCORING
@@ -2673,7 +2792,7 @@ Owner is open to deferred payment structures, specifically accepting 20% Vendor 
             {briefs.length > 0 && (
               <button
                 onClick={() => setMode("view")}
-                className="text-[9px] font-black uppercase text-[#C5A059] hover:underline cursor-pointer"
+                className="text-[9px] font-black uppercase text-[#C6A66B] hover:underline cursor-pointer"
               >
                 Back to Scorecard
               </button>
@@ -2690,7 +2809,7 @@ Owner is open to deferred payment structures, specifically accepting 20% Vendor 
             <select
               value={schemaId}
               onChange={(e) => setSchemaId(e.target.value)}
-              className="h-10 w-full rounded-xl border border-white/10 bg-[#0D0D0E] px-3 text-xs text-white outline-none focus:border-acp-bronze cursor-pointer"
+              className="h-10 w-full rounded-xl border border-white/[0.02] bg-[#161B22] px-3 text-xs text-white outline-none focus:border-acp-bronze cursor-pointer"
             >
               <option value="ACP_DEAL_ROOM">ACP Default Schema (5 Categories)</option>
               <option value="MODULAR_OPPORTUNITY">Modular Opportunity Schema (8 Categories)</option>
@@ -2705,7 +2824,7 @@ Owner is open to deferred payment structures, specifically accepting 20% Vendor 
             className={`border border-dashed rounded-xl p-6 text-center transition cursor-pointer relative ${
               uploadState === "dragging" 
                 ? "border-acp-bronze bg-acp-bronze/5" 
-                : "border-white/10 hover:border-white/20 bg-white/[0.01]"
+                : "border-white/[0.02] hover:border-white/20 bg-white/[0.01]"
             }`}
           >
             <input 
@@ -2740,9 +2859,9 @@ Owner is open to deferred payment structures, specifically accepting 20% Vendor 
           </div>
 
           <div className="flex items-center justify-between text-[8px] font-black uppercase text-slate-500 tracking-widest my-2">
-            <span className="h-px bg-white/5 flex-1" />
+            <span className="h-px bg-white/[0.015] flex-1" />
             <span className="px-2">OR PASTE CALL NOTES MANUALLY</span>
-            <span className="h-px bg-white/5 flex-1" />
+            <span className="h-px bg-white/[0.015] flex-1" />
           </div>
 
           <textarea
@@ -2750,7 +2869,7 @@ Owner is open to deferred payment structures, specifically accepting 20% Vendor 
             onChange={(e) => setManualNotes(e.target.value)}
             placeholder="Key points from the call..."
             rows={6}
-            className="w-full rounded-xl border border-white/10 bg-white/5 p-3 text-xs text-white placeholder-slate-600 outline-none focus:border-acp-bronze font-sans resize-none"
+            className="w-full rounded-xl border border-white/[0.02] bg-white/[0.015] p-3 text-xs text-white placeholder-slate-600 outline-none focus:border-acp-bronze font-sans resize-none"
           />
 
           <div className="flex gap-2">
@@ -2758,7 +2877,7 @@ Owner is open to deferred payment structures, specifically accepting 20% Vendor 
               type="button"
               onClick={handleLoadDemo}
               disabled={generating}
-              className="flex-1 h-10 rounded-xl border border-white/10 bg-white/5 text-slate-350 font-bold text-xs uppercase tracking-wider hover:bg-white/10 transition cursor-pointer"
+              className="flex-1 h-10 rounded-xl border border-white/[0.02] bg-white/[0.015] text-slate-350 font-bold text-xs uppercase tracking-wider hover:bg-white/[0.02] transition cursor-pointer"
             >
               Demo Notes
             </button>
@@ -2791,7 +2910,7 @@ Owner is open to deferred payment structures, specifically accepting 20% Vendor 
         </div>
 
         {/* Info panel */}
-        <div className="rounded-2xl border border-white/[0.06] bg-[#0E121A] p-5 space-y-3">
+        <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 space-y-3">
           <h3 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 pb-2 border-b border-white/5">
             EXPLAINABLE AI ENGINE
           </h3>
@@ -2803,8 +2922,8 @@ Owner is open to deferred payment structures, specifically accepting 20% Vendor 
       </div>
 
       {/* Right Column Empty State (Waiting for action) */}
-      <div className="rounded-2xl border border-[#C5A059]/10 bg-gradient-to-b from-[#0E121A] to-[#080B10] p-8 flex flex-col items-center justify-center text-center space-y-4 min-h-[400px] flex-1">
-        <div className="h-14 w-14 rounded-full bg-[#C5A059]/10 border border-[#C5A059]/20 flex items-center justify-center text-[#C5A059] shadow-glow-bronze/10">
+      <div className="rounded-2xl border border-[#C6A66B]/10 bg-gradient-to-b from-[#161B22] to-[#080B10] p-8 flex flex-col items-center justify-center text-center space-y-4 min-h-[400px] flex-1">
+        <div className="h-14 w-14 rounded-full bg-[#C6A66B]/10 border border-[#C6A66B]/20 flex items-center justify-center text-[#C6A66B] shadow-glow-bronze/10">
           <Sparkles className="h-6 w-6 animate-pulse" />
         </div>
         <div className="max-w-md space-y-1.5">
@@ -2958,7 +3077,7 @@ function FinancialsTab({
             className={cx(
               "px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition cursor-pointer",
               subTab === "report"
-                ? "bg-[#C5A059]/10 border border-[#C5A059] text-white"
+                ? "bg-[#C6A66B]/10 border border-[#C6A66B] text-white"
                 : "text-slate-400 hover:text-white"
             )}
             type="button"
@@ -2970,7 +3089,7 @@ function FinancialsTab({
             className={cx(
               "px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition cursor-pointer",
               subTab === "sandbox"
-                ? "bg-[#C5A059]/10 border border-[#C5A059] text-white"
+                ? "bg-[#C6A66B]/10 border border-[#C6A66B] text-white"
                 : "text-slate-400 hover:text-white"
             )}
             type="button"
@@ -3021,7 +3140,7 @@ function FinancialsTab({
 
           {/* Trigger screen if empty */}
           {(financialStatus === "unknown" || !financialStatus) && (
-            <div className="rounded-2xl border border-white/[0.06] bg-[#0E121A] p-6 text-center space-y-5">
+            <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-6 text-center space-y-5">
               <div className="max-w-md mx-auto space-y-2">
                 <BrainCircuit className="h-10 w-10 text-slate-500 mx-auto" />
                 <h4 className="text-sm font-bold text-white uppercase tracking-wider">Deterministic Underwriting Engine</h4>
@@ -3078,7 +3197,7 @@ function FinancialsTab({
               {/* Top Scorecard Card */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Score Summary */}
-                <div className="rounded-2xl border border-white/[0.06] bg-[#0E121A] p-5 flex flex-col justify-between items-center text-center">
+                <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 flex flex-col justify-between items-center text-center">
                   <div className="space-y-1 w-full">
                     <h3 className="text-[10px] font-bold uppercase tracking-widest text-slate-450 border-b border-white/5 pb-2">
                       Acquisition Viability Score
@@ -3094,14 +3213,14 @@ function FinancialsTab({
                       <span>Confidence Score</span>
                       <span className="text-slate-200">{reportRiskScore}%</span>
                     </div>
-                    <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+                    <div className="h-1.5 w-full bg-white/[0.015] rounded-full overflow-hidden">
                       <div className="h-full bg-emerald-500" style={{ width: `${reportRiskScore}%` }} />
                     </div>
                   </div>
                 </div>
 
                 {/* Weighted Factors */}
-                <div className="rounded-2xl border border-white/[0.06] bg-[#0E121A] p-5 lg:col-span-2 space-y-4">
+                <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 lg:col-span-2 space-y-4">
                   <h3 className="text-xs font-bold uppercase tracking-wider text-slate-350 pb-2 border-b border-white/5">
                     Scoring Breakdown
                   </h3>
@@ -3111,7 +3230,7 @@ function FinancialsTab({
                         <span className="text-slate-400">Debt Service Coverage (DSCR)</span>
                         <span className="font-bold text-slate-200">{scorecard.dscr}/25</span>
                       </div>
-                      <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
+                      <div className="h-1 w-full bg-white/[0.015] rounded-full overflow-hidden">
                         <div className="h-full bg-blue-500" style={{ width: `${(scorecard.dscr / 25) * 100}%` }} />
                       </div>
                     </div>
@@ -3121,7 +3240,7 @@ function FinancialsTab({
                         <span className="text-slate-400">Leverage Ratio</span>
                         <span className="font-bold text-slate-200">{scorecard.leverage}/20</span>
                       </div>
-                      <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
+                      <div className="h-1 w-full bg-white/[0.015] rounded-full overflow-hidden">
                         <div className="h-full bg-blue-500" style={{ width: `${(scorecard.leverage / 20) * 100}%` }} />
                       </div>
                     </div>
@@ -3131,7 +3250,7 @@ function FinancialsTab({
                         <span className="text-slate-400">EBITDA Margin</span>
                         <span className="font-bold text-slate-200">{scorecard.margin}/15</span>
                       </div>
-                      <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
+                      <div className="h-1 w-full bg-white/[0.015] rounded-full overflow-hidden">
                         <div className="h-full bg-blue-500" style={{ width: `${(scorecard.margin / 15) * 100}%` }} />
                       </div>
                     </div>
@@ -3141,7 +3260,7 @@ function FinancialsTab({
                         <span className="text-slate-400">Current Ratio & Liquidity</span>
                         <span className="font-bold text-slate-200">{scorecard.liquidity}/10</span>
                       </div>
-                      <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
+                      <div className="h-1 w-full bg-white/[0.015] rounded-full overflow-hidden">
                         <div className="h-full bg-blue-500" style={{ width: `${(scorecard.liquidity / 10) * 100}%` }} />
                       </div>
                     </div>
@@ -3169,19 +3288,19 @@ function FinancialsTab({
 
               {/* Key Calculated Metrics Cards */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="rounded-xl border border-white/[0.04] bg-[#0A0D14] p-4 text-center">
+                <div className="rounded-xl border border-white/[0.02] bg-[#0A0D14] p-4 text-center">
                   <span className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-500">NORMALIZED EBITDA</span>
                   <span className="block text-lg font-bold text-white mt-1">{formatGBP(reportEbitda)}</span>
                 </div>
-                <div className="rounded-xl border border-white/[0.04] bg-[#0A0D14] p-4 text-center">
+                <div className="rounded-xl border border-white/[0.02] bg-[#0A0D14] p-4 text-center">
                   <span className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-500">DEBT COVERAGE (DSCR)</span>
                   <span className="block text-lg font-bold text-white mt-1">{reportDscr ? `${reportDscr.toFixed(2)}x` : "N/A"}</span>
                 </div>
-                <div className="rounded-xl border border-white/[0.04] bg-[#0A0D14] p-4 text-center">
+                <div className="rounded-xl border border-white/[0.02] bg-[#0A0D14] p-4 text-center">
                   <span className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-500">LEVERAGE RATIO</span>
                   <span className="block text-lg font-bold text-white mt-1">{reportLeverage ? `${reportLeverage.toFixed(2)}x` : "N/A"}</span>
                 </div>
-                <div className="rounded-xl border border-white/[0.04] bg-[#0A0A0B] p-4 text-center">
+                <div className="rounded-xl border border-white/[0.02] bg-[#0F1115] p-4 text-center">
                   <span className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-500">ENTERPRISE VALUE</span>
                   <span className="block text-lg font-bold text-white mt-1">{formatGBP(reportEV)}</span>
                 </div>
@@ -3189,9 +3308,9 @@ function FinancialsTab({
 
               {/* Claude Credit Commentary */}
               {reportCommentary && (
-                <div className="rounded-2xl border border-white/[0.06] bg-[#0E121A] p-5 space-y-4">
+                <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 space-y-4">
                   <div className="flex items-center gap-2 font-bold text-white text-xs uppercase tracking-wider border-b border-white/5 pb-2">
-                    <BrainCircuit className="h-4.5 w-4.5 text-[#C5A059]" />
+                    <BrainCircuit className="h-4.5 w-4.5 text-[#C6A66B]" />
                     Claude AI Credit Underwriting commentary
                   </div>
                   <div className="text-slate-300 text-xs leading-relaxed space-y-4 font-sans">
@@ -3204,7 +3323,7 @@ function FinancialsTab({
 
               {/* In-Context Anomalies */}
               {reportAnomaliesText && (
-                <div className="rounded-2xl border border-white/[0.06] bg-[#0E121A] p-5 space-y-3">
+                <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 space-y-3">
                   <h4 className="text-xs font-bold uppercase tracking-wider text-rose-400 pb-2 border-b border-white/5">
                     Detected System Anomalies
                   </h4>
@@ -3220,7 +3339,7 @@ function FinancialsTab({
               )}
 
               {/* Re-trigger options */}
-              <div className="rounded-xl border border-white/[0.04] bg-white/[0.01] p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="rounded-xl border border-white/[0.02] bg-white/[0.01] p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div className="text-left">
                   <h5 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Re-evaluate calculations</h5>
                   <p className="text-[9px] text-slate-500 mt-0.5">Updated financials? Re-trigger underwriting calculations across document files.</p>
@@ -3230,7 +3349,7 @@ function FinancialsTab({
                   <select
                     value={selectedDocId}
                     onChange={(e) => setSelectedDocId(e.target.value)}
-                    className={cx(selectClass, "text-[10px] py-1 h-8 bg-[#0E121A] w-full sm:w-48")}
+                    className={cx(selectClass, "text-[10px] py-1 h-8 bg-[#161B22] w-full sm:w-48")}
                   >
                     <option value="">Scan all documents</option>
                     {financialDocs.map((doc) => (
@@ -3243,7 +3362,7 @@ function FinancialsTab({
                   <button
                     onClick={() => handleTrigger(selectedDocId || undefined)}
                     disabled={isTriggering}
-                    className="h-8 px-4 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 hover:text-white text-[10px] font-bold uppercase tracking-wider text-slate-300 transition flex items-center gap-1.5 shrink-0 cursor-pointer"
+                    className="h-8 px-4 rounded-lg bg-white/[0.015] border border-white/[0.02] hover:bg-white/[0.02] hover:text-white text-[10px] font-bold uppercase tracking-wider text-slate-300 transition flex items-center gap-1.5 shrink-0 cursor-pointer"
                   >
                     {isTriggering ? (
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -3266,7 +3385,7 @@ function FinancialsTab({
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
             
             {/* Column 1: P&L SUMMARY */}
-            <div className="rounded-2xl border border-white/[0.06] bg-[#0E121A] p-5 flex flex-col justify-between h-full">
+            <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 flex flex-col justify-between h-full">
               <div>
                 <h3 className="text-xs font-bold uppercase tracking-wider text-slate-350 pb-3 border-b border-white/5">
                   P&L SUMMARY (DRAFT)
@@ -3306,7 +3425,7 @@ function FinancialsTab({
             </div>
 
             {/* Column 2: DSCR ANALYSIS */}
-            <div className="rounded-2xl border border-white/[0.06] bg-[#0E121A] p-5 flex flex-col justify-between h-full">
+            <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 flex flex-col justify-between h-full">
               <div>
                 <h3 className="text-xs font-bold uppercase tracking-wider text-slate-350 pb-3 border-b border-white/5">
                   DSCR ANALYSIS (DRAFT)
@@ -3337,13 +3456,13 @@ function FinancialsTab({
                 </ul>
               </div>
 
-              <div className="bg-white/[0.02] border border-white/[0.04] rounded-xl p-3 text-[10px] leading-relaxed text-slate-450 mt-5">
+              <div className="bg-white/[0.02] border border-white/[0.02] rounded-xl p-3 text-[10px] leading-relaxed text-slate-450 mt-5">
                 Stress case above floor but thin. Monitor top-client concentration at DD.
               </div>
             </div>
 
             {/* Column 3: CAPITAL STACK */}
-            <div className="rounded-2xl border border-white/[0.06] bg-[#0E121A] p-5 flex flex-col justify-between h-full">
+            <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 flex flex-col justify-between h-full">
               <div>
                 <h3 className="text-xs font-bold uppercase tracking-wider text-slate-350 pb-3 border-b border-white/5">
                   CAPITAL STACK (DRAFT)
@@ -3382,9 +3501,9 @@ function FinancialsTab({
                 </div>
 
                 {/* Stack bar visual */}
-                <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden flex">
+                <div className="h-2 w-full bg-white/[0.015] rounded-full overflow-hidden flex">
                   <div className="h-full bg-blue-500" style={{ width: `${leverage}%` }} />
-                  <div className="h-full bg-[#C5A059]" style={{ width: "20%" }} />
+                  <div className="h-full bg-[#C6A66B]" style={{ width: "20%" }} />
                   <div className="h-full bg-[#E8DEC9]" style={{ width: "15%" }} />
                   <div className="h-full bg-[#10B981]" style={{ width: "20%" }} />
                 </div>
@@ -3394,7 +3513,7 @@ function FinancialsTab({
           </div>
 
           {/* Interactive Controls */}
-          <div className="rounded-2xl border border-white/[0.06] bg-[#0E121A] p-5 space-y-4">
+          <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 space-y-4">
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-350 pb-2 border-b border-white/5">
               Valuation Controls
             </h4>
@@ -3408,7 +3527,7 @@ function FinancialsTab({
                   step="0.1" 
                   value={multiple} 
                   onChange={(e) => setMultiple(parseFloat(e.target.value))}
-                  className="w-full accent-acp-bronze cursor-pointer bg-white/5 h-2 rounded-lg"
+                  className="w-full accent-acp-bronze cursor-pointer bg-white/[0.015] h-2 rounded-lg"
                 />
                 <div className="flex justify-between text-[8px] font-bold text-slate-500">
                   <span>1.5x</span>
@@ -3427,7 +3546,7 @@ function FinancialsTab({
                   step="5" 
                   value={leverage} 
                   onChange={(e) => setLeverage(parseInt(e.target.value))}
-                  className="w-full accent-acp-bronze cursor-pointer bg-white/5 h-2 rounded-lg"
+                  className="w-full accent-acp-bronze cursor-pointer bg-white/[0.015] h-2 rounded-lg"
                 />
                 <div className="flex justify-between text-[8px] font-bold text-slate-500">
                   <span>30%</span>
@@ -3484,7 +3603,7 @@ We look forward to your positive response.
     <div className="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-6 items-stretch font-sans animate-fade-in-up">
       
       {/* Left Pane Parameters */}
-      <div className="rounded-2xl border border-white/[0.06] bg-[#0E121A] p-5 space-y-5 flex flex-col justify-between h-full">
+      <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 space-y-5 flex flex-col justify-between h-full">
         <div className="space-y-4.5">
           <h3 className="text-xs font-bold uppercase tracking-wider text-slate-350 pb-2 border-b border-white/5">
             DEAL STRUCTURE PARAMETERS
@@ -3497,7 +3616,7 @@ We look forward to your positive response.
                 type="text"
                 value={totalEv}
                 onChange={(e) => setTotalEv(e.target.value)}
-                className="mt-1.5 h-9 w-full rounded-xl border border-white/10 bg-white/5 px-3 text-white focus:border-acp-bronze outline-none"
+                className="mt-1.5 h-9 w-full rounded-xl border border-white/[0.02] bg-white/[0.015] px-3 text-white focus:border-acp-bronze outline-none"
               />
             </div>
             <div>
@@ -3506,7 +3625,7 @@ We look forward to your positive response.
                 type="text"
                 value={cashAtClose}
                 onChange={(e) => setCashAtClose(e.target.value)}
-                className="mt-1.5 h-9 w-full rounded-xl border border-white/10 bg-white/5 px-3 text-white focus:border-acp-bronze outline-none"
+                className="mt-1.5 h-9 w-full rounded-xl border border-white/[0.02] bg-white/[0.015] px-3 text-white focus:border-acp-bronze outline-none"
               />
             </div>
             <div>
@@ -3515,7 +3634,7 @@ We look forward to your positive response.
                 type="text"
                 value={vln}
                 onChange={(e) => setVln(e.target.value)}
-                className="mt-1.5 h-9 w-full rounded-xl border border-white/10 bg-white/5 px-3 text-white focus:border-acp-bronze outline-none"
+                className="mt-1.5 h-9 w-full rounded-xl border border-white/[0.02] bg-white/[0.015] px-3 text-white focus:border-acp-bronze outline-none"
               />
             </div>
             <div>
@@ -3524,7 +3643,7 @@ We look forward to your positive response.
                 type="text"
                 value={deferred}
                 onChange={(e) => setDeferred(e.target.value)}
-                className="mt-1.5 h-9 w-full rounded-xl border border-white/10 bg-white/5 px-3 text-white focus:border-acp-bronze outline-none"
+                className="mt-1.5 h-9 w-full rounded-xl border border-white/[0.02] bg-white/[0.015] px-3 text-white focus:border-acp-bronze outline-none"
               />
             </div>
             <div>
@@ -3533,7 +3652,7 @@ We look forward to your positive response.
                 type="text"
                 value={targetCompletion}
                 onChange={(e) => setTargetCompletion(e.target.value)}
-                className="mt-1.5 h-9 w-full rounded-xl border border-white/10 bg-white/5 px-3 text-white focus:border-acp-bronze outline-none"
+                className="mt-1.5 h-9 w-full rounded-xl border border-white/[0.02] bg-white/[0.015] px-3 text-white focus:border-acp-bronze outline-none"
               />
             </div>
             <div>
@@ -3542,7 +3661,7 @@ We look forward to your positive response.
                 type="text"
                 value={exclusivity}
                 onChange={(e) => setExclusivity(e.target.value)}
-                className="mt-1.5 h-9 w-full rounded-xl border border-white/10 bg-white/5 px-3 text-white focus:border-acp-bronze outline-none"
+                className="mt-1.5 h-9 w-full rounded-xl border border-white/[0.02] bg-white/[0.015] px-3 text-white focus:border-acp-bronze outline-none"
               />
             </div>
           </div>
@@ -3551,7 +3670,7 @@ We look forward to your positive response.
         <button
           type="button"
           onClick={downloadLoiDraft}
-          className="w-full h-10 rounded-xl bg-gradient-to-r from-[#C5A059] to-[#A8873F] hover:opacity-90 text-xs font-black uppercase tracking-wider text-white transition flex items-center justify-center gap-1.5 cursor-pointer mt-6 shadow-glow-bronze/10"
+          className="w-full h-10 rounded-xl bg-gradient-to-r from-[#C6A66B] to-[#B8924F] hover:opacity-90 text-xs font-black uppercase tracking-wider text-white transition flex items-center justify-center gap-1.5 cursor-pointer mt-6 shadow-glow-bronze/10"
         >
           <BrainCircuit className="h-4 w-4" />
           Generate LOI draft
@@ -3559,7 +3678,7 @@ We look forward to your positive response.
       </div>
 
       {/* Right Pane Preview */}
-      <div className="rounded-2xl border border-white/[0.06] bg-[#0E1524] p-6 space-y-6 flex flex-col flex-1 h-full min-h-[500px]">
+      <div className="rounded-2xl border border-white/[0.02] bg-[#0E1524] p-6 space-y-6 flex flex-col flex-1 h-full min-h-[500px]">
         <div className="flex items-center gap-2.5 pb-3 border-b border-white/5">
           <span className="h-1.5 w-1.5 rounded-full bg-blue-400" />
           <h4 className="text-xs font-bold uppercase tracking-wider text-slate-350">
@@ -3567,7 +3686,7 @@ We look forward to your positive response.
           </h4>
         </div>
 
-        <div className="flex-1 rounded-xl bg-[#090D14] p-6 font-sans text-xs text-slate-300 space-y-5 overflow-y-auto leading-relaxed border border-white/[0.03]">
+        <div className="flex-1 rounded-xl bg-[#090D14] p-6 font-sans text-xs text-slate-300 space-y-5 overflow-y-auto leading-relaxed border border-white/[0.02]">
           <div className="text-center font-bold text-sm text-white tracking-widest uppercase border-b border-white/5 pb-2">
             LETTER OF INTENT
           </div>
@@ -3624,7 +3743,7 @@ function DocumentsTab({ deal, documentState, setRefreshTrigger }: { deal: any; d
     <div className="space-y-6 font-sans animate-fade-in-up">
       
       {/* Folder selector grid */}
-      <div className="rounded-2xl border border-white/[0.06] bg-[#0E121A] p-5 space-y-4">
+      <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 space-y-4">
         <span className="block text-[8px] font-extrabold text-slate-500 uppercase tracking-widest">
           DEAL ROOM › GOOGLE DRIVE › ACP CPR 001
         </span>
@@ -3640,11 +3759,11 @@ function DocumentsTab({ deal, documentState, setRefreshTrigger }: { deal: any; d
                 className={cx(
                   "flex items-center gap-3.5 p-4 rounded-xl border text-left transition cursor-pointer",
                   isActive 
-                    ? "bg-[#C5A059]/10 border-[#C5A059] text-white shadow-sm" 
+                    ? "bg-[#C6A66B]/10 border-[#C6A66B] text-white shadow-sm" 
                     : "bg-white/[0.01] border-white/5 text-slate-350 hover:bg-white/[0.02]"
                 )}
               >
-                <FolderClosed className={cx("h-5 w-5 shrink-0", isActive ? "text-[#C5A059]" : "text-slate-500")} />
+                <FolderClosed className={cx("h-5 w-5 shrink-0", isActive ? "text-[#C6A66B]" : "text-slate-500")} />
                 <div>
                   <span className="block text-xs font-bold truncate leading-none">{cat.name}</span>
                   <span className="block text-[9px] text-slate-500 mt-1 font-semibold">{cat.count} files</span>
@@ -3656,7 +3775,7 @@ function DocumentsTab({ deal, documentState, setRefreshTrigger }: { deal: any; d
       </div>
 
       {/* checklist files listing */}
-      <div className="rounded-2xl border border-white/[0.06] bg-[#0E121A] p-5">
+      <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5">
         <h4 className="text-xs font-bold uppercase tracking-wider text-slate-355 mb-4 border-b border-white/5 pb-2">
           {selectedCategory ? `Document Checklist: Category ${selectedCategory}` : "All Document Checklists"}
         </h4>
@@ -3699,7 +3818,7 @@ function LenderMatchTab({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch">
         
         {/* Moorfields Commercial */}
-        <div className="rounded-2xl border border-white/[0.06] bg-[#0E121A] p-5 flex flex-col justify-between h-full">
+        <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 flex flex-col justify-between h-full">
           <div className="space-y-4">
             <div className="flex items-start justify-between border-b border-white/5 pb-3">
               <div>
@@ -3756,7 +3875,7 @@ Ayo
         </div>
 
         {/* HSBC Commercial */}
-        <div className="rounded-2xl border border-white/[0.06] bg-[#0E121A] p-5 flex flex-col justify-between h-full">
+        <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 flex flex-col justify-between h-full">
           <div className="space-y-4">
             <div className="flex items-start justify-between border-b border-white/5 pb-3">
               <div>

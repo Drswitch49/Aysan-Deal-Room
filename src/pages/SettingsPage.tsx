@@ -99,7 +99,7 @@ export function SettingsPage() {
 
   const thresholds = [
     { name: "EBITDA floor", value: "£750k", color: "text-white" },
-    { name: "EV multiple — caution", value: "< 7.0x", color: "text-[#C5A059] font-bold" },
+    { name: "EV multiple — caution", value: "< 7.0x", color: "text-[#C6A66B] font-bold" },
     { name: "EV multiple — LBO / override", value: "< 5.0x", color: "text-rose-500 font-bold" },
     { name: "DSCR base floor", value: "1.30x", color: "text-white" },
     { name: "DSCR covenant floor", value: "1.20x", color: "text-white" },
@@ -112,7 +112,7 @@ export function SettingsPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/5 pb-4">
         <div className="space-y-1">
           <h1 className="text-2xl font-black text-white tracking-tight flex items-center gap-2">
-            System <span className="text-[#C5A059]">Settings</span>
+            System <span className="text-[#C6A66B]">Settings</span>
           </h1>
           <p className="text-xs text-slate-400 font-semibold tracking-wide">
             ACP Deal OS configuration
@@ -124,16 +124,16 @@ export function SettingsPage() {
           
           <button 
             type="button" 
-            className="p-1.5 rounded-lg border border-white/10 bg-white/5 text-slate-400 hover:text-white hover:bg-white/10 transition cursor-pointer relative"
+            className="p-1.5 rounded-lg border border-white/[0.02] bg-white/[0.015] text-slate-400 hover:text-white hover:bg-white/[0.02] transition cursor-pointer relative"
             title="Notifications"
           >
             <Bell className="h-4 w-4" />
-            <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-[#C5A059]" />
+            <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-[#C6A66B]" />
           </button>
 
           <button
             type="button"
-            className="inline-flex h-9 items-center justify-center rounded-lg bg-[#C5A059] hover:bg-[#b5904a] text-slate-950 px-4 text-xs font-black uppercase tracking-wider transition-colors duration-200"
+            className="inline-flex h-9 items-center justify-center rounded-lg bg-[#C6A66B] hover:bg-[#b5904a] text-slate-950 px-4 text-xs font-black uppercase tracking-wider transition-colors duration-200"
             onClick={() => window.location.hash = "/deals"}
           >
             + New Deal
@@ -147,9 +147,9 @@ export function SettingsPage() {
         <div className="col-span-12 lg:col-span-7 space-y-6">
           
           {/* SYSTEM CONNECTIONS Panel */}
-          <div className="rounded-2xl border border-white/[0.06] bg-[#0E121A] p-6 shadow-premium-card card-sheen">
-            <div className="flex items-center justify-between border-b border-white/[0.04] pb-4 mb-5 select-none">
-              <h3 className="text-xs font-extrabold uppercase tracking-[0.2em] text-[#C5A059]">
+          <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-6 shadow-premium-card card-sheen">
+            <div className="flex items-center justify-between border-b border-white/[0.02] pb-4 mb-5 select-none">
+              <h3 className="text-xs font-extrabold uppercase tracking-[0.2em] text-[#C6A66B]">
                 System Connections
               </h3>
               <Link2 className="h-4 w-4 text-slate-550 hover:text-white cursor-pointer transition-colors" />
@@ -182,8 +182,8 @@ export function SettingsPage() {
                           makeStatus === "VERIFIED"
                             ? "bg-emerald-500/10 text-emerald-450 border border-emerald-500/15"
                             : makeStatus === "VERIFYING"
-                            ? "bg-[#C5A059]/20 text-[#C5A059] border border-[#C5A059]/30 animate-pulse"
-                            : "bg-[#C5A059] hover:bg-[#b5904a] text-slate-950"
+                            ? "bg-[#C6A66B]/20 text-[#C6A66B] border border-[#C6A66B]/30 animate-pulse"
+                            : "bg-[#C6A66B] hover:bg-[#b5904a] text-slate-950"
                         )}
                       >
                         {makeStatus === "VERIFYING" && "VERIFYING..."}
@@ -198,9 +198,9 @@ export function SettingsPage() {
           </div>
 
           {/* ADMIN SECURITY PANEL */}
-          <div className="rounded-2xl border border-white/[0.06] bg-[#0E121A] p-6 shadow-premium-card card-sheen">
-            <h3 className="text-xs font-extrabold uppercase tracking-[0.2em] text-slate-400 border-b border-white/[0.04] pb-4 mb-5 select-none flex items-center gap-2">
-              <Key className="h-4 w-4 text-[#C5A059]" />
+          <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-6 shadow-premium-card card-sheen">
+            <h3 className="text-xs font-extrabold uppercase tracking-[0.2em] text-slate-400 border-b border-white/[0.02] pb-4 mb-5 select-none flex items-center gap-2">
+              <Key className="h-4 w-4 text-[#C6A66B]" />
               <span>Admin Security Configuration</span>
             </h3>
 
@@ -246,7 +246,7 @@ export function SettingsPage() {
               <button
                 type="submit"
                 disabled={isSubmitting || success}
-                className="w-full inline-flex h-11 items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-[#C5A059] to-[#ac8843] text-xs font-bold uppercase tracking-widest text-slate-950 hover:shadow-glow-bronze disabled:opacity-40 select-none cursor-pointer mt-2 transition duration-200"
+                className="w-full inline-flex h-11 items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-[#C6A66B] to-[#ac8843] text-xs font-bold uppercase tracking-widest text-slate-950 hover:shadow-glow-bronze disabled:opacity-40 select-none cursor-pointer mt-2 transition duration-200"
               >
                 <Zap className="h-3.5 w-3.5" />
                 <span>{isSubmitting ? "Updating..." : "Update Passcode"}</span>
@@ -255,9 +255,9 @@ export function SettingsPage() {
           </div>
 
           {/* CACHE OPTIMIZATION PANEL */}
-          <div className="rounded-2xl border border-white/[0.06] bg-[#0E121A] p-6 shadow-premium-card card-sheen">
-            <h3 className="text-xs font-extrabold uppercase tracking-[0.2em] text-slate-400 border-b border-white/[0.04] pb-4 mb-5 select-none flex items-center gap-2">
-              <Database className="h-4 w-4 text-[#C5A059]" />
+          <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-6 shadow-premium-card card-sheen">
+            <h3 className="text-xs font-extrabold uppercase tracking-[0.2em] text-slate-400 border-b border-white/[0.02] pb-4 mb-5 select-none flex items-center gap-2">
+              <Database className="h-4 w-4 text-[#C6A66B]" />
               <span>Database Query Latency Optimization</span>
             </h3>
 
@@ -277,7 +277,7 @@ export function SettingsPage() {
                   "w-full inline-flex h-10 items-center justify-center gap-2 rounded-xl border transition-all duration-200 text-xs font-bold uppercase tracking-widest select-none cursor-pointer",
                   cacheFlushed 
                     ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-450" 
-                    : "border-white/10 bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white"
+                    : "border-white/[0.02] bg-white/[0.015] text-slate-300 hover:bg-white/[0.02] hover:text-white"
                 )}
               >
                 {cacheFlushed ? (
@@ -296,9 +296,9 @@ export function SettingsPage() {
           </div>
 
           {/* SYSTEM DIAGNOSTICS TABLE */}
-          <div className="rounded-2xl border border-white/[0.06] bg-[#0E121A] p-6 shadow-premium-card card-sheen">
-            <h3 className="text-xs font-extrabold uppercase tracking-[0.2em] text-slate-400 border-b border-white/[0.04] pb-4 mb-5 select-none flex items-center gap-2">
-              <Server className="h-4 w-4 text-[#C5A059]" />
+          <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-6 shadow-premium-card card-sheen">
+            <h3 className="text-xs font-extrabold uppercase tracking-[0.2em] text-slate-400 border-b border-white/[0.02] pb-4 mb-5 select-none flex items-center gap-2">
+              <Server className="h-4 w-4 text-[#C6A66B]" />
               <span>Diagnostics & Environment State</span>
             </h3>
 
@@ -340,8 +340,8 @@ export function SettingsPage() {
         <div className="col-span-12 lg:col-span-5 space-y-6">
 
           {/* DEPLOYMENT CHECKLIST Panel */}
-          <div className="rounded-2xl border border-white/[0.06] bg-[#0E121A] p-6 shadow-premium-card card-sheen">
-            <div className="flex items-center justify-between border-b border-white/[0.04] pb-4 mb-5 select-none">
+          <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-6 shadow-premium-card card-sheen">
+            <div className="flex items-center justify-between border-b border-white/[0.02] pb-4 mb-5 select-none">
               <h3 className="text-xs font-extrabold uppercase tracking-[0.2em] text-rose-500 flex items-center gap-2">
                 Deployment Checklist
               </h3>
@@ -372,7 +372,7 @@ export function SettingsPage() {
                     </p>
                     <p className={cx(
                       "text-[9px] font-black uppercase tracking-widest",
-                      item.type === "success" ? "text-emerald-400" : (item.type === "danger" ? "text-rose-500" : "text-[#C5A059]")
+                      item.type === "success" ? "text-emerald-400" : (item.type === "danger" ? "text-rose-500" : "text-[#C6A66B]")
                     )}>
                       {item.status}
                     </p>
@@ -383,9 +383,9 @@ export function SettingsPage() {
           </div>
 
           {/* RISK THRESHOLDS (PRE-COMMITTEE) Panel */}
-          <div className="rounded-2xl border border-white/[0.06] bg-[#0E121A] p-6 shadow-premium-card card-sheen">
-            <div className="border-b border-white/[0.04] pb-4 mb-5 select-none">
-              <h3 className="text-xs font-extrabold uppercase tracking-[0.2em] text-[#C5A059]">
+          <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-6 shadow-premium-card card-sheen">
+            <div className="border-b border-white/[0.02] pb-4 mb-5 select-none">
+              <h3 className="text-xs font-extrabold uppercase tracking-[0.2em] text-[#C6A66B]">
                 Risk Thresholds (Pre-Committee)
               </h3>
             </div>
@@ -402,7 +402,7 @@ export function SettingsPage() {
                 </div>
               ))}
 
-              <div className="border-t border-white/[0.04] pt-4 mt-5 select-none">
+              <div className="border-t border-white/[0.02] pt-4 mt-5 select-none">
                 <p className="text-[9px] font-bold text-slate-500 leading-relaxed tracking-wider uppercase">
                   Thresholds calculated from historic deals, historic stats, and risk matrix assessments. Deviation from these limits requires written sign off by all partners.
                 </p>

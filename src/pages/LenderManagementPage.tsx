@@ -482,7 +482,7 @@ export function LenderManagementPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/5 pb-4">
         <div className="space-y-1">
           <h1 className="text-xl font-bold text-white tracking-tight">
-            Lender <span className="text-[#C5A059]">Intelligence</span>
+            Lender <span className="text-[#C6A66B]">Intelligence</span>
           </h1>
           <p className="text-xs text-slate-550 font-medium">
             {activeLendersCount} lenders tracked — {staleLendersCount} stale record{staleLendersCount !== 1 ? 's' : ''}
@@ -494,7 +494,7 @@ export function LenderManagementPage() {
           
           <button
             onClick={() => setIsAddModalOpen(true)}
-            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3.5 text-[10px] font-extrabold uppercase tracking-wider text-slate-300 shadow-sm hover:bg-white/10 hover:text-white cursor-pointer transition"
+            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-white/[0.02] bg-white/[0.015] px-3.5 text-[10px] font-extrabold uppercase tracking-wider text-slate-300 shadow-sm hover:bg-white/[0.02] hover:text-white cursor-pointer transition"
           >
             + NEW DEAL
           </button>
@@ -515,20 +515,20 @@ export function LenderManagementPage() {
           {/* Summary metrics row */}
           <div className="grid gap-4 sm:grid-cols-3">
             {/* Active Lenders */}
-            <div className="rounded-2xl border border-white/[0.06] bg-[#0E121A] p-5 shadow-premium-card card-sheen select-none">
+            <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 shadow-premium-card card-sheen select-none">
               <p className="text-[9px] font-extrabold uppercase tracking-wider text-slate-500">Active Lenders</p>
               <h2 className="text-3xl font-black text-white mt-1.5 tracking-tight">{activeLendersCount}</h2>
             </div>
 
             {/* Stale Records */}
-            <div className="rounded-2xl border border-white/[0.06] bg-[#0E121A] p-5 shadow-premium-card card-sheen select-none">
+            <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 shadow-premium-card card-sheen select-none">
               <p className="text-[9px] font-extrabold uppercase tracking-wider text-slate-500">Stale Records</p>
               <h2 className="text-3xl font-black text-white mt-1.5 tracking-tight">{staleLendersCount}</h2>
               <p className="text-[10px] font-bold text-amber-500 mt-1">&gt;90 days — {staleLenderName}</p>
             </div>
 
             {/* Live Submissions */}
-            <div className="rounded-2xl border border-white/[0.06] bg-[#0E121A] p-5 shadow-premium-card card-sheen select-none">
+            <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 shadow-premium-card card-sheen select-none">
               <p className="text-[9px] font-extrabold uppercase tracking-wider text-slate-500">Live Submissions</p>
               <h2 className="text-3xl font-black text-white mt-1.5 tracking-tight">{liveSubmissionsCount}</h2>
               <p className="text-[10px] font-bold text-slate-500 mt-1">Moorfields — MGL</p>
@@ -559,8 +559,8 @@ export function LenderManagementPage() {
                   key={lender.key}
                   onClick={() => setSelectedOsintLenderKey(lender.key)}
                   className={cx(
-                    "rounded-2xl border bg-[#0E121A] p-5 shadow-premium-card card-sheen flex flex-col justify-between transition-all cursor-pointer relative group",
-                    isSelected ? "border-[#C5A059]/40 bg-[#0c1122]/30 shadow-inner" : "border-white/[0.06] hover:border-white/12"
+                    "rounded-2xl border bg-[#161B22] p-5 shadow-premium-card card-sheen flex flex-col justify-between transition-all cursor-pointer relative group",
+                    isSelected ? "border-[#C6A66B]/40 bg-[#0c1122]/30 shadow-inner" : "border-white/[0.02] hover:border-white/12"
                   )}
                 >
                   <div>
@@ -573,7 +573,7 @@ export function LenderManagementPage() {
                         "inline-flex items-center rounded-full px-2.5 py-0.5 text-[8px] font-black uppercase tracking-wider select-none shrink-0 border",
                         lender.badgeColor === "green" ? "bg-emerald-500/10 text-emerald-450 border-emerald-500/20" :
                         lender.badgeColor === "yellow" ? "bg-amber-500/10 text-amber-500 border-amber-500/20" :
-                        "bg-white/5 text-slate-400 border-white/10"
+                        "bg-white/[0.015] text-slate-400 border-white/[0.02]"
                       )}>
                         {lender.badgeText}
                       </span>
@@ -610,7 +610,7 @@ export function LenderManagementPage() {
 
                     {/* Portal Actions Control Panel Trigger */}
                     <div 
-                      className="border-t border-white/[0.04] pt-3.5 mt-3 flex items-center justify-between gap-2"
+                      className="border-t border-white/[0.02] pt-3.5 mt-3 flex items-center justify-between gap-2"
                       onClick={(e) => e.stopPropagation()} // block parent click
                     >
                       <div className="flex items-center gap-1 text-[9px] font-extrabold uppercase text-slate-500 tracking-wider">
@@ -630,7 +630,7 @@ export function LenderManagementPage() {
                           onClick={() => toggleSettingsExpanded(lender.key)}
                           className={cx(
                             "inline-flex h-6.5 items-center gap-1 rounded px-2.5 text-[9px] font-extrabold uppercase tracking-wide border transition cursor-pointer select-none",
-                            hasSettingsExpanded ? "border-[#C5A059] bg-[#C5A059]/10 text-white" : "border-white/10 bg-white/5 text-slate-350 hover:bg-white/10"
+                            hasSettingsExpanded ? "border-[#C6A66B] bg-[#C6A66B]/10 text-white" : "border-white/[0.02] bg-white/[0.015] text-slate-350 hover:bg-white/[0.02]"
                           )}
                         >
                           <Settings className="h-3 w-3" />
@@ -655,7 +655,7 @@ export function LenderManagementPage() {
                             </span>
                             <button
                               onClick={() => handleCopy(getPortalUrl(lender.dbRecord!.Portal_Slug), `${lender.dbRecord!.id}-url`)}
-                              className="h-7 w-7 shrink-0 flex items-center justify-center rounded-lg bg-white/5 border border-white/10 text-slate-300 hover:text-white transition"
+                              className="h-7 w-7 shrink-0 flex items-center justify-center rounded-lg bg-white/[0.015] border border-white/[0.02] text-slate-300 hover:text-white transition"
                               title="Copy URL"
                             >
                               {copiedId === `${lender.dbRecord.id}-url` ? <Check className="h-3.5 w-3.5 text-emerald-450" /> : <Link2 className="h-3.5 w-3.5" />}
@@ -687,21 +687,21 @@ export function LenderManagementPage() {
                               value={lender.dbRecord.ndaApproved ? "Yes" : "No"}
                               onChange={(e) => handleToggleLenderNda(lender.dbRecord!.id, e.target.value === "Yes")}
                               className={cx(
-                                "mt-1 h-7.5 w-full bg-[#0E121A] border rounded-lg px-2 text-[10px] font-bold outline-none cursor-pointer select-none text-center",
+                                "mt-1 h-7.5 w-full bg-[#161B22] border rounded-lg px-2 text-[10px] font-bold outline-none cursor-pointer select-none text-center",
                                 lender.dbRecord.ndaApproved 
                                   ? "text-emerald-400 border-emerald-500/20 bg-emerald-500/5" 
                                   : "text-amber-400 border-amber-500/20 bg-amber-500/5"
                               )}
                               style={{ appearance: "auto" }}
                             >
-                              <option value="Yes" className="bg-[#0E121A] text-emerald-400 font-bold">NDA: Yes</option>
-                              <option value="No" className="bg-[#0E121A] text-amber-400 font-bold">NDA: No</option>
+                              <option value="Yes" className="bg-[#161B22] text-emerald-400 font-bold">NDA: Yes</option>
+                              <option value="No" className="bg-[#161B22] text-amber-400 font-bold">NDA: No</option>
                             </select>
                           </div>
                         </div>
 
                         {/* Assigned Deal tags checklist */}
-                        <div className="space-y-1 pt-1.5 border-t border-white/[0.04]">
+                        <div className="space-y-1 pt-1.5 border-t border-white/[0.02]">
                           <label className="block text-[8px] font-extrabold uppercase tracking-wider text-slate-500">Assigned Deals</label>
                           <div className="flex flex-wrap gap-1.5 mt-1.5 items-center select-none">
                             {lender.dbRecord.assignments.map((asg) => (
@@ -747,13 +747,13 @@ export function LenderManagementPage() {
                         </div>
 
                         {/* Actions buttons */}
-                        <div className="pt-2 mt-2 border-t border-white/[0.04] flex items-center justify-between gap-1.5 select-none">
+                        <div className="pt-2 mt-2 border-t border-white/[0.02] flex items-center justify-between gap-1.5 select-none">
                           <button
                             onClick={() => {
                               setSelectedLender(lender.dbRecord!);
                               setIsResetConfirmOpen(true);
                             }}
-                            className="flex-1 inline-flex h-7.5 items-center justify-center gap-1 rounded-lg border border-white/10 bg-white/5 text-[9px] font-bold uppercase tracking-wider text-slate-300 hover:bg-white/10 transition"
+                            className="flex-1 inline-flex h-7.5 items-center justify-center gap-1 rounded-lg border border-white/[0.02] bg-white/[0.015] text-[9px] font-bold uppercase tracking-wider text-slate-300 hover:bg-white/[0.02] transition"
                           >
                             <RotateCcw className="h-3 w-3" />
                             <span>Reset Pass</span>
@@ -761,7 +761,7 @@ export function LenderManagementPage() {
                           
                           <button
                             onClick={() => handleRegeneratePortal(lender.dbRecord!.id)}
-                            className="flex-1 inline-flex h-7.5 items-center justify-center gap-1 rounded-lg border border-white/10 bg-white/5 text-[9px] font-bold uppercase tracking-wider text-slate-300 hover:bg-white/10 transition"
+                            className="flex-1 inline-flex h-7.5 items-center justify-center gap-1 rounded-lg border border-white/[0.02] bg-white/[0.015] text-[9px] font-bold uppercase tracking-wider text-slate-300 hover:bg-white/[0.02] transition"
                           >
                             <Link2 className="h-3 w-3" />
                             <span>New Link</span>
@@ -787,8 +787,8 @@ export function LenderManagementPage() {
           </div>
 
           {/* OSINT Intelligence Log Section */}
-          <div className="mt-8 rounded-2xl border border-white/[0.06] bg-[#0E121A] p-5 shadow-premium-card card-sheen">
-            <h3 className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-400 border-b border-white/[0.04] pb-2.5 select-none">
+          <div className="mt-8 rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 shadow-premium-card card-sheen">
+            <h3 className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-400 border-b border-white/[0.02] pb-2.5 select-none">
               OSINT Intelligence Log — {selectedLenderInfo.displayName.toUpperCase()}
             </h3>
             
@@ -885,15 +885,15 @@ export function LenderManagementPage() {
             </div>
             <p className="text-xs text-slate-400">Lender portal generated successfully for {createdLenderDetails.company}.</p>
 
-            <div className="text-left space-y-3.5 bg-white/5 border border-white/10 rounded-xl p-4">
+            <div className="text-left space-y-3.5 bg-white/[0.015] border border-white/[0.02] rounded-xl p-4">
               {/* URL */}
               <div>
                 <span className="block text-[8px] font-extrabold uppercase tracking-wider text-slate-500">Secure URL</span>
                 <div className="flex items-center gap-2 mt-1">
-                  <span className="text-[11px] font-mono text-white truncate flex-1 bg-white/5 border border-white/5 rounded-lg px-2.5 py-1">{createdLenderDetails.url}</span>
+                  <span className="text-[11px] font-mono text-white truncate flex-1 bg-white/[0.015] border border-white/5 rounded-lg px-2.5 py-1">{createdLenderDetails.url}</span>
                   <button
                     onClick={() => handleCopy(createdLenderDetails.url, "modal-url")}
-                    className="h-7 w-7 flex items-center justify-center rounded-lg bg-white/5 border border-white/10 text-slate-355 hover:text-white"
+                    className="h-7 w-7 flex items-center justify-center rounded-lg bg-white/[0.015] border border-white/[0.02] text-slate-355 hover:text-white"
                   >
                     {copiedId === "modal-url" ? <Check className="h-3.5 w-3.5 text-emerald-455" /> : <Copy className="h-3.5 w-3.5" />}
                   </button>
@@ -904,10 +904,10 @@ export function LenderManagementPage() {
               <div>
                 <span className="block text-[8px] font-extrabold uppercase tracking-wider text-slate-500">Temporary Passcode</span>
                 <div className="flex items-center gap-2 mt-1">
-                  <span className="text-[12px] font-mono font-bold text-acp-bronze bg-white/5 border border-white/5 rounded-lg px-2.5 py-1 flex-1">{createdLenderDetails.pass}</span>
+                  <span className="text-[12px] font-mono font-bold text-acp-bronze bg-white/[0.015] border border-white/5 rounded-lg px-2.5 py-1 flex-1">{createdLenderDetails.pass}</span>
                   <button
                     onClick={() => handleCopy(createdLenderDetails.pass, "modal-pass")}
-                    className="h-7 w-7 flex items-center justify-center rounded-lg bg-white/5 border border-white/10 text-slate-355 hover:text-white"
+                    className="h-7 w-7 flex items-center justify-center rounded-lg bg-white/[0.015] border border-white/[0.02] text-slate-355 hover:text-white"
                   >
                     {copiedId === "modal-pass" ? <Check className="h-3.5 w-3.5 text-emerald-455" /> : <Copy className="h-3.5 w-3.5" />}
                   </button>
@@ -917,7 +917,7 @@ export function LenderManagementPage() {
 
             <button
               onClick={closeAddModal}
-              className="w-full inline-flex h-10 items-center justify-center rounded-xl bg-white/5 border border-white/10 text-xs font-bold uppercase tracking-wider text-white hover:bg-white/10 mt-4"
+              className="w-full inline-flex h-10 items-center justify-center rounded-xl bg-white/[0.015] border border-white/[0.02] text-xs font-bold uppercase tracking-wider text-white hover:bg-white/[0.02] mt-4"
             >
               Done
             </button>
@@ -955,7 +955,7 @@ export function LenderManagementPage() {
             </FormField>
 
             {/* Searchable Scroll Container */}
-            <div className="max-h-48 overflow-y-auto rounded-xl border border-white/10 bg-[#0A0A0B] divide-y divide-white/[0.04] custom-scrollbar select-none">
+            <div className="max-h-48 overflow-y-auto rounded-xl border border-white/[0.02] bg-[#0F1115] divide-y divide-white/[0.04] custom-scrollbar select-none">
               {deals
                 .filter(deal => !selectedLender.assignments.some(a => a.dealRef === deal.dealRef))
                 .filter(deal => {
@@ -976,7 +976,7 @@ export function LenderManagementPage() {
                         "w-full text-left px-3.5 py-2.5 text-xs transition-colors flex items-center justify-between cursor-pointer",
                         isSelected 
                           ? "bg-acp-bronze/10 text-white font-bold" 
-                          : "text-slate-350 hover:bg-white/5"
+                          : "text-slate-350 hover:bg-white/[0.015]"
                       )}
                     >
                       <div className="min-w-0">
@@ -1043,7 +1043,7 @@ export function LenderManagementPage() {
                 <div className="flex gap-3 pt-4">
                   <button
                     onClick={closeResetModal}
-                    className="flex-1 inline-flex h-10 items-center justify-center rounded-xl bg-white/5 border border-white/10 text-xs font-bold uppercase tracking-wider text-white hover:bg-white/10 cursor-pointer"
+                    className="flex-1 inline-flex h-10 items-center justify-center rounded-xl bg-white/[0.015] border border-white/[0.02] text-xs font-bold uppercase tracking-wider text-white hover:bg-white/[0.02] cursor-pointer"
                   >
                     Cancel
                   </button>
@@ -1063,13 +1063,13 @@ export function LenderManagementPage() {
                 </div>
                 <p className="text-xs text-slate-400 mt-1">The new passcode is successfully written to database.</p>
 
-                <div className="bg-white/5 border border-white/10 rounded-xl p-4 text-left">
+                <div className="bg-white/[0.015] border border-white/[0.02] rounded-xl p-4 text-left">
                   <span className="block text-[8px] font-extrabold uppercase tracking-wider text-slate-500">New Passcode</span>
                   <div className="flex items-center gap-2 mt-1">
-                    <span className="text-[12px] font-mono font-bold text-acp-bronze bg-white/5 border border-white/5 rounded-lg px-2.5 py-1 flex-1">{newResetPassword}</span>
+                    <span className="text-[12px] font-mono font-bold text-acp-bronze bg-white/[0.015] border border-white/5 rounded-lg px-2.5 py-1 flex-1">{newResetPassword}</span>
                     <button
                       onClick={() => handleCopy(newResetPassword || "", "modal-reset-pass")}
-                      className="h-7 w-7 flex items-center justify-center rounded-lg bg-white/5 border border-white/10 text-slate-350 hover:text-white"
+                      className="h-7 w-7 flex items-center justify-center rounded-lg bg-white/[0.015] border border-white/[0.02] text-slate-350 hover:text-white"
                     >
                       {copiedId === "modal-reset-pass" ? <Check className="h-3.5 w-3.5 text-emerald-450" /> : <Copy className="h-3.5 w-3.5" />}
                     </button>
@@ -1078,7 +1078,7 @@ export function LenderManagementPage() {
 
                 <button
                   onClick={closeResetModal}
-                  className="w-full inline-flex h-10 items-center justify-center rounded-xl bg-white/5 border border-white/10 text-xs font-bold uppercase tracking-wider text-white hover:bg-white/10 mt-4 cursor-pointer"
+                  className="w-full inline-flex h-10 items-center justify-center rounded-xl bg-white/[0.015] border border-white/[0.02] text-xs font-bold uppercase tracking-wider text-white hover:bg-white/[0.02] mt-4 cursor-pointer"
                 >
                   Close
                 </button>
@@ -1117,7 +1117,7 @@ export function LenderManagementPage() {
             <div className="flex gap-3 pt-4">
               <button
                 onClick={closeDeleteModal}
-                className="flex-1 inline-flex h-10 items-center justify-center rounded-xl bg-white/5 border border-white/10 text-xs font-bold uppercase tracking-wider text-white hover:bg-white/10 cursor-pointer"
+                className="flex-1 inline-flex h-10 items-center justify-center rounded-xl bg-white/[0.015] border border-white/[0.02] text-xs font-bold uppercase tracking-wider text-white hover:bg-white/[0.02] cursor-pointer"
                 type="button"
               >
                 Cancel

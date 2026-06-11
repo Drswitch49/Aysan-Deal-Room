@@ -211,7 +211,7 @@ export function AdminMessagesPage() {
         <div className="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-6 h-[calc(100vh-210px)] min-h-[550px] items-stretch">
           
           {/* Left Pane: Conversations List */}
-          <div className="rounded-2xl border border-white/[0.06] bg-[#0D0D0E] p-4 flex flex-col h-full overflow-hidden shadow-premium-card card-sheen">
+          <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-4 flex flex-col h-full overflow-hidden shadow-premium-card card-sheen">
             
             {/* Search conversations */}
             <div className="relative mb-4 shrink-0">
@@ -221,7 +221,7 @@ export function AdminMessagesPage() {
                 placeholder="Search inbox..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-10 w-full rounded-xl border border-white/10 bg-[#0d0c1d] pl-9 pr-4 text-xs text-white placeholder-slate-500 outline-none transition focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze"
+                className="h-10 w-full rounded-xl border border-white/[0.02] bg-[#0d0c1d] pl-9 pr-4 text-xs text-white placeholder-slate-500 outline-none transition focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze"
               />
             </div>
 
@@ -244,7 +244,7 @@ export function AdminMessagesPage() {
                           "w-full text-left p-3.5 rounded-xl border transition-all duration-300 relative block cursor-pointer card-sheen",
                           isSelected
                             ? "bg-acp-bronze/10 border-acp-bronze/50 shadow-glow-bronze/5"
-                            : "border-white/[0.04] bg-[#0c1122]/15 hover:bg-[#0c1122]/55 hover:border-white/12"
+                            : "border-white/[0.02] bg-[#0c1122]/15 hover:bg-[#0c1122]/55 hover:border-white/12"
                         )}
                       >
                         {/* Name + Time */}
@@ -267,11 +267,11 @@ export function AdminMessagesPage() {
                             {conv.deals.length} {conv.deals.length === 1 ? "Deal Category" : "Deal Categories"}
                           </span>
                           <div className="flex items-center gap-1.5 shrink-0">
-                            <span className="text-[8px] bg-white/5 border border-white/10 text-slate-400 px-1.5 py-0.5 rounded font-mono font-bold">
+                            <span className="text-[8px] bg-white/[0.015] border border-white/[0.02] text-slate-400 px-1.5 py-0.5 rounded font-mono font-bold">
                               {conv.totalCount} {conv.totalCount === 1 ? "msg" : "msgs"}
                             </span>
                             {conv.unreadCount > 0 && (
-                              <span className="inline-flex items-center justify-center h-4.5 min-w-[18px] text-[8px] font-black uppercase bg-[#C5A059] text-white px-1.5 rounded-full shadow-[0_2px_8px_rgba(197,160,89,0.3)] animate-pulse">
+                              <span className="inline-flex items-center justify-center h-4.5 min-w-[18px] text-[8px] font-black uppercase bg-[#C6A66B] text-white px-1.5 rounded-full shadow-[0_2px_8px_rgba(197,160,89,0.3)] animate-pulse">
                                 {conv.unreadCount}
                               </span>
                             )}
@@ -281,7 +281,7 @@ export function AdminMessagesPage() {
 
                       {/* Sub-list of Deal Conversations (rendered when this lender is selected) */}
                       {isSelected && (
-                        <div className="pl-3 border-l border-white/10 ml-4 space-y-1.5 py-1">
+                        <div className="pl-3 border-l border-white/[0.02] ml-4 space-y-1.5 py-1">
                           {conv.deals.map((dealConv) => {
                             const isDealSelected = activeDealId === dealConv.dealId;
                             const isDealMsgMe = dealConv.latestMsg.sender === "Admin";
@@ -296,7 +296,7 @@ export function AdminMessagesPage() {
                                 className={cx(
                                   "w-full text-left p-2.5 rounded-lg border transition-all duration-300 block cursor-pointer relative",
                                   isDealSelected
-                                    ? "bg-white/5 border-white/10 text-white font-bold"
+                                    ? "bg-white/[0.015] border-white/[0.02] text-white font-bold"
                                     : "border-transparent bg-transparent hover:bg-white/[0.02] text-slate-400 hover:text-white"
                                 )}
                               >
@@ -316,7 +316,7 @@ export function AdminMessagesPage() {
                                   </span>
                                   <div className="flex items-center gap-1 shrink-0">
                                     {dealConv.unreadCount > 0 && (
-                                      <span className="h-3.5 min-w-[14px] inline-flex items-center justify-center text-[7px] font-black bg-[#C5A059] text-white px-1 rounded-full animate-pulse">
+                                      <span className="h-3.5 min-w-[14px] inline-flex items-center justify-center text-[7px] font-black bg-[#C6A66B] text-white px-1 rounded-full animate-pulse">
                                         {dealConv.unreadCount}
                                       </span>
                                     )}
@@ -335,7 +335,7 @@ export function AdminMessagesPage() {
           </div>
 
           {/* Right Pane: Split-pane Chat Frame */}
-          <div className="rounded-2xl border border-white/[0.06] bg-[#0D0D0E] overflow-hidden flex flex-col h-full shadow-premium-card card-sheen">
+          <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] overflow-hidden flex flex-col h-full shadow-premium-card card-sheen">
             {selectedConversation && activeDealId ? (
               <div className="flex-1 h-full flex flex-col min-h-0">
                 <DealChat
@@ -350,7 +350,7 @@ export function AdminMessagesPage() {
               </div>
             ) : (
               <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
-                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/5 border border-white/10 text-slate-400 mb-4 shadow-sm animate-pulse">
+                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/[0.015] border border-white/[0.02] text-slate-400 mb-4 shadow-sm animate-pulse">
                   <MessageSquare className="h-7 w-7" />
                 </div>
                 <h3 className="text-sm font-bold text-white uppercase tracking-wider">Select a Conversation</h3>

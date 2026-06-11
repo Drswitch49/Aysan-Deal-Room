@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { getAllDocuments, getAllSubmissionLog } from "../api/airtable";
-import { fetchAdminLenders, createAdminDeal, fetchActivityFeed, type ActivityEvent } from "../api/admin";
+import { fetchAdminLenders, createAdminDeal, fetchActivityFeed, fetchPortfolioData, type ActivityEvent } from "../api/admin";
 import { fetchRecentAdminChat } from "../api/chat";
 import type { PipelineDeal, DealDocument, SubmissionLogEntry } from "../types/deal";
 import { cx } from "../utils/cx";
@@ -17,6 +17,43 @@ import { FormField, inputClass, selectClass, textareaClass } from "../components
 import { LoadingState } from "../components/ui/LoadingState";
 import { SectionHeader } from "../components/ui/SectionHeader";
 
+
+// Helper to strip raw Airtable mention markup from text, e.g. <airtable:mention id="abc">@Name</airtable:mention>
+function cleanAirtableMentions(text: string | undefined | null): string {
+  if (!text) return "";
+  return text.replace(/<airtable:mention[^>]*>(@?[^<]+)<\/airtable:mention>/g, "$1");
+}
+
+// Helper to extract the core company/deal name by removing stage labels, codes, and metadata separators
+function cleanCompanyName(name: string | undefined | null): string {
+  if (!name) return "";
+  let clean = cleanAirtableMentions(name);
+  
+  // Split by pipe (commonly separates code | name | stage)
+  if (clean.includes("|")) {
+    const parts = clean.split("|").map(p => p.trim());
+    // Find the first part that is not an ID code like ACP-CFS-002
+    const namePart = parts.find(p => !/^ACP-CFS-\d+$/i.test(p) && p.length > 0);
+    if (namePart) {
+      clean = namePart;
+    }
+  }
+
+  // Split by common separator dash strings with surrounding spaces
+  const separators = [" — ", " – ", " - "];
+  for (const sep of separators) {
+    if (clean.includes(sep)) {
+      clean = clean.split(sep)[0].trim();
+    }
+  }
+
+  // Fallback split by raw characters just in case
+  if (clean.includes("—")) clean = clean.split("—")[0].trim();
+  if (clean.includes("–")) clean = clean.split("–")[0].trim();
+
+  // Final cleanup of any leading/trailing punctuation/dashes
+  return clean.replace(/^[\s\-|–|—|:|·|•]+|[\s\-|–|—|:|·|•]+$/g, "").trim();
+}
 
 export function DashboardPage() {
   const { deals, refresh: refreshPipeline } = usePipeline();
@@ -30,6 +67,11 @@ export function DashboardPage() {
   const [error, setError] = useState("");
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [selectedAssignee, setSelectedAssignee] = useState<string>("All");
+
+  // Portfolio Integration State
+  const [portfolioHealthIndex, setPortfolioHealthIndex] = useState<number | null>(null);
+  const [activeCriticalAlertsCount, setActiveCriticalAlertsCount] = useState<number>(0);
+  const [activeMediumAlertsCount, setActiveMediumAlertsCount] = useState<number>(0);
 
   // New deal modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -50,14 +92,28 @@ export function DashboardPage() {
       getAllSubmissionLog().catch(() => []),
       fetchAdminLenders().catch(() => []),
       fetchRecentAdminChat().catch(() => []),
-      fetchActivityFeed({ limit: 4 }).catch(() => [])
+      fetchActivityFeed({ limit: 4 }).catch(() => []),
+      fetchPortfolioData().catch(() => null)
     ])
-      .then(([docsData, subsData, lendersData, chatsData, activityData]) => {
+      .then(([docsData, subsData, lendersData, chatsData, activityData, portfolioData]) => {
         setDocuments(docsData);
         setSubmissions(subsData);
         setLenders(lendersData);
         setChats(chatsData);
         setActivityEvents(activityData);
+
+        if (portfolioData && portfolioData.success) {
+          setPortfolioHealthIndex(portfolioData.healthIndex ?? 85);
+          const activeAlerts = (portfolioData.alerts || []).filter((a: any) => !a.resolvedAt);
+          const criticals = activeAlerts.filter((a: any) => a.severity === "critical").length;
+          const mediums = activeAlerts.filter((a: any) => a.severity === "medium").length;
+          setActiveCriticalAlertsCount(criticals);
+          setActiveMediumAlertsCount(mediums);
+        } else {
+          setPortfolioHealthIndex(null);
+          setActiveCriticalAlertsCount(0);
+          setActiveMediumAlertsCount(0);
+        }
       })
       .catch((err) => {
         console.error("Error loading dashboard data:", err);
@@ -255,9 +311,24 @@ export function DashboardPage() {
         const isOverdue = actionDate < todayStr;
         const isToday = actionDate === todayStr;
 
-        // Clean action title (take first line)
-        const cleanTitle = actionText.split("\n")[0].split("|")[0].split("—")[0].trim();
+        // Clean action title (take first line and strip mentions)
+        const cleanTitle = cleanAirtableMentions(actionText.split("\n")[0]);
         
+        let parsedTitle = cleanTitle;
+        const separators = [" — ", " – ", " - ", "—", "–"];
+        for (const sep of separators) {
+          if (parsedTitle.includes(sep)) {
+            const parts = parsedTitle.split(sep).map(p => p.trim());
+            if (parts.length > 1) {
+              parsedTitle = parts[0];
+            }
+          }
+        }
+        
+        if (parsedTitle.includes("|")) {
+          parsedTitle = parsedTitle.split("|")[0].trim();
+        }
+
         // Get assignee initials
         let initials = "AYO";
         const collabs = d.rawFields["Collaborator"] as any;
@@ -273,10 +344,15 @@ export function DashboardPage() {
         const dateObj = new Date(actionDate);
         const formattedDate = dateObj.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 
+        const companyNameClean = cleanCompanyName(String(d.companyName || d.rawFields?.["Company_Name"] || d.dealRef || ""));
+        const finalTitle = (parsedTitle && parsedTitle.toLowerCase() !== companyNameClean.toLowerCase())
+          ? `${parsedTitle} — ${companyNameClean}`
+          : companyNameClean;
+
         list.push({
           id: d.id,
           color: isOverdue ? "red" : isToday ? "yellow" : "blue",
-          title: `${cleanTitle} — ${d.companyName}`,
+          title: finalTitle,
           dealRef: d.dealRef || "ACP-CFS",
           assignee: initials,
           statusText: isOverdue ? "OVERDUE" : isToday ? "DUE TODAY" : "PENDING",
@@ -348,8 +424,8 @@ export function DashboardPage() {
         else if (e.color === "bronze" || e.color === "purple") color = "yellow";
 
         const titleText = e.companyName
-          ? `${e.title} — ${e.companyName}`
-          : e.title;
+          ? `${cleanAirtableMentions(e.title)} — ${cleanCompanyName(e.companyName)}`
+          : cleanAirtableMentions(e.title);
 
         return {
           id: e.id,
@@ -438,9 +514,9 @@ export function DashboardPage() {
   return (
     <div className="space-y-8 animate-fade-in-up">
       {/* Top Header Block */}
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 pb-6 border-b border-white/[0.04]">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 pb-6 border-b border-white/[0.02]">
         <div className="space-y-2">
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#C5A059] select-none">
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#C6A66B] select-none">
             ACP Deal Intelligence
           </p>
           <h1 className="font-heading text-2xl font-bold text-white uppercase tracking-tight leading-none select-none">
@@ -469,7 +545,7 @@ export function DashboardPage() {
             <select
               value={selectedAssignee}
               onChange={(e) => setSelectedAssignee(e.target.value)}
-              className="h-8 rounded-xl border border-white/[0.06] bg-[#0B0B0C] px-3.5 text-xs font-semibold text-white outline-none focus:border-[#C5A059] cursor-pointer shadow-inner hover:border-white/[0.12] transition"
+              className="h-8 rounded-xl border border-white/[0.02] bg-[#0B0B0C] px-3.5 text-xs font-semibold text-white outline-none focus:border-[#C6A66B] cursor-pointer shadow-inner hover:border-white/[0.12] transition"
             >
               {assignees.map(a => (
                 <option key={a} value={a} className="bg-[#0B0B0C] text-white">{a}</option>
@@ -479,7 +555,7 @@ export function DashboardPage() {
 
           <button
             onClick={handleExportCSV}
-            className="inline-flex h-8 items-center gap-1.5 rounded-xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.05] px-3.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-white transition cursor-pointer select-none"
+            className="inline-flex h-8 items-center gap-1.5 rounded-xl border border-white/[0.02] bg-white/[0.02] hover:bg-white/[0.05] px-3.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-white transition cursor-pointer select-none"
           >
             <LineChart className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Export CSV</span>
@@ -487,7 +563,7 @@ export function DashboardPage() {
 
           <button
             onClick={() => setIsModalOpen(true)}
-            className="inline-flex h-8 items-center gap-1.5 rounded-xl bg-[#C5A059] hover:bg-[#b5904a] text-slate-950 px-3.5 text-[10px] font-bold uppercase tracking-wider transition cursor-pointer shadow-sm select-none"
+            className="inline-flex h-8 items-center gap-1.5 rounded-xl bg-[#C6A66B] hover:bg-[#b5904a] text-slate-950 px-3.5 text-[10px] font-bold uppercase tracking-wider transition cursor-pointer shadow-sm select-none"
           >
             <Plus className="h-3.5 w-3.5 text-slate-950" />
             <span>New Deal</span>
@@ -504,8 +580,7 @@ export function DashboardPage() {
         </div>
       )}
 
-      {!isLoading && !error && (
-        <div className="space-y-8">
+        <div className="space-y-12">
           {unreadMessagesCount > 0 && (
             <div className="rounded-2xl border border-rose-500/10 bg-rose-500/5 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-fade-in-up shadow-glow-rose/5">
               <div className="flex items-center gap-3">
@@ -527,7 +602,7 @@ export function DashboardPage() {
           )}
 
           {/* 4 Summary metric cards */}
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             <StatCard
               label="Active Pipeline"
               value={activeDeals.length}
@@ -545,142 +620,148 @@ export function DashboardPage() {
               to="/deals"
             />
             <StatCard
-              label="Lender Records"
-              value={lenders.length}
-              subLabel={`${staleLendersCount} stale (>90d)`}
-              icon={<Building2 className="h-4 w-4" />}
+              label="Portfolio Health"
+              value={portfolioHealthIndex !== null ? `${portfolioHealthIndex}%` : "85%"}
+              subLabel="Overall portfolio health index"
+              icon={<TrendingUp className="h-4 w-4" />}
               tone="default"
-              to="/admin/lenders"
+              to="/admin/portco"
             />
             <StatCard
-              label="Target Closes"
-              value={targetClosesCount}
-              subLabel="Within 6 weeks"
-              icon={<TrendingUp className="h-4 w-4" />}
-              tone="emerald"
+              label="Active Alerts"
+              value={activeCriticalAlertsCount + activeMediumAlertsCount}
+              subLabel={`${activeCriticalAlertsCount} critical · ${activeMediumAlertsCount} medium`}
+              icon={<AlertTriangle className="h-4 w-4" />}
+              tone={activeCriticalAlertsCount + activeMediumAlertsCount > 0 ? "rose" : "emerald"}
+              to="/admin/portco"
             />
           </div>
 
-          {/* Two-Column Middle Section */}
-          <div className="grid gap-6 lg:grid-cols-[1fr_1.4fr]">
-            {/* Pipeline by Stage Card */}
-            <div className="rounded-2xl p-6 premium-card card-sheen">
-              <SectionHeader>Pipeline By Stage</SectionHeader>
-              <div className="mt-5 space-y-4 font-sans">
-                {[
-                  { label: "Inbound", count: stageCounts.inbound, color: "bg-blue-400/70" },
-                  { label: "Seller Call", count: stageCounts.sellerCall, color: "bg-indigo-400/70" },
-                  { label: "IM Review", count: stageCounts.imReview, color: "bg-[#C5A059]/80" },
-                  { label: "Due Diligence", count: stageCounts.dueDiligence, color: "bg-emerald-400/70" },
-                ].map(({ label, count, color }) => {
-                  const pct = Math.round((count / Math.max(activeDeals.length, 1)) * 100);
-                  return (
-                    <div key={label} className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[11px] font-semibold text-slate-300">{label}</span>
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-semibold text-slate-500">{pct}%</span>
-                          <span className="text-xs font-semibold text-white w-4 text-right">{count}</span>
+          {/* Asymmetric Two-Column Layout */}
+          <div className="grid gap-8 lg:grid-cols-[1.9fr_1.1fr]">
+            {/* Left Column: Core Operations (Actions & Activity) */}
+            <div className="space-y-8">
+              {/* Actions Due Today Card */}
+              <div className="rounded-2xl p-6 premium-card card-sheen">
+                <SectionHeader>Actions Due Today</SectionHeader>
+                <div className="mt-4 divide-y divide-white/[0.03] font-sans">
+                  {actionsList.map(act => (
+                    <div key={act.id} className="py-4 flex items-start gap-4 first:pt-1">
+                      {/* Status icon */}
+                      <div className={cx(
+                        "mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border",
+                        act.color === "red"
+                          ? "bg-rose-500/5 border-rose-500/10 text-rose-400"
+                          : act.color === "yellow"
+                          ? "bg-amber-500/5 border-amber-500/10 text-amber-400"
+                          : act.color === "blue"
+                          ? "bg-blue-500/5 border-blue-500/10 text-blue-400"
+                          : "bg-emerald-500/5 border-emerald-500/10 text-emerald-400"
+                      )}>
+                        {act.color === "red" ? (
+                          <AlertTriangle className="h-3.5 w-3.5" />
+                        ) : act.color === "yellow" ? (
+                          <Clock className="h-3.5 w-3.5" />
+                        ) : act.color === "blue" ? (
+                          <MessageSquare className="h-3.5 w-3.5" />
+                        ) : (
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                        )}
+                      </div>
+
+                      {/* Action Detail */}
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[11px] font-semibold text-white leading-tight">
+                          {act.title}
+                        </p>
+                        <div className="mt-1 flex items-center gap-1.5 flex-wrap select-none">
+                          <span className="text-[9px] font-mono text-slate-500">{act.dealRef}</span>
+                          <span className="text-slate-700">·</span>
+                          <span className="text-[9px] font-semibold text-slate-400">{act.assignee}</span>
+                          <span className="text-slate-700">·</span>
+                          <span className={cx(
+                            "text-[9px] font-bold uppercase tracking-wider",
+                            act.statusText === "OVERDUE" ? "text-rose-455" :
+                            act.statusText === "DUE TODAY" ? "text-amber-400" :
+                            "text-slate-500"
+                          )}>{act.statusText}</span>
                         </div>
                       </div>
-                      <div className="h-1.5 w-full bg-white/[0.02] border border-white/[0.04] rounded-full overflow-hidden">
-                        <div
-                          className={`h-full ${color} rounded-full transition-all duration-700 ease-out`}
-                          style={{ width: `${Math.max(pct, count > 0 ? 4 : 0)}%` }}
-                        />
-                      </div>
+
+                      <span className="shrink-0 text-[10px] font-semibold text-slate-500 whitespace-nowrap select-none">
+                        {act.dateStr}
+                      </span>
                     </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Actions Due Today Card */}
-            <div className="rounded-2xl p-6 premium-card card-sheen">
-              <SectionHeader>Actions Due Today</SectionHeader>
-              <div className="mt-4 divide-y divide-white/[0.03] font-sans">
-                {actionsList.map(act => (
-                  <div key={act.id} className="py-3.5 flex items-start gap-3.5 first:pt-1">
-                    {/* Status icon */}
-                    <div className={cx(
-                      "mt-0.5 flex h-6.5 w-6.5 shrink-0 items-center justify-center rounded-lg border",
-                      act.color === "red"
-                        ? "bg-rose-500/5 border-rose-500/10 text-rose-400"
-                        : act.color === "yellow"
-                        ? "bg-amber-500/5 border-amber-500/10 text-amber-400"
-                        : act.color === "blue"
-                        ? "bg-blue-500/5 border-blue-500/10 text-blue-400"
-                        : "bg-emerald-500/5 border-emerald-500/10 text-emerald-400"
-                    )}>
-                      {act.color === "red" ? (
-                        <AlertTriangle className="h-3.5 w-3.5" />
-                      ) : act.color === "yellow" ? (
-                        <Clock className="h-3.5 w-3.5" />
-                      ) : act.color === "blue" ? (
-                        <MessageSquare className="h-3.5 w-3.5" />
-                      ) : (
-                        <CheckCircle2 className="h-3.5 w-3.5" />
-                      )}
-                    </div>
-
-                    {/* Action Detail */}
-                    <div className="min-w-0 flex-1">
-                      <p className="text-[11px] font-semibold text-white leading-tight">
-                        {act.title}
-                      </p>
-                      <div className="mt-1 flex items-center gap-1.5 flex-wrap select-none">
-                        <span className="text-[9px] font-mono text-slate-500">{act.dealRef}</span>
-                        <span className="text-slate-700">·</span>
-                        <span className="text-[9px] font-semibold text-slate-400">{act.assignee}</span>
-                        <span className="text-slate-700">·</span>
-                        <span className={cx(
-                          "text-[9px] font-bold uppercase tracking-wider",
-                          act.statusText === "OVERDUE" ? "text-rose-455" :
-                          act.statusText === "DUE TODAY" ? "text-amber-400" :
-                          "text-slate-500"
-                        )}>{act.statusText}</span>
-                      </div>
-                    </div>
-
-                    <span className="shrink-0 text-[10px] font-semibold text-slate-500 whitespace-nowrap select-none">
-                      {act.dateStr}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Recent Activity Log */}
-          <div className="rounded-2xl p-6 premium-card card-sheen">
-            <SectionHeader>Recent Activity</SectionHeader>
-            <div className="mt-4 divide-y divide-white/[0.03] font-sans">
-              {activityList.map(act => (
-                <div key={act.id} className="py-3.5 flex items-start gap-3.5 first:pt-1">
-                  {/* Colored left border accent via icon */}
-                  <div className={cx(
-                    "mt-0.5 w-0.5 h-8 self-stretch shrink-0 rounded-full",
-                    act.color === "green" ? "bg-emerald-400/50" :
-                    act.color === "blue" ? "bg-blue-400/50" :
-                    act.color === "yellow" ? "bg-amber-400/50" :
-                    "bg-rose-500/50"
-                  )} />
-
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[11px] font-semibold text-white/90 leading-snug">
-                      {act.title}
-                    </p>
-                    <p className="mt-1 text-[10px] font-medium text-slate-500 select-none">
-                      {act.dateStr}
-                      {act.author && <> · <span className="text-slate-600">{act.author}</span></>}
-                    </p>
-                  </div>
+                  ))}
                 </div>
-              ))}
+              </div>
+
+              {/* Recent Activity Log */}
+              <div className="rounded-2xl p-6 premium-card card-sheen">
+                <SectionHeader>Recent Activity</SectionHeader>
+                <div className="mt-4 divide-y divide-white/[0.03] font-sans">
+                  {activityList.map(act => (
+                    <div key={act.id} className="py-4 flex items-start gap-4 first:pt-1">
+                      {/* Colored left border accent via icon */}
+                      <div className={cx(
+                        "mt-0.5 w-0.5 h-8 self-stretch shrink-0 rounded-full",
+                        act.color === "green" ? "bg-emerald-400/50" :
+                        act.color === "blue" ? "bg-blue-400/50" :
+                        act.color === "yellow" ? "bg-amber-400/50" :
+                        "bg-rose-500/50"
+                      )} />
+
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[11px] font-semibold text-white/90 leading-snug">
+                          {act.title}
+                        </p>
+                        <p className="mt-1 text-[10px] font-medium text-slate-500 select-none">
+                          {act.dateStr}
+                          {act.author && <> · <span className="text-slate-600">{act.author}</span></>}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Right Column: Pipeline Telemetry (Sidebar style) */}
+            <div className="space-y-8">
+              {/* Pipeline by Stage Card */}
+              <div className="rounded-2xl p-6 premium-card card-sheen">
+                <SectionHeader>Pipeline By Stage</SectionHeader>
+                <div className="mt-5 space-y-4 font-sans">
+                  {[
+                    { label: "Inbound", count: stageCounts.inbound, color: "bg-blue-400/70" },
+                    { label: "Seller Call", count: stageCounts.sellerCall, color: "bg-indigo-400/70" },
+                    { label: "IM Review", count: stageCounts.imReview, color: "bg-[#C6A66B]/80" },
+                    { label: "Due Diligence", count: stageCounts.dueDiligence, color: "bg-emerald-400/70" },
+                  ].map(({ label, count, color }) => {
+                    const pct = Math.round((count / Math.max(activeDeals.length, 1)) * 100);
+                    return (
+                      <div key={label} className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-semibold text-slate-300">{label}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-semibold text-slate-500">{pct}%</span>
+                            <span className="text-xs font-semibold text-white w-4 text-right">{count}</span>
+                          </div>
+                        </div>
+                        <div className="h-1.5 w-full bg-white/[0.02] border border-white/[0.02] rounded-full overflow-hidden">
+                          <div
+                            className={`h-full ${color} rounded-full transition-all duration-700 ease-out`}
+                            style={{ width: `${Math.max(pct, count > 0 ? 4 : 0)}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           </div>
         </div>
-      )}
 
       {/* New Deal Creation Modal */}
       <Modal
@@ -759,7 +840,7 @@ export function DashboardPage() {
             <button
               type="button"
               onClick={() => setIsModalOpen(false)}
-              className="h-9 px-4 rounded-xl border border-white/10 text-slate-400 text-xs font-bold uppercase tracking-wider hover:bg-white/5 transition cursor-pointer"
+              className="h-9 px-4 rounded-xl border border-white/[0.02] text-slate-400 text-xs font-bold uppercase tracking-wider hover:bg-white/[0.015] transition cursor-pointer"
             >
               Cancel
             </button>

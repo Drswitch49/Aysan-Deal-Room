@@ -6,18 +6,18 @@ type StatCardTone = "default" | "bronze" | "emerald" | "rose" | "blue";
 
 const toneAccents: Record<StatCardTone, string> = {
   default: "text-white",
-  bronze: "text-[#C5A059]",
+  bronze: "text-[#C6A66B]",
   emerald: "text-emerald-400/90",
-  rose: "text-rose-455",
+  rose: "text-rose-400/90",
   blue: "text-blue-400/90",
 };
 
 const toneIconBg: Record<StatCardTone, string> = {
-  default: "bg-white/[0.02] border-white/[0.04] text-slate-400",
-  bronze: "bg-[#C5A059]/5 border-[#C5A059]/10 text-[#C5A059]",
-  emerald: "bg-emerald-500/5 border-emerald-500/10 text-emerald-450",
-  rose: "bg-rose-500/5 border-rose-500/10 text-rose-450",
-  blue: "bg-blue-500/5 border-blue-500/10 text-blue-400",
+  default: "bg-white/[0.02] text-slate-400",
+  bronze: "bg-[#C6A66B]/5 text-[#C6A66B]",
+  emerald: "bg-emerald-500/5 text-emerald-400",
+  rose: "bg-rose-500/5 text-rose-400",
+  blue: "bg-blue-500/5 text-blue-400",
 };
 
 /**
@@ -38,18 +38,18 @@ export function StatCard({
   icon?: ReactNode;
   tone?: StatCardTone;
   to?: string;
-}) {
+  }) {
   const content = (
     <div className="flex items-start justify-between gap-3">
       <div className="min-w-0 flex-1 space-y-2">
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400/80 group-hover:text-slate-300 transition-colors">
+        <p className="text-[9.5px] font-bold uppercase tracking-widest text-slate-400 group-hover:text-slate-350 transition-colors">
           {label}
         </p>
         <div className={cx("text-2xl font-semibold tracking-tight mt-1", toneAccents[tone])}>
           {value}
         </div>
         {subLabel && (
-          <p className="text-[10px] font-semibold text-slate-500 mt-1.5 leading-none">
+          <p className="text-[9.5px] font-semibold text-slate-500 mt-2 tracking-wide leading-none">
             {subLabel}
           </p>
         )}
@@ -57,7 +57,7 @@ export function StatCard({
       {icon && (
         <div
           className={cx(
-            "flex h-9.5 w-9.5 shrink-0 items-center justify-center rounded-xl border transition-colors",
+            "flex h-9.5 w-9.5 shrink-0 items-center justify-center rounded-xl transition-colors",
             toneIconBg[tone]
           )}
         >

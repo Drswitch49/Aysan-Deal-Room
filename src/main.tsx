@@ -41,7 +41,7 @@ function CurrentDealRedirect() {
 
   if (!redirectPath) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#0A0A0B] text-slate-400">
+      <div className="flex min-h-screen items-center justify-center bg-[#0F1115] text-slate-400">
         <div className="animate-pulse text-xs font-bold uppercase tracking-widest text-acp-bronze">
           Loading Active Deal...
         </div>

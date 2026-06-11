@@ -551,11 +551,129 @@ export default async function handler(req: any, res: any) {
           const website = dealRecord.fields.Website || dealRecord.fields.Company_Website || "";
           
           const { emitEvent } = await import("../_events/emit.js");
-          await emitEvent("osint/scrape_requested", {
+          const emitRes = await emitEvent("osint/scrape_requested", {
             dealId,
             companyName: String(companyName),
             website: website ? String(website) : undefined,
           });
+          
+          if (!emitRes) {
+            console.log(`[OSINT Local Fallback] Inngest not available. Running OSINT synchronously in background for ${companyName}...`);
+            
+            // Run in the background asynchronously so the client request finishes immediately
+            (async () => {
+              const PIPELINE_TABLE = TABLES.PIPELINE || "Active_Pipeline";
+              try {
+                // 1. Queued
+                await airtableUpdate(PIPELINE_TABLE, dealId, {
+                  OSINT_Status: "Queued",
+                  OSINT_Started_At: new Date().toISOString(),
+                  OSINT_Failure_Reason: "",
+                });
+
+                // Fetch deal details for LinkedIn URL
+                const updatedRecord = await airtableFetchRecord(PIPELINE_TABLE, dealId);
+                const linkedInUrl: string = updatedRecord?.fields?.["LinkedIn_URL"] || "";
+
+                // 2. Scraping Website
+                await airtableUpdate(PIPELINE_TABLE, dealId, {
+                  OSINT_Status: "Scraping Website",
+                });
+
+                // Run scraping steps
+                const { scrapeCompanyWebsite } = await import("../../lib/playwright/website.js");
+                const { searchCompaniesHouse } = await import("../_osint/providers/companiesHouse.js");
+                const { fetchCompanyNews } = await import("../_osint/providers/news.js");
+
+                const [websiteResult, chResult, newsResult] = await Promise.all([
+                  website ? scrapeCompanyWebsite(website) : Promise.resolve({ success: false, error: "No website URL provided", url: "" }),
+                  searchCompaniesHouse(String(companyName)).catch(err => ({ found: false, error: err.message, company: null })),
+                  fetchCompanyNews(String(companyName)).catch(err => ({ articles: [], error: err.message })),
+                ]);
+
+                // 3. Extracting Metadata
+                await airtableUpdate(PIPELINE_TABLE, dealId, {
+                  OSINT_Status: "Extracting Metadata",
+                });
+
+                // LinkedIn enrichment
+                const { enrichFromLinkedIn } = await import("../../lib/playwright/linkedin.js");
+                const targetLinkedinUrl =
+                  linkedInUrl ||
+                  (websiteResult.success && websiteResult.socialAndSchema?.socialLinks?.linkedin) ||
+                  "";
+
+                const linkedinResult = await enrichFromLinkedIn({
+                  linkedInUrl: targetLinkedinUrl || undefined,
+                  companyName: String(companyName),
+                  website: website ? String(website) : undefined,
+                }).catch(err => ({ found: false, error: err.message, data: {} }));
+
+                // 4. Analyzing Company
+                await airtableUpdate(PIPELINE_TABLE, dealId, {
+                  OSINT_Status: "Analyzing Company",
+                });
+
+                // Synthesis
+                const { synthesizeWithClaude } = await import("../inngest/osint-workflows.js");
+                const synthesisResult = await synthesizeWithClaude(String(companyName), {
+                  website: websiteResult.success ? websiteResult : undefined,
+                  companiesHouse: chResult.found ? chResult : undefined,
+                  linkedIn: linkedinResult.found ? linkedinResult.data : undefined,
+                  news: newsResult.articles && newsResult.articles.length > 0 ? newsResult.articles : undefined,
+                });
+
+                // 5. Generating Risk Profile
+                await airtableUpdate(PIPELINE_TABLE, dealId, {
+                  OSINT_Status: "Generating Risk Profile",
+                });
+
+                // Persist results
+                const compiledResult = {
+                  dealId,
+                  companyName,
+                  enrichedAt: new Date().toISOString(),
+                  websiteResult,
+                  chResult,
+                  newsResult,
+                  linkedinResult,
+                };
+
+                const updatePayload: Record<string, any> = {
+                  OSINT_Status: "Completed",
+                  OSINT_Completed_At: new Date().toISOString(),
+                  OSINT_Data: JSON.stringify(compiledResult),
+                  OSINT_Summary: synthesisResult.synthesis || "",
+                  OSINT_Key_Insights: (synthesisResult.keyInsights || []).join("\n• "),
+                  OSINT_Risk_Flags: (synthesisResult.riskFlags || []).join("\n• "),
+                };
+
+                if (synthesisResult.industry !== "Unknown") {
+                  updatePayload["Sector"] = synthesisResult.industry;
+                }
+
+                if (chResult?.company?.companyNumber) {
+                  updatePayload["Companies_House_Number"] = chResult.company.companyNumber;
+                }
+
+                if (linkedinResult?.data?.linkedInUrl) {
+                  updatePayload["LinkedIn_URL"] = linkedinResult.data.linkedInUrl;
+                }
+
+                await airtableUpdate(PIPELINE_TABLE, dealId, updatePayload);
+                console.log(`[OSINT Local Fallback] OSINT enrichment completed successfully for ${companyName}`);
+              } catch (err: any) {
+                console.error(`[OSINT Local Fallback] Synchronous pipeline failed for ${companyName}:`, err.message);
+                await airtableUpdate(PIPELINE_TABLE, dealId, {
+                  OSINT_Status: "Failed",
+                  OSINT_Completed_At: new Date().toISOString(),
+                  OSINT_Failure_Reason: err.message || "Unknown fallback error",
+                });
+              }
+            })();
+
+            return res.status(200).json({ success: true, message: "OSINT enrichment triggered (local fallback)." });
+          }
           
           return res.status(200).json({ success: true, message: "OSINT enrichment triggered." });
         } catch (err: any) {

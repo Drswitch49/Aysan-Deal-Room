@@ -497,9 +497,9 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
     <div className="space-y-6 relative">
       {audience === "internal" ? (
         <div className="grid gap-4 sm:grid-cols-2">
-          <div className="rounded-2xl border border-white/[0.06] bg-[#0D0D0E] backdrop-blur-md p-5 shadow-premium-card card-sheen flex items-center justify-between gap-4">
+          <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] backdrop-blur-md p-5 shadow-premium-card card-sheen flex items-center justify-between gap-4">
             <div className="flex items-center gap-3.5">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/5 border border-white/[0.06] text-acp-bronze shadow-sm">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/[0.015] border border-white/[0.02] text-acp-bronze shadow-sm">
                 <Files className="h-5 w-5" aria-hidden="true" />
               </div>
               <div>
@@ -514,14 +514,14 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
               <ProgressRing value={progress} size={54} strokeWidth={4.5} />
             </div>
           </div>
-          <div className="rounded-2xl border border-white/[0.06] bg-[#0D0D0E] backdrop-blur-md p-5 shadow-premium-card card-sheen flex items-center">
+          <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] backdrop-blur-md p-5 shadow-premium-card card-sheen flex items-center">
             <ProgressBar value={progress} label="Progress sent to lender" />
           </div>
         </div>
       ) : null}
 
       {/* Interactive Filter Pills & Search Deck */}
-      <div className="rounded-2xl border border-white/[0.06] bg-[#0D0D0E] backdrop-blur-md p-6 shadow-premium-card card-sheen space-y-5">
+      <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] backdrop-blur-md p-6 shadow-premium-card card-sheen space-y-5">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between pb-3 border-b border-white/5">
           <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-400 select-none">
             <Filter className="h-4 w-4 text-acp-bronze" aria-hidden="true" />
@@ -548,7 +548,7 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
                 placeholder="Search documents..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-10 w-full rounded-xl border border-white/[0.06] bg-white/5 pl-10 pr-8 text-xs font-semibold text-white placeholder-slate-500 outline-none transition-all duration-300 focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze shadow-sm"
+                className="h-10 w-full rounded-xl border border-white/[0.02] bg-white/[0.015] pl-10 pr-8 text-xs font-semibold text-white placeholder-slate-500 outline-none transition-all duration-300 focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze shadow-sm"
               />
               {searchQuery && (
                 <button
@@ -631,7 +631,7 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
             <button
               onClick={() => handleBatchStatusUpdate("Outstanding")}
               disabled={isBatchUpdating}
-              className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-white/5 border border-white/10 px-4 text-xs font-bold uppercase tracking-wider text-slate-350 hover:bg-white/10 hover:text-white disabled:opacity-40 cursor-pointer transition-all duration-300"
+              className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-white/[0.015] border border-white/[0.02] px-4 text-xs font-bold uppercase tracking-wider text-slate-350 hover:bg-white/[0.02] hover:text-white disabled:opacity-40 cursor-pointer transition-all duration-300"
               type="button"
             >
               Revoke Approval
@@ -658,7 +658,7 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
                     type="checkbox"
                     checked={isAllSelected}
                     onChange={handleSelectAllToggle}
-                    className="rounded border-white/10 bg-white/5 text-acp-bronze focus:ring-acp-bronze cursor-pointer h-3.5 w-3.5"
+                    className="rounded border-white/[0.02] bg-white/[0.015] text-acp-bronze focus:ring-acp-bronze cursor-pointer h-3.5 w-3.5"
                   />
                 </Th>
               )}
@@ -687,7 +687,7 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
                       type="checkbox"
                       checked={selectedIds.has(document.id)}
                       onChange={() => handleSelectToggle(document.id)}
-                      className="rounded border-white/10 bg-white/5 text-acp-bronze focus:ring-acp-bronze cursor-pointer h-3.5 w-3.5"
+                      className="rounded border-white/[0.02] bg-white/[0.015] text-acp-bronze focus:ring-acp-bronze cursor-pointer h-3.5 w-3.5"
                     />
                   </Td>
                 )}
@@ -696,7 +696,7 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
                 </Td>
                 <Td className="w-full min-w-64">
                   <div className="flex items-start gap-3">
-                    <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/5 border border-white/[0.06] shadow-sm">
+                    <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/[0.015] border border-white/[0.02] shadow-sm">
                       {getDocIcon(document.documentName, document.category)}
                     </span>
                     <div className="min-w-0">
@@ -712,7 +712,7 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
                   </div>
                 </Td>
                 <Td>
-                  <span className="rounded-full border border-white/[0.06] bg-white/5 px-2.5 py-0.5 text-[10px] font-semibold text-slate-300 uppercase tracking-wide">
+                  <span className="rounded-full border border-white/[0.02] bg-white/[0.015] px-2.5 py-0.5 text-[10px] font-semibold text-slate-300 uppercase tracking-wide">
                     {document.category || "Uncategorized"}
                   </span>
                 </Td>
@@ -771,7 +771,7 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
       {/* Right-Hand slide out drawer */}
       <div 
         className={cx(
-          "fixed top-0 right-0 h-screen w-full sm:w-[480px] bg-acp-ink border-l border-white/10 z-50 shadow-2xl transition-all duration-450 cubic-bezier(0.16, 1, 0.3, 1) flex flex-col transform",
+          "fixed top-0 right-0 h-screen w-full sm:w-[480px] bg-acp-ink border-l border-white/[0.02] z-50 shadow-2xl transition-all duration-450 cubic-bezier(0.16, 1, 0.3, 1) flex flex-col transform",
           selectedDoc ? "translate-x-0" : "translate-x-full"
         )}
       >
@@ -790,7 +790,7 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
               <button 
                 type="button" 
                 onClick={() => setSelectedDoc(null)}
-                className="h-8 w-8 flex items-center justify-center rounded-xl border border-white/10 text-slate-400 hover:text-white hover:border-white/20 transition-colors shadow-sm"
+                className="h-8 w-8 flex items-center justify-center rounded-xl border border-white/[0.02] text-slate-400 hover:text-white hover:border-white/20 transition-colors shadow-sm"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -800,11 +800,11 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
             <div className="flex-1 overflow-y-auto p-6 space-y-6">
               {/* Core metrics */}
               <div className="grid grid-cols-2 gap-4">
-                <div className="p-3 border border-white/10 bg-white/[0.02] rounded-xl">
+                <div className="p-3 border border-white/[0.02] bg-white/[0.02] rounded-xl">
                   <span className="block text-[9px] font-extrabold uppercase tracking-wider text-slate-400">File Category</span>
                   <span className="block text-xs font-bold text-white mt-1.5">{selectedDoc.category || "Uncategorized"}</span>
                 </div>
-                <div className="p-3 border border-white/10 bg-white/[0.02] rounded-xl">
+                <div className="p-3 border border-white/[0.02] bg-white/[0.02] rounded-xl">
                   <span className="block text-[9px] font-extrabold uppercase tracking-wider text-slate-400">Review Status</span>
                   <div className="mt-1">
                     <StatusBadge status={selectedDoc.status} />
@@ -848,7 +848,7 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
                         value={draftLink}
                         onChange={(e) => setDraftLink(e.target.value)}
                         placeholder="https://drive.google.com/..."
-                        className="h-9 flex-1 rounded-xl border border-white/10 bg-white/5 px-3 text-xs text-white placeholder-slate-600 outline-none focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze shadow-sm transition-colors duration-300"
+                        className="h-9 flex-1 rounded-xl border border-white/[0.02] bg-white/[0.015] px-3 text-xs text-white placeholder-slate-600 outline-none focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze shadow-sm transition-colors duration-300"
                       />
                       <button
                         type="button"
@@ -866,7 +866,7 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
               {/* Internal notes */}
               <div className="space-y-2">
                 <h4 className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-slate-455">Internal Notes & Description</h4>
-                <div className="p-4 border border-white/10 bg-white/[0.02] rounded-2xl text-xs leading-relaxed text-slate-300 font-medium">
+                <div className="p-4 border border-white/[0.02] bg-white/[0.02] rounded-2xl text-xs leading-relaxed text-slate-300 font-medium">
                   {selectedDoc.internalNotes || "No internal notes recorded for this file. Click view to inspect the file directly."}
                 </div>
               </div>
@@ -877,7 +877,7 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
                   <History className="h-4 w-4 text-slate-400" />
                   Document History Log
                 </h4>
-                <div className="relative border-l border-white/10 pl-4 space-y-4 text-xs">
+                <div className="relative border-l border-white/[0.02] pl-4 space-y-4 text-xs">
                   <LogItem 
                     date={selectedDoc.dateReceived || "2026-05-24"} 
                     action="File received" 
@@ -929,7 +929,7 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
       {/* Add Document Modal Overlay */}
       {isAddDocOpen && (
         <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-[#0D0D0E] p-6 shadow-2xl relative animate-scale-in max-h-[90vh] overflow-y-auto">
+          <div className="w-full max-w-sm rounded-2xl border border-white/[0.02] bg-[#161B22] p-6 shadow-2xl relative animate-scale-in max-h-[90vh] overflow-y-auto">
             <button
               onClick={() => setIsAddDocOpen(false)}
               className="absolute right-4 top-4 text-slate-400 hover:text-white cursor-pointer"
@@ -961,7 +961,7 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
                   value={newDocName}
                   onChange={(e) => setNewDocName(e.target.value)}
                   placeholder="e.g. FY25 Management Accounts"
-                  className="h-9 w-full rounded-xl border border-white/10 bg-[#0D0D0E] px-3 text-white placeholder-slate-650 outline-none focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze transition-all"
+                  className="h-9 w-full rounded-xl border border-white/[0.02] bg-[#161B22] px-3 text-white placeholder-slate-650 outline-none focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze transition-all"
                 />
               </div>
 
@@ -973,18 +973,18 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
                   <select
                     value={newDocCategory}
                     onChange={(e) => setNewDocCategory(e.target.value)}
-                    className="h-9 w-full rounded-xl border border-white/10 bg-[#0D0D0E] px-3 text-white outline-none focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze transition-all cursor-pointer"
+                    className="h-9 w-full rounded-xl border border-white/[0.02] bg-[#161B22] px-3 text-white outline-none focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze transition-all cursor-pointer"
                   >
-                    <option value="Financials" className="bg-[#0D0D0E] text-white">Financials</option>
-                    <option value="Legal" className="bg-[#0D0D0E] text-white">Legal</option>
-                    <option value="Compliance" className="bg-[#0D0D0E] text-white">Compliance</option>
-                    <option value="Insurance" className="bg-[#0D0D0E] text-white">Insurance</option>
-                    <option value="Tax" className="bg-[#0D0D0E] text-white">Tax</option>
-                    <option value="Operations" className="bg-[#0D0D0E] text-white">Operations</option>
+                    <option value="Financials" className="bg-[#161B22] text-white">Financials</option>
+                    <option value="Legal" className="bg-[#161B22] text-white">Legal</option>
+                    <option value="Compliance" className="bg-[#161B22] text-white">Compliance</option>
+                    <option value="Insurance" className="bg-[#161B22] text-white">Insurance</option>
+                    <option value="Tax" className="bg-[#161B22] text-white">Tax</option>
+                    <option value="Operations" className="bg-[#161B22] text-white">Operations</option>
                     {categories.filter(c => !["Financials", "Legal", "Compliance", "Insurance", "Tax", "Operations"].includes(c)).map((cat) => (
-                      <option key={cat} value={cat} className="bg-[#0D0D0E] text-white">{cat}</option>
+                      <option key={cat} value={cat} className="bg-[#161B22] text-white">{cat}</option>
                     ))}
-                    <option value="__custom__" className="bg-[#0D0D0E] text-acp-bronze font-bold">+ Create New Category...</option>
+                    <option value="__custom__" className="bg-[#161B22] text-acp-bronze font-bold">+ Create New Category...</option>
                   </select>
                 </div>
 
@@ -995,10 +995,10 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
                   <select
                     value={newDocStatus}
                     onChange={(e) => setNewDocStatus(e.target.value)}
-                    className="h-9 w-full rounded-xl border border-white/10 bg-[#0D0D0E] px-3 text-white outline-none focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze transition-all cursor-pointer"
+                    className="h-9 w-full rounded-xl border border-white/[0.02] bg-[#161B22] px-3 text-white outline-none focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze transition-all cursor-pointer"
                   >
-                    <option value="Outstanding" className="bg-[#0D0D0E] text-white">Outstanding</option>
-                    <option value="Sent to Lender" className="bg-[#0D0D0E] text-white">Sent to Lender</option>
+                    <option value="Outstanding" className="bg-[#161B22] text-white">Outstanding</option>
+                    <option value="Sent to Lender" className="bg-[#161B22] text-white">Sent to Lender</option>
                   </select>
                 </div>
               </div>
@@ -1014,7 +1014,7 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
                     value={customCategory}
                     onChange={(e) => setCustomCategory(e.target.value)}
                     placeholder="e.g. Board Minutes"
-                    className="h-9 w-full rounded-xl border border-white/10 bg-[#0D0D0E] px-3 text-white placeholder-slate-650 outline-none focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze transition-all"
+                    className="h-9 w-full rounded-xl border border-white/[0.02] bg-[#161B22] px-3 text-white placeholder-slate-650 outline-none focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze transition-all"
                   />
                 </div>
               )}
@@ -1024,13 +1024,13 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
                   Document Reference Mode
                 </label>
                 
-                <div className="grid grid-cols-2 gap-2 p-1 bg-white/5 border border-white/10 rounded-xl">
+                <div className="grid grid-cols-2 gap-2 p-1 bg-white/[0.015] border border-white/[0.02] rounded-xl">
                   <button
                     type="button"
                     onClick={() => { setUploadMode("link"); setSelectedFile(null); setSelectedFileDataBase64(""); }}
                     className={cx(
                       "h-8 rounded-lg text-[10px] uppercase font-black tracking-wider transition cursor-pointer",
-                      uploadMode === "link" ? "bg-[#C5A059] text-slate-950" : "text-slate-400 hover:text-white"
+                      uploadMode === "link" ? "bg-[#C6A66B] text-slate-950" : "text-slate-400 hover:text-white"
                     )}
                   >
                     Link URL
@@ -1040,7 +1040,7 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
                     onClick={() => setUploadMode("upload")}
                     className={cx(
                       "h-8 rounded-lg text-[10px] uppercase font-black tracking-wider transition cursor-pointer",
-                      uploadMode === "upload" ? "bg-[#C5A059] text-slate-950" : "text-slate-400 hover:text-white"
+                      uploadMode === "upload" ? "bg-[#C6A66B] text-slate-950" : "text-slate-400 hover:text-white"
                     )}
                   >
                     File Upload
@@ -1058,7 +1058,7 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
                     value={newDocLink}
                     onChange={(e) => setNewDocLink(e.target.value)}
                     placeholder="https://drive.google.com/..."
-                    className="h-9 w-full rounded-xl border border-white/10 bg-[#0D0D0E] px-3 text-white placeholder-slate-650 outline-none focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze transition-all"
+                    className="h-9 w-full rounded-xl border border-white/[0.02] bg-[#161B22] px-3 text-white placeholder-slate-650 outline-none focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze transition-all"
                   />
                 </div>
               ) : (
@@ -1098,7 +1098,7 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
                   id="new-doc-critical"
                   checked={newDocCritical}
                   onChange={(e) => setNewDocCritical(e.target.checked)}
-                  className="rounded border-white/10 bg-white/5 text-acp-bronze focus:ring-acp-bronze cursor-pointer h-4 w-4"
+                  className="rounded border-white/[0.02] bg-white/[0.015] text-acp-bronze focus:ring-acp-bronze cursor-pointer h-4 w-4"
                 />
                 <label htmlFor="new-doc-critical" className="text-slate-350 font-bold cursor-pointer select-none">
                   High Priority / ABL Critical
@@ -1109,7 +1109,7 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
                 <button
                   type="button"
                   onClick={() => setIsAddDocOpen(false)}
-                  className="h-10 px-4 rounded-xl border border-white/10 text-slate-300 text-xs font-bold uppercase tracking-wider hover:bg-white/5 cursor-pointer transition-colors"
+                  className="h-10 px-4 rounded-xl border border-white/[0.02] text-slate-300 text-xs font-bold uppercase tracking-wider hover:bg-white/[0.015] cursor-pointer transition-colors"
                 >
                   Cancel
                 </button>
@@ -1129,11 +1129,11 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
       {/* Dynamic File Preview Overlay Modal */}
       {previewDoc && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-5xl rounded-2xl border border-white/10 bg-[#0E121A] p-6 shadow-2xl relative flex flex-col h-[85vh] animate-scale-in">
+          <div className="w-full max-w-5xl rounded-2xl border border-white/[0.02] bg-[#161B22] p-6 shadow-2xl relative flex flex-col h-[85vh] animate-scale-in">
             {/* Header */}
             <div className="flex items-center justify-between pb-4 border-b border-white/5">
               <div>
-                <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#C5A059]">
+                <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#C6A66B]">
                   Document Preview ({previewDoc.category})
                 </span>
                 <h3 className="text-sm font-bold text-white mt-0.5 truncate max-w-md">
@@ -1144,14 +1144,14 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
                 <a
                   href={getDriveDownloadUrl(previewDoc.driveLink)}
                   download
-                  className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3.5 text-[10px] font-extrabold uppercase tracking-wider text-slate-300 hover:text-white hover:bg-white/10 transition"
+                  className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-white/[0.02] bg-white/[0.015] px-3.5 text-[10px] font-extrabold uppercase tracking-wider text-slate-300 hover:text-white hover:bg-white/[0.02] transition"
                 >
                   <Download className="h-3.5 w-3.5" />
                   Download File
                 </a>
                 <button
                   onClick={() => setPreviewDoc(null)}
-                  className="h-8 w-8 flex items-center justify-center rounded-lg border border-white/10 bg-white/5 text-slate-400 hover:text-white hover:border-white/20 transition cursor-pointer"
+                  className="h-8 w-8 flex items-center justify-center rounded-lg border border-white/[0.02] bg-white/[0.015] text-slate-400 hover:text-white hover:border-white/20 transition cursor-pointer"
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -1171,7 +1171,7 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
                     return (
                       <iframe 
                         src={link} 
-                        className="w-full h-full border-0 rounded-lg bg-[#0E121A]/50" 
+                        className="w-full h-full border-0 rounded-lg bg-[#161B22]/50" 
                       />
                     );
                   }
@@ -1188,7 +1188,7 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
                     if (loadingPreviewText) {
                       return (
                         <div className="flex flex-col items-center gap-2">
-                          <Loader2 className="h-6 w-6 text-[#C5A059] animate-spin" />
+                          <Loader2 className="h-6 w-6 text-[#C6A66B] animate-spin" />
                           <span className="text-[10px] text-slate-405">Loading file content...</span>
                         </div>
                       );
@@ -1201,7 +1201,7 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
                           <table className="min-w-full border-collapse divide-y divide-white/5 text-left">
                             <tbody className="divide-y divide-white/5">
                               {rows.map((row, rIdx) => (
-                                <tr key={rIdx} className={rIdx === 0 ? "bg-white/5 font-bold text-white" : "text-slate-350"}>
+                                <tr key={rIdx} className={rIdx === 0 ? "bg-white/[0.015] font-bold text-white" : "text-slate-350"}>
                                   {row.map((cell, cIdx) => (
                                     <td key={cIdx} className="px-3 py-1.5 border border-white/5 truncate max-w-32">{cell}</td>
                                   ))}
@@ -1463,15 +1463,15 @@ function FilterPill({
         "inline-flex items-center gap-2 rounded-xl px-3 py-1.5 text-xs font-bold tracking-wide transition-all duration-300 transform active:scale-95 border",
         active
           ? "bg-gradient-to-r from-acp-bronze to-acp-bronze-dark text-white border-transparent shadow-md shadow-acp-bronze/10"
-          : "bg-white/5 border-white/10 text-slate-350 hover:bg-white/10 hover:text-white"
+          : "bg-white/[0.015] border-white/[0.02] text-slate-350 hover:bg-white/[0.02] hover:text-white"
       )}
     >
       <span className="tracking-wide uppercase text-[10px]">{label}</span>
       <span className={cx(
         "inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1.5 text-[9px] font-extrabold shadow-sm border",
         active
-          ? "bg-white/10 border-white/10 text-white"
-          : "bg-white/5 border-white/5 text-slate-400"
+          ? "bg-white/[0.02] border-white/[0.02] text-white"
+          : "bg-white/[0.015] border-white/5 text-slate-400"
       )}>
         {count}
       </span>

@@ -184,7 +184,7 @@ export function ChatNotificationWatcher({ mode, portalSlug, deals: lenderDeals }
           <div
             key={toast.id}
             onClick={toast.onClick}
-            className="pointer-events-auto w-full rounded-2xl border border-white/10 bg-slate-950/80 backdrop-blur-xl p-4 shadow-[0_12px_40px_rgba(0,0,0,0.5)] flex items-start gap-3.5 transform transition-all duration-300 hover:border-acp-bronze/45 hover:bg-slate-900/90 cursor-pointer animate-toast-slide-in relative group card-sheen"
+            className="pointer-events-auto w-full rounded-2xl border border-white/[0.02] bg-slate-950/80 backdrop-blur-xl p-4 shadow-[0_12px_40px_rgba(0,0,0,0.5)] flex items-start gap-3.5 transform transition-all duration-300 hover:border-acp-bronze/45 hover:bg-slate-900/90 cursor-pointer animate-toast-slide-in relative group card-sheen"
           >
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-acp-bronze/10 border border-acp-bronze/20 text-acp-bronze transition-transform duration-300 group-hover:scale-105">
               <MessageSquare className="h-4.5 w-4.5" />
@@ -204,7 +204,7 @@ export function ChatNotificationWatcher({ mode, portalSlug, deals: lenderDeals }
 
             <button
               onClick={(e) => dismissToast(toast.id, e)}
-              className="absolute top-3.5 right-3.5 h-5 w-5 flex items-center justify-center rounded bg-white/5 border border-white/5 text-slate-400 hover:text-white hover:bg-white/10 transition cursor-pointer"
+              className="absolute top-3.5 right-3.5 h-5 w-5 flex items-center justify-center rounded bg-white/[0.015] border border-white/5 text-slate-400 hover:text-white hover:bg-white/[0.02] transition cursor-pointer"
               title="Dismiss notification"
             >
               <X className="h-3 w-3" />
