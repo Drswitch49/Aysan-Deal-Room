@@ -276,6 +276,16 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
     }
   }, [selectedDoc]);
 
+  // Synchronise selectedDoc when documents prop updates
+  useEffect(() => {
+    if (selectedDoc) {
+      const updated = documents.find((d) => d.id === selectedDoc.id);
+      if (updated) {
+        setSelectedDoc((prev) => (prev ? { ...prev, ...updated } : null));
+      }
+    }
+  }, [documents, selectedDoc?.id]);
+
   const handleBatchStatusUpdate = async (status: string) => {
     if (selectedIds.size === 0) return;
     setIsBatchUpdating(true);
@@ -312,6 +322,18 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
       alert(err instanceof Error ? err.message : "Failed to save link");
     } finally {
       setIsSavingLink(false);
+    }
+  };
+
+  const handleStatusChange = async (newStatus: string) => {
+    if (!selectedDoc) return;
+    try {
+      await updateAdminDocuments([{ id: selectedDoc.id, fields: { Status: newStatus } }]);
+      setSelectedDoc((prev) => (prev ? { ...prev, status: newStatus } : null));
+      if (onRefresh) onRefresh();
+    } catch (err) {
+      console.error("Failed to save document status:", err);
+      alert(err instanceof Error ? err.message : "Failed to update status");
     }
   };
 
@@ -806,8 +828,19 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
                 </div>
                 <div className="p-3 border border-white/[0.02] bg-white/[0.02] rounded-xl">
                   <span className="block text-[9px] font-extrabold uppercase tracking-wider text-slate-400">Review Status</span>
-                  <div className="mt-1">
-                    <StatusBadge status={selectedDoc.status} />
+                  <div className="mt-1.5">
+                    {audience === "internal" ? (
+                      <select
+                        value={selectedDoc.status || "Outstanding"}
+                        onChange={(e) => handleStatusChange(e.target.value)}
+                        className="text-[10px] bg-slate-900 border border-white/10 rounded px-2 py-1 text-white font-semibold cursor-pointer outline-none focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze transition"
+                      >
+                        <option value="Outstanding" className="bg-[#161B22] text-white">Outstanding</option>
+                        <option value="Sent to Lender" className="bg-[#161B22] text-white">Sent to Lender</option>
+                      </select>
+                    ) : (
+                      <StatusBadge status={selectedDoc.status} />
+                    )}
                   </div>
                 </div>
               </div>

@@ -43,12 +43,33 @@ export default async function handler(req: any, res: any) {
       cacheKey = "inbox";
     }
 
+    // 1.5. Resolve deal reference to record ID if ref is provided
+    let targetDealId: string | null = null;
+    if (ref) {
+      let pipelineDeals: any[] = [];
+      const cachedDeals = cache["deals"];
+      if (cachedDeals && Date.now() - cachedDeals.timestamp < CACHE_TTL_MS) {
+        pipelineDeals = cachedDeals.data;
+      } else {
+        const responseDeals = await airtableFetchAll(TABLES.PIPELINE);
+        pipelineDeals = responseDeals.records.map((rec: any) => mapPipelineDeal(rec.id, rec.fields));
+        cache["deals"] = {
+          timestamp: Date.now(),
+          data: pipelineDeals
+        };
+      }
+      const matchedDeal = pipelineDeals.find((d: any) => (d.dealRef || "").toLowerCase() === String(ref).toLowerCase());
+      if (matchedDeal) {
+        targetDealId = matchedDeal.id;
+      }
+    }
+
     // 2. Serve from in-memory cache if valid
     const cached = cache[cacheKey];
     if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
       // If client requested a specific deal reference, filter on the fly
       if (ref) {
-        const filtered = filterResults(cached.data, type, ref);
+        const filtered = filterResults(cached.data, type, ref, targetDealId);
         return res.status(200).json(filtered);
       }
       
@@ -82,7 +103,7 @@ export default async function handler(req: any, res: any) {
 
     // Filter results if deal reference was queried
     if (ref) {
-      const filtered = filterResults(results, type, ref);
+      const filtered = filterResults(results, type, ref, targetDealId);
       return res.status(200).json(filtered);
     }
 
@@ -104,13 +125,14 @@ export default async function handler(req: any, res: any) {
 /**
  * Filter results dynamically based on reference or parent link
  */
-function filterResults(data: any[], type: string | undefined, ref: string): any {
+function filterResults(data: any[], type: string | undefined, ref: string, targetDealId?: string | null): any {
   const lowercaseRef = ref.toLowerCase();
+  const lowercaseDealId = targetDealId?.toLowerCase();
   
   if (type === "documents" || type === "submissions") {
     return data.filter((item: any) => {
       const itemRef = item.dealRef || "";
-      return itemRef.toLowerCase() === lowercaseRef;
+      return itemRef.toLowerCase() === lowercaseRef || (lowercaseDealId && itemRef.toLowerCase() === lowercaseDealId);
     });
   }
   
