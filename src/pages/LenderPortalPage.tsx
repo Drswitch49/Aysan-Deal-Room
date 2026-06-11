@@ -64,7 +64,7 @@ export function LenderPortalPage() {
         if (sessionRes.ok) {
           const sessionData = await sessionRes.json();
           if (sessionData.authenticated && (sessionData.user.role === "lender" || sessionData.user.role === "admin" || sessionData.user.role === "analyst")) {
-            setLenderProfile({ Email: sessionData.user.email, Role: sessionData.user.role });
+            setLenderProfile(sessionData.user);
             setIsAuthorized(true);
             return;
           }
@@ -202,6 +202,11 @@ export function LenderPortalPage() {
     return logs.filter(log => log.dealRef.toLowerCase() === selectedDeal.id.toLowerCase());
   }, [selectedDeal, logs]);
 
+  // Safe helper properties with optional chaining & fallbacks to prevent crashes
+  const companyName = lenderProfile?.Company_Name || lenderProfile?.Email?.split("@")[0] || portalSlug || "Lender";
+  const contactName = lenderProfile?.Contact_Name || "";
+  const emailVal = lenderProfile?.Email || "";
+
   if (!portalSlug) {
     return <Navigate to="/deals" replace />;
   }
@@ -308,16 +313,16 @@ export function LenderPortalPage() {
             <div className="mt-10 rounded-xl border border-white/[0.02] bg-white/[0.02] p-4 shadow-sm backdrop-blur-md">
               <div className="flex items-center gap-2.5">
                 <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-acp-bronze/10 text-acp-bronze text-xs font-bold border border-acp-bronze/20">
-                  {lenderProfile.Company_Name.charAt(0).toUpperCase()}
+                  {companyName.charAt(0).toUpperCase()}
                 </div>
                 <div className="min-w-0">
-                  <p className="truncate text-xs font-bold text-white leading-none">{lenderProfile.Company_Name}</p>
+                  <p className="truncate text-xs font-bold text-white leading-none">{companyName}</p>
                   <p className="truncate text-[9px] font-semibold text-slate-450 mt-1 uppercase">Lender Portal Node</p>
                 </div>
               </div>
               <div className="mt-4 pt-3.5 border-t border-white/[0.02] space-y-2 text-[10px] text-slate-400 font-medium leading-relaxed">
-                {lenderProfile.Contact_Name && <div>Contact: {lenderProfile.Contact_Name}</div>}
-                {lenderProfile.Email && <div>Email: {lenderProfile.Email}</div>}
+                {contactName && <div>Contact: {contactName}</div>}
+                {emailVal && <div>Email: {emailVal}</div>}
               </div>
             </div>
           )}
@@ -390,16 +395,16 @@ export function LenderPortalPage() {
                 <div className="mt-10 rounded-xl border border-white/[0.02] bg-white/[0.02] p-4 shadow-sm backdrop-blur-md">
                   <div className="flex items-center gap-2.5">
                     <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-acp-bronze/10 text-acp-bronze text-xs font-bold border border-acp-bronze/20">
-                      {lenderProfile.Company_Name.charAt(0).toUpperCase()}
+                      {companyName.charAt(0).toUpperCase()}
                     </div>
                     <div className="min-w-0">
-                      <p className="truncate text-xs font-bold text-white leading-none">{lenderProfile.Company_Name}</p>
+                      <p className="truncate text-xs font-bold text-white leading-none">{companyName}</p>
                       <p className="truncate text-[9px] font-semibold text-slate-450 mt-1 uppercase">Lender Portal Node</p>
                     </div>
                   </div>
                   <div className="mt-4 pt-3.5 border-t border-white/[0.02] space-y-2 text-[10px] text-slate-400 font-medium leading-relaxed">
-                    {lenderProfile.Contact_Name && <div>Contact: {lenderProfile.Contact_Name}</div>}
-                    {lenderProfile.Email && <div>Email: {lenderProfile.Email}</div>}
+                    {contactName && <div>Contact: {contactName}</div>}
+                    {emailVal && <div>Email: {emailVal}</div>}
                   </div>
                 </div>
               )}
