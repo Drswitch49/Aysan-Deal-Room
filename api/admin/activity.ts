@@ -14,10 +14,10 @@
  *  - Deal detail timeline (when dealId is provided)
  */
 
-import { authenticateAdmin } from "../lenders.js";
-import { airtableFetch } from "../../_utils/airtable.js";
-import { TABLES } from "../../../src/lib/airtable/schema.js";
-import { STAGE_CONFIG, normalizeStage } from "../../_services/deal-lifecycle.js";
+import { authenticateAdmin } from "./lenders.js";
+import { airtableFetch } from "../_utils/airtable.js";
+import { TABLES } from "../../src/lib/airtable/schema.js";
+import { STAGE_CONFIG, normalizeStage } from "../_services/deal-lifecycle.js";
 
 export interface ActivityEvent {
   id: string;

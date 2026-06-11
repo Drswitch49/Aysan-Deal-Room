@@ -1,12 +1,12 @@
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
+import { next } from "@vercel/edge";
 import { jwtVerify } from "jose";
 
 const JWT_SECRET = process.env.JWT_SECRET || "acp-deal-os-jwt-secret-key-2026-super-secure-hash";
 const secretKey = new TextEncoder().encode(JWT_SECRET);
 
-export async function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
+export async function middleware(request: Request) {
+  const url = new URL(request.url);
+  const { pathname } = url;
 
   // Protect API routes
   if (pathname.startsWith("/api/")) {
@@ -19,19 +19,27 @@ export async function middleware(request: NextRequest) {
       pathname.startsWith("/api/health") ||
       pathname === "/api/auth"
     ) {
-      return NextResponse.next();
+      return next();
     }
 
-    const sessionCookie = request.cookies.get("acp_session");
+    const cookiesHeader = request.headers.get("cookie") || "";
+    const cookies = Object.fromEntries(
+      cookiesHeader.split(";").map((c) => {
+        const parts = c.trim().split("=");
+        return [parts[0], parts.slice(1).join("=")];
+      })
+    );
+    const sessionCookie = cookies["acp_session"];
+
     if (!sessionCookie) {
-      return new NextResponse(
+      return new Response(
         JSON.stringify({ error: "Unauthorized: Missing session token" }),
         { status: 401, headers: { "Content-Type": "application/json" } }
       );
     }
 
     try {
-      const { payload } = await jwtVerify(sessionCookie.value, secretKey);
+      const { payload } = await jwtVerify(sessionCookie, secretKey);
       const role = payload.role;
 
       // 1. Admin/Analyst-only endpoints
@@ -41,7 +49,7 @@ export async function middleware(request: NextRequest) {
         pathname.startsWith("/api/lenders")
       ) {
         if (role !== "admin" && role !== "analyst") {
-          return new NextResponse(
+          return new Response(
             JSON.stringify({ error: "Forbidden: Access restricted to admins and analysts" }),
             { status: 403, headers: { "Content-Type": "application/json" } }
           );
@@ -51,7 +59,7 @@ export async function middleware(request: NextRequest) {
       // 2. Lender-accessible endpoints
       if (pathname.startsWith("/api/lender/")) {
         if (role !== "admin" && role !== "analyst" && role !== "lender") {
-          return new NextResponse(
+          return new Response(
             JSON.stringify({ error: "Forbidden: Access restricted" }),
             { status: 403, headers: { "Content-Type": "application/json" } }
           );
@@ -61,7 +69,7 @@ export async function middleware(request: NextRequest) {
       // 3. Document operations
       if (pathname.startsWith("/api/documents/")) {
         if (role !== "admin" && role !== "analyst" && role !== "lender") {
-          return new NextResponse(
+          return new Response(
             JSON.stringify({ error: "Forbidden: Access restricted" }),
             { status: 403, headers: { "Content-Type": "application/json" } }
           );
@@ -74,21 +82,21 @@ export async function middleware(request: NextRequest) {
       requestHeaders.set("x-user-role", String(payload.role || ""));
       requestHeaders.set("x-user-id", String(payload.id || ""));
 
-      return NextResponse.next({
+      return next({
         request: {
           headers: requestHeaders,
         },
       });
 
     } catch (err) {
-      return new NextResponse(
+      return new Response(
         JSON.stringify({ error: "Unauthorized: Invalid or expired session token" }),
         { status: 401, headers: { "Content-Type": "application/json" } }
       );
     }
   }
 
-  return NextResponse.next();
+  return next();
 }
 
 export const config = {

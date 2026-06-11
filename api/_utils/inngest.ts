@@ -68,6 +68,9 @@ type Events = {
     data: {
       documentId: string;
       dealId?: string;
+      wordCount?: number;
+      characterCount?: number;
+      fileType?: string;
     };
   };
 

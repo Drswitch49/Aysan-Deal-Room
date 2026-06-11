@@ -147,7 +147,7 @@ export async function parseDocument(
 
   switch (fileType) {
     case "pdf": {
-      const pdfParse = (await import("pdf-parse")).default;
+      const pdfParse = ((await import("pdf-parse")) as any).default || ((await import("pdf-parse")) as any);
       const result = await pdfParse(buffer);
       rawText = result.text || "";
       break;

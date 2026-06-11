@@ -23,8 +23,12 @@ import { TABLES } from "../../src/lib/airtable/schema.js";
 // ─── Deal Created → Initialize ───────────────────────────────────────────────
 
 export const onDealCreated = inngest.createFunction(
-  { id: "on-deal-created", name: "Deal Created → Initialize", retries: 2 },
-  { event: "deal/created" },
+  {
+    id: "on-deal-created",
+    name: "Deal Created → Initialize",
+    retries: 2,
+    triggers: [{ event: "deal/created" }],
+  },
   async ({ event, step }) => {
     const { dealId, dealRef, companyName } = event.data;
 
@@ -75,8 +79,8 @@ export const onDealStageChanged = inngest.createFunction(
     id: "on-deal-stage-changed",
     name: "Deal Stage Changed → Orchestrate",
     retries: 2,
+    triggers: [{ event: "deal/stage_changed" }],
   },
-  { event: "deal/stage_changed" },
   async ({ event, step }) => {
     const { dealId, dealRef, companyName, fromStage, toStage, changedBy, changedByRole, auditId, notes } = event.data;
 

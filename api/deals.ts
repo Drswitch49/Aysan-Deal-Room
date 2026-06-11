@@ -27,7 +27,7 @@ export default async function handler(req: any, res: any) {
 
     // Determine target table and mapping logic
     let tableName = TABLES.PIPELINE;
-    let mapper = mapPipelineDeal;
+    let mapper: (id: string, fields: any) => any = mapPipelineDeal;
     let cacheKey = "deals";
 
     if (type === "documents") {

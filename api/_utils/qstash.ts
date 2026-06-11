@@ -77,15 +77,15 @@ export async function publishJob(
   const workerUrl = `${getBaseUrl()}/api/jobs/${queue}`;
 
   try {
-    const result = await client.publishJSON({
+    const result = await (client.publishJSON as any)({
       url: workerUrl,
       body,
       retries: options.retries ?? 3,
-      ...(options.delay ? { delay: options.delay } : {}),
+      ...(options.delay ? { delay: options.delay as any } : {}),
     });
 
-    console.log(`[QStash] Job queued: ${queue} → messageId=${result.messageId}`);
-    return { messageId: result.messageId, fallback: false };
+    console.log(`[QStash] Job queued: ${queue} → messageId=${(result as any).messageId}`);
+    return { messageId: (result as any).messageId, fallback: false };
   } catch (err: any) {
     console.error(`[QStash] Failed to publish job "${queue}":`, err.message);
     // Surface the error — don't silently swallow queue failures

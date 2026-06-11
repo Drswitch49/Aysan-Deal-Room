@@ -169,8 +169,12 @@ export async function runPortfolioAnalysisPipeline(step: any, referenceDateStr?:
  * Inngest function: Portfolio Scheduled Weekly Run (Sunday midnight)
  */
 export const onPortfolioScheduledRun = inngest.createFunction(
-  { id: "portfolio-scheduled-run", name: "Portfolio: Scheduled Weekly Run", retries: 2 },
-  { cron: "0 0 * * 0" },
+  {
+    id: "portfolio-scheduled-run",
+    name: "Portfolio: Scheduled Weekly Run",
+    retries: 2,
+    triggers: [{ cron: "0 0 * * 0" }],
+  },
   async ({ step }) => {
     return runPortfolioAnalysisPipeline(step);
   }
@@ -180,8 +184,12 @@ export const onPortfolioScheduledRun = inngest.createFunction(
  * Inngest function: Portfolio Process Requested (manual or on metrics change)
  */
 export const onPortfolioProcessRequested = inngest.createFunction(
-  { id: "portfolio-process-requested", name: "Portfolio: Process Metrics", retries: 2 },
-  { event: "portfolio/process_requested" },
+  {
+    id: "portfolio-process-requested",
+    name: "Portfolio: Process Metrics",
+    retries: 2,
+    triggers: [{ event: "portfolio/process_requested" }],
+  },
   async ({ event, step }) => {
     console.log("[Portfolio Workflow] Manual analysis triggered by:", event.data.triggeredBy);
     return runPortfolioAnalysisPipeline(step);

@@ -24,8 +24,8 @@ const onTranscriptSubmitted = inngest.createFunction(
     id: "transcript-analyze",
     name: "Transcript: Submit → Claude Analysis",
     retries: 3,
+    triggers: [{ event: "transcript/submitted" }],
   },
-  { event: "transcript/submitted" },
   async ({ event, step }) => {
     const { transcriptId, dealId } = event.data;
 
@@ -137,8 +137,8 @@ const onTranscriptAnalyzed = inngest.createFunction(
     id: "transcript-score-propagation",
     name: "Transcript: Propagate Deal Score to Pipeline",
     retries: 2,
+    triggers: [{ event: "transcript/analyzed" }],
   },
-  { event: "transcript/analyzed" },
   async ({ event, step }) => {
     const { dealId, dealScore } = event.data;
     if (!dealScore || !dealId) return { skipped: true };

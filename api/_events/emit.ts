@@ -23,7 +23,7 @@ export async function emitEvent<K extends keyof PlatformEvents>(
     /** Optional delay before the event is delivered (milliseconds) */
     delayMs?: number;
   }
-): Promise<{ id: string } | null> {
+): Promise<any> {
   try {
     const eventPayload: Record<string, unknown> = { name, data };
 

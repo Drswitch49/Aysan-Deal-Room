@@ -125,8 +125,8 @@ const onOsintScrapeRequested = inngest.createFunction(
     concurrency: {
       limit: 2, // Max 2 concurrent Playwright sessions on Vercel Pro
     },
+    triggers: [{ event: "osint/scrape_requested" }],
   },
-  { event: "osint/scrape_requested" },
   async ({ event, step }) => {
     const { dealId, companyName, website } = event.data;
     const PIPELINE_TABLE = TABLES.PIPELINE || "Active_Pipeline";
@@ -182,7 +182,7 @@ const onOsintScrapeRequested = inngest.createFunction(
       const linkedinResult = await step.run("scrape-linkedin", async () => {
         const targetLinkedinUrl =
           linkedInUrl ||
-          (websiteResult.success && websiteResult.socialAndSchema?.socialLinks?.linkedin) ||
+          (websiteResult.success && (websiteResult as any).socialAndSchema?.socialLinks?.linkedin) ||
           "";
 
         return enrichFromLinkedIn({
@@ -279,8 +279,8 @@ const onPortfolioProcessRequested = inngest.createFunction(
     id: "portfolio-process-workflow",
     name: "Portfolio: KPI Aggregation + Intelligence",
     retries: 2,
+    triggers: [{ event: "portfolio/process_requested" }],
   },
-  { event: "portfolio/process_requested" },
   async ({ event, step }) => {
     const portfolioResult = await step.run("aggregate-portfolio", async () => {
       return runPortfolioIntelligence();

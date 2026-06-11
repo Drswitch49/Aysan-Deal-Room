@@ -25,8 +25,8 @@ const onDocumentUploaded = inngest.createFunction(
     id: "document-upload-pipeline",
     name: "Document: Upload → Parse → Analyze",
     retries: 3,
+    triggers: [{ event: "document/uploaded" }],
   },
-  { event: "document/uploaded" },
   async ({ event, step }) => {
     const { documentId, triggerPipeline = false } = event.data;
 
@@ -75,8 +75,8 @@ const onDocumentParseRequested = inngest.createFunction(
     id: "document-parse-only",
     name: "Document: Parse (Text Extraction)",
     retries: 3,
+    triggers: [{ event: "document/parse_requested" }],
   },
-  { event: "document/parse_requested" },
   async ({ event, step }) => {
     const { documentId } = event.data;
 
@@ -112,8 +112,8 @@ const onDocumentAnalyzeRequested = inngest.createFunction(
     id: "document-analyze-only",
     name: "Document: Analyze (Claude AI)",
     retries: 3,
+    triggers: [{ event: "document/analyze_requested" }],
   },
-  { event: "document/analyze_requested" },
   async ({ event, step }) => {
     const { documentId } = event.data;
 

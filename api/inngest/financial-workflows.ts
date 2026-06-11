@@ -142,8 +142,8 @@ export const onFinancialAnalysisRequested = inngest.createFunction(
     id: "financial-analysis-workflow",
     name: "Financials: Deterministic Underwriting & Analysis",
     retries: 2,
+    triggers: [{ event: "financial/analysis_requested" }],
   },
-  { event: "financial/analysis_requested" },
   async ({ event, step }) => {
     const { dealId, documentId, manuallyTriggered } = event.data;
     const PIPELINE_TABLE = TABLES.PIPELINE || "Active_Pipeline";

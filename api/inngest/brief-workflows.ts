@@ -28,8 +28,8 @@ const onPrecallBriefRequested = inngest.createFunction(
     id: "brief-precall-generate",
     name: "Brief: Pre-call Intelligence Generation",
     retries: 3,
+    triggers: [{ event: "brief/precall_requested" }],
   },
-  { event: "brief/precall_requested" },
   async ({ event, step }) => {
     const { briefId, dealId } = event.data;
     const BRIEF_TABLE = TABLES.PRECALL_BRIEFS || "Precall_Briefs";
@@ -138,8 +138,8 @@ const onPostcallBriefRequested = inngest.createFunction(
     id: "brief-postcall-generate",
     name: "Brief: Post-call Analysis + Scoring",
     retries: 3,
+    triggers: [{ event: "brief/postcall_requested" }],
   },
-  { event: "brief/postcall_requested" },
   async ({ event, step }) => {
     const { briefId, dealId, schemaId, notes } = event.data;
     const BRIEF_TABLE = TABLES.POSTCALL_BRIEFS || "Postcall_Briefs";
@@ -175,7 +175,7 @@ const onPostcallBriefRequested = inngest.createFunction(
     });
 
     // Step 2: Claude post-call analysis + scoring
-    const aiResult = await step.run("generate-postcall", async () => {
+    const aiResult: any = await step.run("generate-postcall", async () => {
       if (!process.env.ANTHROPIC_API_KEY) {
         await failJob(BRIEF_TABLE, briefId, "ANTHROPIC_API_KEY not configured");
         throw new Error("AI service not configured");
@@ -198,7 +198,7 @@ const onPostcallBriefRequested = inngest.createFunction(
     });
 
     // Step 3: Calculate weighted score
-    const scoreResult = await step.run("calculate-score", async () => {
+    const scoreResult: any = await step.run("calculate-score", async () => {
       const scoreSchemaId = schemaId || jobPayload.schemaId || "ACP_DEAL_ROOM";
       return calculateScore(aiResult.scores, scoreSchemaId);
     });
@@ -257,8 +257,8 @@ const onPostcallCompleted = inngest.createFunction(
     id: "postcall-score-propagation",
     name: "Postcall: Propagate Score to Pipeline",
     retries: 2,
+    triggers: [{ event: "brief/postcall_completed" }],
   },
-  { event: "brief/postcall_completed" },
   async ({ event, step }) => {
     const { dealId, scoreOutOf50 } = event.data;
     if (!dealId) return { skipped: true };

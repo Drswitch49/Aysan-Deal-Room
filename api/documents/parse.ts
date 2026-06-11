@@ -87,7 +87,7 @@ async function runInlineSync(
 
   switch (fileType) {
     case "pdf": {
-      const pdfParse = (await import("pdf-parse")).default;
+      const pdfParse = ((await import("pdf-parse")) as any).default || ((await import("pdf-parse")) as any);
       rawText = (await pdfParse(buffer)).text || "";
       break;
     }

@@ -600,7 +600,7 @@ export default async function handler(req: any, res: any) {
                 const { enrichFromLinkedIn } = await import("../../lib/playwright/linkedin.js");
                 const targetLinkedinUrl =
                   linkedInUrl ||
-                  (websiteResult.success && websiteResult.socialAndSchema?.socialLinks?.linkedin) ||
+                  (websiteResult.success && (websiteResult as any).socialAndSchema?.socialLinks?.linkedin) ||
                   "";
 
                 const linkedinResult = await enrichFromLinkedIn({
@@ -656,8 +656,8 @@ export default async function handler(req: any, res: any) {
                   updatePayload["Companies_House_Number"] = chResult.company.companyNumber;
                 }
 
-                if (linkedinResult?.data?.linkedInUrl) {
-                  updatePayload["LinkedIn_URL"] = linkedinResult.data.linkedInUrl;
+                if ((linkedinResult?.data as any)?.linkedInUrl) {
+                  updatePayload["LinkedIn_URL"] = (linkedinResult.data as any).linkedInUrl;
                 }
 
                 await airtableUpdate(PIPELINE_TABLE, dealId, updatePayload);

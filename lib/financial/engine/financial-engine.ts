@@ -207,7 +207,7 @@ export function executeFinancialEngine(input: RawFinancialsInput): StructuredFin
 
     return {
       success: true,
-      status: validation.status,
+      status: validation.status as "valid" | "incomplete" | "insufficient_data" | "failed",
       missingFields: validation.missingFields,
       calculatedMetrics: {
         revenue,
