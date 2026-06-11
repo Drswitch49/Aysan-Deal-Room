@@ -1,4 +1,4 @@
-import { withRetry } from "./retry";
+import { withRetry } from "./retry.js";
 
 const AIRTABLE_API_ROOT = "https://api.airtable.com/v0";
 

@@ -1,6 +1,6 @@
 import type { RawAirtableFields } from "../../types/airtable";
 import type { DealDocument, PipelineDeal, SubmissionLogEntry } from "../../types/deal";
-import { asBoolean, asText, asUrl, firstField } from "../../utils/fields";
+import { asBoolean, asText, asUrl, firstField } from "../../utils/fields.js";
 
 export function mapPipelineDeal(id: string, fields: RawAirtableFields): PipelineDeal {
   return {
