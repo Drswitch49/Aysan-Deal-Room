@@ -81,7 +81,12 @@ export async function airtableFetch(table: string, params: Record<string, any> =
   const url = new URL(`${AIRTABLE_API_ROOT}/${baseId}/${encodeURIComponent(table)}`);
   Object.keys(params).forEach(key => {
     if (params[key] !== undefined && params[key] !== null) {
-      if (Array.isArray(params[key])) {
+      if (key === "sort" && Array.isArray(params[key])) {
+        params[key].forEach((sortItem: any, index: number) => {
+          url.searchParams.set(`sort[${index}][field]`, sortItem.field);
+          url.searchParams.set(`sort[${index}][direction]`, sortItem.direction);
+        });
+      } else if (Array.isArray(params[key])) {
         params[key].forEach((val, idx) => {
           url.searchParams.set(`${key}[${idx}]`, String(val));
         });
