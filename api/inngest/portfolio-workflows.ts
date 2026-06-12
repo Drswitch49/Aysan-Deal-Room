@@ -26,13 +26,17 @@ export async function runPortfolioAnalysisPipeline(step: any, referenceDateStr?:
     const fs = await import("fs");
     const path = await import("path");
     const statusFilePath = path.resolve(process.cwd(), "scratch", "portfolio_status.json");
-    fs.writeFileSync(
-      statusFilePath,
-      JSON.stringify({
-        status: "Processing",
-        startedAt: new Date().toISOString(),
-      }, null, 2)
-    );
+    try {
+      fs.writeFileSync(
+        statusFilePath,
+        JSON.stringify({
+          status: "Processing",
+          startedAt: new Date().toISOString(),
+        }, null, 2)
+      );
+    } catch (err) {
+      console.warn("[Portfolio Workflow] Failed to write status file:", err);
+    }
   });
 
   // Step 1: Fetch portfolio companies from Airtable
@@ -147,13 +151,17 @@ export async function runPortfolioAnalysisPipeline(step: any, referenceDateStr?:
     const fs = await import("fs");
     const path = await import("path");
     const statusFilePath = path.resolve(process.cwd(), "scratch", "portfolio_status.json");
-    fs.writeFileSync(
-      statusFilePath,
-      JSON.stringify({
-        status: "Completed",
-        completedAt: new Date().toISOString(),
-      }, null, 2)
-    );
+    try {
+      fs.writeFileSync(
+        statusFilePath,
+        JSON.stringify({
+          status: "Completed",
+          completedAt: new Date().toISOString(),
+        }, null, 2)
+      );
+    } catch (err) {
+      console.warn("[Portfolio Workflow] Failed to write status file:", err);
+    }
   });
 
   return {

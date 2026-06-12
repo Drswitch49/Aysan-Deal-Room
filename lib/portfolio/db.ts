@@ -51,7 +51,11 @@ const CACHE_FILE = path.resolve(CACHE_DIR, "portfolio_db.json");
 
 // Ensure cache directory exists
 if (!fs.existsSync(CACHE_DIR)) {
-  fs.mkdirSync(CACHE_DIR, { recursive: true });
+  try {
+    fs.mkdirSync(CACHE_DIR, { recursive: true });
+  } catch (err) {
+    console.warn("[Portfolio DB] Failed to create local cache directory:", err);
+  }
 }
 
 // Helper: Read JSON DB
