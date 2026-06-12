@@ -1,7 +1,11 @@
 import { SignJWT, jwtVerify } from "jose";
 import { serialize, parse } from "cookie";
+import { validateEnv } from "./bootstrap.js";
 
-const JWT_SECRET = process.env.JWT_SECRET || "acp-deal-os-jwt-secret-key-2026-super-secure-hash";
+// Validate environment configuration at load time
+validateEnv();
+
+const JWT_SECRET = process.env.JWT_SECRET!;
 const secretKey = new TextEncoder().encode(JWT_SECRET);
 
 export async function signJWT(payload: any, expiry: string = "7d") {

@@ -56,13 +56,13 @@ export default async function handler(req: any, res: any) {
     const password = generatePassword();
     const uniqueLenderId = "LND-" + Math.random().toString(36).substring(2, 8).toUpperCase();
 
-    // 2. Hash password for the Users table
+    // 2. Hash password for the Users and Lenders tables
     const salt = bcrypt.genSaltSync(10);
     const hash = bcrypt.hashSync(password, salt);
 
     const emailValue = email ? email.trim() : `${slug}@lender-portal.com`;
 
-    // 3. Create the record in Lenders table
+    // 3. Create the record in Lenders table with hashed password
     const fields = {
       Name: companyName,
       Lender_ID: uniqueLenderId,
@@ -71,7 +71,7 @@ export default async function handler(req: any, res: any) {
       Email: emailValue,
       Phone: phone || "",
       Portal_Slug: slug,
-      Portal_Password: password,
+      Portal_Password: hash,
       Status: status || "Active",
       Created_At: new Date().toISOString()
     };
@@ -88,9 +88,13 @@ export default async function handler(req: any, res: any) {
       CreatedAt: new Date().toISOString()
     }).catch(err => console.warn("Failed to create user record for new lender:", err));
     
+    // Normalize and redact the hashed password, but send plaintext once in the creation response
+    const normalized = normalizeLenderFields(record.fields);
+    
     return res.status(200).json({
       id: record.id,
-      ...normalizeLenderFields(record.fields)
+      ...normalized,
+      Portal_Password: password // Return the generated plaintext password ONCE
     });
   } catch (err: any) {
     return res.status(err.status || 500).json({ error: err.message || "Failed to create lender", type: err.type });

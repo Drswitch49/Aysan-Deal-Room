@@ -44,7 +44,7 @@ export default async function handler(req: any, res: any) {
       }
 
       // Query table 'Precall_Briefs'
-      const formula = `OR({Active_Pipeline} = '${escapeFormulaString(dealId)}', {Deal Name (from Active_Pipeline)} = '${escapeFormulaString(dealName)}')`;
+      const formula = `OR({Active_Pipeline} = '${escapeFormulaString(dealId)}', {Active_Pipeline} = '${escapeFormulaString(dealName)}')`;
       const response = await airtableFetch(precallTable, {
         filterByFormula: formula
       });

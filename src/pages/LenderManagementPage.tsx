@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo } from "react";
 import { 
-  Building2, Users, Link2, KeyRound, Copy, Check, ShieldCheck, LockKeyhole,
-  RotateCcw, Trash2, UserPlus, X, ChevronRight, Ban, CheckCircle, ExternalLink, Search, 
-  MessageSquare, Settings, ChevronDown, ChevronUp, AlertCircle, Database
+  Link2, KeyRound, Copy, Check, ShieldCheck, LockKeyhole,
+  RotateCcw, Trash2, X, CheckCircle, Search, 
+  Settings, ChevronDown, ChevronUp
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { LoadingState } from "../components/ui/LoadingState";
@@ -13,7 +13,6 @@ import {
   removeDealAssignment, resetLenderPassword, regenerateLenderPortal, deleteLender,
   toggleLenderNda
 } from "../api/admin";
-import type { PipelineDeal } from "../types/deal";
 import { cx } from "../utils/cx";
 import { usePipeline } from "../context/PipelineContext";
 import { HeaderMetrics } from "../components/ui/HeaderMetrics";
@@ -667,17 +666,9 @@ export function LenderManagementPage() {
                         <div className="grid grid-cols-2 gap-3">
                           <div className="space-y-1">
                             <label className="block text-[8px] font-extrabold uppercase tracking-wider text-slate-500">Passcode</label>
-                            <div className="flex items-center gap-1.5 mt-1 bg-white/[0.02] border border-white/5 rounded-lg px-2.5 py-1 text-[10px] font-mono text-slate-300">
+                            <div className="flex items-center gap-1.5 mt-1 bg-white/[0.02] border border-white/5 rounded-lg px-2.5 py-1 text-[10px] font-mono text-slate-400">
                               <KeyRound className="h-3 w-3 text-acp-bronze shrink-0" />
-                              <span className="truncate"><b>{lender.dbRecord.Portal_Password || "None"}</b></span>
-                              {lender.dbRecord.Portal_Password && (
-                                <button
-                                  onClick={() => handleCopy(lender.dbRecord!.Portal_Password || "", `${lender.dbRecord!.id}-pass`)}
-                                  className="text-slate-450 hover:text-white text-[9px] flex items-center gap-0.5 ml-auto font-sans font-bold select-none shrink-0"
-                                >
-                                  {copiedId === `${lender.dbRecord.id}-pass` ? <Check className="h-3 w-3 text-emerald-450" /> : <Copy className="h-3 w-3" />}
-                                </button>
-                              )}
+                              <span className="truncate">•••••••• (Encrypted)</span>
                             </div>
                           </div>
 

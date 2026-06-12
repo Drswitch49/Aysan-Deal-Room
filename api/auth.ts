@@ -3,6 +3,7 @@ import { TABLES } from "../src/lib/airtable/schema.js";
 import { escapeFormulaString } from "../src/lib/airtable/queries.js";
 import { normalizeLenderFields, getAssignmentFields } from "./_utils/airtable.js";
 import { signJWT, setSessionCookie } from "./_utils/jwt.js";
+import bcrypt from "bcryptjs";
 
 export default async function handler(req: any, res: any) {
   if (req.method !== "POST") {
@@ -29,8 +30,43 @@ export default async function handler(req: any, res: any) {
     const lenderRecordId = lenderRecord.id;
     const fields = normalizeLenderFields(lenderRecord.fields);
 
-    // 2. Validate password and status
-    if (fields.Portal_Password !== password) {
+    // 2. Validate password and status with bcrypt (and automatic plaintext-to-hash migration fallback)
+    const storedPasswordVal = fields.Portal_Password || "";
+    const isBcryptHash = storedPasswordVal.startsWith("$2a$") || storedPasswordVal.startsWith("$2b$");
+    let isValid = false;
+
+    if (isBcryptHash) {
+      isValid = bcrypt.compareSync(password, storedPasswordVal);
+    } else {
+      // Plaintext migration check
+      isValid = storedPasswordVal === password;
+      if (isValid) {
+        // Automatically upgrade plaintext password to bcrypt hash in Airtable
+        const salt = bcrypt.genSaltSync(10);
+        const hash = bcrypt.hashSync(password, salt);
+        
+        const { airtableUpdate } = await import("./_utils/airtable.js");
+        
+        await airtableUpdate(TABLES.LENDERS, lenderRecordId, {
+          Portal_Password: hash
+        }).catch(err => console.warn("Failed to auto-migrate lender password hash to Lenders table:", err));
+        
+        if (fields.Email) {
+          const { airtableFetch } = await import("./_utils/airtable.js");
+          const usersRes = await airtableFetch("Users", {
+            filterByFormula: `{Email} = '${escapeFormulaString(fields.Email)}'`,
+            maxRecords: 1
+          });
+          if (usersRes.records && usersRes.records.length > 0) {
+            await airtableUpdate("Users", usersRes.records[0].id, {
+              PasswordHash: hash
+            }).catch(err => console.warn("Failed to auto-migrate lender password hash to Users table:", err));
+          }
+        }
+      }
+    }
+
+    if (!isValid) {
       return res.status(401).json({ error: "Incorrect portal passcode." });
     }
 

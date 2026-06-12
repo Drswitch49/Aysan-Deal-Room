@@ -152,9 +152,41 @@ export default async function handler(req: any, res: any) {
           return res.status(400).json({ error: "Lender record ID is required" });
         }
         const newPassword = generatePassword();
+        const salt = bcrypt.genSaltSync(10);
+        const hash = bcrypt.hashSync(newPassword, salt);
+
+        // Fetch lender to resolve their email
+        const lenderData = await airtableFetchRecord(TABLES.LENDERS, lenderRecordId);
+        const normFields = normalizeLenderFields(lenderData.fields);
+        const emailValue = normFields.Email;
+
+        // Update Lenders record with hashed password
         await airtableUpdate(TABLES.LENDERS, lenderRecordId, {
-          Portal_Password: newPassword
+          Portal_Password: hash
         });
+
+        // Update Users record if email is present
+        if (emailValue) {
+          const usersRes = await airtableFetch("Users", {
+            filterByFormula: `{Email} = '${escapeFormulaString(emailValue)}'`,
+            maxRecords: 1
+          });
+          if (usersRes.records && usersRes.records.length > 0) {
+            await airtableUpdate("Users", usersRes.records[0].id, {
+              PasswordHash: hash
+            }).catch(err => console.warn("Failed to update Users table password during reset:", err));
+          } else {
+            await airtableCreate("Users", {
+              Email: emailValue,
+              PasswordHash: hash,
+              Role: "lender",
+              Status: "Active",
+              Permissions: "read",
+              CreatedAt: new Date().toISOString()
+            }).catch(err => console.warn("Failed to create missing User record during reset:", err));
+          }
+        }
+
         return res.status(200).json({ success: true, password: newPassword });
       }
 
@@ -286,21 +318,21 @@ export default async function handler(req: any, res: any) {
           });
         }
 
-        // 3. Fallback: Update Lenders table admin record for legacy compatibility
+        // 3. Fallback: Update Lenders table admin record for legacy compatibility with hashed passcode
         const adminRecords = await airtableFetch(TABLES.LENDERS, {
           filterByFormula: `{Lender_ID} = 'admin'`,
           maxRecords: 1
         });
-
+ 
         if (adminRecords.records && adminRecords.records.length > 0) {
           await airtableUpdate(TABLES.LENDERS, adminRecords.records[0].id, {
-            Portal_Password: newPassword
+            Portal_Password: hash
           });
         } else {
           await airtableCreate(TABLES.LENDERS, {
             Lender_ID: "admin",
             Company_Name: "Admin Settings",
-            Portal_Password: newPassword,
+            Portal_Password: hash,
             Status: "Active"
           });
         }

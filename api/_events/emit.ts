@@ -44,14 +44,10 @@ export async function emitEvent<K extends keyof PlatformEvents>(
   }
 }
 
-// ─── hasInngest ───────────────────────────────────────────────────────────────
-// Returns true if Inngest is configured and events will actually be delivered.
-// Use this to decide whether to fall back to synchronous processing.
 export function hasInngest(): boolean {
   // Inngest works in both production (INNGEST_EVENT_KEY) and local dev (INNGEST_DEV)
   return Boolean(
     process.env.INNGEST_EVENT_KEY ||
-    process.env.INNGEST_DEV === "1" ||
-    process.env.NODE_ENV === "development"
+    process.env.INNGEST_DEV === "1"
   );
 }

@@ -105,6 +105,7 @@ export default async function handler(req: any, res: any) {
         });
 
         const normFields = normalizeLenderFields(rec.fields);
+        delete (normFields as any).Portal_Password;
         return {
           id: rec.id,
           ...normFields,

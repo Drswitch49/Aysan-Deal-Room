@@ -22,7 +22,7 @@
  *  - Re-run this script if you get "session expired" errors in OSINT workflows
  */
 
-import { chromium } from "playwright";
+import { chromium } from "playwright-core";
 import { writeFileSync, readFileSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
@@ -40,6 +40,7 @@ async function main() {
   const browser = await chromium.launch({
     headless: false, // Must be headful for manual login
     args: ["--disable-blink-features=AutomationControlled"],
+    channel: "chrome",
   });
 
   const context = await browser.newContext({

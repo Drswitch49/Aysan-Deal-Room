@@ -1,21 +1,39 @@
-import { StrictMode, useEffect, useState } from "react";
+import { StrictMode, useEffect, useState, lazy, Suspense, ComponentType } from "react";
 import { createRoot } from "react-dom/client";
 import { Navigate, RouterProvider, createBrowserRouter } from "react-router-dom";
 import { AppLayout } from "./components/layout/AppLayout";
 import { AdminGuard } from "./components/layout/AdminGuard";
-import { DealDetailPage } from "./pages/DealDetailPage";
-import { DealListPage } from "./pages/DealListPage";
-import { LenderManagementPage } from "./pages/LenderManagementPage";
-import { LenderPortalPage } from "./pages/LenderPortalPage";
-import { AdminMessagesPage } from "./pages/AdminMessagesPage";
-import { DashboardPage } from "./pages/DashboardPage";
-import { NotFoundPage } from "./pages/NotFoundPage";
-import { PortCoMonitorPage } from "./pages/PortCoMonitorPage";
-import { HrStakeholdersPage } from "./pages/HrStakeholdersPage";
-import { SettingsPage } from "./pages/SettingsPage";
 import { getDeals } from "./api/airtable";
 import { PipelineProvider } from "./context/PipelineContext";
 import "./styles.css";
+
+// Lazy-loaded route components
+const DashboardPage = lazy(() => import("./pages/DashboardPage").then(m => ({ default: m.DashboardPage })));
+const DealListPage = lazy(() => import("./pages/DealListPage").then(m => ({ default: m.DealListPage })));
+const DealDetailPage = lazy(() => import("./pages/DealDetailPage").then(m => ({ default: m.DealDetailPage })));
+const LenderManagementPage = lazy(() => import("./pages/LenderManagementPage").then(m => ({ default: m.LenderManagementPage })));
+const LenderPortalPage = lazy(() => import("./pages/LenderPortalPage").then(m => ({ default: m.LenderPortalPage })));
+const PortCoMonitorPage = lazy(() => import("./pages/PortCoMonitorPage").then(m => ({ default: m.PortCoMonitorPage })));
+const HrStakeholdersPage = lazy(() => import("./pages/HrStakeholdersPage").then(m => ({ default: m.HrStakeholdersPage })));
+const SettingsPage = lazy(() => import("./pages/SettingsPage").then(m => ({ default: m.SettingsPage })));
+const AdminMessagesPage = lazy(() => import("./pages/AdminMessagesPage").then(m => ({ default: m.AdminMessagesPage })));
+const NotFoundPage = lazy(() => import("./pages/NotFoundPage").then(m => ({ default: m.NotFoundPage })));
+
+const PageLoading = () => (
+  <div className="flex min-h-[60vh] flex-col items-center justify-center bg-[#0F1115]/50 text-slate-400">
+    <div className="animate-pulse text-xs font-bold uppercase tracking-widest text-[#C6A66B]">
+      Loading page...
+    </div>
+  </div>
+);
+
+function withSuspense(Component: ComponentType<any>) {
+  return (
+    <Suspense fallback={<PageLoading />}>
+      <Component />
+    </Suspense>
+  );
+}
 
 function CurrentDealRedirect() {
   const [redirectPath, setRedirectPath] = useState<string | null>(null);
@@ -61,25 +79,25 @@ const router = createBrowserRouter([
       </AdminGuard>
     ),
     children: [
-      { index: true, element: <DashboardPage /> },
-      { path: "deals", element: <DealListPage /> },
+      { index: true, element: withSuspense(DashboardPage) },
+      { path: "deals", element: withSuspense(DealListPage) },
       { path: "deals/current", element: <CurrentDealRedirect /> },
-      { path: "deals/:ref", element: <DealDetailPage /> },
-      { path: "admin/lenders", element: <LenderManagementPage /> },
-      { path: "admin/portco", element: <PortCoMonitorPage /> },
-      { path: "admin/hr", element: <HrStakeholdersPage /> },
-      { path: "admin/settings", element: <SettingsPage /> },
-      { path: "admin/messages", element: <AdminMessagesPage /> },
-      { path: "*", element: <NotFoundPage /> },
+      { path: "deals/:ref", element: withSuspense(DealDetailPage) },
+      { path: "admin/lenders", element: withSuspense(LenderManagementPage) },
+      { path: "admin/portco", element: withSuspense(PortCoMonitorPage) },
+      { path: "admin/hr", element: withSuspense(HrStakeholdersPage) },
+      { path: "admin/settings", element: withSuspense(SettingsPage) },
+      { path: "admin/messages", element: withSuspense(AdminMessagesPage) },
+      { path: "*", element: withSuspense(NotFoundPage) },
     ],
   },
   {
     path: "portal/:portalSlug",
-    element: <LenderPortalPage />,
+    element: withSuspense(LenderPortalPage),
   },
   {
     path: "*",
-    element: <NotFoundPage />,
+    element: withSuspense(NotFoundPage),
   },
 ]);
 

@@ -62,11 +62,17 @@ export async function createBrowserSession(options?: {
     ];
   }
 
-  const browser = await playwrightChromium.launch({
+  const launchOptions: any = {
     args: launchArgs,
-    executablePath: executablePath || undefined,
     headless: true,
-  });
+  };
+  if (executablePath) {
+    launchOptions.executablePath = executablePath;
+  } else if (isLocal) {
+    launchOptions.channel = "chrome";
+  }
+
+  const browser = await playwrightChromium.launch(launchOptions);
 
   // Load persistent session if available
   let storageState: any = undefined;

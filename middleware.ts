@@ -1,7 +1,11 @@
 import { next } from "@vercel/edge";
 import { jwtVerify } from "jose";
+import { validateEnv } from "./api/_utils/bootstrap.js";
 
-const JWT_SECRET = process.env.JWT_SECRET || "acp-deal-os-jwt-secret-key-2026-super-secure-hash";
+// Validate environment variables at boot time
+validateEnv();
+
+const JWT_SECRET = process.env.JWT_SECRET!;
 const secretKey = new TextEncoder().encode(JWT_SECRET);
 
 export async function middleware(request: Request) {

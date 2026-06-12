@@ -1,22 +1,22 @@
 /**
- * Deal Lifecycle State Machine
- *
- * This is the canonical source of truth for all deal stage logic.
- *
- * Architecture:
- *   moveDealToStage() is the ONLY valid mechanism for stage transitions.
- *   All transitions are validated, permission-checked, audit-logged,
- *   and event-emitted via Inngest.
- *
- * Stage mapping:
- *   Legacy Airtable values are normalized to canonical stages on read/write.
- *   Existing records are NOT rewritten — backward compatibility is preserved.
- *
- * Roles:
- *   analyst  → INTRO, DISCOVERY
- *   manager  → INTRO, DISCOVERY, LOI, DUE_DILIGENCE, KILLED
- *   admin    → all stages
- */
+* Deal Lifecycle State Machine
+*
+* This is the canonical source of truth for all deal stage logic.
+*
+* Architecture:
+*   moveDealToStage() is the ONLY valid mechanism for stage transitions.
+*   All transitions are validated, permission-checked, audit-logged,
+*   and event-emitted via Inngest.
+*
+* Stage mapping:
+*   Legacy Airtable values are normalized to canonical stages on read/write.
+*   Existing records are NOT rewritten — backward compatibility is preserved.
+*
+* Roles:
+*   analyst  → INTRO, DISCOVERY
+*   manager  → INTRO, DISCOVERY, LOI, DUE_DILIGENCE, KILLED
+*   admin    → all stages
+*/
 
 import { airtableFetchRecord, airtableUpdate, airtableCreate } from "../_utils/airtable.js";
 import { TABLES } from "../../src/lib/airtable/schema.js";
@@ -130,13 +130,13 @@ export const STAGE_CONFIG: Record<DealStage, StageConfig> = {
 // Any transition not listed here is INVALID and will be rejected.
 
 export const VALID_TRANSITIONS: Record<DealStage, DealStage[]> = {
-  INTRO:         ["DISCOVERY", "KILLED"],
-  DISCOVERY:     ["INTRO", "LOI", "KILLED"],
-  LOI:           ["DISCOVERY", "DUE_DILIGENCE", "KILLED"],
+  INTRO: ["DISCOVERY", "KILLED"],
+  DISCOVERY: ["INTRO", "LOI", "KILLED"],
+  LOI: ["DISCOVERY", "DUE_DILIGENCE", "KILLED"],
   DUE_DILIGENCE: ["LOI", "CLOSING", "KILLED"],
-  CLOSING:       ["DUE_DILIGENCE", "PORTFOLIO", "KILLED"],
-  PORTFOLIO:     [],  // Terminal — no further transitions
-  KILLED:        [],  // Terminal — no further transitions
+  CLOSING: ["DUE_DILIGENCE", "PORTFOLIO", "KILLED"],
+  PORTFOLIO: [],  // Terminal — no further transitions
+  KILLED: [],  // Terminal — no further transitions
 };
 
 // ─── Legacy Stage Mapping ─────────────────────────────────────────────────────
@@ -147,38 +147,38 @@ export const VALID_TRANSITIONS: Record<DealStage, DealStage[]> = {
 
 const LEGACY_TO_CANONICAL: Record<string, DealStage> = {
   // Exact matches (case-insensitive)
-  "intro":                "INTRO",
-  "inbound":              "INTRO",
+  "intro": "INTRO",
+  "inbound": "INTRO",
   "information requested": "DISCOVERY",
   "information_requested": "DISCOVERY",
-  "discovery":            "DISCOVERY",
-  "seller call":          "DISCOVERY",
-  "seller_call":          "DISCOVERY",
-  "im review":            "LOI",
-  "im_review":            "LOI",
-  "offer submitted":      "LOI",
-  "offer_submitted":      "LOI",
-  "loi":                  "LOI",
-  "due diligence":        "DUE_DILIGENCE",
-  "due_diligence":        "DUE_DILIGENCE",
-  "diligence":            "DUE_DILIGENCE",
-  "closing":              "CLOSING",
-  "close":                "CLOSING",
-  "portfolio":            "PORTFOLIO",
-  "completed":            "PORTFOLIO",
-  "closed":               "PORTFOLIO",
-  "killed":               "KILLED",
-  "dead":                 "KILLED",
-  "terminated":           "KILLED",
-  "rejected":             "KILLED",
+  "discovery": "DISCOVERY",
+  "seller call": "DISCOVERY",
+  "seller_call": "DISCOVERY",
+  "im review": "LOI",
+  "im_review": "LOI",
+  "offer submitted": "LOI",
+  "offer_submitted": "LOI",
+  "loi": "LOI",
+  "due diligence": "DUE_DILIGENCE",
+  "due_diligence": "DUE_DILIGENCE",
+  "diligence": "DUE_DILIGENCE",
+  "closing": "CLOSING",
+  "close": "CLOSING",
+  "portfolio": "PORTFOLIO",
+  "completed": "PORTFOLIO",
+  "closed": "PORTFOLIO",
+  "killed": "KILLED",
+  "dead": "KILLED",
+  "terminated": "KILLED",
+  "rejected": "KILLED",
   // Canonical passthrough
-  "INTRO":                "INTRO",
-  "DISCOVERY":            "DISCOVERY",
-  "LOI":                  "LOI",
-  "DUE_DILIGENCE":        "DUE_DILIGENCE",
-  "CLOSING":              "CLOSING",
-  "PORTFOLIO":            "PORTFOLIO",
-  "KILLED":               "KILLED",
+  "INTRO": "INTRO",
+  "DISCOVERY": "DISCOVERY",
+  "LOI": "LOI",
+  "DUE_DILIGENCE": "DUE_DILIGENCE",
+  "CLOSING": "CLOSING",
+  "PORTFOLIO": "PORTFOLIO",
+  "KILLED": "KILLED",
 };
 
 /**
