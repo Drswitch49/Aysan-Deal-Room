@@ -14,13 +14,14 @@ export async function middleware(request: Request) {
 
   // Protect API routes
   if (pathname.startsWith("/api/")) {
-    // Exclude public API routes (login, logout, session check, health, and initial slug authentication handlers)
+    // Exclude public API routes (login, logout, session check, health, inngest, and initial slug authentication handlers)
     if (
       pathname.startsWith("/api/auth/login") ||
       pathname.startsWith("/api/auth/logout") ||
       pathname.startsWith("/api/auth/session") ||
       pathname.startsWith("/api/lender/auth") ||
       pathname.startsWith("/api/health") ||
+      pathname.startsWith("/api/inngest") ||
       pathname === "/api/auth"
     ) {
       return next();
