@@ -25,6 +25,8 @@ import { osintWorkflows } from "./inngest/osint-workflows.js";
 import { financialWorkflows } from "./inngest/financial-workflows.js";
 import { portfolioWorkflows } from "./inngest/portfolio-workflows.js";
 
+console.log("Inngest Boot: INNGEST_SIGNING_KEY length:", process.env.INNGEST_SIGNING_KEY ? process.env.INNGEST_SIGNING_KEY.length : "undefined", "prefix:", process.env.INNGEST_SIGNING_KEY ? process.env.INNGEST_SIGNING_KEY.substring(0, 8) : "none");
+
 const handler = serve({
   client: inngest,
   functions: [
