@@ -7,8 +7,6 @@
 import { inngest } from "../_utils/inngest.js";
 import { TABLES } from "../../src/lib/airtable/schema.js";
 import { airtableFetchRecord, airtableUpdate, airtableCreate } from "../_utils/airtable.js";
-import { scrapeCompanyWebsite } from "../../lib/playwright/website.js";
-import { enrichFromLinkedIn } from "../../lib/playwright/linkedin.js";
 import { searchCompaniesHouse } from "../_osint/providers/companiesHouse.js";
 import { fetchCompanyNews } from "../_osint/providers/news.js";
 import { runPortfolioIntelligence } from "../_services/portfolio.js";
@@ -161,6 +159,7 @@ const onOsintScrapeRequested = inngest.createFunction(
           if (!website) {
             return { success: false, error: "No website URL provided" };
           }
+          const { scrapeCompanyWebsite } = await import("../../lib/playwright/website.js");
           return scrapeCompanyWebsite(website);
         }),
         step.run("search-companies-house", async () => {
@@ -185,6 +184,7 @@ const onOsintScrapeRequested = inngest.createFunction(
           (websiteResult.success && (websiteResult as any).socialAndSchema?.socialLinks?.linkedin) ||
           "";
 
+        const { enrichFromLinkedIn } = await import("../../lib/playwright/linkedin.js");
         return enrichFromLinkedIn({
           linkedInUrl: targetLinkedinUrl || undefined,
           companyName,
