@@ -25,7 +25,12 @@ import { osintWorkflows } from "./inngest/osint-workflows.js";
 import { financialWorkflows } from "./inngest/financial-workflows.js";
 import { portfolioWorkflows } from "./inngest/portfolio-workflows.js";
 
-console.log("Inngest Boot: INNGEST_SIGNING_KEY length:", process.env.INNGEST_SIGNING_KEY ? process.env.INNGEST_SIGNING_KEY.length : "undefined", "prefix:", process.env.INNGEST_SIGNING_KEY ? process.env.INNGEST_SIGNING_KEY.substring(0, 8) : "none");
+console.log("Inngest Boot: INNGEST_SIGNING_KEY length:", process.env.INNGEST_SIGNING_KEY ? process.env.INNGEST_SIGNING_KEY.length : "undefined", 
+  "prefix:", process.env.INNGEST_SIGNING_KEY ? process.env.INNGEST_SIGNING_KEY.substring(0, 15) : "none",
+  "suffix:", process.env.INNGEST_SIGNING_KEY ? process.env.INNGEST_SIGNING_KEY.slice(-5) : "none",
+  "has_whitespace:", process.env.INNGEST_SIGNING_KEY ? /\s/.test(process.env.INNGEST_SIGNING_KEY) : false,
+  "has_quotes:", process.env.INNGEST_SIGNING_KEY ? (process.env.INNGEST_SIGNING_KEY.startsWith('"') || process.env.INNGEST_SIGNING_KEY.endsWith('"') || process.env.INNGEST_SIGNING_KEY.startsWith("'") || process.env.INNGEST_SIGNING_KEY.endsWith("'")) : false
+);
 
 const handler = serve({
   client: inngest,
