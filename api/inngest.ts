@@ -44,6 +44,4 @@ export const config = {
   },
 };
 
-export default function inngestHandler(req: VercelRequest, res: VercelResponse) {
-  return (handler as unknown as (req: VercelRequest, res: VercelResponse) => unknown)(req, res);
-}
+export default handler;
