@@ -36,11 +36,6 @@ const handler = serve({
     ...financialWorkflows,
     ...portfolioWorkflows,
   ],
-  // Vercel Pro: provide the canonical serve URL for Inngest's self-registration.
-  // Falls back to VERCEL_URL in production, undefined in local dev.
-  ...(process.env.VERCEL_URL
-    ? { serveHost: `https://${process.env.VERCEL_URL}` }
-    : {}),
 });
 
 export default function inngestHandler(req: VercelRequest, res: VercelResponse) {
