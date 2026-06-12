@@ -199,7 +199,7 @@ export default async function handler(req: any, res: any) {
 
       // Emit Inngest event — if configured, return 202 immediately
       if (hasInngest()) {
-        await emitEvent("brief/precall_requested", {
+        const emitRes = await emitEvent("brief/precall_requested", {
           briefId: recordId,
           dealId,
           callType: selectedCallType || "1st",
@@ -207,14 +207,17 @@ export default async function handler(req: any, res: any) {
           dataSources: dataSources || {},
           pastedText: pastedText || "",
         });
-        return res.status(202).json({
-          status: "queued",
-          id: recordId,
-          name: briefName,
-          dealId,
-          message: "Pre-call brief generation queued via Inngest.",
-          timestamp: createdRecord.createdTime || new Date().toISOString(),
-        });
+        if (emitRes) {
+          return res.status(202).json({
+            status: "queued",
+            id: recordId,
+            name: briefName,
+            dealId,
+            message: "Pre-call brief generation queued via Inngest.",
+            timestamp: createdRecord.createdTime || new Date().toISOString(),
+          });
+        }
+        console.warn("[Precall Brief] Inngest was active but emitEvent failed. Falling back to synchronous processing.");
       }
 
       // ── Sync fallback ─────────────────────────────────────────────

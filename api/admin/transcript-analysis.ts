@@ -143,15 +143,18 @@ export default async function handler(req: any, res: any) {
 
       // Emit Inngest event — if configured, return 202 immediately
       if (hasInngest()) {
-        await emitEvent("transcript/submitted", { transcriptId: recordId, dealId });
-        return res.status(202).json({
-          status: "queued",
-          id: recordId,
-          name: recordName,
-          dealId,
-          message: "Transcript analysis queued via Inngest.",
-          timestamp: createdRecord.createdTime || new Date().toISOString(),
-        });
+        const emitRes = await emitEvent("transcript/submitted", { transcriptId: recordId, dealId });
+        if (emitRes) {
+          return res.status(202).json({
+            status: "queued",
+            id: recordId,
+            name: recordName,
+            dealId,
+            message: "Transcript analysis queued via Inngest.",
+            timestamp: createdRecord.createdTime || new Date().toISOString(),
+          });
+        }
+        console.warn("[Transcript Analysis] Inngest was active but emitEvent failed. Falling back to synchronous processing.");
       }
 
       // ── Sync fallback (no QStash configured) ─────────────────────────────

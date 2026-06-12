@@ -174,12 +174,15 @@ export default async function handler(req: any, res: any) {
 
     // Emit Inngest event — if configured, return 202 immediately
     if (hasInngest()) {
-      await emitEvent("document/analyze_requested", { documentId });
-      return res.status(202).json({
-        status: "queued",
-        documentId,
-        message: "Document analysis queued via Inngest. Poll /api/jobs/status for progress.",
-      });
+      const emitRes = await emitEvent("document/analyze_requested", { documentId });
+      if (emitRes) {
+        return res.status(202).json({
+          status: "queued",
+          documentId,
+          message: "Document analysis queued via Inngest. Poll /api/jobs/status for progress.",
+        });
+      }
+      console.warn("[Document Analyze] Inngest was active but emitEvent failed. Falling back to synchronous processing.");
     }
 
     // ── Sync fallback ──────────────────────────────────────────────────────
