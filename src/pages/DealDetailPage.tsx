@@ -3730,12 +3730,12 @@ function DocumentsTab({ deal, documentState, setRefreshTrigger }: { deal: any; d
   const categories = useMemo(() => {
     const list = documentState.data ?? [];
     return [
-      { id: "IM and Teasers", name: "00_IM_and_Teasers", count: list.filter((d: any) => d.category?.toLowerCase().includes("teaser") || d.category?.toLowerCase().includes("im")).length || 5 },
-      { id: "Financials", name: "01_Financials", count: list.filter((d: any) => d.category?.toLowerCase().includes("financial") || d.category?.toLowerCase().includes("model")).length || 2 },
-      { id: "Legal", name: "02_Legal", count: list.filter((d: any) => d.category?.toLowerCase().includes("legal") || d.category?.toLowerCase().includes("nda")).length || 0 },
-      { id: "Due Diligence", name: "03_Due_Diligence", count: list.filter((d: any) => d.category?.toLowerCase().includes("dd") || d.category?.toLowerCase().includes("diligence")).length || 0 },
-      { id: "Lender Packs", name: "04_Lender_Packs", count: list.filter((d: any) => d.category?.toLowerCase().includes("lender") || d.category?.toLowerCase().includes("pack")).length || 0 },
-      { id: "LOI and SPA", name: "05_LOI_and_SPA", count: list.filter((d: any) => d.category?.toLowerCase().includes("loi") || d.category?.toLowerCase().includes("spa")).length || 0 },
+      { id: "IM and Teasers", name: "00_IM_and_Teasers", count: list.filter((d: any) => d.category?.toLowerCase().includes("teaser") || d.category?.toLowerCase().includes("im")).length },
+      { id: "Financials", name: "01_Financials", count: list.filter((d: any) => d.category?.toLowerCase().includes("financial") || d.category?.toLowerCase().includes("model") || d.category?.toLowerCase().includes("debtor") || d.category?.toLowerCase().includes("bank") || d.category?.toLowerCase().includes("cashflow") || d.category?.toLowerCase().includes("creditor")).length },
+      { id: "Legal", name: "02_Legal", count: list.filter((d: any) => d.category?.toLowerCase().includes("legal") || d.category?.toLowerCase().includes("nda")).length },
+      { id: "Due Diligence", name: "03_Due_Diligence", count: list.filter((d: any) => d.category?.toLowerCase().includes("dd") || d.category?.toLowerCase().includes("diligence") || d.category?.toLowerCase().includes("operational") || d.category?.toLowerCase().includes("commercial")).length },
+      { id: "Lender Packs", name: "04_Lender_Packs", count: list.filter((d: any) => d.category?.toLowerCase().includes("lender") || d.category?.toLowerCase().includes("pack")).length },
+      { id: "LOI and SPA", name: "05_LOI_and_SPA", count: list.filter((d: any) => d.category?.toLowerCase().includes("loi") || d.category?.toLowerCase().includes("spa")).length },
     ];
   }, [documentState.data]);
 
@@ -3745,7 +3745,7 @@ function DocumentsTab({ deal, documentState, setRefreshTrigger }: { deal: any; d
       {/* Folder selector grid */}
       <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 space-y-4">
         <span className="block text-[8px] font-extrabold text-slate-500 uppercase tracking-widest">
-          DEAL ROOM › GOOGLE DRIVE › ACP CPR 001
+          DEAL ROOM › GOOGLE DRIVE › {deal.dealRef || deal.id}
         </span>
 
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -3780,7 +3780,17 @@ function DocumentsTab({ deal, documentState, setRefreshTrigger }: { deal: any; d
           {selectedCategory ? `Document Checklist: Category ${selectedCategory}` : "All Document Checklists"}
         </h4>
         <DocumentChecklist
-          documents={(documentState.data ?? []).filter((doc: any) => !selectedCategory || doc.category?.toLowerCase().includes(selectedCategory.toLowerCase()))}
+          documents={(documentState.data ?? []).filter((doc: any) => {
+            if (!selectedCategory) return true;
+            const cat = (doc.category || "").toLowerCase();
+            if (selectedCategory === "IM and Teasers") return cat.includes("teaser") || cat.includes("im");
+            if (selectedCategory === "Financials") return cat.includes("financial") || cat.includes("model") || cat.includes("debtor") || cat.includes("bank") || cat.includes("cashflow") || cat.includes("creditor");
+            if (selectedCategory === "Legal") return cat.includes("legal") || cat.includes("nda");
+            if (selectedCategory === "Due Diligence") return cat.includes("dd") || cat.includes("diligence") || cat.includes("operational") || cat.includes("commercial");
+            if (selectedCategory === "Lender Packs") return cat.includes("lender") || cat.includes("pack");
+            if (selectedCategory === "LOI and SPA") return cat.includes("loi") || cat.includes("spa");
+            return false;
+          })}
           audience="internal"
           dealId={deal.id}
           onRefresh={() => setRefreshTrigger((prev: any) => prev + 1)}

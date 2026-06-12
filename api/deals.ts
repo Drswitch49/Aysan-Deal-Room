@@ -58,7 +58,37 @@ export default async function handler(req: any, res: any) {
           data: pipelineDeals
         };
       }
-      const matchedDeal = pipelineDeals.find((d: any) => (d.dealRef || "").toLowerCase() === String(ref).toLowerCase());
+
+      const normalizeRef = (s: string) => {
+        return s
+          .toLowerCase()
+          .replace(/[\u2014\u2013\u2212-]/g, "-") // normalize all dash characters to hyphen
+          .replace(/\s+/g, " ")                  // normalize spaces
+          .trim();
+      };
+      
+      const normalizedQueryRef = normalizeRef(String(ref));
+      
+      const matchedDeal = pipelineDeals.find((d: any) => {
+        const dRef = d.dealRef || "";
+        // 1. Direct exact match
+        if (dRef.toLowerCase() === String(ref).toLowerCase()) return true;
+        // 2. Normalized string match
+        if (normalizeRef(dRef) === normalizedQueryRef) return true;
+        // 3. Match by ID directly
+        if (d.id.toLowerCase() === String(ref).toLowerCase()) return true;
+        // 4. Extract prefix match (e.g. ACP-CFS-002)
+        const getPrefix = (str: string) => {
+          const parts = str.split(/[|—–-]/);
+          return parts[0] ? parts[0].trim().toLowerCase() : "";
+        };
+        const prefixD = getPrefix(dRef);
+        const prefixQ = getPrefix(String(ref));
+        if (prefixD && prefixQ && prefixD === prefixQ) return true;
+        
+        return false;
+      });
+
       if (matchedDeal) {
         targetDealId = matchedDeal.id;
       }
@@ -139,6 +169,6 @@ function filterResults(data: any[], type: string | undefined, ref: string, targe
   // Deals list filter
   return data.find((item: any) => {
     const itemRef = item.dealRef || "";
-    return itemRef.toLowerCase() === lowercaseRef;
+    return itemRef.toLowerCase() === lowercaseRef || (lowercaseDealId && item.id.toLowerCase() === lowercaseDealId);
   }) || null;
 }
