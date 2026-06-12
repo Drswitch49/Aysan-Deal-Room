@@ -45,9 +45,13 @@ export async function emitEvent<K extends keyof PlatformEvents>(
 }
 
 export function hasInngest(): boolean {
-  // Inngest works in both production (INNGEST_EVENT_KEY) and local dev (INNGEST_DEV)
+  // In local dev, Inngest is active if INNGEST_DEV=1 is set
+  if (process.env.INNGEST_DEV === "1") {
+    return true;
+  }
+  // In production, Inngest requires both Event Key and Signing Key to be configured
   return Boolean(
-    process.env.INNGEST_EVENT_KEY ||
-    process.env.INNGEST_DEV === "1"
+    process.env.INNGEST_EVENT_KEY &&
+    process.env.INNGEST_SIGNING_KEY
   );
 }
