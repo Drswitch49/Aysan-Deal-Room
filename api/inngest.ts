@@ -38,6 +38,12 @@ const handler = serve({
   ],
 });
 
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
+
 export default function inngestHandler(req: VercelRequest, res: VercelResponse) {
   return (handler as unknown as (req: VercelRequest, res: VercelResponse) => unknown)(req, res);
 }

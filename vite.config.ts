@@ -39,7 +39,7 @@ function apiDevServerPlugin() {
 
           // Parse POST/PUT request bodies
           let body = "";
-          if (req.method === "POST" || req.method === "PUT") {
+          if (!pathname.startsWith("/api/inngest") && (req.method === "POST" || req.method === "PUT")) {
             await new Promise((resolve) => {
               req.on("data", (chunk: any) => {
                 body += chunk;
