@@ -73,14 +73,11 @@ export default async function inngestHandler(req: any, res: any) {
 
   if (signatureHeader && signingKey) {
     try {
-      const parts = signatureHeader.split(",");
-      const timestampPart = parts.find((p: string) => p.startsWith("t="));
-      const signaturePart = parts.find((p: string) => p.startsWith("s="));
+      const params = new URLSearchParams(signatureHeader);
+      const timestamp = params.get("t") || "";
+      const receivedSig = params.get("s") || "";
       
-      if (timestampPart && signaturePart) {
-        const timestamp = timestampPart.split("=")[1];
-        const receivedSig = signaturePart.split("=")[1];
-        
+      if (timestamp && receivedSig) {
         // Match Inngest prefix-removal logic: remove(/^signkey-[\w]+-/, "")
         const cleanKey = signingKey.replace(/^signkey-[\w]+-/, "");
         
@@ -97,7 +94,7 @@ export default async function inngestHandler(req: any, res: any) {
           clean_key_prefix: ${cleanKey.substring(0, 8)}...
         `);
       } else {
-        console.log("[Inngest Interceptor] Signature header components missing:", signatureHeader);
+        console.log("[Inngest Interceptor] Signature header components missing (URLSearchParams parsing failed):", signatureHeader);
       }
     } catch (err: any) {
       console.error("[Inngest Interceptor] Failed to check signature manually:", err.message);
@@ -106,9 +103,10 @@ export default async function inngestHandler(req: any, res: any) {
     console.log(`[Inngest Interceptor] Signature header or signing key missing. sig: ${!!signatureHeader}, key: ${!!signingKey}`);
   }
 
-  // Replay rawBody for downstream handlers (Inngest SDK serve handler)
+  // Replay rawBody for downstream handlers (Inngest SDK serve handler) safely
   const buffer = Buffer.from(rawBody, "utf8");
-  req.on = function (event: string, callback: any) {
+  const originalOn = req.on;
+  req.on = req.addListener = function (event: string, callback: any) {
     if (event === "data") {
       process.nextTick(() => callback(buffer));
       return this;
@@ -117,7 +115,7 @@ export default async function inngestHandler(req: any, res: any) {
       process.nextTick(() => callback());
       return this;
     }
-    return this;
+    return originalOn.call(this, event, callback);
   };
 
   return (handler as any)(req, res);
