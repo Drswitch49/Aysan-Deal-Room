@@ -1707,21 +1707,39 @@ function PreCallBriefTab({ deal }: { deal: any }) {
         pastedText: uploadedFileName ? `Dropped file: ${uploadedFileName}. ` + pastedText : pastedText
       });
 
-      if (result?.status === "queued") {
-        // 202 — job is queued. Show holding message, poll briefs list after a delay.
+      if (result?.status === "queued" && result?.id) {
         setGeneratingStatus("Queued — generating in background…");
-        setTimeout(async () => {
+        const briefId = result.id;
+        
+        const pollInterval = setInterval(async () => {
           try {
-            const list = await fetchPrecallBriefs(deal.id);
-            setBriefs(list);
-            if (list.length > 0) {
-              setSelectedBrief(list[0]);
+            const statusRes = await fetch(`/api/jobs/status?table=Precall_Briefs&recordId=${briefId}`, {
+              headers: {
+                Authorization: `Bearer ${sessionStorage.getItem("admin_token") || ""}`,
+              }
+            });
+            if (!statusRes.ok) return;
+            const statusData = await statusRes.json();
+            
+            if (statusData.isComplete) {
+              clearInterval(pollInterval);
+              const list = await fetchPrecallBriefs(deal.id);
+              setBriefs(list);
+              if (list.length > 0) {
+                setSelectedBrief(list[0]);
+              }
+              setIsGenerating(false);
+              setGeneratingStatus("");
+            } else if (statusData.isFailed) {
+              clearInterval(pollInterval);
+              setError(statusData.error || "Generation failed in background.");
+              setIsGenerating(false);
+              setGeneratingStatus("");
             }
-          } catch {/* silently ignore */} finally {
-            setIsGenerating(false);
-            setGeneratingStatus("");
+          } catch (e) {
+            console.error("Error polling job status:", e);
           }
-        }, 10_000); // 10 seconds — QStash worker should complete well within this
+        }, 2500);
       } else {
         // 200 — synchronous result (local dev)
         setBriefs((prev) => [result, ...prev]);
@@ -2350,23 +2368,43 @@ Owner is open to deferred payment structures, specifically accepting 20% Vendor 
         schemaId
       });
 
-      if (result?.status === "queued") {
-        // 202 — job is queued. Show holding message, reload briefs after delay.
+      if (result?.status === "queued" && result?.id) {
         setGeneratingStatus("Queued — generating in background…");
         setSuccessMsg("Post-call analysis queued — results will appear automatically.");
-        setTimeout(async () => {
+        const briefId = result.id;
+
+        const pollInterval = setInterval(async () => {
           try {
-            const list = await fetchPostcallBriefs(deal.id);
-            setBriefs(list);
-            if (list.length > 0) {
-              setSelectedBrief(list[0]);
-              setMode("view");
+            const statusRes = await fetch(`/api/jobs/status?table=Postcall_Briefs&recordId=${briefId}`, {
+              headers: {
+                Authorization: `Bearer ${sessionStorage.getItem("admin_token") || ""}`,
+              }
+            });
+            if (!statusRes.ok) return;
+            const statusData = await statusRes.json();
+
+            if (statusData.isComplete) {
+              clearInterval(pollInterval);
+              const list = await fetchPostcallBriefs(deal.id);
+              setBriefs(list);
+              if (list.length > 0) {
+                setSelectedBrief(list[0]);
+                setMode("view");
+              }
+              setGenerating(false);
+              setGeneratingStatus("");
+              setSuccessMsg("Post-call analysis completed successfully!");
+            } else if (statusData.isFailed) {
+              clearInterval(pollInterval);
+              setErrorMsg(statusData.error || "Generation failed in background.");
+              setGenerating(false);
+              setGeneratingStatus("");
             }
-          } catch {/* silently ignore */} finally {
-            setGenerating(false);
-            setGeneratingStatus("");
+          } catch (e) {
+            console.error("Error polling job status:", e);
           }
-        }, 10_000);
+        }, 2500);
+
         setManualNotes("");
         setUploadState("idle");
       } else {
