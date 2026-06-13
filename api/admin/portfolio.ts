@@ -5,6 +5,7 @@ import {
   getPortfolioAlerts,
   getPortfolioHealth,
   getPortfolioSummaryBriefing,
+  isAirtableConnected,
 } from "../../lib/portfolio/db.js";
 import { calculatePortfolioHealthIndex } from "../../lib/portfolio/scoring/index.js";
 
@@ -31,6 +32,7 @@ export default async function handler(req: any, res: any) {
         healths,
         summaryBriefing,
         healthIndex,
+        isFallbackActive: !isAirtableConnected(),
       });
     } catch (err: any) {
       console.error("[Portfolio API GET] Error loading portfolio data:", err);

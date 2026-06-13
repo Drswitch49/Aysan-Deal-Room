@@ -137,6 +137,17 @@ export function PortCoMonitorPage() {
 
   const [isLocalFallbackActive, setIsLocalFallbackActive] = useState(false);
 
+  // Search, Filters & Sorting States
+  const [searchQuery, setSearchQuery] = useState("");
+  const [riskFilter, setRiskFilter] = useState("All");
+  const [sectorFilter, setSectorFilter] = useState("All");
+  const [sortBy, setSortBy] = useState("health_desc");
+  const [expandedCards, setExpandedCards] = useState<Record<string, boolean>>({});
+
+  const toggleCardExpansion = (id: string) => {
+    setExpandedCards((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+
   // Load portfolio data
   const loadPortfolioData = async () => {
     try {
@@ -148,10 +159,7 @@ export function PortCoMonitorPage() {
         setHealths(res.healths || []);
         setSummaryBriefing(res.summaryBriefing || "");
         setHealthIndex(res.healthIndex ?? 100);
-        
-        // Infer local cache fallback is active if Airtable returned empty data or standard flags indicate fallback
-        // (Airtable table failures default gracefully to JSON writing, check if we have data or if res indicators match)
-        setIsLocalFallbackActive(true); // For current demo, we support local fallback database
+        setIsLocalFallbackActive(!!res.isFallbackActive);
       }
     } catch (err: any) {
       console.error("Error fetching portfolio data:", err);
@@ -221,6 +229,94 @@ export function PortCoMonitorPage() {
     }
     return Array.from(map.values());
   }, [healths]);
+
+  // Unique sectors from metrics
+  const uniqueSectors = useMemo(() => {
+    const list = new Set<string>();
+    metrics.forEach((m) => {
+      const type = m.recurringRevenue ? "SaaS" : "Services";
+      list.add(type);
+    });
+    return ["All", ...Array.from(list)];
+  }, [metrics]);
+
+  // Filter & Search & Sort pipeline companies
+  const filteredAndSortedCompanies = useMemo(() => {
+    const enriched = portfolioCompanies.map((comp) => {
+      const health = healths.find((h) => h.companyId === comp.companyId) || {
+        portfolioScore: 100,
+        riskLevel: "low",
+        trendSummary: "Stable parameters.",
+      };
+
+      const compMetrics = metrics
+        .filter((m) => m.companyId === comp.companyId)
+        .sort((a, b) => a.reportingPeriod.localeCompare(b.reportingPeriod));
+
+      const latestMetric = compMetrics[compMetrics.length - 1] || {
+        revenue: 0,
+        ebitda: 0,
+        dscr: 0,
+        leverage: 0,
+        headcount: 0,
+        churnRate: 0,
+        recurringRevenue: 0,
+      };
+
+      const sector = latestMetric.recurringRevenue ? "SaaS" : "Services";
+
+      return {
+        ...comp,
+        health,
+        compMetrics,
+        latestMetric,
+        sector,
+      };
+    });
+
+    // 1. Search Query filter
+    let result = enriched;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      result = result.filter(
+        (c) =>
+          c.companyName.toLowerCase().includes(q) ||
+          c.companyId.toLowerCase().includes(q)
+      );
+    }
+
+    // 2. Risk filter
+    if (riskFilter !== "All") {
+      result = result.filter((c) => c.health.riskLevel.toLowerCase() === riskFilter.toLowerCase());
+    }
+
+    // 3. Sector filter
+    if (sectorFilter !== "All") {
+      result = result.filter((c) => c.sector.toLowerCase() === sectorFilter.toLowerCase());
+    }
+
+    // 4. Sorting
+    result.sort((a, b) => {
+      if (sortBy === "health_desc") {
+        return b.health.portfolioScore - a.health.portfolioScore;
+      }
+      if (sortBy === "health_asc") {
+        return a.health.portfolioScore - b.health.portfolioScore;
+      }
+      if (sortBy === "revenue_desc") {
+        return (b.latestMetric.revenue || 0) - (a.latestMetric.revenue || 0);
+      }
+      if (sortBy === "ebitda_desc") {
+        return (b.latestMetric.ebitda || 0) - (a.latestMetric.ebitda || 0);
+      }
+      if (sortBy === "name_asc") {
+        return a.companyName.localeCompare(b.companyName);
+      }
+      return 0;
+    });
+
+    return result;
+  }, [portfolioCompanies, healths, metrics, searchQuery, riskFilter, sectorFilter, sortBy]);
 
   // Total active alerts categorizations
   const activeAlerts = useMemo(() => {
@@ -394,8 +490,8 @@ export function PortCoMonitorPage() {
                 <div className="space-y-3">
                   {activeAlerts.map((alert, idx) => (
                     <div
-                      key={idx}
-                      className={cx(
+                       key={idx}
+                       className={cx(
                         "rounded-xl border p-3.5 space-y-1 transition",
                         alert.severity === "critical"
                           ? "border-rose-500/20 bg-rose-500/5 hover:border-rose-500/35"
@@ -433,60 +529,106 @@ export function PortCoMonitorPage() {
             </div>
           </div>
 
-          {/* PortCo Detail Cards Grid */}
+          {/* Controls & Performance Cards Section */}
           <div className="space-y-6">
-            <div className="border-b border-white/5 pb-2 select-none">
+            <div className="border-b border-white/5 pb-2 select-none flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <h3 className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-slate-500">
                 Portfolio Company Performance Cards
               </h3>
             </div>
 
+            {/* Search & Filter Controls */}
+            <div className="flex flex-col md:flex-row gap-3 items-center justify-between bg-white/[0.01] border border-white/[0.02] p-4 rounded-2xl select-none">
+              <div className="relative w-full md:w-72">
+                <span className="absolute inset-y-0 left-3 flex items-center text-slate-500">
+                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </span>
+                <input
+                  type="text"
+                  placeholder="Search PortCo..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full h-9 rounded-xl border border-white/[0.04] bg-[#0B0B0C] pl-9 pr-3 text-xs text-white placeholder-slate-500 outline-none focus:border-[#C6A66B] transition shadow-inner"
+                />
+              </div>
+
+              <div className="flex flex-wrap gap-2.5 w-full md:w-auto">
+                {/* Risk Filter */}
+                <select
+                  value={riskFilter}
+                  onChange={(e) => setRiskFilter(e.target.value)}
+                  className="h-9 rounded-xl border border-white/[0.04] bg-[#0B0B0C] px-3 text-xs text-slate-300 outline-none focus:border-[#C6A66B] transition cursor-pointer shadow-inner"
+                >
+                  <option value="All">All Risks</option>
+                  <option value="low">Low Risk</option>
+                  <option value="medium">Medium Risk</option>
+                  <option value="high">High Risk</option>
+                </select>
+
+                {/* Sector Filter */}
+                <select
+                  value={sectorFilter}
+                  onChange={(e) => setSectorFilter(e.target.value)}
+                  className="h-9 rounded-xl border border-white/[0.04] bg-[#0B0B0C] px-3 text-xs text-slate-300 outline-none focus:border-[#C6A66B] transition cursor-pointer shadow-inner"
+                >
+                  {uniqueSectors.map((sec) => (
+                    <option key={sec} value={sec}>
+                      {sec === "All" ? "All Sectors" : sec}
+                    </option>
+                  ))}
+                </select>
+
+                {/* Sort options */}
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="h-9 rounded-xl border border-white/[0.04] bg-[#0B0B0C] px-3 text-xs text-slate-300 outline-none focus:border-[#C6A66B] transition cursor-pointer shadow-inner"
+                >
+                  <option value="health_desc">Sort: Health H-to-L</option>
+                  <option value="health_asc">Sort: Health L-to-H</option>
+                  <option value="revenue_desc">Sort: Revenue Size</option>
+                  <option value="ebitda_desc">Sort: EBITDA Size</option>
+                  <option value="name_asc">Sort: Alphabetical</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Performance Cards List */}
             <div className="grid gap-6 grid-cols-1">
-              {portfolioCompanies.map((comp) => {
-                const health = healths.find((h) => h.companyId === comp.companyId) || {
-                  portfolioScore: 100,
-                  riskLevel: "low",
-                  trendSummary: "Stable parameters.",
-                };
-                
-                // Get all company metrics chronologically
-                const compMetrics = metrics
-                  .filter((m) => m.companyId === comp.companyId)
-                  .sort((a, b) => a.reportingPeriod.localeCompare(b.reportingPeriod));
-
-                const latestMetric = compMetrics[compMetrics.length - 1] || {
-                  revenue: 0,
-                  ebitda: 0,
-                  dscr: 0,
-                  leverage: 0,
-                  headcount: 0,
-                  churnRate: 0,
-                };
-
-                const revenues = compMetrics.map((m) => m.revenue);
-                const dscrs = compMetrics.map((m) => m.dscr);
+              {filteredAndSortedCompanies.map((comp) => {
+                const isExpanded = !!expandedCards[comp.companyId];
+                const health = comp.health;
+                const latestMetric = comp.latestMetric;
+                const revenues = comp.compMetrics.map((m) => m.revenue);
+                const dscrs = comp.compMetrics.map((m) => m.dscr);
 
                 return (
                   <div
                     key={comp.companyId}
-                    className="rounded-3xl border border-white/[0.02] bg-[#161B22] p-6 sm:p-8 shadow-premium-card card-sheen relative overflow-hidden"
+                    className={cx(
+                      "rounded-3xl border p-6 sm:p-8 shadow-premium-card relative overflow-hidden transition-all duration-300",
+                      health.riskLevel === "high"
+                        ? "border-rose-500/20 bg-gradient-to-br from-[#161B22] to-[#201517]"
+                        : health.riskLevel === "medium"
+                        ? "border-amber-500/20 bg-gradient-to-br from-[#161B22] to-[#201d15]"
+                        : "border-white/[0.02] bg-[#161B22] card-sheen"
+                    )}
                   >
                     <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-white/[0.01] to-transparent pointer-events-none blur-3xl" />
 
-                    <div className="relative z-10 space-y-6">
+                    <div className="relative z-10 space-y-5">
                       {/* Card Header */}
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/5 pb-4">
                         <div className="space-y-1.5">
                           <h2 className="text-lg sm:text-xl font-black text-white tracking-tight flex items-center gap-2">
                             {comp.companyName}
-                            <span className="text-slate-650 text-xs font-medium font-mono select-none">
-                              #{comp.companyId.slice(-6)}
-                            </span>
                           </h2>
                           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-slate-450 text-[10px] font-extrabold uppercase tracking-wide">
                             <span className="flex items-center gap-1">
                               <Building2 className="h-3 w-3 text-slate-500" />
-                              {compMetrics[0]?.recurringRevenue ? "SaaS / Recurring" : "Services"}
+                              {comp.sector}
                             </span>
                             <span className="text-white/10 select-none">|</span>
                             <span className="flex items-center gap-1">
@@ -514,10 +656,10 @@ export function PortCoMonitorPage() {
                         </div>
                       </div>
 
-                      {/* Main Metrics Panels */}
-                      <div className="grid gap-4 grid-cols-2 lg:grid-cols-6 select-none">
+                      {/* Main Metrics Panels - 3 Core Covenants */}
+                      <div className="grid gap-4 grid-cols-1 md:grid-cols-3 select-none">
                         {/* Revenue */}
-                        <div className="rounded-2xl border border-white/[0.02] bg-white/[0.01] p-4.5 space-y-1 hover:border-white/[0.02] transition-colors">
+                        <div className="rounded-2xl border border-white/[0.02] bg-white/[0.01] p-4.5 space-y-1 hover:border-white/[0.04] transition-colors">
                           <p className="text-[9px] font-extrabold uppercase tracking-widest text-slate-500">
                             Revenue (MTD)
                           </p>
@@ -530,21 +672,8 @@ export function PortCoMonitorPage() {
                           </div>
                         </div>
 
-                        {/* EBITDA */}
-                        <div className="rounded-2xl border border-white/[0.02] bg-white/[0.01] p-4.5 space-y-1 hover:border-white/[0.02] transition-colors">
-                          <p className="text-[9px] font-extrabold uppercase tracking-widest text-slate-500">
-                            EBITDA (MTD)
-                          </p>
-                          <p className="text-xl font-black text-white tracking-tight">
-                            £{latestMetric.ebitda ? (latestMetric.ebitda / 1000).toFixed(1) + "k" : "—"}
-                          </p>
-                          <p className="text-[10px] text-slate-500 font-bold uppercase pt-1">
-                            Margin: {latestMetric.revenue ? ((latestMetric.ebitda / latestMetric.revenue) * 100).toFixed(1) + "%" : "—"}
-                          </p>
-                        </div>
-
                         {/* DSCR */}
-                        <div className="rounded-2xl border border-white/[0.02] bg-white/[0.01] p-4.5 space-y-1 hover:border-white/[0.02] transition-colors">
+                        <div className="rounded-2xl border border-white/[0.02] bg-white/[0.01] p-4.5 space-y-1 hover:border-white/[0.04] transition-colors">
                           <p className="text-[9px] font-extrabold uppercase tracking-widest text-slate-500">
                             DSCR actual
                           </p>
@@ -562,7 +691,7 @@ export function PortCoMonitorPage() {
                         </div>
 
                         {/* Leverage */}
-                        <div className="rounded-2xl border border-white/[0.02] bg-white/[0.01] p-4.5 space-y-1 hover:border-white/[0.02] transition-colors">
+                        <div className="rounded-2xl border border-white/[0.02] bg-white/[0.01] p-4.5 space-y-1 hover:border-white/[0.04] transition-colors">
                           <p className="text-[9px] font-extrabold uppercase tracking-widest text-slate-500">
                             Leverage ratio
                           </p>
@@ -573,44 +702,78 @@ export function PortCoMonitorPage() {
                           )}>
                             {latestMetric.leverage ? latestMetric.leverage.toFixed(1) + "x" : "—"}
                           </p>
-                          <p className="text-[10px] text-slate-550 font-semibold uppercase pt-1">Target: &lt; 3.5x</p>
-                        </div>
-
-                        {/* Headcount */}
-                        <div className="rounded-2xl border border-white/[0.02] bg-white/[0.01] p-4.5 space-y-1 hover:border-white/[0.02] transition-colors">
-                          <p className="text-[9px] font-extrabold uppercase tracking-widest text-slate-500">
-                            Headcount
-                          </p>
-                          <p className="text-xl font-black text-white tracking-tight">
-                            {latestMetric.headcount || "—"}
-                          </p>
-                          <p className="text-[10px] text-slate-550 font-semibold uppercase pt-1">Full-time staff</p>
-                        </div>
-
-                        {/* Churn Rate */}
-                        <div className="rounded-2xl border border-white/[0.02] bg-white/[0.01] p-4.5 space-y-1 hover:border-white/[0.02] transition-colors">
-                          <p className="text-[9px] font-extrabold uppercase tracking-widest text-slate-500">
-                            Customer Churn
-                          </p>
-                          <p className={cx(
-                            "text-xl font-black tracking-tight",
-                            latestMetric.churnRate !== undefined && latestMetric.churnRate > 3.0 ? "text-rose-500" : "text-white"
-                          )}>
-                            {latestMetric.churnRate !== undefined ? latestMetric.churnRate.toFixed(1) + "%" : "0.0%"}
-                          </p>
-                          <p className="text-[10px] text-slate-550 font-semibold uppercase pt-1">Target: &lt; 1.5%</p>
+                          <p className="text-[10px] text-slate-500 font-bold uppercase pt-1">Target: &lt; 3.5x</p>
                         </div>
                       </div>
 
+                      {/* Collapsible Detailed Metrics Drawer */}
+                      {isExpanded && (
+                        <div className="grid gap-4 grid-cols-1 md:grid-cols-3 pt-4 border-t border-white/5 animate-fade-in-up">
+                          {/* EBITDA */}
+                          <div className="rounded-2xl border border-white/[0.02] bg-white/[0.005] p-4.5 space-y-1">
+                            <p className="text-[9px] font-extrabold uppercase tracking-widest text-slate-500">
+                              EBITDA (MTD)
+                            </p>
+                            <p className="text-xl font-black text-white tracking-tight">
+                              £{latestMetric.ebitda ? (latestMetric.ebitda / 1000).toFixed(1) + "k" : "—"}
+                            </p>
+                            <p className="text-[10px] text-slate-500 font-bold uppercase pt-1">
+                              Margin: {latestMetric.revenue ? ((latestMetric.ebitda / latestMetric.revenue) * 100).toFixed(1) + "%" : "—"}
+                            </p>
+                          </div>
+
+                          {/* Headcount */}
+                          <div className="rounded-2xl border border-white/[0.02] bg-white/[0.005] p-4.5 space-y-1">
+                            <p className="text-[9px] font-extrabold uppercase tracking-widest text-slate-500">
+                              Headcount
+                            </p>
+                            <p className="text-xl font-black text-white tracking-tight">
+                              {latestMetric.headcount || "—"}
+                            </p>
+                            <p className="text-[10px] text-slate-500 font-bold uppercase pt-1">Full-time staff</p>
+                          </div>
+
+                          {/* Churn Rate */}
+                          <div className="rounded-2xl border border-white/[0.02] bg-white/[0.005] p-4.5 space-y-1">
+                            <p className="text-[9px] font-extrabold uppercase tracking-widest text-slate-500">
+                              Customer Churn
+                            </p>
+                            <p className={cx(
+                              "text-xl font-black tracking-tight",
+                              latestMetric.churnRate !== undefined && latestMetric.churnRate > 3.0 ? "text-rose-500" : "text-white"
+                            )}>
+                              {latestMetric.churnRate !== undefined ? latestMetric.churnRate.toFixed(1) + "%" : "0.0%"}
+                            </p>
+                            <p className="text-[10px] text-slate-550 font-semibold uppercase pt-1">Target: &lt; 1.5%</p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Expand / Collapse Control Button */}
+                      <button
+                        onClick={() => toggleCardExpansion(comp.companyId)}
+                        className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl border border-white/[0.02] bg-white/[0.005] hover:bg-white/[0.015] text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-white transition cursor-pointer select-none"
+                      >
+                        <span>{isExpanded ? "Collapse Parameters" : "View Operational Parameters"}</span>
+                        <svg
+                          className={cx("h-3 w-3 transform transition-transform duration-200", isExpanded && "rotate-180")}
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+
                       {/* Trend Summary Description text */}
-                      <div className="rounded-2xl border border-white/[0.02] bg-white/[0.005] px-5 py-3.5 flex items-center justify-between text-xs font-semibold leading-relaxed text-slate-400 select-none">
+                      <div className="rounded-2xl border border-white/[0.02] bg-white/[0.005] px-5 py-3.5 flex items-center justify-between text-xs font-semibold leading-relaxed text-slate-455 select-none">
                         <span className="flex items-center gap-2">
                           <Activity className="h-3.5 w-3.5 text-slate-500" />
                           <span>{health.trendSummary}</span>
                         </span>
-                        {compMetrics.length >= 4 && (
+                        {comp.compMetrics.length >= 4 && (
                           <div className="flex items-center gap-2 font-bold uppercase tracking-wider text-[9px]">
-                            {compMetrics[compMetrics.length - 1].revenue >= compMetrics[compMetrics.length - 4].revenue ? (
+                            {comp.compMetrics[comp.compMetrics.length - 1].revenue >= comp.compMetrics[comp.compMetrics.length - 4].revenue ? (
                               <span className="text-emerald-450 flex items-center gap-0.5">
                                 <TrendingUp className="h-3 w-3" />
                                 QoQ Growth
@@ -628,6 +791,12 @@ export function PortCoMonitorPage() {
                   </div>
                 );
               })}
+
+              {filteredAndSortedCompanies.length === 0 && (
+                <div className="rounded-3xl border border-white/[0.02] bg-[#161B22] p-12 text-center text-xs font-semibold text-slate-550 select-none">
+                  No portfolio companies found matching your filters.
+                </div>
+              )}
             </div>
           </div>
         </>

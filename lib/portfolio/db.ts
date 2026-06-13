@@ -84,6 +84,10 @@ export function writePortfolioDb(data: DbPayload) {
 // ─── In-Memory Fallback State indicator ───────────────────────────────────────
 let isAirtableAvailable = true;
 
+export function isAirtableConnected(): boolean {
+  return isAirtableAvailable;
+}
+
 // ─── Metrics API ──────────────────────────────────────────────────────────────
 
 export async function getPortfolioMetrics(): Promise<PortfolioMetricRecord[]> {
