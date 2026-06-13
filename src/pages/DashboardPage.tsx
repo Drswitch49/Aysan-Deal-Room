@@ -1,77 +1,32 @@
 import { useState, useEffect, useMemo } from "react";
 import { 
-  Plus, X, LineChart, AlertTriangle, CheckCircle2,
-  Kanban, Building2, Clock, TrendingUp, MessageSquare,
-  FileText, Flag, Database
+  Plus, AlertTriangle, CheckCircle2,
+  Kanban, Building2, Clock, MessageSquare,
+  FileText, Database, ArrowRight, LineChart
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { getAllDocuments, getAllSubmissionLog } from "../api/airtable";
-import { fetchAdminLenders, createAdminDeal, fetchActivityFeed, fetchPortfolioData, type ActivityEvent } from "../api/admin";
+import { fetchAdminLenders, createAdminDeal, fetchDashboardStats } from "../api/admin";
 import { fetchRecentAdminChat } from "../api/chat";
-import type { PipelineDeal, DealDocument, SubmissionLogEntry } from "../types/deal";
-import { cx } from "../utils/cx";
 import { usePipeline } from "../context/PipelineContext";
 import { StatCard } from "../components/ui/StatCard";
 import { Modal } from "../components/ui/Modal";
 import { FormField, inputClass, selectClass, textareaClass } from "../components/ui/FormField";
 import { LoadingState } from "../components/ui/LoadingState";
 import { SectionHeader } from "../components/ui/SectionHeader";
-
-
-// Helper to strip raw Airtable mention markup from text, e.g. <airtable:mention id="abc">@Name</airtable:mention>
-function cleanAirtableMentions(text: string | undefined | null): string {
-  if (!text) return "";
-  return text.replace(/<airtable:mention[^>]*>(@?[^<]+)<\/airtable:mention>/g, "$1");
-}
-
-// Helper to extract the core company/deal name by removing stage labels, codes, and metadata separators
-function cleanCompanyName(name: string | undefined | null): string {
-  if (!name) return "";
-  let clean = cleanAirtableMentions(name);
-  
-  // Split by pipe (commonly separates code | name | stage)
-  if (clean.includes("|")) {
-    const parts = clean.split("|").map(p => p.trim());
-    // Find the first part that is not an ID code like ACP-CFS-002
-    const namePart = parts.find(p => !/^ACP-CFS-\d+$/i.test(p) && p.length > 0);
-    if (namePart) {
-      clean = namePart;
-    }
-  }
-
-  // Split by common separator dash strings with surrounding spaces
-  const separators = [" — ", " – ", " - "];
-  for (const sep of separators) {
-    if (clean.includes(sep)) {
-      clean = clean.split(sep)[0].trim();
-    }
-  }
-
-  // Fallback split by raw characters just in case
-  if (clean.includes("—")) clean = clean.split("—")[0].trim();
-  if (clean.includes("–")) clean = clean.split("–")[0].trim();
-
-  // Final cleanup of any leading/trailing punctuation/dashes
-  return clean.replace(/^[\s\-|–|—|:|·|•]+|[\s\-|–|—|:|·|•]+$/g, "").trim();
-}
+import { cx } from "../utils/cx";
 
 export function DashboardPage() {
-  const { deals, refresh: refreshPipeline } = usePipeline();
-  const [documents, setDocuments] = useState<DealDocument[]>([]);
-  const [submissions, setSubmissions] = useState<SubmissionLogEntry[]>([]);
+  const { refresh: refreshPipeline } = usePipeline();
+  
+  const [stats, setStats] = useState<any>(null);
   const [lenders, setLenders] = useState<any[]>([]);
   const [chats, setChats] = useState<any[]>([]);
-  const [activityEvents, setActivityEvents] = useState<ActivityEvent[]>([]);
   
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [selectedAssignee, setSelectedAssignee] = useState<string>("All");
-
-  // Portfolio Integration State
-  const [portfolioHealthIndex, setPortfolioHealthIndex] = useState<number | null>(null);
-  const [activeCriticalAlertsCount, setActiveCriticalAlertsCount] = useState<number>(0);
-  const [activeMediumAlertsCount, setActiveMediumAlertsCount] = useState<number>(0);
+  const [assignees, setAssignees] = useState<string[]>(["All", "Ayo", "Prince", "Dami", "Chante"]);
 
   // New deal modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -83,95 +38,58 @@ export function DashboardPage() {
   const [isSubmittingDeal, setIsSubmittingDeal] = useState(false);
   const [dealSubmitError, setDealSubmitError] = useState("");
 
+  // Initial Data Fetch
   useEffect(() => {
     setIsLoading(true);
     setError("");
 
     Promise.all([
-      getAllDocuments().catch(() => []),
-      getAllSubmissionLog().catch(() => []),
+      fetchDashboardStats(selectedAssignee),
       fetchAdminLenders().catch(() => []),
-      fetchRecentAdminChat().catch(() => []),
-      fetchActivityFeed({ limit: 4 }).catch(() => []),
-      fetchPortfolioData().catch(() => null)
+      fetchRecentAdminChat().catch(() => [])
     ])
-      .then(([docsData, subsData, lendersData, chatsData, activityData, portfolioData]) => {
-        setDocuments(docsData);
-        setSubmissions(subsData);
+      .then(([statsData, lendersData, chatsData]) => {
+        setStats(statsData);
         setLenders(lendersData);
         setChats(chatsData);
-        setActivityEvents(activityData);
-
-        if (portfolioData && portfolioData.success) {
-          setPortfolioHealthIndex(portfolioData.healthIndex ?? 85);
-          const activeAlerts = (portfolioData.alerts || []).filter((a: any) => !a.resolvedAt);
-          const criticals = activeAlerts.filter((a: any) => a.severity === "critical").length;
-          const mediums = activeAlerts.filter((a: any) => a.severity === "medium").length;
-          setActiveCriticalAlertsCount(criticals);
-          setActiveMediumAlertsCount(mediums);
-        } else {
-          setPortfolioHealthIndex(null);
-          setActiveCriticalAlertsCount(0);
-          setActiveMediumAlertsCount(0);
+        if (statsData.uniqueOwners) {
+          setAssignees(statsData.uniqueOwners);
         }
       })
       .catch((err) => {
-        console.error("Error loading dashboard data:", err);
+        console.error("Error loading dashboard stats:", err);
         setError("Failed to load Command Centre metrics.");
       })
       .finally(() => {
         setIsLoading(false);
       });
-  }, [refreshTrigger]);
+  }, [selectedAssignee, refreshTrigger]);
 
-  // Current Date string formatted exactly like screenshot
-  const currentDateString = useMemo(() => {
-    const d = new Date();
-    // Default to screenshot date if testing, or use current system date nicely formatted:
-    // e.g. "Tue 27 May 2026"
-    return d.toLocaleDateString("en-GB", {
-      weekday: "short",
-      day: "numeric",
-      month: "short",
-      year: "numeric"
-    });
-  }, []);
-
-  // Compute Metrics
-  const activeDeals = useMemo(() => {
-    return deals.filter(d => (d.status || "").toLowerCase() !== "killed");
-  }, [deals]);
-
-  const assignees = useMemo(() => {
-    const list = new Set<string>();
-    deals.forEach(d => {
-      const collabs = d.rawFields["Collaborator"] as any;
-      if (collabs && Array.isArray(collabs)) {
-        collabs.forEach((col: any) => {
-          if (col.name) list.add(col.name);
+  // Polling for status updates silently (no flashing loading spinner)
+  useEffect(() => {
+    let intervalId: any;
+    
+    const pollStats = () => {
+      fetchDashboardStats(selectedAssignee)
+        .then(statsData => {
+          setStats(statsData);
+          if (statsData.uniqueOwners) {
+            setAssignees(statsData.uniqueOwners);
+          }
+        })
+        .catch(err => {
+          console.error("Silent dashboard poll stats failed:", err);
         });
-      }
-    });
-    const result = Array.from(list);
-    if (!result.includes("Ayo")) result.push("Ayo");
-    if (!result.includes("Prince")) result.push("Prince");
-    if (!result.includes("Dami")) result.push("Dami");
-    if (!result.includes("Chante")) result.push("Chante");
-    return ["All", ...result];
-  }, [deals]);
+    };
 
-  const filteredDeals = useMemo(() => {
-    if (selectedAssignee === "All") return activeDeals;
-    return activeDeals.filter(d => {
-      const collabs = d.rawFields["Collaborator"] as any;
-      if (collabs && Array.isArray(collabs)) {
-        return collabs.some((col: any) => col.name === selectedAssignee);
-      }
-      if (selectedAssignee === "Ayo" && d.dealRef === "ACP-CFS-001") return true;
-      return false;
-    });
-  }, [activeDeals, selectedAssignee]);
+    intervalId = setInterval(pollStats, 12000);
 
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [selectedAssignee]);
+
+  // Client-side unread messages indicator based on local storage last reads
   const unreadMessagesCount = useMemo(() => {
     let unread = 0;
     lenders.forEach((l: any) => {
@@ -196,281 +114,16 @@ export function DashboardPage() {
     return unread;
   }, [lenders, chats]);
 
-  const imReviewCount = useMemo(() => {
-    return filteredDeals.filter(d => (d.status || "").toLowerCase() === "im review").length;
-  }, [filteredDeals]);
-
-  const overdueCount = useMemo(() => {
-    const todayStr = new Date().toISOString().split("T")[0];
-    return filteredDeals.filter(d => {
-      const actDate = d.rawFields["Next Action Date"];
-      return actDate && actDate < todayStr;
-    }).length;
-  }, [filteredDeals]);
-
-  const pendingActionsCount = useMemo(() => {
-    return filteredDeals.filter(d => d.rawFields["Next Action Date"]).length;
-  }, [filteredDeals]);
-
-  const staleLendersCount = useMemo(() => {
-    // Registered lenders > 90 days (or mock logic if dates are empty)
-    const ninetyDaysAgo = new Date();
-    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
-    
-    let count = 0;
-    lenders.forEach(l => {
-      const createdStr = l.Created_At || l.createdAt;
-      if (createdStr) {
-        const createdDate = new Date(createdStr);
-        if (createdDate < ninetyDaysAgo) count++;
-      }
+  // Current Date nicely formatted
+  const currentDateString = useMemo(() => {
+    const d = new Date();
+    return d.toLocaleDateString("en-GB", {
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+      year: "numeric"
     });
-
-    // Fallback to 1 stale lender like in the screenshot if count is 0 but we have lenders
-    return lenders.length > 0 ? Math.max(count, 1) : 0;
-  }, [lenders]);
-
-  const targetClosesCount = useMemo(() => {
-    // Count deals in later advanced stages (e.g. Offer Submitted, Seller Call, Due Diligence)
-    return filteredDeals.filter(d => 
-      ["offer submitted", "seller call", "due diligence"].includes((d.status || "").toLowerCase())
-    ).length || 2; // Fallback to 2 target closes like screenshot
-  }, [filteredDeals]);
-
-  // Stage progress counts
-  const stageCounts = useMemo(() => {
-    const inbound = filteredDeals.filter(d => 
-      ["intro", "inbound", "information requested"].includes((d.status || "").toLowerCase())
-    ).length;
-    const sellerCall = filteredDeals.filter(d => (d.status || "").toLowerCase() === "seller call").length;
-    const imReview = filteredDeals.filter(d => 
-      ["im review", "offer submitted"].includes((d.status || "").toLowerCase())
-    ).length;
-    const dueDiligence = filteredDeals.filter(d => (d.status || "").toLowerCase() === "due diligence").length;
-
-    return {
-      inbound: Math.max(inbound, 2), // Fallback to screenshot numbers for layout integrity
-      sellerCall: Math.max(sellerCall, 1),
-      imReview: Math.max(imReview, 2),
-      dueDiligence
-    };
-  }, [filteredDeals]);
-
-  // CSV Export handler
-  const handleExportCSV = () => {
-    const headers = ["ACP ID", "Company Name", "Sector", "Location", "EV Ask", "EBITDA", "Multiple", "Stage", "Next Action", "Next Action Date"];
-    const rows = filteredDeals.map(d => {
-      return [
-        d.dealRef,
-        d.companyName,
-        d.sector,
-        d.location,
-        d.rawFields["Asking_Price_GBP"] || d.rawFields["EV"] || "",
-        d.rawFields["EBITDA_GBP"] || "",
-        d.rawFields["EV Multiple"] || "",
-        d.status,
-        String(d.rawFields["Next Action"] || "").replace(/\n/g, " "),
-        d.rawFields["Next Action Date"] || ""
-      ].map(val => `"${String(val).replace(/"/g, '""')}"`);
-    });
-
-    const csvContent = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.setAttribute("download", `ACP_Pipeline_Export_${new Date().toISOString().split("T")[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  // Dynamic Actions List
-  const actionsList = useMemo(() => {
-    const list: Array<{
-      id: string;
-      color: "red" | "yellow" | "blue" | "green";
-      title: string;
-      dealRef: string;
-      assignee: string;
-      statusText: "OVERDUE" | "DUE TODAY" | "PENDING";
-      dateStr: string;
-    }> = [];
-
-    const todayStr = new Date().toISOString().split("T")[0];
-
-    // Build from actual active deals
-    filteredDeals.forEach(d => {
-      const rawActionDate = d.rawFields["Next Action Date"];
-      const rawActionText = d.rawFields["Next Action"];
-      
-      if (rawActionDate && rawActionText) {
-        const actionDate = String(rawActionDate);
-        const actionText = String(rawActionText);
-
-        const isOverdue = actionDate < todayStr;
-        const isToday = actionDate === todayStr;
-
-        // Clean action title (take first line and strip mentions)
-        const cleanTitle = cleanAirtableMentions(actionText.split("\n")[0]);
-        
-        let parsedTitle = cleanTitle;
-        const separators = [" — ", " – ", " - ", "—", "–"];
-        for (const sep of separators) {
-          if (parsedTitle.includes(sep)) {
-            const parts = parsedTitle.split(sep).map(p => p.trim());
-            if (parts.length > 1) {
-              parsedTitle = parts[0];
-            }
-          }
-        }
-        
-        if (parsedTitle.includes("|")) {
-          parsedTitle = parsedTitle.split("|")[0].trim();
-        }
-
-        // Get assignee initials
-        let initials = "AYO";
-        const collabs = d.rawFields["Collaborator"] as any;
-        if (collabs && Array.isArray(collabs) && collabs.length > 0) {
-          const name = String(collabs[0]?.name || "");
-          if (name.toLowerCase().includes("dami") || name.toLowerCase().includes("dallience")) {
-            initials = "DAMI";
-          } else if (name.toLowerCase().includes("chante")) {
-            initials = "CHANTE";
-          }
-        }
-
-        const dateObj = new Date(actionDate);
-        const formattedDate = dateObj.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
-
-        const companyNameClean = cleanCompanyName(String(d.companyName || d.rawFields?.["Company_Name"] || d.dealRef || ""));
-        const finalTitle = (parsedTitle && parsedTitle.toLowerCase() !== companyNameClean.toLowerCase())
-          ? `${parsedTitle} — ${companyNameClean}`
-          : companyNameClean;
-
-        list.push({
-          id: d.id,
-          color: isOverdue ? "red" : isToday ? "yellow" : "blue",
-          title: finalTitle,
-          dealRef: d.dealRef || "ACP-CFS",
-          assignee: initials,
-          statusText: isOverdue ? "OVERDUE" : isToday ? "DUE TODAY" : "PENDING",
-          dateStr: `deadline ${formattedDate}`
-        });
-      }
-    });
-
-    // Mock fallbacks (from the screenshot) to ensure exactly 4 actions show beautifully
-    const mockActions: typeof list = [
-      {
-        id: "mock-1",
-        color: "red",
-        title: "Send LOI — Clear Water Cleaning",
-        dealRef: "ACP-CFS-001",
-        assignee: "AYO",
-        statusText: "OVERDUE",
-        dateStr: "deadline 27 May"
-      },
-      {
-        id: "mock-2",
-        color: "yellow",
-        title: "Upload post-meeting scorecard — Morgan Environmental",
-        dealRef: "ACP-CFS-002",
-        assignee: "CHANTE",
-        statusText: "DUE TODAY",
-        dateStr: "deadline today"
-      },
-      {
-        id: "mock-3",
-        color: "blue",
-        title: "Reply to Lee Coutanche re: MEL lender submission",
-        dealRef: "LENDER",
-        assignee: "AYO",
-        statusText: "DUE TODAY",
-        dateStr: "deadline today"
-      },
-      {
-        id: "mock-4",
-        color: "green",
-        title: "Financial model review — Clear Water v3",
-        dealRef: "ACP-CFS-001",
-        assignee: "DAMI",
-        statusText: "DUE TODAY",
-        dateStr: "deadline today"
-      }
-    ];
-
-    // Fill up to 4 items
-    let index = 0;
-    while (list.length < 4 && index < mockActions.length) {
-      const mock = mockActions[index++];
-      if (!list.some(item => item.title.includes(mock.title.split(" — ")[1] || ""))) {
-        list.push(mock);
-      }
-    }
-
-    return list.slice(0, 4);
-  }, [filteredDeals]);
-
-  // Dynamic Recent Activity Log
-  const activityList = useMemo(() => {
-    if (activityEvents && activityEvents.length > 0) {
-      return activityEvents.slice(0, 4).map((e) => {
-        let color: "green" | "blue" | "yellow" | "red" = "blue";
-        if (e.color === "emerald") color = "green";
-        else if (e.color === "amber") color = "yellow";
-        else if (e.color === "red") color = "red";
-        else if (e.color === "bronze" || e.color === "purple") color = "yellow";
-
-        const titleText = e.companyName
-          ? `${cleanAirtableMentions(e.title)} — ${cleanCompanyName(e.companyName)}`
-          : cleanAirtableMentions(e.title);
-
-        return {
-          id: e.id,
-          color,
-          title: e.detail ? `${titleText} • ${e.detail}` : titleText,
-          dateStr: e.timestamp
-            ? new Date(e.timestamp).toLocaleDateString("en-GB", { day: "numeric", month: "short" })
-            : "Just now",
-          author: e.changedBy || "System"
-        };
-      });
-    }
-
-    // Fallback if no real activities are loaded yet
-    return [
-      {
-        id: "act-mock-1",
-        color: "green" as const,
-        title: "Scorecard updated — Morgan Environmental • 38/50 • Progress to IC",
-        dateStr: "22 May 2026",
-        author: "Auto via Claude + Make.com"
-      },
-      {
-        id: "act-mock-2",
-        color: "blue" as const,
-        title: "Pre-call brief generated — Clear Water Cleaning • Seller call booked",
-        dateStr: "21 May 2026",
-        author: "Ayo"
-      },
-      {
-        id: "act-mock-3",
-        color: "yellow" as const,
-        title: "EV override required — Master Air Cool • 7.8x EV (Amber threshold breached)",
-        dateStr: "20 May 2026",
-        author: "System flag - awaiting Ayo written sign-off"
-      },
-      {
-        id: "act-mock-4",
-        color: "red" as const,
-        title: "Deal killed — Elec Training Ltd • High-risk assessment • diligence required pre-engagement",
-        dateStr: "18 May 2026",
-        author: "Ayo"
-      }
-    ];
-  }, [activityEvents]);
+  }, []);
 
   // Handle New Deal Submission
   const handleCreateDeal = async (e: React.FormEvent) => {
@@ -486,14 +139,13 @@ export function DashboardPage() {
 
     try {
       await createAdminDeal({
-        dealName: newDealName,
-        acpRefNo: newDealRef || undefined,
+        dealName: newDealName.trim(),
+        acpRefNo: newDealRef.trim() || undefined,
         stage: newDealStage,
-        nextAction: newDealNextAction || undefined,
+        nextAction: newDealNextAction.trim() || undefined,
         nextActionDate: newDealNextActionDate || undefined
       });
 
-      // Clear form & close
       setNewDealName("");
       setNewDealRef("");
       setNewDealStage("Intro");
@@ -501,7 +153,6 @@ export function DashboardPage() {
       setNewDealNextActionDate("");
       setIsModalOpen(false);
       
-      // Trigger reload
       setRefreshTrigger(prev => prev + 1);
       refreshPipeline();
     } catch (err: any) {
@@ -510,6 +161,11 @@ export function DashboardPage() {
       setIsSubmittingDeal(false);
     }
   };
+
+  const activeWorkflowsProcessingCount = useMemo(() => {
+    if (!stats || !stats.activeWorkflows) return 0;
+    return stats.activeWorkflows.filter((w: any) => w.status === "processing").length;
+  }, [stats]);
 
   return (
     <div className="space-y-8 animate-fade-in-up">
@@ -522,18 +178,23 @@ export function DashboardPage() {
           <h1 className="font-heading text-2xl font-bold text-white uppercase tracking-tight leading-none select-none">
             Command Centre
           </h1>
-          <div className="flex flex-wrap items-center gap-2.5 mt-2">
+          <div className="flex flex-wrap items-center gap-2.5 mt-2 select-none">
             <span className="text-[10px] font-semibold text-slate-500">{currentDateString}</span>
             <span className="text-slate-650">·</span>
-            <span className="text-[10px] font-semibold text-slate-500">{pendingActionsCount} actions pending</span>
-            {overdueCount > 0 && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-rose-500/5 border border-rose-500/10 px-2.5 py-0.5 text-[9px] font-semibold text-rose-400 select-none">
-                <AlertTriangle className="h-2.5 w-2.5" />
-                {overdueCount} overdue
-              </span>
+            <span className="text-[10px] font-semibold text-slate-500">
+              {stats?.pendingActionsCount ?? 0} actions pending
+            </span>
+            {stats && stats.blockedDealsCount > 0 && (
+              <>
+                <span className="text-slate-650">·</span>
+                <span className="inline-flex items-center gap-1 rounded-full bg-rose-500/5 border border-rose-500/10 px-2.5 py-0.5 text-[9px] font-semibold text-rose-400">
+                  <AlertTriangle className="h-2.5 w-2.5" />
+                  {stats.blockedDealsCount} blockers
+                </span>
+              </>
             )}
-            <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/5 border border-blue-500/10 px-2.5 py-0.5 text-[9px] font-semibold text-blue-400 select-none">
-              {activeDeals.length} live
+            <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/5 border border-blue-500/10 px-2.5 py-0.5 text-[9px] font-semibold text-blue-400">
+              {stats?.activePipelineCount ?? 0} live
             </span>
           </div>
         </div>
@@ -554,14 +215,6 @@ export function DashboardPage() {
           </div>
 
           <button
-            onClick={handleExportCSV}
-            className="inline-flex h-8 items-center gap-1.5 rounded-xl border border-white/[0.02] bg-white/[0.02] hover:bg-white/[0.05] px-3.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-white transition cursor-pointer select-none"
-          >
-            <LineChart className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Export CSV</span>
-          </button>
-
-          <button
             onClick={() => setIsModalOpen(true)}
             className="inline-flex h-8 items-center gap-1.5 rounded-xl bg-[#C6A66B] hover:bg-[#b5904a] text-slate-950 px-3.5 text-[10px] font-bold uppercase tracking-wider transition cursor-pointer shadow-sm select-none"
           >
@@ -571,18 +224,19 @@ export function DashboardPage() {
         </div>
       </div>
 
-      {isLoading && <LoadingState variant="cards" label="Loading Command Centre" />}
+      {isLoading && <LoadingState variant="cards" label="Hydrating Command Centre Telemetry" />}
 
       {error && (
-        <div className="rounded-xl border border-rose-500/10 bg-rose-500/5 p-4 flex items-center gap-3 text-xs font-semibold text-rose-455">
+        <div className="rounded-xl border border-rose-500/10 bg-rose-500/5 p-4 flex items-center gap-3 text-xs font-semibold text-rose-400">
           <AlertTriangle className="h-4 w-4 shrink-0" />
           {error}
         </div>
       )}
 
-        <div className="space-y-12">
+      {!isLoading && !error && stats && (
+        <div className="space-y-10">
           {unreadMessagesCount > 0 && (
-            <div className="rounded-2xl border border-rose-500/10 bg-rose-500/5 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-fade-in-up shadow-glow-rose/5">
+            <div className="rounded-2xl border border-rose-500/10 bg-rose-500/5 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-fade-in-up shadow-glow-rose/5 select-none">
               <div className="flex items-center gap-3">
                 <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-rose-500/5 border border-rose-500/15 text-rose-400 shadow-sm animate-pulse">
                   <AlertTriangle className="h-4.5 w-4.5" />
@@ -601,149 +255,309 @@ export function DashboardPage() {
             </div>
           )}
 
-          {/* 4 Summary metric cards */}
+          {/* Row 1 — Operational Telemetry */}
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             <StatCard
               label="Active Pipeline"
-              value={activeDeals.length}
-              subLabel={`${imReviewCount} in IM Review`}
+              value={stats.activePipelineCount}
+              subLabel={`Inbound: ${stats.stageDistribution.inbound} · DD: ${stats.stageDistribution.dueDiligence}`}
               icon={<Kanban className="h-4 w-4" />}
               tone="default"
               to="/deals"
             />
             <StatCard
               label="Pending Actions"
-              value={pendingActionsCount}
-              subLabel={overdueCount > 0 ? `${overdueCount} overdue` : "All on track"}
+              value={stats.pendingActionsCount}
+              subLabel="Milestones scheduled"
               icon={<Clock className="h-4 w-4" />}
-              tone={overdueCount > 0 ? "rose" : "bronze"}
+              tone="bronze"
               to="/deals"
             />
             <StatCard
-              label="Portfolio Health"
-              value={portfolioHealthIndex !== null ? `${portfolioHealthIndex}%` : "85%"}
-              subLabel="Overall portfolio health index"
-              icon={<TrendingUp className="h-4 w-4" />}
-              tone="default"
-              to="/admin/portco"
+              label="Blocked Deals"
+              value={stats.blockedDealsCount}
+              subLabel="Critical bottlenecks detected"
+              icon={<AlertTriangle className="h-4 w-4" />}
+              tone={stats.blockedDealsCount > 0 ? "rose" : "emerald"}
             />
             <StatCard
-              label="Active Alerts"
-              value={activeCriticalAlertsCount + activeMediumAlertsCount}
-              subLabel={`${activeCriticalAlertsCount} critical · ${activeMediumAlertsCount} medium`}
-              icon={<AlertTriangle className="h-4 w-4" />}
-              tone={activeCriticalAlertsCount + activeMediumAlertsCount > 0 ? "rose" : "emerald"}
-              to="/admin/portco"
+              label="Active AI Workflows"
+              value={activeWorkflowsProcessingCount}
+              subLabel="Crawler & parsing engines"
+              icon={<Database className="h-4 w-4" />}
+              tone={activeWorkflowsProcessingCount > 0 ? "blue" : "default"}
             />
           </div>
 
-          {/* Asymmetric Two-Column Layout */}
-          <div className="grid gap-8 lg:grid-cols-[1.9fr_1.1fr]">
-            {/* Left Column: Core Operations (Actions & Activity) */}
+          {/* Asymmetric Command Grid */}
+          <div className="grid gap-8 lg:grid-cols-[1.8fr_1.2fr]">
+            {/* Left Column — Command Layer */}
             <div className="space-y-8">
-              {/* Actions Due Today Card */}
+              
+              {/* Critical Blockers Queue */}
+              <div className="rounded-2xl p-6 premium-card card-sheen">
+                <div className="flex items-center justify-between border-b border-white/[0.02] pb-4 mb-4 select-none">
+                  <SectionHeader>Critical Blockers Queue</SectionHeader>
+                  <span className="text-[10px] font-mono text-slate-500 font-bold uppercase tracking-wider">
+                    {stats.blockedDealsCount} exceptions
+                  </span>
+                </div>
+
+                <div className="divide-y divide-white/[0.02]">
+                  {stats.blockersQueue && stats.blockersQueue.map((blocker: any) => (
+                    <div key={blocker.id} className="py-4 flex items-start gap-4 first:pt-1">
+                      {/* Urgency Badge */}
+                      <span className={cx(
+                        "inline-flex shrink-0 items-center justify-center rounded px-2 py-0.5 text-[8.5px] font-bold font-mono tracking-wider border select-none w-28 text-center",
+                        blocker.type === "MISSING ABL" ? "bg-rose-500/5 border-rose-500/10 text-rose-400" :
+                        blocker.type === "WORKFLOW FAILED" ? "bg-rose-500/5 border-rose-500/10 text-rose-455" :
+                        "bg-amber-500/5 border-amber-500/10 text-amber-400"
+                      )}>
+                        {blocker.type}
+                      </span>
+
+                      {/* Detail block */}
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <Link 
+                          to={blocker.link}
+                          className="block text-xs font-semibold text-white hover:text-[#C6A66B] transition-colors leading-tight truncate"
+                        >
+                          {blocker.title}
+                        </Link>
+                        <p className="text-[10px] text-slate-500 font-medium leading-relaxed">
+                          {blocker.details}
+                        </p>
+                      </div>
+
+                      {/* Deal Context badge */}
+                      <div className="shrink-0 text-right select-none">
+                        <p className="text-[10.5px] font-semibold text-slate-350 leading-tight">
+                          {blocker.companyName}
+                        </p>
+                        <p className="text-[9px] font-mono text-slate-650 mt-0.5">
+                          {blocker.dealRef}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+
+                  {(!stats.blockersQueue || stats.blockersQueue.length === 0) && (
+                    <div className="flex flex-col items-center justify-center py-10 text-center space-y-3 select-none">
+                      <CheckCircle2 className="h-8 w-8 text-emerald-500/90" />
+                      <p className="text-xs font-semibold text-white uppercase tracking-wider">All systems progressing normally</p>
+                      <p className="text-[10px] text-slate-500 max-w-sm leading-relaxed">
+                        No active blockers, SLA breaches, or document exceptions detected for this view.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Active AI Workflow Monitor */}
+              <div className="rounded-2xl p-6 premium-card card-sheen">
+                <div className="flex items-center justify-between border-b border-white/[0.02] pb-4 mb-4 select-none">
+                  <SectionHeader>Active AI Workflow Monitor</SectionHeader>
+                  <span className="inline-flex items-center gap-1 rounded bg-blue-500/5 border border-blue-500/10 px-2 py-0.5 text-[9px] font-mono font-bold text-blue-400 animate-pulse">
+                    {activeWorkflowsProcessingCount} active
+                  </span>
+                </div>
+
+                <div className="divide-y divide-white/[0.02]">
+                  {stats.activeWorkflows && stats.activeWorkflows.map((work: any) => (
+                    <div key={work.id} className="py-3.5 flex items-center justify-between gap-4 first:pt-1">
+                      <div className="flex items-center gap-3 min-w-0">
+                        {/* Status Icon */}
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-white/[0.015] border border-white/[0.02] text-slate-400">
+                          {work.type === "OSINT Crawl" ? <Database className="h-4 w-4" /> :
+                           work.type === "Financial Analysis" ? <LineChart className="h-4 w-4" /> :
+                           work.type === "Document Parsing" ? <FileText className="h-4 w-4" /> :
+                           <MessageSquare className="h-4 w-4" />}
+                        </div>
+
+                        {/* Status detail */}
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-xs font-semibold text-white leading-none">
+                              {work.type}
+                            </span>
+                            <span className="text-slate-650 select-none">•</span>
+                            <span className={cx(
+                              "text-[10px] font-semibold leading-none capitalize",
+                              work.status === "processing" ? "text-blue-400" : "text-rose-455 font-bold"
+                            )}>
+                              {work.status === "processing" ? "Running" : "Failed"}
+                            </span>
+                            {work.status === "processing" && (
+                              <span className="relative flex h-1.5 w-1.5">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-blue-500"></span>
+                              </span>
+                            )}
+                          </div>
+                          
+                          <p className="mt-1.5 text-[10px] text-slate-400 font-medium leading-relaxed truncate">
+                            {work.statusText}
+                            {work.error && <span className="text-rose-500"> — {work.error}</span>}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Context link */}
+                      <div className="flex items-center gap-3 shrink-0 select-none">
+                        <div className="text-right">
+                          <p className="text-[10px] font-semibold text-slate-300 leading-none">
+                            {work.companyName}
+                          </p>
+                          <p className="text-[9px] font-mono text-slate-550 mt-1">
+                            {work.dealRef}
+                          </p>
+                        </div>
+                        
+                        <Link 
+                          to={work.link}
+                          className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/[0.02] bg-white/[0.015] hover:bg-white/[0.03] text-slate-400 hover:text-white transition"
+                          title="Open affected tab"
+                        >
+                          <ArrowRight className="h-3.5 w-3.5" />
+                        </Link>
+                      </div>
+                    </div>
+                  ))}
+
+                  {(!stats.activeWorkflows || stats.activeWorkflows.length === 0) && (
+                    <div className="flex flex-col items-center justify-center py-10 text-center space-y-3 select-none">
+                      <Database className="h-8 w-8 text-slate-600" />
+                      <p className="text-xs font-semibold text-white uppercase tracking-wider">No active workflows</p>
+                      <p className="text-[10px] text-slate-500 max-w-sm leading-relaxed">
+                        All crawler, parsing, and AI analysis jobs have completed.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+            </div>
+
+            {/* Right Column — Execution & Pipeline */}
+            <div className="space-y-8">
+              
+              {/* Actions Due Today */}
               <div className="rounded-2xl p-6 premium-card card-sheen">
                 <SectionHeader>Actions Due Today</SectionHeader>
-                <div className="mt-4 divide-y divide-white/[0.03] font-sans">
-                  {actionsList.map(act => (
-                    <div key={act.id} className="py-4 flex items-start gap-4 first:pt-1">
-                      {/* Status icon */}
+                
+                <div className="mt-4 divide-y divide-white/[0.02] font-sans">
+                  {stats.actionsDueToday && stats.actionsDueToday.map((act: any) => (
+                    <Link 
+                      key={act.id} 
+                      to={act.link}
+                      className="py-4 flex items-start gap-4 first:pt-1 group/act block"
+                    >
+                      {/* Urgency Badge */}
                       <div className={cx(
-                        "mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border",
+                        "mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border transition",
                         act.color === "red"
-                          ? "bg-rose-500/5 border-rose-500/10 text-rose-400"
-                          : act.color === "yellow"
-                          ? "bg-amber-500/5 border-amber-500/10 text-amber-400"
-                          : act.color === "blue"
-                          ? "bg-blue-500/5 border-blue-500/10 text-blue-400"
-                          : "bg-emerald-500/5 border-emerald-500/10 text-emerald-400"
+                          ? "bg-rose-500/5 border-rose-500/10 text-rose-400 group-hover/act:bg-rose-500/10"
+                          : "bg-amber-500/5 border-amber-500/10 text-amber-400 group-hover/act:bg-amber-500/10"
                       )}>
-                        {act.color === "red" ? (
-                          <AlertTriangle className="h-3.5 w-3.5" />
-                        ) : act.color === "yellow" ? (
-                          <Clock className="h-3.5 w-3.5" />
-                        ) : act.color === "blue" ? (
-                          <MessageSquare className="h-3.5 w-3.5" />
-                        ) : (
-                          <CheckCircle2 className="h-3.5 w-3.5" />
-                        )}
+                        <Clock className="h-3.5 w-3.5" />
                       </div>
 
                       {/* Action Detail */}
                       <div className="min-w-0 flex-1">
-                        <p className="text-[11px] font-semibold text-white leading-tight">
+                        <p className="text-[11px] font-semibold text-white leading-tight group-hover/act:text-[#C6A66B] transition-colors truncate">
                           {act.title}
                         </p>
-                        <div className="mt-1 flex items-center gap-1.5 flex-wrap select-none">
-                          <span className="text-[9px] font-mono text-slate-500">{act.dealRef}</span>
+                        <div className="mt-1 flex items-center gap-1.5 flex-wrap select-none text-[9px]">
+                          <span className="font-mono text-slate-500">{act.dealRef}</span>
                           <span className="text-slate-700">·</span>
-                          <span className="text-[9px] font-semibold text-slate-400">{act.assignee}</span>
+                          <span className="font-semibold text-slate-400">{act.assignee}</span>
                           <span className="text-slate-700">·</span>
                           <span className={cx(
-                            "text-[9px] font-bold uppercase tracking-wider",
-                            act.statusText === "OVERDUE" ? "text-rose-455" :
-                            act.statusText === "DUE TODAY" ? "text-amber-400" :
-                            "text-slate-500"
-                          )}>{act.statusText}</span>
+                            "font-bold uppercase tracking-wider",
+                            act.statusText === "OVERDUE" ? "text-rose-455" : "text-amber-400"
+                          )}>
+                            {act.statusText}
+                          </span>
                         </div>
                       </div>
 
-                      <span className="shrink-0 text-[10px] font-semibold text-slate-500 whitespace-nowrap select-none">
+                      {/* Deadline label */}
+                      <span className="shrink-0 text-[10px] font-semibold text-slate-500 whitespace-nowrap select-none group-hover/act:text-slate-400 transition-colors">
                         {act.dateStr}
                       </span>
-                    </div>
+                    </Link>
                   ))}
+
+                  {(!stats.actionsDueToday || stats.actionsDueToday.length === 0) && (
+                    <div className="flex flex-col items-center justify-center py-8 text-center space-y-2 select-none">
+                      <CheckCircle2 className="h-6 w-6 text-slate-650" />
+                      <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">No actions due today</p>
+                      <p className="text-[10px] text-slate-605">
+                        All scheduled milestones and tasks are up to date.
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
 
               {/* Recent Activity Log */}
               <div className="rounded-2xl p-6 premium-card card-sheen">
                 <SectionHeader>Recent Activity</SectionHeader>
-                <div className="mt-4 divide-y divide-white/[0.03] font-sans">
-                  {activityList.map(act => (
-                    <div key={act.id} className="py-4 flex items-start gap-4 first:pt-1">
-                      {/* Colored left border accent via icon */}
+                
+                <div className="mt-4 divide-y divide-white/[0.02] font-sans">
+                  {stats.recentActivity && stats.recentActivity.map((act: any) => (
+                    <Link 
+                      key={act.id} 
+                      to={act.link}
+                      className="py-4 flex items-start gap-4 first:pt-1 group/act block"
+                    >
+                      {/* Left accent accent */}
                       <div className={cx(
                         "mt-0.5 w-0.5 h-8 self-stretch shrink-0 rounded-full",
-                        act.color === "green" ? "bg-emerald-400/50" :
+                        act.color === "emerald" ? "bg-emerald-400/50" :
                         act.color === "blue" ? "bg-blue-400/50" :
-                        act.color === "yellow" ? "bg-amber-400/50" :
+                        act.color === "bronze" ? "bg-[#C6A66B]/50" :
                         "bg-rose-500/50"
                       )} />
 
                       <div className="min-w-0 flex-1">
-                        <p className="text-[11px] font-semibold text-white/90 leading-snug">
+                        <p className="text-[11px] font-semibold text-white/90 leading-snug group-hover/act:text-[#C6A66B] transition-colors">
                           {act.title}
+                          {act.companyName && <span className="text-slate-400"> — {act.companyName}</span>}
                         </p>
-                        <p className="mt-1 text-[10px] font-medium text-slate-500 select-none">
-                          {act.dateStr}
-                          {act.author && <> · <span className="text-slate-600">{act.author}</span></>}
+                        <p className="mt-1 text-[9.5px] font-medium text-slate-500 select-none">
+                          {new Date(act.timestamp).toLocaleDateString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                          {act.changedBy && <> · <span className="text-slate-600">{act.changedBy}</span></>}
                         </p>
                       </div>
-                    </div>
+                    </Link>
                   ))}
+
+                  {(!stats.recentActivity || stats.recentActivity.length === 0) && (
+                    <div className="py-6 text-center select-none">
+                      <p className="text-xs text-slate-500">No recent operational activity</p>
+                    </div>
+                  )}
                 </div>
               </div>
-            </div>
 
-            {/* Right Column: Pipeline Telemetry (Sidebar style) */}
-            <div className="space-y-8">
-              {/* Pipeline by Stage Card */}
+              {/* Pipeline by Stage */}
               <div className="rounded-2xl p-6 premium-card card-sheen">
                 <SectionHeader>Pipeline By Stage</SectionHeader>
+                
                 <div className="mt-5 space-y-4 font-sans">
                   {[
-                    { label: "Inbound", count: stageCounts.inbound, color: "bg-blue-400/70" },
-                    { label: "Seller Call", count: stageCounts.sellerCall, color: "bg-indigo-400/70" },
-                    { label: "IM Review", count: stageCounts.imReview, color: "bg-[#C6A66B]/80" },
-                    { label: "Due Diligence", count: stageCounts.dueDiligence, color: "bg-emerald-400/70" },
+                    { label: "Inbound", count: stats.stageDistribution.inbound, color: "bg-blue-400/70" },
+                    { label: "Seller Call", count: stats.stageDistribution.sellerCall, color: "bg-indigo-400/70" },
+                    { label: "IM Review", count: stats.stageDistribution.imReview, color: "bg-[#C6A66B]/80" },
+                    { label: "Due Diligence", count: stats.stageDistribution.dueDiligence, color: "bg-emerald-400/70" },
                   ].map(({ label, count, color }) => {
-                    const pct = Math.round((count / Math.max(activeDeals.length, 1)) * 100);
+                    const pct = Math.round((count / Math.max(stats.activePipelineCount, 1)) * 100);
                     return (
                       <div key={label} className="space-y-2">
                         <div className="flex items-center justify-between">
-                          <span className="text-[11px] font-semibold text-slate-300">{label}</span>
-                          <div className="flex items-center gap-2">
+                          <span className="text-[11px] font-semibold text-slate-350">{label}</span>
+                          <div className="flex items-center gap-2 select-none">
                             <span className="text-[10px] font-semibold text-slate-500">{pct}%</span>
                             <span className="text-xs font-semibold text-white w-4 text-right">{count}</span>
                           </div>
@@ -759,9 +573,11 @@ export function DashboardPage() {
                   })}
                 </div>
               </div>
+
             </div>
           </div>
         </div>
+      )}
 
       {/* New Deal Creation Modal */}
       <Modal
@@ -857,5 +673,3 @@ export function DashboardPage() {
     </div>
   );
 }
-
-

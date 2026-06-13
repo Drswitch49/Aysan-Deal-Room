@@ -686,4 +686,18 @@ export async function triggerPortfolioAnalysis() {
   return response.json();
 }
 
+export async function fetchDashboardStats(owner: string) {
+  const response = await fetch(`/api/admin/dashboard-stats?owner=${encodeURIComponent(owner)}`, {
+    headers: getAdminHeaders()
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to load dashboard metrics");
+  }
+
+  return response.json();
+}
+
+
 
