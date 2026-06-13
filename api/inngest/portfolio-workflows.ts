@@ -25,7 +25,9 @@ export async function runPortfolioAnalysisPipeline(step: any, referenceDateStr?:
   await step.run("set-processing-status", async () => {
     const fs = await import("fs");
     const path = await import("path");
-    const statusFilePath = path.resolve(process.cwd(), "scratch", "portfolio_status.json");
+    const statusFilePath = process.env.VERCEL === "1"
+      ? path.resolve("/tmp", "portfolio_status.json")
+      : path.resolve(process.cwd(), "scratch", "portfolio_status.json");
     try {
       fs.writeFileSync(
         statusFilePath,
@@ -150,7 +152,9 @@ export async function runPortfolioAnalysisPipeline(step: any, referenceDateStr?:
   await step.run("set-completed-status", async () => {
     const fs = await import("fs");
     const path = await import("path");
-    const statusFilePath = path.resolve(process.cwd(), "scratch", "portfolio_status.json");
+    const statusFilePath = process.env.VERCEL === "1"
+      ? path.resolve("/tmp", "portfolio_status.json")
+      : path.resolve(process.cwd(), "scratch", "portfolio_status.json");
     try {
       fs.writeFileSync(
         statusFilePath,

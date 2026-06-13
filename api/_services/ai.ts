@@ -22,31 +22,30 @@ export async function analyzeTranscriptWithAI(transcriptText: string): Promise<A
   }
 
   const systemPrompt = `You are a senior investment associate at a private equity and acquisition firm.
-Analyze the provided meeting transcript of a discovery call or partnership meeting between our deal team and a target company.
-Identify key deal factors.
+Analyze the provided meeting transcript of a discovery call/partnership meeting.
+Generate a highly concise, partner-ready analysis. Restrict explanations and narratives to key high-signal facts only.
 
-You MUST respond ONLY with a valid JSON object. Do not output any preamble, markdown formatting block fences (like \`\`\`json), or conversational filler. The output must be pure, parsable JSON matching this schema exactly:
+You MUST respond ONLY with a valid JSON object. Do not output any preamble, markdown formatting block fences, or conversational filler. The output must be pure, parsable JSON matching this schema exactly:
 
 {
-  "summary": "A concise executive summary paragraph of the meeting, summarizing the deal context, business health, and meeting outcome.",
+  "summary": "A single, highly dense executive summary paragraph (under 3 sentences) covering deal context, viability, and core meeting outcome.",
   "discussionPoints": [
-    "Discussion point 1",
-    "Discussion point 2"
+    "Discussion point (max 3-4 bullets, each under 15 words)"
   ],
   "actionItems": [
-    "Action item 1 (e.g. send NDA, request 3-yr accounts)"
+    "Action item (max 3-4 bullets, each under 10 words)"
   ],
   "risks": [
-    "Risk 1 (e.g. high customer concentration, key person dependency)"
+    "Critical risk (max 3-4 bullets, each under 12 words)"
   ],
   "opportunities": [
-    "Opportunity 1 (e.g. low-hanging cross-selling synergy, market expansion)"
+    "Core opportunity (max 3-4 bullets, each under 12 words)"
   ],
   "sentiment": "Positive" or "Neutral" or "Negative",
   "dealScore": 75
 }
 
-Note: The "dealScore" must be a number between 0 and 100 representing your qualitative assessment of the opportunity based on the transcript indicators (financial stability, management capability, growth prospects, scalability vs risks).`;
+Note: The "dealScore" must be a number between 0 and 100 representing your qualitative assessment of the opportunity based on transcript indicators.`;
 
   const response = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
@@ -106,9 +105,20 @@ Note: The "dealScore" must be a number between 0 and 100 representing your quali
 }
 
 export interface PrecallBriefResult {
+  // Redesigned structured fields
+  overview?: string;
+  financials?: string;
+  rationale?: string;
+  risks?: string;
+  openingTone?: string;
+  openingThesis?: string;
+  openingIcebreaker?: string;
+  openingSensitivities?: string;
+  questionsToAsk: string[];
+
+  // Legacy fallback compatibility
   businessProfile: string;
   openingAngle: string;
-  questionsToAsk: string[];
 }
 
 export async function generatePrecallBriefWithAI(
@@ -126,18 +136,24 @@ export async function generatePrecallBriefWithAI(
     throw new Error("ANTHROPIC_API_KEY environment variable is not configured.");
   }
 
-  const systemPrompt = `You are a senior investment associate at Aysan Capital Partners.
-Your job is to prepare a Pre-call Intelligence Brief for our deal team before they jump on a call with a target company's owner/broker.
+  const systemPrompt = `You are a senior investment associate at Aysan Capital Partners (ACP).
+Prepare a Pre-call Intelligence Brief.
+Strive for extreme brevity, clarity, and partner-grade signal density. Avoid long essays, filler language, and redundant observations.
+Use structured, concise bullet points or short, single-sentence insights.
 
 You MUST respond ONLY with a valid JSON object. Do not output any preamble, markdown formatting block fences (like \`\`\`json), or conversational filler. The output must be pure, parsable JSON matching this schema exactly:
 
 {
-  "businessProfile": "A concise paragraph summarizing the company, sector, location, financials (Turnover, EBITDA, Asking Price, EV multiple if available), and transition risks (e.g. TUPE or key contracts). Make it specific to the deal details provided.",
-  "openingAngle": "Actionable advice on how Ayo (lead) and the team should open the call and position our approach (e.g., focus on legacy, trust, continuity, or deal structuring). Tailor it to the call type.",
+  "overview": "A very brief summary (under 2 sentences) of target business activities, core services, and market footprint.",
+  "financials": "Concise, high-yield bulleted analysis of key metrics (Turnover, EBITDA, Multiples, Asking Price) and multiple reasonableness.",
+  "rationale": "1-2 brief bullets outlining strategic alignment with ACP's investment thesis.",
+  "risks": "2-3 key transition/operational risks (owner dependency, lease terms, staff TUPE) in short bullets.",
+  "openingTone": "Call atmosphere guidance (1 sentence).",
+  "openingThesis": "Messaging angle highlighting continuity and execution (1-2 sentences).",
+  "openingIcebreaker": "Specific hook tailored to target (1 sentence).",
+  "openingSensitivities": "Actionable advice for sensitive transition topics (1-2 sentences).",
   "questionsToAsk": [
-    "Specific strategic question 1",
-    "Specific strategic question 2",
-    "Specific strategic question 3"
+    "3-4 diagnostic, high-impact questions on transition, client concentration, and deferred payment flexibility."
   ]
 }`;
 
@@ -166,7 +182,7 @@ ${params.pastedText ? `Additional Information Memorandum (IM) Text:\n\n${params.
     },
     body: JSON.stringify({
       model: "claude-sonnet-4-5-20250929",
-      max_tokens: 4000,
+      max_tokens: 8000,
       system: systemPrompt,
       messages: [
         {
@@ -195,11 +211,36 @@ ${params.pastedText ? `Additional Information Memorandum (IM) Text:\n\n${params.
       cleanJsonStr = cleanJsonStr.replace(/^```json\s*/i, "").replace(/```$/, "").trim();
     }
 
-    const parsed: PrecallBriefResult = JSON.parse(cleanJsonStr);
+    const parsed: any = JSON.parse(cleanJsonStr);
+    
+    // Construct fallbacks in case of older UI usage
+    const businessProfileFallback = [
+      parsed.overview ? `**EXECUTIVE OVERVIEW**\n${parsed.overview}` : "",
+      parsed.financials ? `**FINANCIAL PROFILE**\n${parsed.financials}` : "",
+      parsed.rationale ? `**STRATEGIC RATIONALE**\n${parsed.rationale}` : "",
+      parsed.risks ? `**OPERATIONAL & TRANSITION RISKS**\n${parsed.risks}` : ""
+    ].filter(Boolean).join("\n\n");
+
+    const openingAngleFallback = [
+      parsed.openingTone ? `**COMMUNICATION STYLE**\n${parsed.openingTone}` : "",
+      parsed.openingThesis ? `**ACQUISITION THESIS POSITIONING**\n${parsed.openingThesis}` : "",
+      parsed.openingIcebreaker ? `**HOOK / ICEBREAKER**\n${parsed.openingIcebreaker}` : "",
+      parsed.openingSensitivities ? `**OBSTACLE / SENSITIVITY MANAGEMENT**\n${parsed.openingSensitivities}` : ""
+    ].filter(Boolean).join("\n\n");
+
     return {
-      businessProfile: parsed.businessProfile || "",
-      openingAngle: parsed.openingAngle || "",
-      questionsToAsk: Array.isArray(parsed.questionsToAsk) ? parsed.questionsToAsk : []
+      overview: parsed.overview || "",
+      financials: parsed.financials || "",
+      rationale: parsed.rationale || "",
+      risks: parsed.risks || "",
+      openingTone: parsed.openingTone || "",
+      openingThesis: parsed.openingThesis || "",
+      openingIcebreaker: parsed.openingIcebreaker || "",
+      openingSensitivities: parsed.openingSensitivities || "",
+      questionsToAsk: Array.isArray(parsed.questionsToAsk) ? parsed.questionsToAsk : [],
+      
+      businessProfile: parsed.businessProfile || businessProfileFallback,
+      openingAngle: parsed.openingAngle || openingAngleFallback
     };
   } catch (err: any) {
     console.error("[Claude Parsing Error for Brief] Raw response:", rawContent);
@@ -285,6 +326,14 @@ export interface PostcallMetricScore {
 }
 
 export interface PostcallBriefResult {
+  // Redesigned structured fields
+  strategicAlignment?: string;
+  financialReality?: string;
+  redFlags?: string;
+  dealStructure?: string;
+  nextSteps?: string;
+
+  // Legacy fallback compatibility
   summary: string;
   scores: Record<string, PostcallMetricScore>;
   followUpEmail: string;
@@ -305,22 +354,23 @@ export async function generatePostcallBriefAndScoreWithAI(
   const scoringInstructions = getPromptInstructions(schemaId);
 
   const systemPrompt = `You are a senior investment director at Aysan Capital Partners (ACP).
-Analyze the provided meeting notes or transcript from a discovery call with a target company's owner/broker.
-Your task is to:
-1. Write a professional, concise executive post-call summary paragraph (under 4 sentences) outlining key call outcomes, risks, and next steps.
-2. Score the opportunity across the defined metrics.
-3. Draft a professional, warm, yet direct follow-up email to the broker/seller summarizing the call, confirming interest, and requesting typical next-step documents (e.g. 3-year accounts, staff structures, client concentration details, lease agreements).
+Analyze the discovery call notes/transcript.
+Ensure all outputs are extremely brief, direct, structured as bullets or short comments, and focus purely on high-signal intelligence for fast executive comprehension.
 
 ${scoringInstructions}
 
 You MUST respond ONLY with a valid JSON object. Do not output any preamble, markdown formatting block fences (like \`\`\`json), or conversational filler. The output must be pure, parsable JSON matching this schema exactly:
 
 {
-  "summary": "Executive summary paragraph...",
+  "strategicAlignment": "1-2 sentence executive summary of call outcomes and alignment with Aysan's investment thesis.",
+  "financialReality": "2-3 short, structured bullets detailing true financial metrics, normalized EBITDA, multiple expectations, and valuation sanity.",
+  "redFlags": "2-3 critical operational/transition risks in short bullets.",
+  "dealStructure": "2-3 short bullets detailing seller flexibility regarding deferred payment, VLN, earn-out, or rollover.",
+  "nextSteps": "2-3 concrete validation steps and information requests before LOI progression.",
   "scores": {
-    ${schema.metrics.map(m => `"${m.id}": { "score": 8, "explanation": "..." }`).join(",\n    ")}
+    ${schema.metrics.map(m => `"${m.id}": { "score": 8, "explanation": "1 concise sentence explanation." }`).join(",\n    ")}
   },
-  "followUpEmail": "Subject: Next Steps - [Company Name]...\\n\\nDear [Name],..."
+  "followUpEmail": "Subject: Next Steps - [Company Name]...\\n\\nDear [Name],\\n\\n[A highly professional, brief, direct follow-up email confirming interest and requesting key documents (accounts, staff structure, client concentration). Keep it under 100 words.]"
 }`;
 
   const userContent = `Here is the target company information:
@@ -346,7 +396,7 @@ Perform your analysis and return the JSON object.`;
     },
     body: JSON.stringify({
       model: "claude-sonnet-4-5-20250929",
-      max_tokens: 4000,
+      max_tokens: 8000,
       system: systemPrompt,
       messages: [
         {
@@ -375,7 +425,7 @@ Perform your analysis and return the JSON object.`;
       cleanJsonStr = cleanJsonStr.replace(/^```json\s*/i, "").replace(/```$/, "").trim();
     }
 
-    const parsed: PostcallBriefResult = JSON.parse(cleanJsonStr);
+    const parsed: any = JSON.parse(cleanJsonStr);
 
     // Validate the scores match the schema metrics
     const validatedScores: Record<string, PostcallMetricScore> = {};
@@ -387,8 +437,21 @@ Perform your analysis and return the JSON object.`;
       };
     }
 
+    const summaryFallback = [
+      parsed.strategicAlignment ? `**DEAL SUMMARY & STRATEGIC ALIGNMENT**\n${parsed.strategicAlignment}` : "",
+      parsed.financialReality ? `**FINANCIALS & VALUATION REALITY**\n${parsed.financialReality}` : "",
+      parsed.redFlags ? `**OPERATIONAL RED FLAGS & TRANSITION RISKS**\n${parsed.redFlags}` : "",
+      parsed.dealStructure ? `**PROPOSED DEAL STRUCTURE**\n${parsed.dealStructure}` : "",
+      parsed.nextSteps ? `**CRITICAL NEXT STEPS**\n${parsed.nextSteps}` : ""
+    ].filter(Boolean).join("\n\n");
+
     return {
-      summary: parsed.summary || "Discovery call complete. Key details analyzed.",
+      strategicAlignment: parsed.strategicAlignment || "",
+      financialReality: parsed.financialReality || "",
+      redFlags: parsed.redFlags || "",
+      dealStructure: parsed.dealStructure || "",
+      nextSteps: parsed.nextSteps || "",
+      summary: parsed.summary || summaryFallback,
       scores: validatedScores,
       followUpEmail: parsed.followUpEmail || "Dear team, the follow-up email draft is pending."
     };
@@ -410,17 +473,15 @@ export async function generatePortfolioBriefingWithAI(
   }
 
   const systemPrompt = `You are a senior portfolio monitoring director at Aysan Capital Partners.
-Your job is to provide an institutional-grade monthly/weekly portfolio intelligence briefing summarizing overall health and key risk areas across our portfolio companies.
-You are given aggregated health scores, active alerts, and recent metrics.
-Analyze this data and write a concise, professional briefing report (2-3 paragraphs) structured as follows:
-1. Executive Summary: The overall portfolio health index and general status. Highlight the number of active alerts and if there are any immediate concerns.
-2. Underperforming Assets: Specifically call out companies showing worrying signs (e.g. Clear Water Cleaning's revenue decline, DSCR contraction, or headcount drops).
-3. Recommended Action Items: Concrete steps for the operational team to take (e.g., requesting audit accounts, scheduling seller calls, or renegotiating leverage covenants).
+Provide an institutional portfolio intelligence briefing. Keep the entire briefing under 150 words total, structured strictly for fast reading:
+
+1. Executive Summary: 1 short sentence on overall health and alert counts.
+2. Underperforming Assets: 2-3 short bullets calling out specific stressed companies and their metrics (e.g., Clear Water DSCR, headcount drops).
+3. Recommended Actions: 2-3 concrete operational next steps in short bullets.
 
 CRITICAL RULE:
-- Do NOT invent metrics or scores.
-- Rely ONLY on the provided numbers and alerts.
-- Do NOT output preamble or conversational filler. Respond directly with the briefing text.`;
+- Do NOT invent metrics/scores. Rely ONLY on the provided numbers and alerts.
+- Do NOT output preamble, titles, or conversational filler. Respond directly with the briefing text.`;
 
   const userContent = `Here is the portfolio state:
 Health Scores:

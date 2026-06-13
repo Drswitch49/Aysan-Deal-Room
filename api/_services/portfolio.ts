@@ -101,19 +101,18 @@ async function generatePortfolioSummary(kpis: PortfolioKPIs): Promise<{
   const kpiText = JSON.stringify(kpis, null, 2);
 
   const systemPrompt = `You are a senior deal principal at Aysan Capital Partners (ACP).
-You are reviewing real-time operational KPIs from the deal pipeline.
-Generate a concise portfolio intelligence briefing.
+Review the operational KPIs from the pipeline and generate a concise briefing. Keep it under 100 words total.
 
 RULES:
 - Only reference the provided KPI data.
 - Be specific, not generic. Reference actual numbers.
-- Flag genuine risks based on the data (stalled deals, overdue actions, low coverage).
+- Flag genuine risks based on the data (stalled, overdue, low coverage).
 
 Respond ONLY with valid JSON:
 {
-  "summary": "2-3 paragraph operational briefing covering pipeline health, velocity, and notable trends",
-  "actionItems": ["Specific action 1 with deal counts or context", "Specific action 2"],
-  "riskAlerts": ["Risk based on data 1 (if any)"]
+  "summary": "1 short paragraph and key bullets under 100 words total highlighting pipeline health, velocity, and trends.",
+  "actionItems": ["Specific action 1 (max 2-3 items, each under 10 words)"],
+  "riskAlerts": ["Risk based on data 1 (max 1-2 items, each under 10 words)"]
 }`;
 
   try {

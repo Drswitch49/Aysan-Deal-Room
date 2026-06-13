@@ -62,7 +62,9 @@ export default async function handler(req: any, res: any) {
 
   // Handle Portfolio status file fallback
   if (table === "Portfolio_Health" && recordId === "status") {
-    const statusFilePath = path.resolve(process.cwd(), "scratch", "portfolio_status.json");
+    const statusFilePath = process.env.VERCEL === "1"
+      ? path.resolve("/tmp", "portfolio_status.json")
+      : path.resolve(process.cwd(), "scratch", "portfolio_status.json");
     if (fs.existsSync(statusFilePath)) {
       try {
         const raw = fs.readFileSync(statusFilePath, "utf-8");

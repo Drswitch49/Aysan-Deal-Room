@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback } from "react";
 import type { ReactNode } from "react";
 import {
   Building2, Database, LogOut, Menu, X,
-  LayoutDashboard, Kanban, Users, Settings, KeyRound, Activity
+  LayoutDashboard, Kanban, Users, Settings, KeyRound, Activity,
+  ChevronLeft, ChevronRight
 } from "lucide-react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import { cx } from "../../utils/cx";
@@ -47,6 +48,21 @@ export function AppLayout() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
   const [unreadMessages, setUnreadMessages] = useState<number>(0);
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("acp_sidebar_collapsed");
+      return saved === "true";
+    }
+    return false;
+  });
+
+  const toggleCollapse = useCallback(() => {
+    setIsCollapsed((prev) => {
+      const next = !prev;
+      localStorage.setItem("acp_sidebar_collapsed", String(next));
+      return next;
+    });
+  }, []);
 
   // Close mobile menu on route change
   useEffect(() => {
@@ -121,17 +137,52 @@ export function AppLayout() {
   }, []);
 
   return (
-    <div className="min-h-screen text-slate-100 lg:grid lg:grid-cols-[260px_minmax(0,1fr)] bg-acp-ink">
+    <div className="min-h-screen text-slate-100 lg:grid lg:grid-cols-[auto_minmax(0,1fr)] bg-acp-ink">
       {/* ── Desktop Sidebar ───────────────────────────────────────────── */}
-      <aside className="hidden h-screen sticky top-0 border-r border-white/[0.03] bg-gradient-to-b from-[#111419] via-[#0D1013] to-[#08090C] text-white lg:flex flex-col relative overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(198,166,107,0.05),transparent_45%)] pointer-events-none" />
-        <div className="flex flex-col h-full px-5 py-7 z-10 relative">
-          <BrandBlock />
+      <aside className={cx(
+        "hidden h-screen sticky top-0 border-r border-white/[0.03] bg-gradient-to-b from-[#111419] via-[#0D1013] to-[#08090C] text-white lg:flex flex-col relative overflow-hidden transition-all duration-300 ease-in-out shrink-0",
+        isCollapsed ? "w-[68px]" : "w-[260px]"
+      )}>
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(198,166,107,0.04),transparent_45%)] pointer-events-none" />
+        <div className={cx(
+          "flex flex-col h-full py-7 z-10 relative transition-all duration-300 ease-in-out",
+          isCollapsed ? "px-2" : "px-5"
+        )}>
+          {!isCollapsed ? (
+            <div className="flex items-center justify-between mb-5">
+              <BrandBlock isCollapsed={isCollapsed} />
+              <button
+                onClick={toggleCollapse}
+                className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/[0.08] bg-white/[0.02] text-slate-400 hover:text-white hover:bg-white/[0.06] hover:border-white/[0.15] transition cursor-pointer select-none"
+                title="Collapse Sidebar"
+                type="button"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-4 mb-5">
+              <BrandBlock isCollapsed={isCollapsed} />
+              <button
+                onClick={toggleCollapse}
+                className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/[0.08] bg-white/[0.02] text-slate-400 hover:text-white hover:bg-white/[0.06] hover:border-white/[0.15] transition cursor-pointer select-none"
+                title="Expand Sidebar"
+                type="button"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          )}
           <NavContent
             unreadMessages={unreadMessages}
             className="mt-6 flex-1 overflow-y-auto"
+            isCollapsed={isCollapsed}
           />
-          <UserFooter onLogout={handleLogout} onChangePassword={() => setIsChangePasswordOpen(true)} />
+          <UserFooter
+            onLogout={handleLogout}
+            onChangePassword={() => setIsChangePasswordOpen(true)}
+            isCollapsed={isCollapsed}
+          />
         </div>
       </aside>
 
@@ -246,7 +297,15 @@ function getBreadcrumb(pathname: string): string {
 }
 
 // ─── Brand Block ─────────────────────────────────────────────────────────────
-function BrandBlock({ compact = false }: { compact?: boolean }) {
+function BrandBlock({ compact = false, isCollapsed = false }: { compact?: boolean; isCollapsed?: boolean }) {
+  if (isCollapsed) {
+    return (
+      <Link to="/" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#D4AF37]/10 to-[#996515]/5 border border-[#C6A66B]/20 shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_0_8px_rgba(198,166,107,0.15)] mx-auto hover:opacity-90 transition">
+        <Building2 className="h-4.5 w-4.5 text-[#C6A66B]" aria-hidden="true" />
+      </Link>
+    );
+  }
+
   if (compact) {
     return (
       <Link to="/" className="flex min-w-0 items-center gap-2.5 hover:opacity-85 transition">
@@ -267,7 +326,7 @@ function BrandBlock({ compact = false }: { compact?: boolean }) {
 
   return (
     <Link to="/" className="block hover:opacity-85 transition select-none group">
-      <p className="text-[8.5px] font-bold uppercase tracking-[0.22em] text-slate-400 leading-none transition-colors duration-300 group-hover:text-slate-350">
+      <p className="text-[8.5px] font-bold uppercase tracking-[0.22em] text-slate-405 leading-none transition-colors duration-300 group-hover:text-slate-300">
         Aysan Capital Partners
       </p>
       <h1 className="font-heading text-[16px] font-black leading-none uppercase tracking-tight mt-2 bg-clip-text text-transparent bg-gradient-to-r from-white via-slate-100 to-slate-350">
@@ -286,27 +345,36 @@ function NavContent({
   unreadMessages,
   className = "",
   onNavigate,
+  isCollapsed = false,
 }: {
   unreadMessages: number;
   className?: string;
   onNavigate?: () => void;
+  isCollapsed?: boolean;
 }) {
   return (
-    <nav className={cx("space-y-6 pr-1 select-none", className)}>
+    <nav className={cx("space-y-5 pr-1 select-none", className)}>
       {NAV_SECTIONS.map((section) => (
         <div key={section.group} className="space-y-1">
-          <div className="flex items-center gap-2 px-3.5 mb-2.5">
-            <span className="h-1 w-1 rounded-full bg-[#C6A66B]/70 shadow-[0_0_8px_rgba(198,166,107,0.6)] animate-pulse-glow" />
-            <p className="text-[8.5px] font-bold uppercase tracking-[0.25em] text-slate-500">
-              {section.group}
-            </p>
-          </div>
+          {!isCollapsed ? (
+            <div className="flex items-center px-3.5 mb-2">
+              <p className="text-[8px] font-bold uppercase tracking-[0.15em] text-slate-500">
+                {section.group}
+              </p>
+            </div>
+          ) : (
+            <div className="h-px bg-white/[0.03] my-4 mx-2" />
+          )}
           {section.items.map((item) => {
             const badge =
               item.to === "/admin/lenders" && unreadMessages > 0 ? (
-                <span className="inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-gradient-to-r from-rose-500 to-red-600 px-1 text-[8px] font-extrabold text-white ml-auto shadow-[0_0_10px_rgba(239,68,68,0.4)] border border-rose-500/20">
-                  {unreadMessages}
-                </span>
+                isCollapsed ? (
+                  <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.7)]" />
+                ) : (
+                  <span className="inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-gradient-to-r from-rose-500 to-red-600 px-1 text-[8px] font-extrabold text-white ml-auto border border-rose-500/20">
+                    {unreadMessages}
+                  </span>
+                )
               ) : null;
 
             return (
@@ -318,6 +386,7 @@ function NavContent({
                 end={"end" in item ? (item as any).end : false}
                 onClick={onNavigate}
                 badge={badge}
+                isCollapsed={isCollapsed}
               />
             );
           })}
@@ -335,6 +404,7 @@ function SideNavItem({
   onClick,
   end = false,
   badge,
+  isCollapsed = false,
 }: {
   to: string;
   icon: ReactNode;
@@ -342,6 +412,7 @@ function SideNavItem({
   onClick?: () => void;
   end?: boolean;
   badge?: ReactNode;
+  isCollapsed?: boolean;
 }) {
   return (
     <NavLink
@@ -350,24 +421,36 @@ function SideNavItem({
       onClick={onClick}
       className={({ isActive }) =>
         cx(
-          "flex h-9.5 items-center gap-2.5 rounded-lg px-3.5 text-xs font-semibold transition-all duration-200 ease-in-out relative group border select-none",
+          "flex h-9.5 items-center rounded-lg text-xs font-medium transition-all duration-200 ease-in-out relative group border select-none",
+          isCollapsed ? "justify-center px-0 w-9.5 mx-auto" : "gap-2.5 px-3.5",
           isActive
-            ? "bg-gradient-to-r from-[#C6A66B]/[0.08] via-white/[0.03] to-transparent border-white/[0.06] text-white shadow-[0_2px_12px_rgba(0,0,0,0.25),inset_0_1px_0_rgba(255,255,255,0.03)]"
-            : "border-transparent text-slate-400 hover:bg-white/[0.02] hover:text-white hover:border-white/[0.03] hover:translate-x-0.5"
+            ? "bg-white/[0.03] border-white/[0.04] text-white"
+            : "border-transparent text-slate-400 hover:bg-white/[0.015] hover:text-white hover:border-white/[0.02]"
         )
       }
       aria-current={undefined}
     >
       {({ isActive }) => (
         <>
-          {isActive && (
-            <span className="absolute left-0 top-2 bottom-2 w-[3.5px] rounded-r bg-gradient-to-b from-[#E2C999] to-[#C6A66B] shadow-[0_0_10px_#C6A66B,0_0_4px_rgba(198,166,107,0.4)]" />
+          {isActive && !isCollapsed && (
+            <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r bg-[#C6A66B] shadow-[0_0_6px_rgba(198,166,107,0.4)]" />
           )}
-          <span className={cx("shrink-0 transition-all duration-200 group-hover:scale-105", isActive ? "text-[#C6A66B] drop-shadow-[0_0_4px_rgba(198,166,107,0.4)]" : "text-slate-500 group-hover:text-slate-300")}>
+          {isActive && isCollapsed && (
+            <span className="absolute left-1 top-2 bottom-2 w-[3px] rounded bg-[#C6A66B] shadow-[0_0_6px_rgba(198,166,107,0.4)]" />
+          )}
+          <span className={cx("shrink-0 transition-all duration-250", isActive ? "text-[#C6A66B]" : "text-slate-500 group-hover:text-slate-350")}>
             {icon}
           </span>
-          <span className="flex-1 truncate tracking-wide transition-all duration-200">{label}</span>
-          {badge}
+          {!isCollapsed && <span className="flex-1 truncate tracking-wide">{label}</span>}
+          {!isCollapsed && badge}
+          {isCollapsed && badge}
+
+          {/* Hover Tooltip Reveal when Collapsed */}
+          {isCollapsed && (
+            <div className="absolute left-full ml-3.5 top-1/2 -translate-y-1/2 opacity-0 scale-95 pointer-events-none group-hover:opacity-100 group-hover:scale-100 group-hover:pointer-events-auto transition-all duration-150 origin-left z-50 bg-[#161B22]/95 border border-white/[0.08] text-slate-200 font-semibold text-[11px] py-1.5 px-3 rounded-lg shadow-[0_4px_16px_rgba(0,0,0,0.6)] backdrop-blur-md whitespace-nowrap">
+              {label}
+            </div>
+          )}
         </>
       )}
     </NavLink>
@@ -375,7 +458,55 @@ function SideNavItem({
 }
 
 // ─── User Footer ──────────────────────────────────────────────────────────────
-function UserFooter({ onLogout, onChangePassword }: { onLogout: () => void; onChangePassword: () => void }) {
+function UserFooter({
+  onLogout,
+  onChangePassword,
+  isCollapsed = false,
+}: {
+  onLogout: () => void;
+  onChangePassword: () => void;
+  isCollapsed?: boolean;
+}) {
+  if (isCollapsed) {
+    return (
+      <div className="mt-auto pt-4 border-t border-white/[0.03] flex flex-col items-center gap-3 relative group/footer">
+        {/* User initials bubble acting as trigger */}
+        <div className="relative cursor-pointer">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#D4AF37] to-[#AA771C] text-[#101317] font-black text-xs shadow-md border border-[#C6A66B]/20">
+            AO
+          </div>
+          <span className="absolute bottom-0 right-0 h-2 w-2 rounded-full bg-emerald-500 border border-[#101317]" />
+        </div>
+
+        {/* Hover popover controls */}
+        <div className="absolute bottom-10 left-full ml-3 opacity-0 scale-95 pointer-events-none group-hover/footer:opacity-100 group-hover/footer:scale-100 group-hover/footer:pointer-events-auto transition-all duration-150 origin-bottom-left z-50 bg-[#161B22]/95 border border-white/[0.08] p-3.5 rounded-xl shadow-[0_6px_24px_rgba(0,0,0,0.7)] backdrop-blur-md min-w-[170px] space-y-3">
+          <div className="border-b border-white/5 pb-2">
+            <p className="text-xs font-bold text-white tracking-wide leading-none">Ayo Oyesanya</p>
+            <p className="text-[9px] font-extrabold uppercase tracking-wider text-[#C6A66B]/80 leading-none mt-1">Managing Partner</p>
+          </div>
+          <div className="flex flex-col gap-1.5 pt-0.5">
+            <button
+              onClick={onChangePassword}
+              className="flex items-center gap-2 w-full text-left px-2 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/[0.04] text-[10px] font-bold uppercase tracking-wider transition-colors cursor-pointer"
+              type="button"
+            >
+              <KeyRound className="h-3.5 w-3.5 text-slate-500 shrink-0" />
+              Change Passcode
+            </button>
+            <button
+              onClick={onLogout}
+              className="flex items-center gap-2 w-full text-left px-2 py-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 text-[10px] font-bold uppercase tracking-wider transition-colors cursor-pointer"
+              type="button"
+            >
+              <LogOut className="h-3.5 w-3.5 text-slate-500 shrink-0" />
+              Log Out
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="mt-auto pt-4 border-t border-white/[0.03] relative">
       <div className="flex items-center justify-between gap-2.5 rounded-xl border border-white/[0.02] bg-white/[0.005] p-2 hover:bg-white/[0.015] hover:border-white/[0.04] transition-all duration-300">

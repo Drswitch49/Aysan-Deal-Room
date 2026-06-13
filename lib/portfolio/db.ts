@@ -256,7 +256,7 @@ export function savePortfolioSummaryBriefing(briefing: string): void {
 
 export function generateHistoricalMetricsSeed(companyId: string, companyName: string): PortfolioMetricRecord[] {
   const isClearWater = companyName.toLowerCase().includes("clear water");
-  
+
   if (isClearWater) {
     // Simulates a deterioration in months 5 and 6
     return [

@@ -438,7 +438,7 @@ export function DealDetailPage() {
   return (
     <div className="space-y-6 text-[#E2E8F0] font-sans">
       <div>
-        {/* Mockup styled Header with double pills */}
+        {/* Simplified Premium Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/5 pb-4">
           <div className="flex items-center gap-3.5 min-w-0">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr from-[#C6A66B]/20 to-[#D4B06A]/10 border border-[#C6A66B]/30 text-white shadow-inner">
@@ -449,12 +449,21 @@ export function DealDetailPage() {
                 <span>Deals</span>
                 <span className="text-slate-700 text-[10px] font-bold">/</span>
                 <span className="text-[#C6A66B] font-mono">{joinedDeal.dealRef}</span>
-                <span className="text-slate-700 text-[10px] font-bold">·</span>
-                <span>{joinedDeal.location}</span>
               </div>
               <h1 className="text-xl font-black text-white tracking-tight mt-1 truncate leading-tight">
                 {joinedDeal.companyName || joinedDeal.dealRef}
               </h1>
+              <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 mt-1.5 text-[9px] font-bold text-slate-450 select-none uppercase tracking-wider">
+                <span className="font-mono text-slate-350">ACP-{joinedDeal.dealRef}</span>
+                <span className="text-slate-700 font-bold">·</span>
+                <span>KBS: {joinedDeal.dealRef ? String(joinedDeal.dealRef).replace(/[^0-9]/g, "") || joinedDeal.dealRef : "—"}</span>
+                <span className="text-slate-700 font-bold">·</span>
+                <span>{joinedDeal.sector}</span>
+                <span className="text-slate-700 font-bold">·</span>
+                <span>{joinedDeal.location}</span>
+                <span className="text-slate-700 font-bold">·</span>
+                <span>Asking EV: <span className="text-[#C6A66B] font-extrabold">{joinedDeal.evAsk ? formatGBP(Number(joinedDeal.evAsk)) : "TBC"}</span></span>
+              </div>
             </div>
             <div className="flex items-center gap-2 shrink-0 ml-1">
               <HeaderMetrics />
@@ -468,95 +477,6 @@ export function DealDetailPage() {
             >
               + NEW DEAL
             </Link>
-          </div>
-        </div>
-
-        {/* High-Fidelity Deal Card */}
-        <div className="mt-5 rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-inner">
-          <div className="space-y-3.5">
-            <h2 className="text-lg font-bold text-white tracking-tight">
-              {joinedDeal.companyName || joinedDeal.dealRef}
-            </h2>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-8 gap-y-2 text-[10px] tracking-wider uppercase font-semibold text-slate-400">
-              <div>
-                <span className="block text-[8px] text-slate-500">ACP ID</span>
-                <span className="text-slate-305 font-mono">{joinedDeal.dealRef}</span>
-              </div>
-              <div>
-                <span className="block text-[8px] text-slate-500">KBS REF</span>
-                <span className="text-slate-300 font-mono">
-                  {joinedDeal.dealRef ? String(joinedDeal.dealRef).replace(/[^0-9]/g, "") || joinedDeal.dealRef : "—"}
-                </span>
-              </div>
-              <div>
-                <span className="block text-[8px] text-slate-500">SECTOR</span>
-                <span className="text-slate-300">{joinedDeal.sector.toUpperCase()} - {joinedDeal.location.toUpperCase()}</span>
-              </div>
-              <div>
-                <span className="block text-[8px] text-slate-500">ENTRY EV</span>
-                <span className="text-slate-300">
-                  {joinedDeal.evAsk ? formatGBP(Number(joinedDeal.evAsk)) : "TBC"}
-                </span>
-              </div>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-6 shrink-0 md:border-l md:border-white/5 md:pl-8">
-            <div className="text-center relative">
-              {allowedNext.length > 0 ? (
-                <div className="flex flex-col items-center">
-                  <select
-                    value={currentStage}
-                    onChange={(e) => {
-                      const selected = e.target.value as DealStage;
-                      if (selected !== currentStage) {
-                        setTargetStage(selected);
-                        setTransitionNotes("");
-                        setTransitionError(null);
-                        setIsTransitionModalOpen(true);
-                      }
-                    }}
-                    className={cx(
-                      "inline-flex items-center rounded-lg border px-2.5 py-1 text-[9px] font-extrabold uppercase tracking-widest outline-none cursor-pointer transition shadow-sm",
-                      STAGE_BADGE_COLORS[currentStage]
-                    )}
-                  >
-                    <option value={currentStage}>{STAGE_LABELS[currentStage]}</option>
-                    {allowedNext.map((stg) => (
-                      <option key={stg} value={stg} className="bg-[#0e0e10] text-white">
-                        → Move to {STAGE_LABELS[stg]}
-                      </option>
-                    ))}
-                  </select>
-                  <span className="block text-[8px] text-slate-500 uppercase font-bold tracking-widest mt-1">Stage (Change)</span>
-                </div>
-              ) : (
-                <div className="flex flex-col items-center">
-                  <span className={cx(
-                    "inline-flex items-center rounded-lg border px-2.5 py-0.5 text-[9px] font-extrabold uppercase tracking-widest",
-                    STAGE_BADGE_COLORS[currentStage]
-                  )}>
-                    {STAGE_LABELS[currentStage] || currentStage}
-                  </span>
-                  <span className="block text-[8px] text-slate-500 uppercase font-bold tracking-widest mt-1">Stage (Terminal)</span>
-                </div>
-              )}
-            </div>
-            
-            <div className="text-center">
-              <span className="block text-2xl font-black text-emerald-450 tracking-tight leading-none">
-                {activeTab === "post-meeting" ? latestPostcallScore : activeTab === "documents" ? "20/50" : "39/50"}
-              </span>
-              <span className="block text-[8px] text-slate-500 uppercase font-bold tracking-widest mt-1">Score</span>
-            </div>
-
-            <button
-              onClick={() => setActiveTab("loi")}
-              className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-[#C6A66B] hover:bg-[#B8924F] px-4 text-xs font-bold uppercase tracking-wider text-slate-950 transition cursor-pointer"
-            >
-              <Send className="h-3.5 w-3.5" />
-              Send LOI
-            </button>
           </div>
         </div>
       </div>
@@ -603,6 +523,7 @@ export function DealDetailPage() {
             setIsTransitionModalOpen={setIsTransitionModalOpen}
             setTransitionNotes={setTransitionNotes}
             setTransitionError={setTransitionError}
+            overallDisplayScore={latestPostcallScore}
           />
         )}
         
@@ -1019,7 +940,6 @@ function AccordionPanel({
 // ---------------------------------------------------------------------
 // High-Fidelity Tab Layout Components
 // ---------------------------------------------------------------------
-
 function OverviewTab({ 
   deal, 
   assignedLenders, 
@@ -1036,7 +956,8 @@ function OverviewTab({
   setTargetStage,
   setIsTransitionModalOpen,
   setTransitionNotes,
-  setTransitionError
+  setTransitionError,
+  overallDisplayScore
 }: { 
   deal: any; 
   assignedLenders: any[]; 
@@ -1054,6 +975,7 @@ function OverviewTab({
   setIsTransitionModalOpen: (open: boolean) => void;
   setTransitionNotes: (val: string) => void;
   setTransitionError: (err: string | null) => void;
+  overallDisplayScore: string;
 }) {
   const ebitdaVal = Number(deal.ebitda) || 0;
   const multVal = Number(deal.multiplier) || 0;
@@ -1088,7 +1010,7 @@ function OverviewTab({
 
   const revenueVal = Number(deal.revenue) || 1600000;
   const realEbitdaVal = Number(deal.ebitda) || 190000;
-  const marginVal = ((realEbitdaVal / revenueVal) * 100).toFixed(1);
+  const realMarginVal = ((realEbitdaVal / revenueVal) * 100).toFixed(1);
 
   const capitalStack = useMemo(() => {
     if (deal.capitalStructure && deal.capitalStructure.length > 0) {
@@ -1119,84 +1041,60 @@ function OverviewTab({
   const [isScorecardOpen, setIsScorecardOpen] = useState(false);
   const [isKillScreenOpen, setIsKillScreenOpen] = useState(false);
   const [isFinancialsOpen, setIsFinancialsOpen] = useState(false);
+  const [isActivityOpen, setIsActivityOpen] = useState(false);
 
   // Computed Blockers
   const blockerDocs = useMemo(() => {
     return documents.filter(doc => doc.ablCritical && doc.status === "Outstanding");
   }, [documents]);
 
-  // Dynamic Intelligence Recommendations
-  const recommendations = useMemo(() => {
-    const list: string[] = [];
-    
-    // 1. Missing Critical Documents
-    const missingDocs = documents.filter(d => d.ablCritical && d.status === "Outstanding");
-    if (missingDocs.length > 0) {
-      list.push(`Missing critical diligence: ${missingDocs.map(d => d.documentName).join(", ")}`);
-    }
-    
-    // 2. Financial Verification
-    const hasFinancialDoc = documents.some(d => d.category === "Financials" && d.status === "Received");
-    if (!hasFinancialDoc) {
-      list.push("Upload trailing 12-month financials to run Underwriting calculations");
-    }
-    
-    // 3. OSINT Status
-    if (!osintStatus || osintStatus === "Not Started") {
-      list.push("OSINT scan not started — trigger scan under the OSINT tab");
-    } else if (osintStatus === "Failed") {
-      list.push("OSINT enrichment failed — check company credentials and retry");
-    } else if (["Queued", "Scraping Website", "Extracting Metadata", "Analyzing Company"].includes(osintStatus)) {
-      list.push("OSINT scan currently in progress");
-    }
-    
-    // 4. Stage Progression checks
-    if (currentStage === "DISCOVERY" && missingDocs.length > 0) {
-      list.push("Deal cannot progress to LOI with outstanding ABL critical files");
-    }
-    if (currentStage === "INTRO") {
-      list.push("Evaluate company criteria checklist to transition to Discovery");
-    }
-    
-    // Fallback recommendation
-    if (list.length === 0) {
-      list.push("All current operational criteria met. Await lender feedback.");
-    }
-    
-    return list;
-  }, [documents, deal, osintStatus, currentStage]);
-
   return (
     <div className="space-y-6 animate-fade-in-up font-sans text-slate-100">
-      <div className="grid grid-cols-1 lg:grid-cols-[1.8fr_1.2fr] gap-6 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-[1.8fr_1.2fr] gap-8 items-start">
         
-        {/* LEFT COLUMN: Progressive Disclosure Accordions */}
-        <div className="space-y-4">
+        {/* LEFT COLUMN: Executive Summary & Collapsible Accordions */}
+        <div className="space-y-6">
           
-          {/* Card 1: Claude AI Verdict (Expanded by default) */}
-          <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-6 shadow-premium-card card-sheen relative overflow-hidden">
+          {/* Card 1: Claude AI Verdict & Key Risks (Visible by default) */}
+          <div className="rounded-2xl border border-white/[0.04] bg-[#161B22] p-6 shadow-premium-card card-sheen relative overflow-hidden">
             <div className="absolute top-0 right-0 w-64 h-64 bg-[#C6A66B]/5 blur-3xl pointer-events-none" />
-            <div className="relative z-10 space-y-4">
+            <div className="relative z-10 space-y-5">
+              
               <div className="flex items-center justify-between pb-3.5 border-b border-white/5">
                 <div className="flex items-center gap-2.5">
                   <div className="h-8 w-8 rounded-lg bg-[#C6A66B]/10 border border-[#C6A66B]/20 flex items-center justify-center">
                     <BrainCircuit className="h-4.5 w-4.5 text-[#C6A66B]" />
                   </div>
                   <div>
-                    <h4 className="text-xs font-black uppercase tracking-widest text-slate-350">Claude AI Investment Verdict</h4>
-                    <span className="text-[9px] font-extrabold text-[#C6A66B] uppercase tracking-widest">Recommendation: {verdict}</span>
+                    <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-350">Claude AI Investment Verdict</h4>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className={cx(
+                        "inline-flex rounded px-1.5 py-0.2 text-[8px] font-black uppercase tracking-widest border select-none",
+                        verdict === "ADVANCE" 
+                          ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-450" 
+                          : "bg-amber-500/10 border-amber-500/20 text-amber-500"
+                      )}>
+                        {verdict}
+                      </span>
+                    </div>
                   </div>
                 </div>
-                <span className="text-[10px] font-mono text-slate-500 uppercase font-semibold">AI Assistant</span>
+                
+                <div className="text-right select-none">
+                  <span className="block text-[8px] font-bold text-slate-500 uppercase tracking-wider">Acquisition Score</span>
+                  <span className="text-lg font-black text-[#C6A66B] font-mono tracking-tight mt-0.5 block">
+                    {overallDisplayScore}
+                  </span>
+                </div>
               </div>
 
               <p className="text-xs leading-relaxed text-slate-300 font-normal">
-                The deal presents a compelling low-multiple entry in a defensive sector. While the {marginVal}% EBITDA margin sits below the institutional 15% threshold, the regional dominance in {deal.location || "Kent"} provides a stable moat for post-acquisition optimization and contract growth.
+                The deal presents a compelling low-multiple entry in a defensive sector. While the {realMarginVal}% EBITDA margin sits below the institutional 15% threshold, the regional dominance in {deal.location || "Kent"} provides a stable moat for post-acquisition optimization and contract growth.
               </p>
 
-              <div className="space-y-2 pt-2 border-t border-white/[0.02]">
-                <span className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-500">Key Risk Factors</span>
-                <div className="space-y-2.5">
+              <div className="space-y-3 pt-2.5 border-t border-white/[0.02]">
+                <span className="block text-[9px] font-extrabold uppercase tracking-widest text-slate-400">Key Risks & Viability Concerns</span>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="flex items-start gap-2.5 text-xs text-slate-400 font-normal">
                     <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
                     <span>
@@ -1206,7 +1104,7 @@ function OverviewTab({
                   <div className="flex items-start gap-2.5 text-xs text-slate-400 font-normal">
                     <Lock className="h-4 w-4 text-[#C6A66B] shrink-0 mt-0.5" />
                     <span>
-                      <strong className="text-slate-200">Key Person Risk:</strong> High dependency on founder-level relationship management. Vendor loan structures should align owner transition incentives.
+                      <strong className="text-slate-200">Key Person Risk:</strong> High dependency on founder-level relationships. Vendor loan structures must align owner transition incentives.
                     </span>
                   </div>
                 </div>
@@ -1222,40 +1120,40 @@ function OverviewTab({
             onToggle={() => setIsOsintOpen(!isOsintOpen)}
             headerBadge={
               <span className={cx(
-                "text-[8px] font-extrabold uppercase tracking-widest px-2 py-0.5 rounded",
+                "text-[8px] font-extrabold uppercase tracking-widest px-2 py-0.5 rounded select-none",
                 osintStatus === "Completed" ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" :
                 osintStatus === "Failed" ? "bg-rose-500/10 text-rose-400 border border-rose-500/20" :
                 osintStatus ? "bg-blue-500/10 text-blue-400 border border-blue-500/20" :
-                "bg-white/[0.015] text-slate-400 border border-white/[0.02]"
+                "bg-white/[0.015] text-slate-405 border border-white/[0.02]"
               )}>
                 {osintStatus || "Not Started"}
               </span>
             }
           >
             {deal.rawFields?.OSINT_Summary ? (
-              <div className="space-y-5">
-                <p className="text-xs leading-relaxed text-slate-300">
+              <div className="space-y-4">
+                <p className="text-xs leading-relaxed text-slate-355">
                   {deal.rawFields.OSINT_Summary}
                 </p>
 
                 {deal.rawFields?.OSINT_Key_Insights && (
-                  <div className="space-y-1.5">
-                    <span className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-500">Key Intelligence Insights</span>
-                    <ul className="text-xs text-slate-350 space-y-1 list-disc list-inside">
+                  <div className="space-y-1.5 pt-2">
+                    <span className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-500 font-sans">Key Intelligence Insights</span>
+                    <ul className="text-xs text-slate-355 space-y-1 list-disc list-inside">
                       {String(deal.rawFields.OSINT_Key_Insights).split("\n").map((insight, idx) => (
-                        <li key={idx} className="pl-1">{insight.replace(/^•\s*/, "")}</li>
+                        <li key={idx} className="pl-1 leading-relaxed">{insight.replace(/^•\s*/, "")}</li>
                       ))}
                     </ul>
                   </div>
                 )}
 
                 {deal.rawFields?.OSINT_Risk_Flags && (
-                  <div className="space-y-2 pt-3.5 border-t border-white/5">
-                    <span className="block text-[8px] font-extrabold uppercase tracking-widest text-red-400">Risk Profile & Discrepancies</span>
+                  <div className="space-y-2 pt-3 border-t border-white/5">
+                    <span className="block text-[8px] font-extrabold uppercase tracking-widest text-rose-400 font-sans">Risk Profile & Discrepancies</span>
                     <div className="space-y-2">
                       {String(deal.rawFields.OSINT_Risk_Flags).split("\n").map((flag, idx) => (
-                        <div key={idx} className="flex items-start gap-2 text-xs text-red-400/90">
-                          <AlertTriangle className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
+                        <div key={idx} className="flex items-start gap-2 text-xs text-rose-400/90 leading-relaxed font-sans font-medium">
+                          <AlertTriangle className="h-4 w-4 text-rose-405 shrink-0 mt-0.5" />
                           <span>{flag.replace(/^•\s*/, "")}</span>
                         </div>
                       ))}
@@ -1264,7 +1162,7 @@ function OverviewTab({
                 )}
 
                 {/* Sources Row */}
-                <div className="grid grid-cols-3 gap-4 pt-4 border-t border-white/5 text-[10px] tracking-wider font-semibold text-slate-400">
+                <div className="grid grid-cols-3 gap-4 pt-3.5 border-t border-white/5 text-[10px] tracking-wider font-semibold text-slate-400 select-none">
                   <div>
                     <span className="block text-[8px] text-slate-500 uppercase">Companies House</span>
                     <span className="text-slate-300">{deal.rawFields?.Companies_House_Number ? `#${deal.rawFields.Companies_House_Number}` : "Not Found"}</span>
@@ -1272,7 +1170,7 @@ function OverviewTab({
                   <div>
                     <span className="block text-[8px] text-slate-500 uppercase">LinkedIn URL</span>
                     {deal.rawFields?.LinkedIn_URL ? (
-                      <a href={deal.rawFields.LinkedIn_URL} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline inline-flex items-center gap-1">
+                      <a href={deal.rawFields.LinkedIn_URL} target="_blank" rel="noopener noreferrer" className="text-blue-450 hover:underline inline-flex items-center gap-1">
                         Visit <ExternalLink className="h-2.5 w-2.5" />
                       </a>
                     ) : <span className="text-slate-500">Unlinked</span>}
@@ -1280,7 +1178,7 @@ function OverviewTab({
                   <div>
                     <span className="block text-[8px] text-slate-500 uppercase">Website</span>
                     {deal.rawFields?.Website || deal.rawFields?.Company_Website ? (
-                      <a href={deal.rawFields.Website || deal.rawFields.Company_Website} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline inline-flex items-center gap-1">
+                      <a href={deal.rawFields.Website || deal.rawFields.Company_Website} target="_blank" rel="noopener noreferrer" className="text-blue-455 hover:underline inline-flex items-center gap-1">
                         Link <ExternalLink className="h-2.5 w-2.5" />
                       </a>
                     ) : <span className="text-slate-500">Unlinked</span>}
@@ -1288,17 +1186,17 @@ function OverviewTab({
                 </div>
               </div>
             ) : (
-              <div className="text-center py-6 text-slate-500 space-y-3">
+              <div className="text-center py-6 text-slate-500 space-y-3 select-none">
                 <Globe className="h-8 w-8 text-slate-700 mx-auto animate-pulse" />
                 <div className="text-xs font-semibold text-slate-400">No OSINT intelligence gathered yet.</div>
                 <p className="text-[10px] text-slate-500 max-w-sm mx-auto leading-relaxed">
-                  No enrichment has been run yet. Trigger OSINT analysis to evaluate company credibility, operational footprint, and external risk indicators.
+                  Trigger OSINT analysis to evaluate company credibility, operational footprint, and external risk indicators.
                 </p>
                 <button
                   type="button"
                   onClick={handleTriggerOsint}
                   disabled={isTriggeringOsint}
-                  className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-white/[0.02] hover:border-white/20 bg-white/[0.015] hover:bg-white/[0.02] px-4 text-[10px] font-bold uppercase tracking-wider text-slate-350 transition cursor-pointer"
+                  className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-white/[0.02] hover:border-white/20 bg-white/[0.015] hover:bg-white/[0.02] px-4 text-[10px] font-bold uppercase tracking-wider text-slate-355 transition cursor-pointer"
                 >
                   <RefreshCw className={cx("h-3 w-3", isTriggeringOsint && "animate-spin")} />
                   Scan Company
@@ -1307,14 +1205,76 @@ function OverviewTab({
             )}
           </AccordionPanel>
 
-          {/* Accordion 3: Deal Scorecard */}
+          {/* Accordion 3: Key Financials */}
           <AccordionPanel
-            title="Deal Scorecard"
+            title="Key Financial Metrics & Capital Structure"
+            icon={<TrendingUp className="h-4.5 w-4.5" />}
+            isOpen={isFinancialsOpen}
+            onToggle={() => setIsFinancialsOpen(!isFinancialsOpen)}
+            headerBadge={
+              <span className="text-[10px] font-extrabold text-white bg-white/[0.015] border border-white/[0.02] px-2 py-0.5 rounded select-none">
+                Margin: {realMarginVal}% · Mult: {multVal > 0 ? `${multVal.toFixed(1)}x` : "—"}
+              </span>
+            }
+          >
+            <div className="space-y-5 animate-fade-in-up">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+                <div>
+                  <span className="block text-[8px] text-slate-500 uppercase select-none">Revenue</span>
+                  <span className="font-bold text-slate-200">{formatGBP(revenueVal)}</span>
+                </div>
+                <div>
+                  <span className="block text-[8px] text-slate-500 uppercase select-none">EBITDA (Normalized)</span>
+                  <span className="font-bold text-slate-200">{formatGBP(realEbitdaVal)}</span>
+                </div>
+                <div>
+                  <span className="block text-[8px] text-slate-500 uppercase select-none">EV Ask Multiple</span>
+                  <span className="font-bold text-slate-200">{multVal > 0 ? `${multVal.toFixed(1)}x` : "—"}</span>
+                </div>
+                <div>
+                  <span className="block text-[8px] text-slate-500 uppercase select-none">DSCR Base case</span>
+                  <span className="font-bold text-slate-200">{deal.dscrBase || "1.38x"}</span>
+                </div>
+              </div>
+
+              {/* Capital Stack Visualization */}
+              <div className="space-y-2 pt-3 border-t border-white/5">
+                <span className="block text-[9px] font-extrabold uppercase tracking-widest text-slate-400 select-none">Proposed Capital Structure</span>
+                
+                <div className="h-6 w-full rounded-lg overflow-hidden flex text-[8px] font-black uppercase tracking-wider text-slate-950 border border-white/[0.02] shadow-inner select-none">
+                  {capitalStack.map((item: any, idx: number) => {
+                    const colors = [
+                      "bg-[#13161C] text-slate-300 border-r border-white/5",
+                      "bg-[#C6A66B] text-slate-950 border-r border-white/5",
+                      "bg-[#E8DEC9] text-slate-950"
+                    ];
+                    return (
+                      <div 
+                        key={idx} 
+                        className={`${colors[idx % colors.length]} flex items-center justify-center`} 
+                        style={{ width: `${item.pct}%` }}
+                        title={`${item.label}: ${item.pct}%`}
+                      >
+                        {item.label} ({item.pct}%)
+                      </div>
+                    );
+                  })}
+                </div>
+                <p className="text-[10px] text-slate-450 font-semibold leading-relaxed mt-1 select-none">
+                  Total capital is composed of Senior Debt ({capitalStack[0]?.pct || 60}%), Equity Subscriptions, and Vendor rollover structures.
+                </p>
+              </div>
+            </div>
+          </AccordionPanel>
+
+          {/* Accordion 4: Deal Scorecard */}
+          <AccordionPanel
+            title="Detailed Fit Scorecard"
             icon={<ClipboardList className="h-4.5 w-4.5" />}
             isOpen={isScorecardOpen}
             onToggle={() => setIsScorecardOpen(!isScorecardOpen)}
             headerBadge={
-              <span className="text-[10px] font-extrabold text-white bg-white/[0.015] border border-white/[0.02] px-2 py-0.5 rounded">
+              <span className="text-[10px] font-extrabold text-white bg-white/[0.015] border border-white/[0.02] px-2 py-0.5 rounded select-none">
                 Score: {scoreTotal}/25
               </span>
             }
@@ -1337,15 +1297,15 @@ function OverviewTab({
                 ))}
               </div>
 
-              <div className="flex items-center justify-between pt-4 border-t border-white/5 mt-4">
+              <div className="flex items-center justify-between pt-3.5 border-t border-white/5 mt-4 select-none">
                 <div>
                   <span className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-500">Aggregated Verdict</span>
                   <span className="text-xs font-bold text-white tracking-tight">{scoreTotal}/25 ({verdict === "ADVANCE" ? "Strong Fit" : "Watchlist"})</span>
                 </div>
                 <span className={cx(
-                  "inline-flex rounded-lg px-2.5 py-0.5 text-[9px] font-black uppercase tracking-widest border",
+                  "inline-flex rounded px-1.5 py-0.2 text-[8px] font-black uppercase tracking-widest border",
                   verdict === "ADVANCE" 
-                    ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" 
+                    ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-450" 
                     : "bg-amber-500/10 border-amber-500/20 text-amber-400"
                 )}>
                   {verdict}
@@ -1354,17 +1314,17 @@ function OverviewTab({
             </div>
           </AccordionPanel>
 
-          {/* Accordion 4: Kill Screen */}
+          {/* Accordion 5: Kill Screen */}
           <AccordionPanel
-            title="Kill Screen Checklist"
+            title="Institutional Checklist (Kill Screen)"
             icon={<Shield className="h-4.5 w-4.5" />}
             isOpen={isKillScreenOpen}
             onToggle={() => setIsKillScreenOpen(!isKillScreenOpen)}
             headerBadge={
               <span className={cx(
-                "text-[9px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded border",
+                "text-[8px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded border select-none",
                 allPassed 
-                  ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" 
+                  ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-455" 
                   : "bg-amber-500/10 border-amber-500/20 text-amber-400"
               )}>
                 {allPassed ? "PASS" : "WARN"}
@@ -1378,7 +1338,7 @@ function OverviewTab({
                   <span className="flex items-center gap-2 font-bold text-slate-200">
                     {formatGBP(ebitdaVal)}
                     {isEbitdaPass ? (
-                      <span className="inline-flex h-4.5 w-4.5 items-center justify-center rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px]">✓</span>
+                      <span className="inline-flex h-4.5 w-4.5 items-center justify-center rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-455 text-[10px]">✓</span>
                     ) : (
                       <span className="inline-flex h-4.5 w-4.5 items-center justify-center rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-455 text-[10px]">✗</span>
                     )}
@@ -1389,7 +1349,7 @@ function OverviewTab({
                   <span className="flex items-center gap-2 font-bold text-slate-200">
                     {multVal > 0 ? `${multVal.toFixed(1)}x` : "TBC"}
                     {isMultPass ? (
-                      <span className="inline-flex h-4.5 w-4.5 items-center justify-center rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px]">✓</span>
+                      <span className="inline-flex h-4.5 w-4.5 items-center justify-center rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-455 text-[10px]">✓</span>
                     ) : (
                       <span className="inline-flex h-4.5 w-4.5 items-center justify-center rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-455 text-[10px]">✗</span>
                     )}
@@ -1399,26 +1359,26 @@ function OverviewTab({
                   <span className="text-slate-400 font-medium">Sector Alignment</span>
                   <span className="flex items-center gap-2 font-bold text-slate-200">
                     {deal.sector || "General"}
-                    <span className="inline-flex h-4.5 w-4.5 items-center justify-center rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px]">✓</span>
+                    <span className="inline-flex h-4.5 w-4.5 items-center justify-center rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-455 text-[10px]">✓</span>
                   </span>
                 </li>
                 <li className="flex items-center justify-between text-xs">
                   <span className="text-slate-400 font-medium">UK Geography</span>
                   <span className="flex items-center gap-2 font-bold text-slate-200">
                     {deal.location || "Kent"}
-                    <span className="inline-flex h-4.5 w-4.5 items-center justify-center rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px]">✓</span>
+                    <span className="inline-flex h-4.5 w-4.5 items-center justify-center rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-455 text-[10px]">✓</span>
                   </span>
                 </li>
                 <li className="flex items-center justify-between text-xs">
                   <span className="text-slate-400 font-medium">CVA / Encumbrance check</span>
                   <span className="flex items-center gap-2 font-bold text-slate-200">
                     Clear
-                    <span className="inline-flex h-4.5 w-4.5 items-center justify-center rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px]">✓</span>
+                    <span className="inline-flex h-4.5 w-4.5 items-center justify-center rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-455 text-[10px]">✓</span>
                   </span>
                 </li>
               </ul>
               
-              <div className="pt-4 border-t border-white/5">
+              <div className="pt-3 border-t border-white/5">
                 {allPassed ? (
                   <p className="text-[10px] text-emerald-450 font-semibold leading-relaxed">
                     Success: All core acquisition checklist criteria passed. Deal is viable for investment committee.
@@ -1432,64 +1392,23 @@ function OverviewTab({
             </div>
           </AccordionPanel>
 
-          {/* Accordion 5: Key Financials */}
+          {/* Accordion 6: Activity History */}
           <AccordionPanel
-            title="Key Financial Metrics"
-            icon={<TrendingUp className="h-4.5 w-4.5" />}
-            isOpen={isFinancialsOpen}
-            onToggle={() => setIsFinancialsOpen(!isFinancialsOpen)}
-            headerBadge={
-              <span className="text-[10px] font-extrabold text-white bg-white/[0.015] border border-white/[0.02] px-2 py-0.5 rounded">
-                Margin: {marginVal}% · mult: {multVal > 0 ? `${multVal.toFixed(1)}x` : "2.7x"}
-              </span>
-            }
+            title="Recent Activity Log"
+            icon={<Clock className="h-4.5 w-4.5" />}
+            isOpen={isActivityOpen}
+            onToggle={() => setIsActivityOpen(!isActivityOpen)}
           >
-            <div className="space-y-5">
-              <div className="grid grid-cols-2 gap-4 text-xs">
-                <div>
-                  <span className="block text-[8px] text-slate-500 uppercase">Revenue</span>
-                  <span className="font-bold text-slate-200">{formatGBP(revenueVal)}</span>
-                </div>
-                <div>
-                  <span className="block text-[8px] text-slate-500 uppercase">EBITDA (Normalized)</span>
-                  <span className="font-bold text-slate-200">{formatGBP(realEbitdaVal)}</span>
-                </div>
-                <div>
-                  <span className="block text-[8px] text-slate-500 uppercase">EV Ask Multiple</span>
-                  <span className="font-bold text-slate-200">{multVal > 0 ? `${multVal.toFixed(1)}x` : "2.7x"}</span>
-                </div>
-                <div>
-                  <span className="block text-[8px] text-slate-500 uppercase">DSCR Base case</span>
-                  <span className="font-bold text-slate-200">{deal.dscrBase || "1.38x"}</span>
-                </div>
-              </div>
-
-              {/* Capital Stack Visualization */}
-              <div className="space-y-2 pt-2 border-t border-white/5">
-                <span className="block text-[9px] font-extrabold uppercase tracking-widest text-slate-400">Proposed Capital Structure</span>
-                
-                <div className="h-6 w-full rounded-lg overflow-hidden flex text-[8px] font-black uppercase tracking-wider text-slate-950 border border-white/[0.02] shadow-inner">
-                  {capitalStack.map((item: any, idx: number) => {
-                    const colors = [
-                      "bg-[#13161C] text-slate-300 border-r border-white/5",
-                      "bg-[#C6A66B] text-slate-950 border-r border-white/5",
-                      "bg-[#E8DEC9] text-slate-950"
-                    ];
-                    return (
-                      <div 
-                        key={idx} 
-                        className={`${colors[idx % colors.length]} flex items-center justify-center`} 
-                        style={{ width: `${item.pct}%` }}
-                        title={`${item.label}: ${item.pct}%`}
-                      >
-                        {item.label} ({item.pct}%)
-                      </div>
-                    );
-                  })}
-                </div>
-                <p className="text-[10px] text-slate-450 font-semibold leading-relaxed mt-1">
-                  Total capital is composed of Senior Debt ({capitalStack[0]?.pct || 60}%), Equity Subscriptions, and Vendor rollover structures.
-                </p>
+            <div className="space-y-4">
+              <ActivityFeed dealId={deal.id} limit={5} showFilters={false} />
+              <div className="text-center pt-3.5 border-t border-white/5 select-none animate-fade-in-up">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("activity")}
+                  className="text-[10px] font-bold text-[#C6A66B] uppercase tracking-wider hover:underline cursor-pointer"
+                >
+                  View Full Audit Log &rarr;
+                </button>
               </div>
             </div>
           </AccordionPanel>
@@ -1499,10 +1418,10 @@ function OverviewTab({
         {/* RIGHT COLUMN: Operational Guidance Sidebar */}
         <div className="space-y-6 lg:sticky lg:top-24">
           
-          {/* Section 1: Deal Progression / Stage Deck */}
-          <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 space-y-3.5 shadow-premium-card card-sheen">
+          {/* Section 1: Deal Stage & Transition Dropdown */}
+          <div className="rounded-2xl border border-white/[0.04] bg-[#161B22] p-5 space-y-4 shadow-premium-card card-sheen">
             <div className="flex flex-col gap-1.5">
-              <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">Current Deal Stage</span>
+              <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 select-none">Current Deal Stage</span>
               <select
                 value={currentStage}
                 onChange={(e) => {
@@ -1527,33 +1446,50 @@ function OverviewTab({
                 ))}
               </select>
             </div>
-            
-            <div className="pt-2 border-t border-white/5 flex items-center justify-between text-[10px] text-slate-450 font-semibold select-none">
-              <span>Lender Assignments</span>
-              <button 
-                type="button"
-                onClick={openAddLenderModal}
-                className="text-xs font-bold text-[#C6A66B] hover:underline"
-              >
-                Link Lender
-              </button>
-            </div>
-            {assignedLenders.length > 0 ? (
-              <div className="flex flex-wrap gap-1.5 pt-1">
-                {assignedLenders.map((l, idx) => (
-                  <span key={idx} className="rounded-md bg-white/[0.015] border border-white/[0.02] px-2 py-0.5 text-[9px] font-bold text-slate-300">
-                    {l.Company_Name}
-                  </span>
-                ))}
-              </div>
-            ) : (
-              <p className="text-[10px] text-slate-500 italic select-none">No lenders linked to deal</p>
-            )}
           </div>
 
-          {/* Section 2: Next Action */}
-          <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 space-y-3 shadow-premium-card card-sheen">
-            <h4 className="text-[9px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
+          {/* Section 2: Essential Actions */}
+          <div className="rounded-2xl border border-white/[0.04] bg-[#161B22] p-5 space-y-4 shadow-premium-card card-sheen">
+            <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 select-none block font-sans">Essential Actions</span>
+            
+            <div className="space-y-3">
+              <button
+                onClick={() => setActiveTab("loi")}
+                className="w-full h-10 rounded-xl bg-[#C6A66B] hover:bg-[#B8924F] text-slate-950 font-black text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 cursor-pointer shadow-glow-bronze/10"
+              >
+                <Send className="h-3.5 w-3.5" />
+                Send LOI
+              </button>
+
+              <div className="pt-2.5 border-t border-white/5">
+                <div className="flex items-center justify-between text-[10px] text-slate-400 font-semibold select-none pb-2">
+                  <span>Linked Lenders</span>
+                  <button 
+                    type="button"
+                    onClick={openAddLenderModal}
+                    className="text-xs font-bold text-[#C6A66B] hover:underline"
+                  >
+                    Link Lender
+                  </button>
+                </div>
+                {assignedLenders.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5 pt-1 select-none">
+                    {assignedLenders.map((l, idx) => (
+                      <span key={idx} className="rounded-md bg-white/[0.015] border border-white/[0.04] px-2 py-0.5 text-[9px] font-bold text-slate-300 animate-scale-in">
+                        {l.Company_Name}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-[10px] text-slate-500 italic select-none pt-1">No lenders linked to deal</p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Section 3: Next Action & Key Dates */}
+          <div className="rounded-2xl border border-white/[0.04] bg-[#161B22] p-5 space-y-3 shadow-premium-card card-sheen">
+            <h4 className="text-[9px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-1.5 select-none font-sans">
               <Clock className="h-3.5 w-3.5 text-[#C6A66B]" />
               Next Action Details
             </h4>
@@ -1564,23 +1500,23 @@ function OverviewTab({
                   {String(deal.rawFields["Next Action"])}
                 </p>
                 {deal.rawFields["Next Action Date"] && (
-                  <div className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/5 border border-amber-500/10 px-2.5 py-0.5 text-[9px] font-bold text-amber-400">
+                  <div className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/5 border border-amber-500/10 px-2.5 py-0.5 text-[9px] font-bold text-amber-400 select-none">
                     Target due: {new Date(deal.rawFields["Next Action Date"]).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
                   </div>
                 )}
               </div>
             ) : (
-              <div className="text-slate-500 text-xs italic select-none">
+              <div className="text-slate-500 text-xs italic select-none animate-pulse">
                 No immediate next action has been set for this deal yet.
               </div>
             )}
           </div>
 
-          {/* Section 3: Missing Diligence / Blockers */}
-          <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 space-y-3 shadow-premium-card card-sheen">
-            <h4 className="text-[9px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
+          {/* Section 4: Critical Blockers */}
+          <div className="rounded-2xl border border-white/[0.04] bg-[#161B22] p-5 space-y-3 shadow-premium-card card-sheen">
+            <h4 className="text-[9px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5 select-none font-sans">
               <ShieldAlert className="h-3.5 w-3.5 text-rose-500" />
-              Outstanding Blockers
+              Critical Blockers
             </h4>
 
             {blockerDocs.length > 0 ? (
@@ -1588,48 +1524,16 @@ function OverviewTab({
                 {blockerDocs.map((doc, idx) => (
                   <div key={idx} className="flex items-center justify-between gap-3 p-2.5 rounded-xl border border-rose-500/15 bg-rose-500/5 text-xs text-rose-455 font-semibold">
                     <span className="truncate">{doc.documentName}</span>
-                    <span className="text-[8px] font-black uppercase tracking-widest bg-rose-500/10 px-1.5 py-0.5 rounded shrink-0">BLOCKER</span>
+                    <span className="text-[8px] font-black uppercase tracking-widest bg-rose-500/10 px-1.5 py-0.5 rounded shrink-0 select-none">BLOCKER</span>
                   </div>
                 ))}
               </div>
             ) : (
               <div className="flex items-center gap-2.5 p-2.5 rounded-xl border border-white/[0.02] bg-white/[0.01] text-xs text-slate-405 font-semibold select-none">
-                <CheckCircle2 className="h-4 w-4 text-[#C6A66B]/60" />
-                <span>No critical diligence items outstanding.</span>
+                <CheckCircle2 className="h-4 w-4 text-emerald-500/60" />
+                <span>No critical blockers outstanding.</span>
               </div>
             )}
-          </div>
-
-          {/* Section 4: Recommended Next Step Intelligence */}
-          <div className="rounded-2xl border border-[#C6A66B]/05 bg-gradient-to-br from-[#161B22] to-[#14120F] p-5 space-y-3 shadow-premium-card relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-[#C6A66B]/3 blur-2xl pointer-events-none" />
-            <h4 className="text-[9px] font-black uppercase tracking-widest text-[#C6A66B] flex items-center gap-1.5 relative z-10 select-none">
-              <Sparkles className="h-3.5 w-3.5 text-[#C6A66B]" />
-              Workflow Guidance
-            </h4>
-            
-            <div className="space-y-2.5 relative z-10">
-              {recommendations.map((rec, idx) => (
-                <div key={idx} className="flex items-start gap-2 text-xs text-slate-300">
-                  <span className="h-1.5 w-1.5 rounded-full bg-[#C6A66B] shrink-0 mt-2" />
-                  <span className="leading-relaxed font-semibold">{rec}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Section 5: Stage History Summary Shortcut */}
-          <div className="rounded-2xl border border-white/[0.02] bg-white/[0.005] p-4 text-center select-none">
-            <p className="text-[10px] text-slate-500 font-semibold leading-normal">
-              Need to review historical transition approvals?
-            </p>
-            <button 
-              type="button"
-              onClick={() => setActiveTab("activity")}
-              className="text-[10px] font-bold text-[#C6A66B] uppercase tracking-wider hover:underline mt-1.5 inline-block"
-            >
-              Open Audit Log Tab &rarr;
-            </button>
           </div>
 
         </div>

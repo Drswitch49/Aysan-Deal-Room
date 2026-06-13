@@ -200,7 +200,7 @@ const onPostcallBriefRequested = inngest.createFunction(
     // Step 3: Calculate weighted score
     const scoreResult: any = await step.run("calculate-score", async () => {
       const scoreSchemaId = schemaId || jobPayload.schemaId || "ACP_DEAL_ROOM";
-      return calculateScore(aiResult.scores, scoreSchemaId);
+      return calculateScore(scoreSchemaId, aiResult.scores, {});
     });
 
     // Step 4: Persist results to Airtable
@@ -210,7 +210,8 @@ const onPostcallBriefRequested = inngest.createFunction(
         dealData: jobPayload.dealData,
         schemaId: schemaId || jobPayload.schemaId || "ACP_DEAL_ROOM",
         notes: notes || jobPayload.notes || "",
-        scoreOutOf50: scoreResult.total,
+        scoreOutOf50: scoreResult.scoreOutOf50,
+        calculated: scoreResult,
         overrides: jobPayload.overrides || {},
       };
 
@@ -222,7 +223,7 @@ const onPostcallBriefRequested = inngest.createFunction(
       });
 
       console.log(
-        `[Post-call Brief] ✓ ${briefId} — score: ${scoreResult.total}/50`
+        `[Post-call Brief] ✓ ${briefId} — score: ${scoreResult.scoreOutOf50}/50`
       );
     });
 
@@ -231,7 +232,7 @@ const onPostcallBriefRequested = inngest.createFunction(
       await emitEvent("brief/postcall_completed", {
         briefId,
         dealId,
-        scoreOutOf50: scoreResult.total,
+        scoreOutOf50: scoreResult.scoreOutOf50,
         scores: aiResult.scores,
         summary: aiResult.summary,
         followUpEmail: aiResult.followUpEmail,
