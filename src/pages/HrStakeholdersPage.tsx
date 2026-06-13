@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Trash, X, Loader2, AlertCircle } from "lucide-react";
+import { Plus, Trash, Loader2, AlertCircle } from "lucide-react";
 import { cx } from "../utils/cx";
 import { HeaderMetrics } from "../components/ui/HeaderMetrics";
 import { fetchHrRegistry, addHiringBrief, deleteHiringBrief } from "../api/admin";
@@ -49,6 +49,8 @@ export function HrStakeholdersPage() {
   const [stakeholders, setStakeholders] = useState<ExternalStakeholder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [missingTables, setMissingTables] = useState<string[]>([]);
+  const [diagnostics, setDiagnostics] = useState<{ message: string; resolution: string } | null>(null);
 
   // Modal form states
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -66,9 +68,14 @@ export function HrStakeholdersPage() {
       setHires(data.hires || []);
       setStakeholders(data.stakeholders || []);
       setError(null);
-    } catch (err: any) {
-      console.error("Failed to load HR registry:", err);
-      setError(err.message || "Failed to retrieve registry records.");
+      setMissingTables([]);
+      setDiagnostics(null);
+    } catch (err) {
+      const apiErr = err as { message?: string; missingTables?: string[]; diagnostics?: { message: string; resolution: string } };
+      console.error("Failed to load HR registry:", apiErr);
+      setError(apiErr.message || "Failed to retrieve registry records.");
+      setMissingTables(apiErr.missingTables || []);
+      setDiagnostics(apiErr.diagnostics || null);
     } finally {
       setIsLoading(false);
     }
@@ -100,39 +107,13 @@ export function HrStakeholdersPage() {
       setFormCompany("");
       setFormStatus("");
       setFormColor("amber");
-    } catch (err: any) {
-      console.error("Failed to save hiring brief:", err);
-      
-      if (err.message?.includes("Hiring_Briefs") || err.message?.includes("not found") || err.message?.includes("table")) {
-        setModalError({
-          title: "Airtable Table Missing",
-          message: `The 'Hiring_Briefs' table doesn't exist in Airtable yet. We added the record locally for this session. To make it persistent, create the table named 'Hiring_Briefs' in your base.`
-        });
-        
-        // Add locally
-        const newBrief: HiringBrief = {
-          role: formRole.trim(),
-          company: formCompany.trim(),
-          status: formStatus.trim(),
-          accentColor: formColor
-        };
-        setHires(prev => [...prev, newBrief]);
-        
-        setTimeout(() => {
-          setIsModalOpen(false);
-          setModalError(null);
-          // Reset form
-          setFormRole("");
-          setFormCompany("");
-          setFormStatus("");
-          setFormColor("amber");
-        }, 3000);
-      } else {
-        setModalError({
-          title: "Save Failed",
-          message: err.message || "An unexpected error occurred while saving the hiring brief."
-        });
-      }
+    } catch (err) {
+      const apiErr = err as { message?: string };
+      console.error("Failed to save hiring brief:", apiErr);
+      setModalError({
+        title: "Save Failed",
+        message: apiErr.message || "An unexpected error occurred while saving the hiring brief. Please check your schema synchronization."
+      });
     } finally {
       setIsSaving(false);
     }
@@ -143,9 +124,10 @@ export function HrStakeholdersPage() {
       try {
         await deleteHiringBrief(brief.id);
         await loadData();
-      } catch (err: any) {
-        console.error("Failed to delete hiring brief:", err);
-        alert(`Failed to delete hiring brief: ${err.message}`);
+      } catch (err) {
+        const apiErr = err as { message?: string };
+        console.error("Failed to delete hiring brief:", apiErr);
+        alert(`Failed to delete hiring brief: ${apiErr.message}`);
       }
     } else {
       setHires(prev => prev.filter((_, i) => i !== idx));
@@ -184,7 +166,65 @@ export function HrStakeholdersPage() {
         </div>
       </div>
 
-      {error && (
+      {diagnostics ? (
+        <div className="rounded-2xl border border-red-500/20 bg-red-950/15 backdrop-blur-md p-6 space-y-4 animate-fade-in shadow-premium-card">
+          <div className="flex items-center gap-3">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-500/20 text-red-400">
+              <AlertCircle className="h-5 w-5" />
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-white tracking-wide">
+                Database Schema Synchronization Required
+              </h2>
+              <p className="text-[10px] text-red-450 font-medium">
+                HTTP 428 Precondition Required
+              </p>
+            </div>
+          </div>
+
+          <div className="text-xs text-slate-300 leading-relaxed max-w-2xl">
+            {diagnostics.message}
+          </div>
+
+          {missingTables.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+                Missing Required Tables
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {missingTables.map((tbl, idx) => (
+                  <span
+                    key={idx}
+                    className="inline-flex items-center gap-1.5 rounded-md border border-red-500/20 bg-red-500/5 px-2.5 py-1 text-[10px] font-bold text-red-405"
+                  >
+                    <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" />
+                    {tbl}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="space-y-2 pt-2">
+            <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+              Resolution Command
+            </p>
+            <div className="flex items-center justify-between rounded-xl bg-slate-950 px-4 py-3 font-mono text-[11px] text-[#A6E22E] border border-white/5">
+              <span>{diagnostics.resolution}</span>
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText(diagnostics.resolution);
+                  alert("Copied to clipboard!");
+                }}
+                className="text-[9px] font-extrabold uppercase tracking-wider text-slate-400 hover:text-white cursor-pointer transition px-2 py-1 bg-white/[0.03] border border-white/5 rounded-md"
+              >
+                Copy
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : error ? (
         <div className="flex items-start gap-2.5 rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-xs text-red-400 animate-fade-in">
           <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
           <div>
@@ -192,7 +232,7 @@ export function HrStakeholdersPage() {
             <p className="mt-1 opacity-90 leading-relaxed">{error}</p>
           </div>
         </div>
-      )}
+      ) : null}
 
       {/* Main Panels Grid */}
       <div className="grid gap-6 lg:grid-cols-12">

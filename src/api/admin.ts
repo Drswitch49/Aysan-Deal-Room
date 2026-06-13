@@ -238,8 +238,17 @@ export async function fetchHrRegistry() {
   });
 
   if (!response.ok) {
-    const err = await response.json();
-    throw new Error(err.error || "Failed to load HR data");
+    let err: any;
+    try {
+      err = await response.json();
+    } catch {
+      err = { error: "Failed to load HR data" };
+    }
+    const error: any = new Error(err.error || "Failed to load HR data");
+    error.status = response.status;
+    error.missingTables = err.missingTables;
+    error.diagnostics = err.diagnostics;
+    throw error;
   }
 
   return response.json();

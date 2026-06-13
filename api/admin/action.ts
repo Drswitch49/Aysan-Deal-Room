@@ -11,6 +11,7 @@ import {
   normalizeLenderFields
 } from "../_utils/airtable.js";
 import { authenticateAdmin } from "./lenders.js";
+import { logAuditTrail } from "../_utils/audit.js";
 import bcrypt from "bcryptjs";
 
 function generatePassword(): string {
@@ -122,6 +123,16 @@ export default async function handler(req: any, res: any) {
         assignmentFields.Assignment_ID = `ASG-${lenderIdText}-${dealRef}`;
 
         const createdAssignment = await airtableCreate(TABLES.ASSIGNMENTS, assignmentFields);
+
+        // Immutable Audit Log
+        await logAuditTrail(
+          "ASSIGN_DEAL",
+          req.user.email,
+          req.user.role,
+          dealRef,
+          `Assigned deal [${dealRef}] to Lender ${lenderIdText}. NDA: ${ndaApproved ? "Yes" : "No"}`
+        );
+
         return res.status(200).json({ success: true, result: createdAssignment });
       }
 
@@ -131,6 +142,16 @@ export default async function handler(req: any, res: any) {
           return res.status(400).json({ error: "Assignment ID is required" });
         }
         await airtableDelete(TABLES.ASSIGNMENTS, assignmentId);
+
+        // Immutable Audit Log
+        await logAuditTrail(
+          "REMOVE_DEAL_ASSIGNMENT",
+          req.user.email,
+          req.user.role,
+          assignmentId,
+          `Revoked lender deal assignment ID: ${assignmentId}`
+        );
+
         return res.status(200).json({ success: true, message: "Deal assignment successfully removed." });
       }
 
@@ -143,10 +164,25 @@ export default async function handler(req: any, res: any) {
           "NDA_Approved": ndaApproved ? "Yes" : "No"
         };
         const updated = await airtableUpdate(TABLES.LENDERS, lenderId, fields);
+
+        // Immutable Audit Log
+        await logAuditTrail(
+          "UPDATE_LENDER_NDA",
+          req.user.email,
+          req.user.role,
+          lenderId,
+          `Updated NDA compliance status to: ${ndaApproved ? "Yes" : "No"}`
+        );
+
         return res.status(200).json({ success: true, result: updated });
       }
 
       case "reset-password": {
+        // Enforce Admin Only
+        if (req.user.role !== "admin") {
+          return res.status(403).json({ error: "Access denied: Requires Admin role" });
+        }
+
         const { lenderRecordId } = req.body;
         if (!lenderRecordId) {
           return res.status(400).json({ error: "Lender record ID is required" });
@@ -188,6 +224,15 @@ export default async function handler(req: any, res: any) {
           }
         }
 
+        // Immutable Audit Log
+        await logAuditTrail(
+          "RESET_LENDER_PASSWORD",
+          req.user.email,
+          req.user.role,
+          lenderRecordId,
+          `Reset passcode for lender ${lenderRecordId} (Company: ${normFields.Company_Name || "unknown"})`
+        );
+
         return res.status(200).json({ success: true, password: newPassword });
       }
 
@@ -217,10 +262,25 @@ export default async function handler(req: any, res: any) {
         await airtableUpdate(TABLES.LENDERS, lenderRecordId, {
           Portal_Slug: newSlug
         });
+
+        // Immutable Audit Log
+        await logAuditTrail(
+          "REGENERATE_PORTAL_LINK",
+          req.user.email,
+          req.user.role,
+          lenderRecordId,
+          `Regenerated portal slug for lender ${lenderRecordId} to: ${newSlug}`
+        );
+
         return res.status(200).json({ success: true, slug: newSlug });
       }
 
       case "delete-lender": {
+        // Enforce Admin Only
+        if (req.user.role !== "admin") {
+          return res.status(403).json({ error: "Access denied: Requires Admin role" });
+        }
+
         const { lenderRecordId } = req.body;
         if (!lenderRecordId) {
           return res.status(400).json({ error: "Lender record ID is required" });
@@ -234,12 +294,22 @@ export default async function handler(req: any, res: any) {
         });
         if (assignmentsRes.records && assignmentsRes.records.length > 0) {
           await Promise.all(
-            assignmentsRes.records.map((rec: any) => 
-              airtableDelete(TABLES.ASSIGNMENTS, rec.id)
-            )
+              assignmentsRes.records.map((rec: any) => 
+                airtableDelete(TABLES.ASSIGNMENTS, rec.id)
+              )
           );
         }
         await airtableDelete(TABLES.LENDERS, lenderRecordId);
+
+        // Immutable Audit Log
+        await logAuditTrail(
+          "DELETE_LENDER_PROFILE",
+          req.user.email,
+          req.user.role,
+          lenderRecordId,
+          `Permanently deleted lender profile ${lenderRecordId} (ID: ${lenderIdText}) and all associated deal assignments.`
+        );
+
         return res.status(200).json({ success: true, message: "Lender and all assignments successfully deleted." });
       }
 
@@ -257,6 +327,16 @@ export default async function handler(req: any, res: any) {
             return airtableUpdate(TABLES.DOCUMENTS, id, fields);
           })
         );
+
+        // Immutable Audit Log
+        await logAuditTrail(
+          "UPDATE_DOCUMENTS",
+          req.user.email,
+          req.user.role,
+          `${updates.length} documents`,
+          `Updated fields for ${updates.length} document records: ${updates.map(u => u.id).join(", ")}`
+        );
+
         return res.status(200).json({ success: true, results });
       }
 
@@ -274,6 +354,16 @@ export default async function handler(req: any, res: any) {
           "ABL_Critical": !!ablCritical
         };
         const result = await airtableCreate(TABLES.DOCUMENTS, fields);
+
+        // Immutable Audit Log
+        await logAuditTrail(
+          "CREATE_DOCUMENT",
+          req.user.email,
+          req.user.role,
+          documentName,
+          `Created document ${documentName} (Category: ${category}, Status: ${status}) for deal ${dealId}`
+        );
+
         return res.status(200).json({ success: true, result });
       }
 
@@ -296,10 +386,25 @@ export default async function handler(req: any, res: any) {
           fields["Next Action Date"] = nextActionDate;
         }
         const result = await airtableCreate(TABLES.PIPELINE, fields);
+
+        // Immutable Audit Log
+        await logAuditTrail(
+          "CREATE_PIPELINE_DEAL",
+          req.user.email,
+          req.user.role,
+          dealName,
+          `Created new active pipeline deal: ${dealName} (Stage: ${stage || "Intro"}, Ref: ${acpRefNo || "none"})`
+        );
+
         return res.status(200).json({ success: true, result });
       }
 
       case "change-admin-password": {
+        // Enforce Admin Only
+        if (req.user.role !== "admin") {
+          return res.status(403).json({ error: "Access denied: Requires Admin role" });
+        }
+
         const { newPassword } = req.body;
         if (!newPassword || newPassword.trim() === "") {
           return res.status(400).json({ error: "New password is required" });
@@ -348,6 +453,15 @@ export default async function handler(req: any, res: any) {
             Status: "Active"
           });
         }
+
+        // Immutable Audit Log
+        await logAuditTrail(
+          "CHANGE_ADMIN_PASSWORD",
+          req.user.email,
+          req.user.role,
+          "admin@aysancapital.com",
+          `Admin password successfully changed.`
+        );
 
         return res.status(200).json({ success: true, message: "Admin passcode successfully updated." });
       }
@@ -547,6 +661,16 @@ export default async function handler(req: any, res: any) {
             "Accent_Color": accentColor || "amber"
           };
           const result = await airtableCreate(TABLES.HIRING, fields);
+
+          // Immutable Audit Log
+          await logAuditTrail(
+            "ADD_HIRING_BRIEF",
+            req.user.email,
+            req.user.role,
+            `${role} - ${company}`,
+            `Added hiring brief for role ${role} at ${company} (Status: ${statusText})`
+          );
+
           return res.status(200).json({ success: true, result });
         } catch (err: any) {
           if (err.status === 404 || err.type === "TABLE_NOT_FOUND") {
@@ -567,6 +691,16 @@ export default async function handler(req: any, res: any) {
         }
         try {
           await airtableDelete(TABLES.HIRING, id);
+
+          // Immutable Audit Log
+          await logAuditTrail(
+            "DELETE_HIRING_BRIEF",
+            req.user.email,
+            req.user.role,
+            id,
+            `Deleted hiring brief record: ${id}`
+          );
+
           return res.status(200).json({ success: true, message: "Hiring brief successfully deleted." });
         } catch (err: any) {
           if (err.status === 404 || err.type === "TABLE_NOT_FOUND") {

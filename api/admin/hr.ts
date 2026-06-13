@@ -1,91 +1,5 @@
-import { airtableFetch, TABLES } from "../_utils/airtable.js";
+import { airtableFetch, TABLES, getAssignmentFields } from "../_utils/airtable.js";
 import { authenticateAdmin } from "./lenders.js";
-
-// Mock data fallbacks if tables are not found
-const MOCK_TEAM = [
-  {
-    initials: "AO",
-    name: "Ayo Oyesanya",
-    role: "Managing Partner - ACP GP / VDR",
-    accessLevel: "FULL ACCESS",
-    avatarTheme: "blue",
-    order: 1
-  },
-  {
-    initials: "PM",
-    name: "Prince Molo",
-    role: "Deal Sourcing - BDM",
-    accessLevel: "READ ACCESS",
-    avatarTheme: "green",
-    order: 2
-  },
-  {
-    initials: "DC",
-    name: "David Chilton",
-    role: "Finance - Underwriting",
-    accessLevel: "FINANCE ACCESS",
-    avatarTheme: "amber",
-    order: 3
-  },
-  {
-    initials: "C",
-    name: "Claude",
-    role: "Deal Ops - Ref: Clear",
-    accessLevel: "OPS ACCESS",
-    avatarTheme: "purple",
-    order: 4
-  },
-  {
-    initials: "D",
-    name: "Deliveree",
-    role: "Ops & Data",
-    accessLevel: "ASSISTANT",
-    avatarTheme: "slate",
-    order: 5
-  }
-];
-
-const MOCK_HIRES = [
-  {
-    role: "CEO",
-    company: "Clear Water Cleaning Services",
-    status: "Status: candidates search · First post clear · Target 60 days",
-    accentColor: "amber"
-  },
-  {
-    role: "Operations Manager",
-    company: "MGL (contingent on close)",
-    status: "Status: scoping · Depends on deal outcome",
-    accentColor: "blue"
-  }
-];
-
-const MOCK_STAKEHOLDERS = [
-  {
-    name: "Lee Coutanche",
-    association: "Moorfields Commercial Finance",
-    description: "Lender · active relationship · on: 4 deals active",
-    accentColor: "blue"
-  },
-  {
-    name: "Gillie Edwards",
-    association: "KBS Group broker",
-    description: "Broker · Deal teaser · 3 referrals active",
-    accentColor: "green"
-  },
-  {
-    name: "Navi",
-    association: "Marketing contractor",
-    description: "Marketing · Website revamp · Current",
-    accentColor: "green"
-  },
-  {
-    name: "Torsten Edwards",
-    association: "Tech contractor",
-    description: "Developer · Portal development · on: all projects",
-    accentColor: "amber"
-  }
-];
 
 export default async function handler(req: any, res: any) {
   if (req.method !== "GET") {
@@ -96,64 +10,153 @@ export default async function handler(req: any, res: any) {
     // 1. Authenticate Admin
     await authenticateAdmin(req);
 
-    // 2. Fetch datasets in parallel, catching 404s/TABLE_NOT_FOUND to use mockups
-    const [teamRes, hiresRes, stakeholdersRes] = await Promise.allSettled([
-      airtableFetch(TABLES.TEAM),
-      airtableFetch(TABLES.HIRING),
-      airtableFetch(TABLES.STAKEHOLDERS)
-    ]);
+    // 2. Fetch all required tables in parallel to validate schema and assemble data
+    const requiredTables = {
+      team: TABLES.TEAM,
+      hiring: TABLES.HIRING,
+      stakeholders: TABLES.STAKEHOLDERS,
+      lenders: TABLES.LENDERS,
+      assignments: TABLES.ASSIGNMENTS,
+      pipeline: TABLES.PIPELINE
+    };
 
-    let team = MOCK_TEAM;
-    if (teamRes.status === "fulfilled" && teamRes.value && teamRes.value.records) {
-      const mapped = teamRes.value.records.map((rec: any) => ({
-        id: rec.id,
-        initials: rec.fields["Initials"] || "",
-        name: rec.fields["Name"] || "",
-        role: rec.fields["Role"] || "",
-        accessLevel: rec.fields["Access_Level"] || "READ ACCESS",
-        avatarTheme: rec.fields["Avatar_Theme"] || "blue",
-        order: rec.fields["Order"] !== undefined ? Number(rec.fields["Order"]) : 99
-      }));
-      mapped.sort((a: any, b: any) => a.order - b.order);
-      team = mapped;
-    } else if (teamRes.status === "rejected") {
-      const err = teamRes.reason;
-      if (err.status !== 404 && err.type !== "TABLE_NOT_FOUND") {
-        console.error("Airtable Team Fetch failed with non-404 error:", err);
+    const keys = Object.keys(requiredTables) as Array<keyof typeof requiredTables>;
+    const promises = keys.map(key => airtableFetch(requiredTables[key]));
+    const results = await Promise.allSettled(promises);
+
+    const missingTables: string[] = [];
+    const fetchedData: Record<string, any> = {};
+
+    results.forEach((res, index) => {
+      const key = keys[index];
+      const tableName = requiredTables[key];
+      if (res.status === "fulfilled") {
+        fetchedData[key] = res.value;
+      } else {
+        const err = res.reason;
+        if (err.status === 404 || err.type === "TABLE_NOT_FOUND" || String(err.message).includes("not found")) {
+          missingTables.push(tableName);
+        } else {
+          // Re-throw other critical database connectivity or rate-limiting errors
+          throw err;
+        }
       }
+    });
+
+    if (missingTables.length > 0) {
+      return res.status(428).json({
+        error: "Airtable schema setup incomplete. Missing required tables.",
+        type: "SCHEMA_ERROR",
+        missingTables,
+        diagnostics: {
+          message: `The following required table(s) were not found in your Airtable base: ${missingTables.join(", ")}. Please run the schema sync script to create them.`,
+          resolution: "Run this command on your terminal to synchronize the tables: 'node scripts/sync-hr-schema.js'"
+        }
+      });
     }
 
-    let hires = MOCK_HIRES;
-    if (hiresRes.status === "fulfilled" && hiresRes.value && hiresRes.value.records) {
-      hires = hiresRes.value.records.map((rec: any) => ({
-        id: rec.id,
-        role: rec.fields["Role"] || "",
-        company: rec.fields["Company"] || "",
-        status: rec.fields["Status_Text"] || "",
-        accentColor: rec.fields["Accent_Color"] || "amber"
-      }));
-    } else if (hiresRes.status === "rejected") {
-      const err = hiresRes.reason;
-      if (err.status !== 404 && err.type !== "TABLE_NOT_FOUND") {
-        console.error("Airtable Hiring Briefs Fetch failed with non-404 error:", err);
-      }
-    }
+    // 3. Process Team Members
+    const teamRecords = fetchedData.team.records || [];
+    const team = teamRecords.map((rec: any) => ({
+      id: rec.id,
+      initials: rec.fields["Initials"] || "",
+      name: rec.fields["Name"] || "",
+      role: rec.fields["Role"] || "",
+      accessLevel: rec.fields["Access_Level"] || "READ ACCESS",
+      avatarTheme: rec.fields["Avatar_Theme"] || "blue",
+      order: rec.fields["Order"] !== undefined ? Number(rec.fields["Order"]) : 99
+    }));
+    team.sort((a: any, b: any) => a.order - b.order);
 
-    let stakeholders = MOCK_STAKEHOLDERS;
-    if (stakeholdersRes.status === "fulfilled" && stakeholdersRes.value && stakeholdersRes.value.records) {
-      stakeholders = stakeholdersRes.value.records.map((rec: any) => ({
-        id: rec.id,
-        name: rec.fields["Name"] || "",
-        association: rec.fields["Association"] || "",
-        description: rec.fields["Description"] || "",
-        accentColor: rec.fields["Accent_Color"] || "blue"
-      }));
-    } else if (stakeholdersRes.status === "rejected") {
-      const err = stakeholdersRes.reason;
-      if (err.status !== 404 && err.type !== "TABLE_NOT_FOUND") {
-        console.error("Airtable Stakeholders Fetch failed with non-404 error:", err);
+    // 4. Process Hiring Briefs
+    const hiringRecords = fetchedData.hiring.records || [];
+    const hires = hiringRecords.map((rec: any) => ({
+      id: rec.id,
+      role: rec.fields["Role"] || "",
+      company: rec.fields["Company"] || "",
+      status: rec.fields["Status_Text"] || "",
+      accentColor: rec.fields["Accent_Color"] || "amber"
+    }));
+
+    // 5. Get assignment field configurations
+    const { lenderIdCol, statusCol } = await getAssignmentFields();
+
+    // 6. Process External Stakeholders (with relational intelligence)
+    const stakeholderRecords = fetchedData.stakeholders.records || [];
+    const lenders = fetchedData.lenders.records || [];
+    const assignments = fetchedData.assignments.records || [];
+    const pipeline = fetchedData.pipeline.records || [];
+
+    const stakeholders = stakeholderRecords.map((rec: any) => {
+      const id = rec.id;
+      const name = (rec.fields["Name"] || "").trim();
+      const association = (rec.fields["Association"] || "").trim();
+      const staticDescription = rec.fields["Description"] || "";
+      const accentColor = rec.fields["Accent_Color"] || "blue";
+
+      let description = staticDescription;
+
+      // Try to match with Lenders table
+      const matchingLender = lenders.find((l: any) => {
+        const lContact = (l.fields["Contact_Name"] || "").trim().toLowerCase();
+        const lCompany = (l.fields["Company_Name"] || "").trim().toLowerCase();
+        const cleanName = name.toLowerCase();
+        const cleanAssoc = association.toLowerCase();
+
+        return (lContact && cleanName.includes(lContact)) ||
+               (lContact && lContact.includes(cleanName)) ||
+               (lCompany && cleanAssoc.includes(lCompany)) ||
+               (lCompany && lCompany.includes(cleanAssoc));
+      });
+
+      const isBroker = association.toLowerCase().includes("broker") || 
+                       name.toLowerCase().includes("broker") || 
+                       staticDescription.toLowerCase().includes("broker");
+
+      if (matchingLender) {
+        // Count active assignments for this lender
+        const activeAssignments = assignments.filter((asg: any) => {
+          const linkVal = asg.fields[lenderIdCol];
+          const asgStatus = statusCol ? asg.fields[statusCol] : "Active";
+          if (asgStatus !== "Active") return false;
+
+          if (Array.isArray(linkVal)) {
+            return linkVal.includes(matchingLender.id) || linkVal.includes(matchingLender.fields.Lender_ID);
+          }
+          return linkVal === matchingLender.id || linkVal === matchingLender.fields.Lender_ID;
+        });
+        description = `Lender · active relationship · on: ${activeAssignments.length} deals active`;
+      } else if (isBroker) {
+        // Count deals in pipeline matching broker name/association
+        const brokerDeals = pipeline.filter((deal: any) => {
+          const dealBroker = (
+            deal.fields["Broker"] || 
+            deal.fields["Broker_Name"] || 
+            deal.fields["Broker Name"] || 
+            ""
+          ).trim().toLowerCase();
+
+          if (!dealBroker) return false;
+          const cleanName = name.toLowerCase();
+          const cleanAssoc = association.toLowerCase();
+          
+          const dealStage = (deal.fields["Stage"] || "").toUpperCase();
+          if (dealStage === "KILLED") return false;
+
+          return dealBroker.includes(cleanName) || cleanName.includes(dealBroker) ||
+                 dealBroker.includes(cleanAssoc) || cleanAssoc.includes(dealBroker);
+        });
+        description = `Broker · referral pipeline · ${brokerDeals.length} active referrals`;
       }
-    }
+
+      return {
+        id,
+        name,
+        association,
+        description,
+        accentColor
+      };
+    });
 
     return res.status(200).json({ team, hires, stakeholders });
   } catch (err: any) {

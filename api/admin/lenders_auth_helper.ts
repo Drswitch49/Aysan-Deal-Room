@@ -1,4 +1,5 @@
 import { getSessionToken, verifyJWT } from "../_utils/jwt.js";
+import { airtableFetch, escapeFormulaString } from "../_utils/airtable.js";
 
 export async function authenticateAdmin(req: any) {
   const token = getSessionToken(req);
@@ -7,14 +8,37 @@ export async function authenticateAdmin(req: any) {
   }
 
   const decoded = await verifyJWT(token);
-  if (!decoded) {
+  if (!decoded || !decoded.email) {
     throw new Error("Unauthorized: Invalid session token");
   }
 
-  if (decoded.role !== "admin" && decoded.role !== "analyst") {
+  // Query database to validate role and status in real-time
+  const usersRes = await airtableFetch("Users", {
+    filterByFormula: `{Email} = '${escapeFormulaString(decoded.email)}'`,
+    maxRecords: 1
+  });
+
+  if (!usersRes.records || usersRes.records.length === 0) {
+    throw new Error("Unauthorized: User account not found in database");
+  }
+
+  const userRecord = usersRes.records[0];
+  const userFields = userRecord.fields;
+
+  if (userFields.Status !== "Active") {
+    throw new Error("Unauthorized: User account is deactivated");
+  }
+
+  const role = userFields.Role;
+  if (role !== "admin" && role !== "analyst") {
     throw new Error("Unauthorized: Invalid role permissions");
   }
 
-  // Attach user information to request for downstream handlers
-  req.user = decoded;
+  // Attach live database permissions & identity to request
+  req.user = {
+    id: userRecord.id,
+    email: userFields.Email,
+    role: role,
+    permissions: userFields.Permissions || ""
+  };
 }

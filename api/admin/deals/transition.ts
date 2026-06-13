@@ -34,6 +34,7 @@ import {
 } from "../../_services/deal-lifecycle.js";
 import { airtableFetch, airtableFetchRecord } from "../../_utils/airtable.js";
 import { TABLES } from "../../../src/lib/airtable/schema.js";
+import { logAuditTrail } from "../../_utils/audit.js";
 
 export default async function handler(req: any, res: any) {
   try {
@@ -66,8 +67,6 @@ export default async function handler(req: any, res: any) {
     dealId,
     toStage,
     notes = "",
-    role = "admin",
-    changedBy = "Admin",
   } = req.body || {};
 
   // ── Validation ───────────────────────────────────────────────────────────
@@ -86,20 +85,30 @@ export default async function handler(req: any, res: any) {
     });
   }
 
+  const userRole = req.user.role;
   const validRoles: UserRole[] = ["analyst", "manager", "admin"];
-  if (!validRoles.includes(role)) {
+  if (!validRoles.includes(userRole)) {
     return res.status(400).json({
-      error: `Invalid role '${role}'. Valid roles: ${validRoles.join(", ")}`,
+      error: `Invalid role '${userRole}' in database permissions. Valid roles: ${validRoles.join(", ")}`,
     });
   }
 
   // ── Execute Transition ───────────────────────────────────────────────────
   try {
     const result = await moveDealToStage(dealId, canonicalTarget, {
-      changedBy: String(changedBy),
-      role: role as UserRole,
+      changedBy: req.user.email,
+      role: userRole as UserRole,
       notes: String(notes || ""),
     });
+
+    // Immutable Audit Log
+    await logAuditTrail(
+      "TRANSITION_DEAL_STAGE",
+      req.user.email,
+      req.user.role,
+      dealId,
+      `Transitioned deal ${dealId} to stage: ${canonicalTarget}. Notes: ${notes}`
+    );
 
     return res.status(201).json(result);
   } catch (err: any) {
