@@ -1945,39 +1945,58 @@ function PreCallBriefTab({ deal }: { deal: any }) {
           </div>
 
           {/* Right Pane: Content */}
-          <div className="rounded-2xl border border-white/[0.02] bg-[#0E1524] p-6 flex flex-col justify-between min-h-[500px] flex-1">
+          <div className="rounded-2xl border border-white/[0.04] bg-[#0E1524] p-6 flex flex-col justify-between min-h-[500px] flex-1 shadow-premium-card card-sheen">
             <div className="flex-1 space-y-6">
               
-              <div className="flex items-center gap-3 pb-3 border-b border-white/5">
-                <Info className="h-4.5 w-4.5 text-blue-400 mt-0.5" />
-                <div>
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-350">
-                    PRE-CALL INTELLIGENCE BRIEF — {(deal.companyName || deal.dealRef).toUpperCase()} — {selectedBrief.selectedCallType === "1st" ? "1ST CALL" : selectedBrief.selectedCallType === "2nd" ? "2ND CALL" : "NEGOTIATION"}
-                  </h4>
+              <div className="flex items-center justify-between pb-3.5 border-b border-white/5">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/20 shadow-inner">
+                    <BrainCircuit className="h-4.5 w-4.5" />
+                  </div>
+                  <div>
+                    <h4 className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400">PRE-CALL INTELLIGENCE BRIEF</h4>
+                    <h2 className="text-sm font-black text-white mt-0.5 tracking-tight">
+                      {(deal.companyName || deal.dealRef).toUpperCase()} &middot; {selectedBrief.selectedCallType === "1st" ? "1ST CALL" : selectedBrief.selectedCallType === "2nd" ? "2ND CALL" : "NEGOTIATION"}
+                    </h2>
+                  </div>
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <span className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-400">Business profile:</span>
-                <p className="text-xs leading-relaxed text-slate-300 font-sans">
-                  {selectedBrief.businessProfile}
-                </p>
+              {/* Section 1: Business Profile Card */}
+              <div className="rounded-xl border border-white/[0.03] bg-white/[0.005] p-5 space-y-3 shadow-inner">
+                <div className="flex items-center gap-2 border-b border-white/5 pb-2">
+                  <Building2 className="h-4 w-4 text-slate-400" />
+                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-350">Business Analysis & Operational Outline</span>
+                </div>
+                {renderRichText(selectedBrief.businessProfile)}
               </div>
 
-              <div className="space-y-2">
-                <span className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-400">Opening angle:</span>
-                <p className="text-xs leading-relaxed text-slate-300 font-sans">
-                  {selectedBrief.openingAngle}
-                </p>
+              {/* Section 2: Strategic Opening Angle Callout */}
+              <div className="rounded-xl border border-[#C6A66B]/15 bg-gradient-to-r from-[#C6A66B]/5 to-transparent p-5 space-y-3 border-l-2 border-l-[#C6A66B] shadow-inner">
+                <div className="flex items-center gap-2 pb-1">
+                  <Sparkles className="h-4 w-4 text-[#C6A66B]" />
+                  <span className="text-[9px] font-black uppercase tracking-widest text-[#C6A66B]">Recommended Call Strategy & Angle</span>
+                </div>
+                {renderRichText(selectedBrief.openingAngle)}
               </div>
 
-              <div className="space-y-2">
-                <span className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-400 font-sans">Questions for Ayo to ask:</span>
-                <ol className="list-decimal list-inside space-y-2 text-xs font-sans text-slate-300">
+              {/* Section 3: Priority Interview Questions */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 pb-1 border-b border-white/5">
+                  <ClipboardList className="h-4 w-4 text-slate-400" />
+                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-355">Priority Discovery Questions for Ayo to Ask</span>
+                </div>
+                
+                <div className="grid grid-cols-1 gap-2.5">
                   {selectedBrief.questionsToAsk?.map((q: string, idx: number) => (
-                    <li key={idx}>{q}</li>
+                    <div key={idx} className="flex items-start gap-3.5 p-4 rounded-xl border border-white/[0.02] bg-white/[0.005] hover:bg-white/[0.01] transition duration-200">
+                      <span className="flex h-5.5 w-5.5 shrink-0 items-center justify-center rounded-lg bg-[#C6A66B]/10 border border-[#C6A66B]/20 text-[#C6A66B] font-mono text-[10px] font-black select-none">
+                        {idx + 1}
+                      </span>
+                      <p className="text-xs text-slate-300 leading-relaxed font-semibold select-text mt-0.5">{q}</p>
+                    </div>
                   ))}
-                </ol>
+                </div>
               </div>
 
               {/* Custom QA answers block */}
@@ -2473,6 +2492,16 @@ Owner is open to deferred payment structures, specifically accepting 20% Vendor 
   if (mode === "view" && selectedBrief) {
     const calc = selectedBrief.calculated || { scoreOutOf50: 0, percentage: 0, metrics: [] };
     const schemaLabel = selectedBrief.schemaId === "ACP_DEAL_ROOM" ? "ACP Default" : "Modular";
+
+    let emailSubject = "Follow-up & Discovery Outcomes";
+    let emailBody = selectedBrief.followUpEmail || "";
+    if (emailBody.toLowerCase().trim().startsWith("subject:")) {
+      const firstLineEnd = emailBody.indexOf("\n");
+      if (firstLineEnd !== -1) {
+        emailSubject = emailBody.substring(emailBody.toLowerCase().indexOf("subject:") + 8, firstLineEnd).trim();
+        emailBody = emailBody.substring(firstLineEnd).trim();
+      }
+    }
     
     return (
       <div className="space-y-6 animate-fade-in-up font-sans">
@@ -2661,36 +2690,34 @@ Owner is open to deferred payment structures, specifically accepting 20% Vendor 
             </div>
 
             {/* AI Summary Block */}
-            <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 space-y-4">
-              <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 pb-2 border-b border-white/5">
-                ACP AI POST-CALL SUMMARY
+            <div className="rounded-2xl border border-white/[0.04] bg-[#161B22] p-5 space-y-4 shadow-premium-card card-sheen">
+              <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 pb-2 border-b border-white/5 select-none">
+                ACP AI POST-CALL SUMMARY & INSIGHTS
               </h4>
-              <div className="rounded-xl border border-blue-500/10 bg-[#0E1524] p-4.5 space-y-2.5">
-                <div className="flex items-center gap-2 text-xs font-bold text-slate-200">
-                  <BrainCircuit className="h-4 w-4 text-blue-400" />
-                  ANALYSIS RUN EXECUTIVE INSIGHT
+              <div className="rounded-xl border border-[#C6A66B]/15 bg-gradient-to-r from-[#C6A66B]/5 to-transparent p-5 space-y-3 border-l-2 border-l-[#C6A66B] shadow-inner">
+                <div className="flex items-center gap-2 pb-1">
+                  <BrainCircuit className="h-4 w-4 text-[#C6A66B]" />
+                  <span className="text-[9px] font-black uppercase tracking-widest text-[#C6A66B]">Analysis Run Executive Insights</span>
                 </div>
-                <p className="text-xs leading-relaxed text-slate-300 font-sans italic">
-                  "{selectedBrief.summary}"
-                </p>
+                {renderRichText(selectedBrief.summary)}
               </div>
             </div>
 
           </div>
 
           {/* Right: Email Drawer */}
-          <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 space-y-4 h-full">
+          <div className="rounded-2xl border border-white/[0.04] bg-[#161B22] p-5 space-y-4 h-full shadow-premium-card card-sheen">
             <div className="flex items-center justify-between border-b border-white/5 pb-3">
-              <h3 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">
-                BROKER FOLLOW-UP EMAIL
+              <h3 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 select-none">
+                BROKER FOLLOW-UP EMAIL DRAFT
               </h3>
               <button
                 onClick={handleCopyEmail}
-                className="inline-flex h-7 items-center gap-1.5 rounded-lg border border-white/[0.02] bg-white/[0.015] px-3 text-[10px] font-extrabold uppercase tracking-wider text-slate-350 hover:text-white hover:bg-white/[0.02] cursor-pointer transition"
+                className="inline-flex h-7 items-center gap-1.5 rounded-lg border border-white/[0.02] bg-[#C6A66B]/10 text-[#C6A66B] border-[#C6A66B]/20 px-3 text-[10px] font-extrabold uppercase tracking-wider hover:bg-[#C6A66B]/20 cursor-pointer transition"
               >
                 {copiedEmail ? (
                   <>
-                    <Check className="h-3 w-3 text-emerald-450" />
+                    <Check className="h-3 w-3 text-emerald-400" />
                     COPIED
                   </>
                 ) : (
@@ -2702,16 +2729,31 @@ Owner is open to deferred payment structures, specifically accepting 20% Vendor 
               </button>
             </div>
             
-            <div className="rounded-xl border border-white/5 bg-white/[0.01] p-4 font-mono text-[11px] leading-relaxed text-slate-350 overflow-y-auto max-h-[480px]">
-              <div className="border-b border-white/5 pb-2 mb-3">
-                <span className="text-slate-500 font-bold uppercase tracking-wider">To:</span> <span className="text-slate-300">Broker / Seller Contact</span>
+            {/* Mock Email client window */}
+            <div className="rounded-xl border border-white/5 bg-[#0E1524] overflow-hidden shadow-inner flex flex-col">
+              {/* Header Fields */}
+              <div className="p-4 border-b border-white/5 space-y-2.5 text-xs text-slate-400 select-none bg-white/[0.005]">
+                <div className="flex items-center gap-2">
+                  <span className="font-extrabold text-[10px] uppercase w-10 text-slate-500">From:</span>
+                  <span className="text-slate-300 font-medium">Ayo Olatunjie <span className="text-slate-500 font-normal">&lt;ayo@aysancapital.com&gt;</span></span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="font-extrabold text-[10px] uppercase w-10 text-slate-500">To:</span>
+                  <span className="text-slate-300 font-medium">Broker / Seller Representative</span>
+                </div>
+                <div className="flex items-start gap-2 pt-1 border-t border-white/[0.02]">
+                  <span className="font-extrabold text-[10px] uppercase w-10 text-slate-500 mt-0.5">Subject:</span>
+                  <span className="text-white font-bold">{emailSubject}</span>
+                </div>
               </div>
-              <div className="whitespace-pre-wrap">{selectedBrief.followUpEmail}</div>
+              
+              {/* Compose Body */}
+              <div className="p-5 overflow-y-auto max-h-[400px] text-slate-300 text-xs leading-relaxed font-sans whitespace-pre-wrap select-text">
+                {emailBody}
+              </div>
             </div>
           </div>
-
         </div>
-
       </div>
     );
   }
