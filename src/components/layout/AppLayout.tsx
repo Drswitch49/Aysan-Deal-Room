@@ -3,15 +3,17 @@ import type { ReactNode } from "react";
 import {
   Building2, Database, LogOut, Menu, X,
   LayoutDashboard, Kanban, Users, Settings, KeyRound, Activity,
-  ChevronLeft, ChevronRight
+  ChevronLeft, ChevronRight, Inbox, Eye, FileText, ClipboardList,
+  TrendingUp, Globe, Clock, MessageSquare, CheckSquare, History, Loader2, ShieldAlert
 } from "lucide-react";
-import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
+import { Link, NavLink, Outlet, useLocation, useSearchParams } from "react-router-dom";
 import { cx } from "../../utils/cx";
 import { changeAdminPassword, fetchAdminLenders } from "../../api/admin";
 import { fetchRecentAdminChat } from "../../api/chat";
 import { ChatNotificationWatcher } from "../ui/ChatNotificationWatcher";
 import { Modal } from "../ui/Modal";
 import { FormField, inputClass } from "../ui/FormField";
+import { usePipeline } from "../../context/PipelineContext";
 
 // ─── Navigation items data ──────────────────────────────────────────────────
 const NAV_SECTIONS = [
@@ -19,25 +21,16 @@ const NAV_SECTIONS = [
     group: "Operations",
     items: [
       { to: "/", icon: <LayoutDashboard className="h-4 w-4" />, label: "Dashboard", end: true },
+      { to: "/admin/messages", icon: <Inbox className="h-4 w-4" />, label: "Inbox" },
       { to: "/deals", icon: <Kanban className="h-4 w-4" />, label: "Deal Pipeline", end: true },
       { to: "/admin/portco", icon: <Activity className="h-4 w-4" />, label: "Portfolio Monitor" },
     ],
   },
   {
-    group: "Intelligence",
+    group: "Relations & Intelligence",
     items: [
       { to: "/admin/lenders", icon: <Building2 className="h-4 w-4" />, label: "Lender Intel" },
-    ],
-  },
-  {
-    group: "People",
-    items: [
       { to: "/admin/hr", icon: <Users className="h-4 w-4" />, label: "HR & Stakeholders" },
-    ],
-  },
-  {
-    group: "System",
-    items: [
       { to: "/admin/settings", icon: <Settings className="h-4 w-4" />, label: "Settings" },
     ],
   },
@@ -352,6 +345,26 @@ function NavContent({
   onNavigate?: () => void;
   isCollapsed?: boolean;
 }) {
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const { deals } = usePipeline();
+
+  const match = location.pathname.match(/^\/deals\/([^/]+)/);
+  const activeDealRef = match ? decodeURIComponent(match[1]) : null;
+  const isDealContext = activeDealRef && activeDealRef !== "current" && activeDealRef !== "create";
+  
+  const activeDeal = isDealContext
+    ? deals.find(
+        (d) =>
+          d.dealRef?.toLowerCase() === activeDealRef.toLowerCase() ||
+          d.id.toLowerCase() === activeDealRef.toLowerCase()
+      )
+    : null;
+
+  const dealDisplayName = activeDeal ? activeDeal.companyName || activeDeal.dealRef : activeDealRef;
+  const activeTab = searchParams.get("tab") || "overview";
+  const activeSection = searchParams.get("section") || "";
+
   return (
     <nav className={cx("space-y-5 pr-1 select-none", className)}>
       {NAV_SECTIONS.map((section) => (
@@ -367,11 +380,11 @@ function NavContent({
           )}
           {section.items.map((item) => {
             const badge =
-              item.to === "/admin/lenders" && unreadMessages > 0 ? (
+              item.to === "/admin/messages" && unreadMessages > 0 ? (
                 isCollapsed ? (
-                  <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.7)]" />
+                  <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-[#C6A66B] shadow-[0_0_6px_rgba(198,166,107,0.5)]" />
                 ) : (
-                  <span className="inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-gradient-to-r from-rose-500 to-red-600 px-1 text-[8px] font-extrabold text-white ml-auto border border-rose-500/20">
+                  <span className="inline-flex h-4.5 min-w-[18px] items-center justify-center rounded-full bg-[#C6A66B]/15 border border-[#C6A66B]/30 px-1 text-[8.5px] font-black text-[#C6A66B] ml-auto">
                     {unreadMessages}
                   </span>
                 )
@@ -392,6 +405,114 @@ function NavContent({
           })}
         </div>
       ))}
+
+      {isDealContext && (
+        <div className={cx("space-y-1 mt-4 pt-4 border-t border-white/[0.03] flex flex-col", isCollapsed ? "px-0" : "px-3.5")}>
+          {!isCollapsed ? (
+            <div className="space-y-1 mb-2 px-1">
+              <span className="block text-[8px] font-extrabold uppercase tracking-[0.18em] text-[#C6A66B]/80">
+                Active Transaction
+              </span>
+              <span className="block text-[10px] font-bold text-white truncate max-w-[200px]" title={dealDisplayName || ""}>
+                {dealDisplayName}
+              </span>
+            </div>
+          ) : (
+            <div className="h-px bg-white/[0.03] my-2 mx-2" />
+          )}
+
+          <div className="space-y-1">
+            <SideNavItem
+              to={`/deals/${activeDealRef}?tab=overview`}
+              icon={<Eye className="h-3.5 w-3.5" />}
+              label="Overview"
+              isCollapsed={isCollapsed}
+              activeOverride={activeTab === "overview" && !activeSection}
+              onClick={onNavigate}
+            />
+            <SideNavItem
+              to={`/deals/${activeDealRef}?tab=documents`}
+              icon={<ClipboardList className="h-3.5 w-3.5" />}
+              label="Documents"
+              isCollapsed={isCollapsed}
+              activeOverride={activeTab === "documents" && activeSection !== "tasks"}
+              onClick={onNavigate}
+            />
+            <SideNavItem
+              to={`/deals/${activeDealRef}?tab=post-meeting`}
+              icon={<History className="h-3.5 w-3.5" />}
+              label="Scorecards"
+              isCollapsed={isCollapsed}
+              activeOverride={activeTab === "post-meeting"}
+              onClick={onNavigate}
+            />
+            <SideNavItem
+              to={`/deals/${activeDealRef}?tab=overview&section=osint`}
+              icon={<Globe className="h-3.5 w-3.5" />}
+              label="OSINT"
+              isCollapsed={isCollapsed}
+              activeOverride={activeTab === "overview" && activeSection === "osint"}
+              onClick={onNavigate}
+            />
+            <SideNavItem
+              to={`/deals/${activeDealRef}?tab=financials`}
+              icon={<TrendingUp className="h-3.5 w-3.5" />}
+              label="Financials"
+              isCollapsed={isCollapsed}
+              activeOverride={activeTab === "financials"}
+              onClick={onNavigate}
+            />
+            <SideNavItem
+              to={`/deals/${activeDealRef}?tab=activity`}
+              icon={<Clock className="h-3.5 w-3.5" />}
+              label="Activity Feed"
+              isCollapsed={isCollapsed}
+              activeOverride={activeTab === "activity" && activeSection !== "history"}
+              onClick={onNavigate}
+            />
+            <SideNavItem
+              to={`/deals/${activeDealRef}?tab=overview&section=timeline`}
+              icon={<Clock className="h-3.5 w-3.5" />}
+              label="Timeline"
+              isCollapsed={isCollapsed}
+              activeOverride={activeTab === "overview" && activeSection === "timeline"}
+              onClick={onNavigate}
+            />
+            <SideNavItem
+              to={`/deals/${activeDealRef}?tab=chat&section=stakeholders`}
+              icon={<Users className="h-3.5 w-3.5" />}
+              label="Stakeholders"
+              isCollapsed={isCollapsed}
+              activeOverride={activeTab === "chat" && activeSection === "stakeholders"}
+              onClick={onNavigate}
+            />
+            <SideNavItem
+              to={`/deals/${activeDealRef}?tab=chat`}
+              icon={<MessageSquare className="h-3.5 w-3.5" />}
+              label="Communications"
+              isCollapsed={isCollapsed}
+              activeOverride={activeTab === "chat" && activeSection !== "stakeholders"}
+              onClick={onNavigate}
+            />
+            <SideNavItem
+              to={`/deals/${activeDealRef}?tab=documents&section=tasks`}
+              icon={<CheckSquare className="h-3.5 w-3.5" />}
+              label="Tasks"
+              isCollapsed={isCollapsed}
+              activeOverride={activeTab === "documents" && activeSection === "tasks"}
+              onClick={onNavigate}
+            />
+            <SideNavItem
+              to={`/deals/${activeDealRef}?tab=activity&section=history`}
+              icon={<History className="h-3.5 w-3.5" />}
+              label="Deal History"
+              isCollapsed={isCollapsed}
+              activeOverride={activeTab === "activity" && activeSection === "history"}
+              onClick={onNavigate}
+            />
+          </div>
+        </div>
+      )}
     </nav>
   );
 }
@@ -405,6 +526,7 @@ function SideNavItem({
   end = false,
   badge,
   isCollapsed = false,
+  activeOverride,
 }: {
   to: string;
   icon: ReactNode;
@@ -413,46 +535,51 @@ function SideNavItem({
   end?: boolean;
   badge?: ReactNode;
   isCollapsed?: boolean;
+  activeOverride?: boolean;
 }) {
   return (
     <NavLink
       to={to}
       end={end}
       onClick={onClick}
-      className={({ isActive }) =>
-        cx(
+      className={({ isActive }) => {
+        const isCurrentActive = activeOverride !== undefined ? activeOverride : isActive;
+        return cx(
           "flex h-9.5 items-center rounded-lg text-xs font-medium transition-all duration-200 ease-in-out relative group border select-none",
           isCollapsed ? "justify-center px-0 w-9.5 mx-auto" : "gap-2.5 px-3.5",
-          isActive
+          isCurrentActive
             ? "bg-white/[0.03] border-white/[0.04] text-white"
             : "border-transparent text-slate-400 hover:bg-white/[0.015] hover:text-white hover:border-white/[0.02]"
-        )
-      }
+        );
+      }}
       aria-current={undefined}
     >
-      {({ isActive }) => (
-        <>
-          {isActive && !isCollapsed && (
-            <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r bg-[#C6A66B] shadow-[0_0_6px_rgba(198,166,107,0.4)]" />
-          )}
-          {isActive && isCollapsed && (
-            <span className="absolute left-1 top-2 bottom-2 w-[3px] rounded bg-[#C6A66B] shadow-[0_0_6px_rgba(198,166,107,0.4)]" />
-          )}
-          <span className={cx("shrink-0 transition-all duration-250", isActive ? "text-[#C6A66B]" : "text-slate-500 group-hover:text-slate-350")}>
-            {icon}
-          </span>
-          {!isCollapsed && <span className="flex-1 truncate tracking-wide">{label}</span>}
-          {!isCollapsed && badge}
-          {isCollapsed && badge}
+      {({ isActive }) => {
+        const isCurrentActive = activeOverride !== undefined ? activeOverride : isActive;
+        return (
+          <>
+            {isCurrentActive && !isCollapsed && (
+              <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r bg-[#C6A66B] shadow-[0_0_6px_rgba(198,166,107,0.4)]" />
+            )}
+            {isCurrentActive && isCollapsed && (
+              <span className="absolute left-1 top-2 bottom-2 w-[3px] rounded bg-[#C6A66B] shadow-[0_0_6px_rgba(198,166,107,0.4)]" />
+            )}
+            <span className={cx("shrink-0 transition-all duration-250", isCurrentActive ? "text-[#C6A66B]" : "text-slate-500 group-hover:text-slate-350")}>
+              {icon}
+            </span>
+            {!isCollapsed && <span className="flex-1 truncate tracking-wide">{label}</span>}
+            {!isCollapsed && badge}
+            {isCollapsed && badge}
 
-          {/* Hover Tooltip Reveal when Collapsed */}
-          {isCollapsed && (
-            <div className="absolute left-full ml-3.5 top-1/2 -translate-y-1/2 opacity-0 scale-95 pointer-events-none group-hover:opacity-100 group-hover:scale-100 group-hover:pointer-events-auto transition-all duration-150 origin-left z-50 bg-[#161B22]/95 border border-white/[0.08] text-slate-200 font-semibold text-[11px] py-1.5 px-3 rounded-lg shadow-[0_4px_16px_rgba(0,0,0,0.6)] backdrop-blur-md whitespace-nowrap">
-              {label}
-            </div>
-          )}
-        </>
-      )}
+            {/* Hover Tooltip Reveal when Collapsed */}
+            {isCollapsed && (
+              <div className="absolute left-full ml-3.5 top-1/2 -translate-y-1/2 opacity-0 scale-95 pointer-events-none group-hover:opacity-100 group-hover:scale-100 group-hover:pointer-events-auto transition-all duration-150 origin-left z-50 bg-[#161B22]/95 border border-white/[0.08] text-slate-200 font-semibold text-[11px] py-1.5 px-3 rounded-lg shadow-[0_4px_16px_rgba(0,0,0,0.6)] backdrop-blur-md whitespace-nowrap">
+                {label}
+              </div>
+            )}
+          </>
+        );
+      }}
     </NavLink>
   );
 }

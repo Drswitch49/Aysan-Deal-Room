@@ -1433,25 +1433,27 @@ function OverviewTab({
           </AccordionPanel>
 
           {/* Accordion 6: Activity History */}
-          <AccordionPanel
-            title="Recent Activity Log"
-            icon={<Clock className="h-4.5 w-4.5" />}
-            isOpen={isActivityOpen}
-            onToggle={() => setIsActivityOpen(!isActivityOpen)}
-          >
-            <div className="space-y-4">
-              <ActivityFeed dealId={deal.id} limit={5} showFilters={false} />
-              <div className="text-center pt-3.5 border-t border-white/5 select-none animate-fade-in-up">
-                <button
-                  type="button"
-                  onClick={() => setActiveTab("activity")}
-                  className="text-[10px] font-bold text-[#C6A66B] uppercase tracking-wider hover:underline cursor-pointer"
-                >
-                  View Full Audit Log &rarr;
-                </button>
+          <div id="deal-section-activity">
+            <AccordionPanel
+              title="Recent Activity Log"
+              icon={<Clock className="h-4.5 w-4.5" />}
+              isOpen={isActivityOpen}
+              onToggle={() => setIsActivityOpen(!isActivityOpen)}
+            >
+              <div className="space-y-4">
+                <ActivityFeed dealId={deal.id} limit={5} showFilters={false} />
+                <div className="text-center pt-3.5 border-t border-white/5 select-none animate-fade-in-up">
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab("activity")}
+                    className="text-[10px] font-bold text-[#C6A66B] uppercase tracking-wider hover:underline cursor-pointer"
+                  >
+                    View Full Audit Log &rarr;
+                  </button>
+                </div>
               </div>
-            </div>
-          </AccordionPanel>
+            </AccordionPanel>
+          </div>
 
         </div>
 
@@ -1528,7 +1530,7 @@ function OverviewTab({
           </div>
 
           {/* Section 3: Next Action & Key Dates */}
-          <div className="rounded-2xl border border-white/[0.04] bg-[#161B22] p-5 space-y-3 shadow-premium-card card-sheen">
+          <div id="deal-section-timeline" className="rounded-2xl border border-white/[0.04] bg-[#161B22] p-5 space-y-3 shadow-premium-card card-sheen">
             <h4 className="text-[9px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-1.5 select-none font-sans">
               <Clock className="h-3.5 w-3.5 text-[#C6A66B]" />
               Next Action Details
@@ -3747,6 +3749,20 @@ We look forward to your positive response.
 
 function DocumentsTab({ deal, documentState, setRefreshTrigger }: { deal: any; documentState: any; setRefreshTrigger: any }) {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [searchParams] = useSearchParams();
+  const sectionParam = searchParams.get("section");
+
+  useEffect(() => {
+    if (sectionParam === "tasks") {
+      const timer = setTimeout(() => {
+        const el = document.getElementById("deal-section-tasks");
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }, 150);
+      return () => clearTimeout(timer);
+    }
+  }, [sectionParam]);
 
   // Map files dynamically to categorizations
   const categories = useMemo(() => {
@@ -3797,7 +3813,7 @@ function DocumentsTab({ deal, documentState, setRefreshTrigger }: { deal: any; d
       </div>
 
       {/* checklist files listing */}
-      <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5">
+      <div id="deal-section-tasks" className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5">
         <h4 className="text-xs font-bold uppercase tracking-wider text-slate-355 mb-4 border-b border-white/5 pb-2">
           {selectedCategory ? `Document Checklist: Category ${selectedCategory}` : "All Document Checklists"}
         </h4>
