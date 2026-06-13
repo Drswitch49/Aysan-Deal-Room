@@ -37,7 +37,8 @@ export default async function handler(req: any, res: any) {
       try {
         const dealRecord = await airtableFetchRecord(pipelineTable, dealId);
         if (dealRecord && dealRecord.fields) {
-          dealName = dealRecord.fields["REF No."] || dealRecord.fields["Deal Ref"] || dealRecord.fields["Deal Name"] || dealName;
+          const rawDealName = dealRecord.fields["Deal Name"] || dealRecord.fields["REF No."] || dealRecord.fields["Deal Ref"] || dealName;
+          dealName = Array.isArray(rawDealName) ? rawDealName[0] : rawDealName;
         }
       } catch (err) {
         console.warn(`[Pre-call GET] Could not resolve dealName for ID ${dealId}:`, err);
@@ -63,19 +64,25 @@ export default async function handler(req: any, res: any) {
         let aiAnswers: Array<{ q: string; a: string }> = [];
 
         const rawBriefData = fields["Brief Data"] || "";
-        if (rawBriefData.trim().startsWith("{") && rawBriefData.trim().endsWith("}")) {
-          try {
-            const parsed = JSON.parse(rawBriefData);
-            businessProfile = parsed.businessProfile || "";
-            openingAngle = parsed.openingAngle || "";
-            questionsToAsk = Array.isArray(parsed.questionsToAsk) ? parsed.questionsToAsk : [];
-            attendees = Array.isArray(parsed.attendees) ? parsed.attendees : attendees;
-            selectedCallType = parsed.selectedCallType || selectedCallType;
-            dataSources = parsed.dataSources || dataSources;
-            aiAnswers = Array.isArray(parsed.aiAnswers) ? parsed.aiAnswers : [];
-          } catch (e) {
-            businessProfile = "Error parsing brief data.";
+        let parsed: any = null;
+        try {
+          let cleanStr = rawBriefData.trim();
+          if (cleanStr.startsWith("```")) {
+            cleanStr = cleanStr.replace(/^```json\s*/i, "").replace(/```$/, "").trim();
           }
+          parsed = JSON.parse(cleanStr);
+        } catch (e) {
+          // Fallback to plain text
+        }
+
+        if (parsed && typeof parsed === "object") {
+          businessProfile = parsed.businessProfile || "";
+          openingAngle = parsed.openingAngle || "";
+          questionsToAsk = Array.isArray(parsed.questionsToAsk) ? parsed.questionsToAsk : [];
+          attendees = Array.isArray(parsed.attendees) ? parsed.attendees : attendees;
+          selectedCallType = parsed.selectedCallType || selectedCallType;
+          dataSources = parsed.dataSources || dataSources;
+          aiAnswers = Array.isArray(parsed.aiAnswers) ? parsed.aiAnswers : [];
         } else {
           // Plain text fallback
           businessProfile = rawBriefData;
