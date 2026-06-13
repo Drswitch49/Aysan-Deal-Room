@@ -32,29 +32,18 @@ export default async function handler(req: any, res: any) {
 
       // Fetch the deal record to resolve its primary field Name
       let dealName = dealId;
-      let dealRef = "";
       try {
         const dealRecord = await airtableFetchRecord(TABLES.PIPELINE || "Active_Pipeline", dealId);
         if (dealRecord && dealRecord.fields) {
-          dealName = dealRecord.fields["Deal Name"] || dealRecord.fields["Deal_Name"] || dealRecord.fields["Name"] || dealName;
-          const rawRef = dealRecord.fields["REF No."] || dealRecord.fields["Deal Ref"] || dealRecord.fields["REF. NO"] || "";
-          dealRef = Array.isArray(rawRef) ? rawRef[0] : rawRef;
+          dealName = dealRecord.fields["Deal Name"] || dealName;
         }
       } catch (err) {
         console.warn(`[Transcript GET] Could not resolve dealName for ID ${dealId}:`, err);
       }
 
       // Query table 'Transcript_Analyses'
-      // Construct a robust formula matching by Record ID, exact Deal Name, or REF No.
-      const conditions = [
-        `{Deal Name} = '${escapeFormulaString(dealId)}'`,
-        `{Deal Name} = '${escapeFormulaString(dealName)}'`
-      ];
-      if (dealRef) {
-        conditions.push(`{Deal Name} = '${escapeFormulaString(dealRef)}'`);
-        conditions.push(`FIND('${escapeFormulaString(dealRef)}', {Deal Name})`);
-      }
-      const formula = `OR(${conditions.join(", ")})`;
+      // Note: linked record fields in Airtable match the exact linked record ID or display name
+      const formula = `OR({Deal Name} = '${escapeFormulaString(dealId)}', {Deal Name} = '${escapeFormulaString(dealName)}')`;
       const response = await airtableFetch(TABLES.TRANSCRIPT_ANALYSES || "Transcript_Analyses", {
         filterByFormula: formula
       });

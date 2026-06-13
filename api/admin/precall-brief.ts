@@ -34,29 +34,17 @@ export default async function handler(req: any, res: any) {
 
       // Fetch the deal record to resolve its primary field Name/Ref
       let dealName = dealId;
-      let dealRef = "";
       try {
         const dealRecord = await airtableFetchRecord(pipelineTable, dealId);
         if (dealRecord && dealRecord.fields) {
-          dealName = dealRecord.fields["Deal Name"] || dealRecord.fields["Deal_Name"] || dealRecord.fields["Name"] || dealName;
-          const rawRef = dealRecord.fields["REF No."] || dealRecord.fields["Deal Ref"] || dealRecord.fields["REF. NO"] || "";
-          dealRef = Array.isArray(rawRef) ? rawRef[0] : rawRef;
+          dealName = dealRecord.fields["REF No."] || dealRecord.fields["Deal Ref"] || dealRecord.fields["Deal Name"] || dealName;
         }
       } catch (err) {
         console.warn(`[Pre-call GET] Could not resolve dealName for ID ${dealId}:`, err);
       }
 
       // Query table 'Precall_Briefs'
-      // Construct a robust formula matching by Record ID, exact Deal Name, or REF No.
-      const conditions = [
-        `{Active_Pipeline} = '${escapeFormulaString(dealId)}'`,
-        `{Active_Pipeline} = '${escapeFormulaString(dealName)}'`
-      ];
-      if (dealRef) {
-        conditions.push(`{Active_Pipeline} = '${escapeFormulaString(dealRef)}'`);
-        conditions.push(`FIND('${escapeFormulaString(dealRef)}', {Active_Pipeline})`);
-      }
-      const formula = `OR(${conditions.join(", ")})`;
+      const formula = `OR({Active_Pipeline} = '${escapeFormulaString(dealId)}', {Active_Pipeline} = '${escapeFormulaString(dealName)}')`;
       const response = await airtableFetch(precallTable, {
         filterByFormula: formula
       });
@@ -73,15 +61,6 @@ export default async function handler(req: any, res: any) {
         let selectedCallType = "1st";
         let dataSources = { companiesHouse: true, linkedIn: true, notionSops: true, airtable: true };
         let aiAnswers: Array<{ q: string; a: string }> = [];
-        
-        let overview = "";
-        let financials = "";
-        let rationale = "";
-        let risks = "";
-        let openingTone = "";
-        let openingThesis = "";
-        let openingIcebreaker = "";
-        let openingSensitivities = "";
 
         const rawBriefData = fields["Brief Data"] || "";
         if (rawBriefData.trim().startsWith("{") && rawBriefData.trim().endsWith("}")) {
@@ -94,15 +73,6 @@ export default async function handler(req: any, res: any) {
             selectedCallType = parsed.selectedCallType || selectedCallType;
             dataSources = parsed.dataSources || dataSources;
             aiAnswers = Array.isArray(parsed.aiAnswers) ? parsed.aiAnswers : [];
-            
-            overview = parsed.overview || "";
-            financials = parsed.financials || "";
-            rationale = parsed.rationale || "";
-            risks = parsed.risks || "";
-            openingTone = parsed.openingTone || "";
-            openingThesis = parsed.openingThesis || "";
-            openingIcebreaker = parsed.openingIcebreaker || "";
-            openingSensitivities = parsed.openingSensitivities || "";
           } catch (e) {
             businessProfile = "Error parsing brief data.";
           }
@@ -122,14 +92,6 @@ export default async function handler(req: any, res: any) {
           selectedCallType,
           dataSources,
           aiAnswers,
-          overview,
-          financials,
-          rationale,
-          risks,
-          openingTone,
-          openingThesis,
-          openingIcebreaker,
-          openingSensitivities,
           timestamp: rec.createdTime || new Date().toISOString()
         };
       });

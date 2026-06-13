@@ -92,18 +92,18 @@ async function interpretFinancialsWithClaude(
   }
 
   const systemPrompt = `You are a senior credit underwriting expert at Aysan Capital Partners.
-Write a highly concise, institutional-grade credit commentary interpreting the calculated metrics, anomalies, and risks.
+Your task is to write a professional, institutional-grade credit commentary interpreting calculated financial metrics, anomalies, and risk markers for a target company.
 
 STRICT RULES:
-- ONLY discuss the provided calculated metrics, anomalies, and risks. Do NOT fabricate/assume metrics.
-- Keep the language direct, confident, and investment-grade.
-- Structure as short bullet points or 1-2 very compact paragraphs under 120 words total.
-- Comment strictly on:
-  1. Cash Flow & DSCR safety margin.
-  2. Leverage/repayment stability.
-  3. Working Capital/liquidity.
-  4. Overall viability & recommendation.
-Do not include headings, markdown styling, or repetitive filler.`;
+- ONLY discuss the provided calculated metrics, anomalies, and risks.
+- Do NOT fabricate or assume any metrics that are not in the inputs.
+- Comment specifically on:
+  1. Cash Flow & Debt Service Coverage (DSCR safety margin).
+  2. Leverage and repayment stability.
+  3. Liquidity and Working Capital status.
+  4. Overall operational viability and investment recommendation.
+
+Write 3-4 professional, analytical paragraphs. Do NOT include markdown styling or headers, just plain text with double line breaks between paragraphs.`;
 
   const inputContext = JSON.stringify({ metrics, anomalies, risks }, null, 2);
 

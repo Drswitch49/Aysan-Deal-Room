@@ -27,29 +27,17 @@ export default async function handler(req: any, res: any) {
 
       // Fetch the deal record to resolve its primary field Name/Ref
       let dealName = dealId;
-      let dealRef = "";
       try {
         const dealRecord = await airtableFetchRecord(pipelineTable, dealId);
         if (dealRecord && dealRecord.fields) {
-          dealName = dealRecord.fields["Deal Name"] || dealRecord.fields["Deal_Name"] || dealRecord.fields["Name"] || dealName;
-          const rawRef = dealRecord.fields["REF No."] || dealRecord.fields["Deal Ref"] || dealRecord.fields["REF. NO"] || "";
-          dealRef = Array.isArray(rawRef) ? rawRef[0] : rawRef;
+          dealName = dealRecord.fields["REF No."] || dealRecord.fields["Deal Ref"] || dealRecord.fields["Deal Name"] || dealName;
         }
       } catch (err) {
         console.warn(`[Post-call GET] Could not resolve dealName for ID ${dealId}:`, err);
       }
 
       // Query table 'Postcall_Briefs'
-      // Construct a robust formula matching by Record ID, exact Deal Name, or REF No.
-      const conditions = [
-        `{Active_Pipeline} = '${escapeFormulaString(dealId)}'`,
-        `{Active_Pipeline} = '${escapeFormulaString(dealName)}'`
-      ];
-      if (dealRef) {
-        conditions.push(`{Active_Pipeline} = '${escapeFormulaString(dealRef)}'`);
-        conditions.push(`FIND('${escapeFormulaString(dealRef)}', {Active_Pipeline})`);
-      }
-      const formula = `OR(${conditions.join(", ")})`;
+      const formula = `OR({Active_Pipeline} = '${escapeFormulaString(dealId)}', {Active_Pipeline} = '${escapeFormulaString(dealName)}')`;
       const response = await airtableFetch(postcallTable, {
         filterByFormula: formula
       });
@@ -65,12 +53,6 @@ export default async function handler(req: any, res: any) {
         let overrides: Record<string, number> = {};
         let calculated = null;
         let followUpEmail = "";
-        
-        let strategicAlignment = "";
-        let financialReality = "";
-        let redFlags = "";
-        let dealStructure = "";
-        let nextSteps = "";
 
         const rawBriefData = fields["Brief Data"] || "";
         if (rawBriefData.trim().startsWith("{") && rawBriefData.trim().endsWith("}")) {
@@ -82,12 +64,6 @@ export default async function handler(req: any, res: any) {
             overrides = parsed.overrides || {};
             calculated = parsed.calculated || null;
             followUpEmail = parsed.followUpEmail || "";
-            
-            strategicAlignment = parsed.strategicAlignment || "";
-            financialReality = parsed.financialReality || "";
-            redFlags = parsed.redFlags || "";
-            dealStructure = parsed.dealStructure || "";
-            nextSteps = parsed.nextSteps || "";
           } catch (e) {
             summary = "Error parsing brief data.";
           }
@@ -111,11 +87,6 @@ export default async function handler(req: any, res: any) {
           overrides,
           calculated,
           followUpEmail,
-          strategicAlignment,
-          financialReality,
-          redFlags,
-          dealStructure,
-          nextSteps,
           timestamp: rec.createdTime || new Date().toISOString()
         };
       });
@@ -208,11 +179,6 @@ export default async function handler(req: any, res: any) {
           overrides: mergedOverrides,
           calculated,
           followUpEmail: briefPayload.followUpEmail,
-          strategicAlignment: briefPayload.strategicAlignment || "",
-          financialReality: briefPayload.financialReality || "",
-          redFlags: briefPayload.redFlags || "",
-          dealStructure: briefPayload.dealStructure || "",
-          nextSteps: briefPayload.nextSteps || "",
           timestamp: briefRecord.createdTime || new Date().toISOString()
         });
       }
@@ -285,11 +251,6 @@ export default async function handler(req: any, res: any) {
           overrides: {},
           calculated,
           followUpEmail: aiResult.followUpEmail,
-          strategicAlignment: aiResult.strategicAlignment || "",
-          financialReality: aiResult.financialReality || "",
-          redFlags: aiResult.redFlags || "",
-          dealStructure: aiResult.dealStructure || "",
-          nextSteps: aiResult.nextSteps || "",
         };
 
         await airtableUpdate(postcallTable, recordId, {
@@ -309,11 +270,6 @@ export default async function handler(req: any, res: any) {
           overrides: {},
           calculated,
           followUpEmail: aiResult.followUpEmail,
-          strategicAlignment: aiResult.strategicAlignment || "",
-          financialReality: aiResult.financialReality || "",
-          redFlags: aiResult.redFlags || "",
-          dealStructure: aiResult.dealStructure || "",
-          nextSteps: aiResult.nextSteps || "",
           timestamp: createdRecord.createdTime || new Date().toISOString(),
           sync: true,
         });

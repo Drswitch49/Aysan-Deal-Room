@@ -937,6 +937,46 @@ function AccordionPanel({
   );
 }
 
+function renderRichText(text: string) {
+  if (!text) return null;
+  const lines = text.split("\n");
+  return (
+    <div className="space-y-2 font-medium">
+      {lines.map((line, idx) => {
+        const trimmed = line.trim();
+        const isBullet = trimmed.startsWith("* ") || trimmed.startsWith("- ") || trimmed.startsWith("• ");
+        let content = line;
+        if (isBullet) {
+          content = trimmed.substring(2);
+        }
+
+        const parts = content.split("**");
+        const renderedLine = parts.map((part, i) => {
+          if (i % 2 === 1) {
+            return <strong key={i} className="text-white font-extrabold">{part}</strong>;
+          }
+          return part;
+        });
+
+        if (isBullet) {
+          return (
+            <div key={idx} className="flex items-start gap-1.5 text-xs text-slate-300 pl-1 select-text">
+              <span className="text-[#C6A66B] select-none mt-1 shrink-0 text-[10px]">•</span>
+              <span className="leading-relaxed">{renderedLine}</span>
+            </div>
+          );
+        }
+
+        return (
+          <p key={idx} className="text-xs text-slate-350 leading-relaxed min-h-[1em] select-text">
+            {renderedLine}
+          </p>
+        );
+      })}
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------------
 // High-Fidelity Tab Layout Components
 // ---------------------------------------------------------------------
@@ -1496,9 +1536,7 @@ function OverviewTab({
             
             {deal.rawFields?.["Next Action"] ? (
               <div className="space-y-2">
-                <p className="text-xs text-slate-200 leading-relaxed font-semibold">
-                  {String(deal.rawFields["Next Action"])}
-                </p>
+                {renderRichText(String(deal.rawFields["Next Action"]))}
                 {deal.rawFields["Next Action Date"] && (
                   <div className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/5 border border-amber-500/10 px-2.5 py-0.5 text-[9px] font-bold text-amber-400 select-none">
                     Target due: {new Date(deal.rawFields["Next Action Date"]).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}

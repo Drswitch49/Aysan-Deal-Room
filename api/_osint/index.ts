@@ -71,18 +71,19 @@ async function synthesizeWithClaude(
   const dataContext = JSON.stringify(enrichmentData, null, 2).substring(0, 12_000);
 
   const systemPrompt = `You are a senior investment associate at Aysan Capital Partners.
-Synthesize the provided raw OSINT enrichment data. Focus strictly on brevity, clarity, and partner-grade signal density.
+You have received raw OSINT enrichment data about a target company from multiple sources.
+Your task is to synthesize this data into structured intelligence for deal evaluation.
 
-STRICT RULES:
-- ONLY reference information present in the provided data.
+RULES:
+- Only reference information present in the provided data.
 - Do NOT fabricate details, officer names, or financial figures.
-- Flag concerning patterns as risk items.
+- Flag any concerning patterns as risk items.
 
 Respond ONLY with valid JSON:
 {
-  "synthesis": "1 short paragraph or structured bullet points under 80 words summarizing company activities and web footprint profile.",
-  "keyInsights": ["Insight (max 3 high-impact, decision-relevant insights, each under 12 words)"],
-  "riskFlags": ["Critical risk concern (max 3 short bullets, each under 10 words)"]
+  "synthesis": "2-3 paragraph executive intelligence summary of the company, its market position, and notable characteristics",
+  "keyInsights": ["Insight 1", "Insight 2", "Insight 3"],
+  "riskFlags": ["Risk or concern 1 (if any)"]
 }`;
 
   try {

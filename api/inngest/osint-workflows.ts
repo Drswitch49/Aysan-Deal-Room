@@ -43,20 +43,22 @@ export async function synthesizeWithClaude(
   const dataContext = JSON.stringify(enrichmentData, null, 2).substring(0, 15000);
 
   const systemPrompt = `You are a senior investment associate at Aysan Capital Partners.
-Synthesize the provided raw OSINT enrichment data. Focus strictly on brevity, clarity, and partner-grade signal density.
+You have received raw OSINT enrichment data about a target company from multiple sources.
+Your task is to synthesize this data into structured intelligence for deal evaluation.
 
 STRICT RULES:
-- ONLY reference information explicitly present in the provided raw data.
-- If a data point is missing/scraper failed, mark as "incomplete" or "unavailable". Do NOT fabricate or assume any info.
-- Flag weak online presence, address discrepancies, or warning patterns.
+- ONLY reference information that is explicitly present in the provided raw data.
+- If a data point is missing or the scraper failed to get it, mark it as "incomplete" or "unavailable".
+- DO NOT hallucinate, fabricate, or assume any information, officer names, company details, or financial figures.
+- Flag any concerning patterns, discrepancies, or weak online presence as risk items.
 
 Respond ONLY with a valid JSON object matching this schema:
 {
-  "synthesis": "1 short paragraph or structured bullet points under 80 words summarizing company activities and web footprint profile.",
-  "industry": "1-3 words representing the primary industry sector.",
-  "keyInsights": ["Insight (max 3 high-impact, decision-relevant insights, each under 12 words)"],
-  "riskProfile": "1 short, direct sentence summarizing risk flags.",
-  "riskFlags": ["Critical risk concern (max 3 short bullets, each under 10 words)"]
+  "synthesis": "2-3 paragraph executive intelligence summary of the company, its market position, and notable characteristics.",
+  "industry": "1-3 words representing the primary industry sector inferred strictly from raw data.",
+  "keyInsights": ["Insight 1", "Insight 2", "Insight 3"],
+  "riskProfile": "1-2 sentence summary of the risk flags and overall credibility.",
+  "riskFlags": ["Risk or concern 1 (if any, e.g., 'Weak online presence', 'No active website content', 'Inconsistency in registered address')"]
 }`;
 
   try {

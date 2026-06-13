@@ -11,7 +11,8 @@ import { airtableFetchRecord, airtableUpdate } from "../_utils/airtable.js";
 import { TABLES } from "../../src/lib/airtable/schema.js";
 import { verifyQStashRequest } from "../_utils/qstash.js";
 import { updateJobStatus, failJob } from "../_utils/job-status.js";
-import { generatePrecallBriefWithAI } from "../_services/ai.js";
+
+const AI_TIMEOUT_MS = 8_500;
 
 export default async function handler(req: any, res: any) {
   if (req.method !== "POST") {
@@ -59,22 +60,78 @@ export default async function handler(req: any, res: any) {
       return res.status(422).json({ error: "No deal data in record" });
     }
 
-    const enabledSources = typeof dataSources === "object" && !Array.isArray(dataSources)
-      ? Object.entries(dataSources as Record<string, boolean>)
-          .filter(([, v]) => v)
-          .map(([k]) => k)
-      : Array.isArray(dataSources)
-      ? dataSources
-      : [];
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) {
+      await failJob(table, recordId, "ANTHROPIC_API_KEY not configured");
+      return res.status(500).json({ error: "AI service not configured" });
+    }
+
+    const callTypeLabel =
+      selectedCallType === "1st"
+        ? "1st Seller Call"
+        : selectedCallType === "2nd"
+        ? "2nd Follow-up Call"
+        : "Negotiation";
+
+    const systemPrompt = `You are a senior investment associate at Aysan Capital Partners.
+Prepare a Pre-call Intelligence Brief for the deal team.
+
+Respond ONLY with valid JSON:
+{
+  "businessProfile": "Concise paragraph on company, sector, financials, transition risks",
+  "openingAngle": "Actionable advice on how to open and position the call",
+  "questionsToAsk": ["Strategic question 1", "Strategic question 2", "Strategic question 3"]
+}`;
+
+    const userContent = `Company: ${dealData.companyName || dealData.dealRef}
+Sector: ${dealData.sector} | Location: ${dealData.location}
+EV: ${dealData.evAsk ? `£${dealData.evAsk}` : "TBC"}
+Revenue: ${dealData.revenue ? `£${dealData.revenue}` : "TBC"}
+EBITDA: ${dealData.ebitda ? `£${dealData.ebitda}` : "TBC"}
+EV Multiple: ${dealData.multiplier || "TBC"}
+Call Type: ${callTypeLabel}
+Attendees: ${(attendees || ["Ayo (lead)", "Prince"]).join(", ")}
+Sources: ${(dataSources || []).join(", ")}
+${pastedText ? `\nIM Text:\n${pastedText.substring(0, 3_000)}` : ""}`;
 
     let briefContent: any;
     try {
-      briefContent = await generatePrecallBriefWithAI(dealData, {
-        selectedCallType: selectedCallType || "1st",
-        attendees: attendees || ["Ayo (lead)", "Prince"],
-        dataSources: enabledSources,
-        pastedText,
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), AI_TIMEOUT_MS);
+
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "x-api-key": apiKey,
+          "anthropic-version": "2023-06-01",
+          "content-type": "application/json",
+        },
+        signal: controller.signal,
+        body: JSON.stringify({
+          model: "claude-sonnet-4-5-20250929",
+          max_tokens: 1500,
+          system: systemPrompt,
+          messages: [{ role: "user", content: userContent }],
+        }),
       });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new Error(`Claude API ${response.status}: ${await response.text()}`);
+      }
+
+      const claudePayload = await response.json();
+      let raw = claudePayload.content?.[0]?.text || "";
+      if (raw.startsWith("```")) {
+        raw = raw.replace(/^```json\s*/i, "").replace(/```$/, "").trim();
+      }
+      const parsed = JSON.parse(raw);
+      briefContent = {
+        businessProfile: parsed.businessProfile || "",
+        openingAngle: parsed.openingAngle || "",
+        questionsToAsk: Array.isArray(parsed.questionsToAsk) ? parsed.questionsToAsk : [],
+      };
     } catch (err: any) {
       await failJob(table, recordId, `Claude call failed: ${err.message}`);
       return res.status(500).json({ error: err.message });

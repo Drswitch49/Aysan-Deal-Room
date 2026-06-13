@@ -103,7 +103,15 @@ export function useJobStatus({
       const url = `/api/jobs/status?table=${encodeURIComponent(table)}&recordId=${encodeURIComponent(recordId)}${
         jobType ? `&jobType=${encodeURIComponent(jobType)}` : ""
       }`;
-      const response = await fetch(url);
+      const response = await fetch(
+        url,
+        {
+          headers: {
+            // Auth token from sessionStorage (matches existing auth pattern)
+            Authorization: `Bearer ${sessionStorage.getItem("admin_token") || ""}`,
+          },
+        }
+      );
 
       if (!response.ok) {
         // Non-2xx — stop polling to avoid hammering a broken endpoint
