@@ -2716,7 +2716,7 @@ Owner is open to deferred payment structures, specifically accepting 20% Vendor 
                     <button
                       onClick={handleSubmitOverrides}
                       disabled={savingOverrides}
-                      className="h-8 flex-1 sm:flex-initial rounded-lg bg-amber-500 text-slate-955 px-4 text-xs font-black uppercase tracking-wider hover:bg-amber-400 transition cursor-pointer shadow-lg shadow-amber-500/10 flex items-center justify-center gap-1"
+                      className="h-8 flex-1 sm:flex-initial rounded-lg bg-[#C6A66B] text-slate-950 px-4 text-xs font-black uppercase tracking-wider hover:brightness-110 active:scale-[0.98] transition cursor-pointer shadow-lg shadow-[#C6A66B]/10 flex items-center justify-center gap-1"
                     >
                       {savingOverrides && <RefreshCw className="h-3 w-3 animate-spin" />}
                       Save Scores
@@ -2908,7 +2908,7 @@ Owner is open to deferred payment structures, specifically accepting 20% Vendor 
               type="button"
               onClick={handleUpdateScorecard}
               disabled={generating}
-              className="flex-[2] h-10 rounded-xl bg-slate-100 text-slate-955 font-black text-xs uppercase tracking-wider hover:bg-white flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+              className="flex-[2] h-10 rounded-xl bg-gradient-to-r from-[#C6A66B] to-[#B8924F] text-slate-950 font-black text-xs uppercase tracking-wider hover:opacity-90 active:scale-[0.98] flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 shadow-lg shadow-[#C6A66B]/10 transition duration-200"
             >
               {generating ? (
                 <>
@@ -2917,7 +2917,7 @@ Owner is open to deferred payment structures, specifically accepting 20% Vendor 
                 </>
               ) : (
                 <>
-                  <CheckCircle2 className="h-4.5 w-4.5" />
+                  <CheckCircle2 className="h-4.5 w-4.5 text-slate-950" />
                   Score Call
                 </>
               )}

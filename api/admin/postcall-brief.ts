@@ -70,7 +70,7 @@ export default async function handler(req: any, res: any) {
         if (parsed && typeof parsed === "object") {
           schemaId = parsed.schemaId || "ACP_DEAL_ROOM";
           summary = parsed.summary || "";
-          aiScores = parsed.aiScores || {};
+          aiScores = parsed.aiScores || parsed.scores || {};
           overrides = parsed.overrides || {};
           calculated = parsed.calculated || null;
           followUpEmail = parsed.followUpEmail || "";
@@ -165,7 +165,7 @@ export default async function handler(req: any, res: any) {
         });
 
         // Recalculate
-        const calculated = calculateScore(briefPayload.schemaId, briefPayload.aiScores, mergedOverrides);
+        const calculated = calculateScore(briefPayload.schemaId, briefPayload.aiScores || briefPayload.scores || {}, mergedOverrides);
 
         // Update brief payload
         briefPayload.overrides = mergedOverrides;

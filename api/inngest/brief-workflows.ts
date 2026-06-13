@@ -200,7 +200,7 @@ const onPostcallBriefRequested = inngest.createFunction(
     // Step 3: Calculate weighted score
     const scoreResult: any = await step.run("calculate-score", async () => {
       const scoreSchemaId = schemaId || jobPayload.schemaId || "ACP_DEAL_ROOM";
-      return calculateScore(aiResult.scores, scoreSchemaId);
+      return calculateScore(scoreSchemaId, aiResult.scores);
     });
 
     // Step 4: Persist results to Airtable
