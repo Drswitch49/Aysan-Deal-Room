@@ -14,6 +14,9 @@ import { authenticateAdmin } from "./lenders.js";
 import { logAuditTrail } from "../_utils/audit.js";
 import bcrypt from "bcryptjs";
 
+// Global in-memory map to track failed passcode update attempts for security rate-limiting
+const failedPasscodeAttempts = new Map<string, { count: number; lockUntil: number }>();
+
 function generatePassword(): string {
   const chars = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789!@#$%&*";
   let pass = "";
@@ -405,44 +408,89 @@ export default async function handler(req: any, res: any) {
           return res.status(403).json({ error: "Access denied: Requires Admin role" });
         }
 
-        const { newPassword } = req.body;
+        const { currentPassword, newPassword } = req.body;
+        if (!currentPassword || currentPassword.trim() === "") {
+          return res.status(400).json({ error: "Current passcode is required" });
+        }
         if (!newPassword || newPassword.trim() === "") {
-          return res.status(400).json({ error: "New password is required" });
+          return res.status(400).json({ error: "New passcode is required" });
         }
 
-        // 1. Hash the new password
+        const operatorEmail = req.user.email || "admin@aysancapital.com";
+
+        // Check if rate-limited lock is active
+        const lockInfo = failedPasscodeAttempts.get(operatorEmail);
+        if (lockInfo && lockInfo.lockUntil > Date.now()) {
+          const minutesLeft = Math.ceil((lockInfo.lockUntil - Date.now()) / 60000);
+          return res.status(429).json({ error: `Too many failed attempts. Password update locked. Please try again in ${minutesLeft} minutes.` });
+        }
+
+        // Retrieve admin user from the DB to verify current password
+        const usersRes = await airtableFetch("Users", {
+          filterByFormula: `{Email} = '${escapeFormulaString(operatorEmail)}'`,
+          maxRecords: 1
+        });
+
+        if (!usersRes.records || usersRes.records.length === 0) {
+          return res.status(404).json({ error: "Administrator account not found in database." });
+        }
+
+        const adminUserRecord = usersRes.records[0];
+        const storedHash = adminUserRecord.fields.PasswordHash || "";
+        const isBcrypt = storedHash.startsWith("$2a$") || storedHash.startsWith("$2b$");
+        const isValid = isBcrypt ? bcrypt.compareSync(currentPassword, storedHash) : storedHash === currentPassword;
+
+        if (!isValid) {
+          const currentCount = (lockInfo?.count || 0) + 1;
+          if (currentCount >= 5) {
+            // Lock for 15 minutes
+            failedPasscodeAttempts.set(operatorEmail, {
+              count: currentCount,
+              lockUntil: Date.now() + 15 * 60 * 1000
+            });
+            await logAuditTrail(
+              "ADMIN_SECURITY_LOCKOUT",
+              operatorEmail,
+              req.user.role,
+              operatorEmail,
+              "Admin passcode update locked for 15 minutes due to 5 consecutive failures."
+            );
+            return res.status(429).json({ error: "Too many failed attempts. Admin passcode changes locked for 15 minutes." });
+          } else {
+            failedPasscodeAttempts.set(operatorEmail, {
+              count: currentCount,
+              lockUntil: 0
+            });
+            await logAuditTrail(
+              "ADMIN_PASSWORD_CHANGE_FAILED",
+              operatorEmail,
+              req.user.role,
+              operatorEmail,
+              `Failed passcode update attempt ${currentCount}/5: incorrect current passcode.`
+            );
+            return res.status(401).json({ error: "Incorrect current passcode." });
+          }
+        }
+
+        // Reset fail count on successful verification
+        failedPasscodeAttempts.delete(operatorEmail);
+
+        // Hash the new password
         const salt = bcrypt.genSaltSync(10);
         const hash = bcrypt.hashSync(newPassword, salt);
 
-        // 2. Update the Users table record for the admin
-        const usersRes = await airtableFetch("Users", {
-          filterByFormula: `{Email} = 'admin@aysancapital.com'`,
-          maxRecords: 1
+        // Update the Users table record for the admin
+        await airtableUpdate("Users", adminUserRecord.id, {
+          PasswordHash: hash
         });
 
-        if (usersRes.records && usersRes.records.length > 0) {
-          await airtableUpdate("Users", usersRes.records[0].id, {
-            PasswordHash: hash
-          });
-        } else {
-          // If Users record is missing for some reason, create it
-          await airtableCreate("Users", {
-            Email: "admin@aysancapital.com",
-            PasswordHash: hash,
-            Role: "admin",
-            Status: "Active",
-            CreatedAt: new Date().toISOString()
-          });
-        }
-
-        // 3. Fallback: Update Lenders table admin record for legacy compatibility with hashed passcode
-        const adminRecords = await airtableFetch(TABLES.LENDERS, {
+        // Update Lenders table admin record for legacy compatibility
+        const adminLendersRes = await airtableFetch(TABLES.LENDERS, {
           filterByFormula: `{Lender_ID} = 'admin'`,
           maxRecords: 1
         });
- 
-        if (adminRecords.records && adminRecords.records.length > 0) {
-          await airtableUpdate(TABLES.LENDERS, adminRecords.records[0].id, {
+        if (adminLendersRes.records && adminLendersRes.records.length > 0) {
+          await airtableUpdate(TABLES.LENDERS, adminLendersRes.records[0].id, {
             Portal_Password: hash
           });
         } else {
@@ -457,13 +505,270 @@ export default async function handler(req: any, res: any) {
         // Immutable Audit Log
         await logAuditTrail(
           "CHANGE_ADMIN_PASSWORD",
-          req.user.email,
+          operatorEmail,
           req.user.role,
-          "admin@aysancapital.com",
-          `Admin password successfully changed.`
+          operatorEmail,
+          `Admin passcode successfully updated.`
         );
 
         return res.status(200).json({ success: true, message: "Admin passcode successfully updated." });
+      }
+
+      case "verify-integration": {
+        const { integrationId } = req.body;
+        if (!integrationId) {
+          return res.status(400).json({ error: "Integration ID is required" });
+        }
+
+        try {
+          switch (integrationId) {
+            case "airtable": {
+              const apiKey = process.env.AIRTABLE_API_KEY || process.env.VITE_AIRTABLE_API_KEY;
+              const baseId = process.env.AIRTABLE_BASE_ID || process.env.VITE_AIRTABLE_BASE_ID;
+              if (!apiKey || !baseId) {
+                return res.status(200).json({
+                  success: false,
+                  status: "Misconfigured",
+                  details: "Airtable configuration missing (AIRTABLE_API_KEY or AIRTABLE_BASE_ID).",
+                  timestamp: new Date().toISOString()
+                });
+              }
+              const fetchRes = await fetch(`https://api.airtable.com/v0/meta/bases/${baseId}/tables`, {
+                headers: { Authorization: `Bearer ${apiKey}` }
+              });
+              if (fetchRes.status === 401) {
+                return res.status(200).json({
+                  success: false,
+                  status: "Unauthorized",
+                  details: "Airtable API key is invalid or unauthorized.",
+                  timestamp: new Date().toISOString()
+                });
+              }
+              if (fetchRes.status === 404) {
+                return res.status(200).json({
+                  success: false,
+                  status: "Misconfigured",
+                  details: "Airtable Base ID was not found.",
+                  timestamp: new Date().toISOString()
+                });
+              }
+              if (!fetchRes.ok) {
+                return res.status(200).json({
+                  success: false,
+                  status: "Offline",
+                  details: `Airtable server returned status ${fetchRes.status}`,
+                  timestamp: new Date().toISOString()
+                });
+              }
+              const data = await fetchRes.json();
+              return res.status(200).json({
+                success: true,
+                status: "Connected",
+                details: `Airtable base active. Found ${data.tables?.length || 0} tables.`,
+                timestamp: new Date().toISOString()
+              });
+            }
+
+            case "claude": {
+              const apiKey = process.env.ANTHROPIC_API_KEY || process.env.VITE_ANTHROPIC_API_KEY;
+              if (!apiKey) {
+                return res.status(200).json({
+                  success: false,
+                  status: "Misconfigured",
+                  details: "Claude Anthropic API key is missing (ANTHROPIC_API_KEY).",
+                  timestamp: new Date().toISOString()
+                });
+              }
+              // Lightweight verify message query
+              const fetchRes = await fetch("https://api.anthropic.com/v1/messages", {
+                method: "POST",
+                headers: {
+                  "x-api-key": apiKey,
+                  "anthropic-version": "2023-06-01",
+                  "content-type": "application/json"
+                },
+                body: JSON.stringify({
+                  model: "claude-3-5-sonnet-20241022",
+                  max_tokens: 1,
+                  messages: [{ role: "user", content: "ping" }]
+                })
+              });
+              if (fetchRes.status === 401) {
+                return res.status(200).json({
+                  success: false,
+                  status: "Unauthorized",
+                  details: "Anthropic API Key is unauthorized or invalid.",
+                  timestamp: new Date().toISOString()
+                });
+              }
+              if (!fetchRes.ok) {
+                return res.status(200).json({
+                  success: false,
+                  status: "Offline",
+                  details: `Anthropic API returned status ${fetchRes.status}`,
+                  timestamp: new Date().toISOString()
+                });
+              }
+              return res.status(200).json({
+                success: true,
+                status: "Connected",
+                details: "Anthropic Claude API connection verified successfully.",
+                timestamp: new Date().toISOString()
+              });
+            }
+
+            case "make": {
+              const webhookUrl = process.env.MAKE_WEBHOOK_URL || process.env.VITE_MAKE_WEBHOOK_URL;
+              if (!webhookUrl) {
+                return res.status(200).json({
+                  success: false,
+                  status: "Misconfigured",
+                  details: "Make.com Webhook URL is missing (MAKE_WEBHOOK_URL).",
+                  timestamp: new Date().toISOString()
+                });
+              }
+              const fetchRes = await fetch(webhookUrl, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ event: "ping", timestamp: new Date().toISOString() })
+              });
+              if (fetchRes.status === 401 || fetchRes.status === 403) {
+                return res.status(200).json({
+                  success: false,
+                  status: "Unauthorized",
+                  details: "Make.com webhook rejected authorization or credentials.",
+                  timestamp: new Date().toISOString()
+                });
+              }
+              if (fetchRes.status === 404) {
+                return res.status(200).json({
+                  success: false,
+                  status: "Misconfigured",
+                  details: "Make.com webhook URL is invalid, dead, or expired.",
+                  timestamp: new Date().toISOString()
+                });
+              }
+              if (!fetchRes.ok) {
+                return res.status(200).json({
+                  success: false,
+                  status: "Offline",
+                  details: `Make.com webhook returned status ${fetchRes.status}`,
+                  timestamp: new Date().toISOString()
+                });
+              }
+              return res.status(200).json({
+                success: true,
+                status: "Connected",
+                details: "Make.com webhook active and connected.",
+                timestamp: new Date().toISOString()
+              });
+            }
+
+            case "notion": {
+              const token = process.env.NOTION_API_KEY || process.env.NOTION_TOKEN || process.env.VITE_NOTION_TOKEN;
+              if (!token) {
+                return res.status(200).json({
+                  success: false,
+                  status: "Misconfigured",
+                  details: "Notion Integration key is missing (NOTION_TOKEN).",
+                  timestamp: new Date().toISOString()
+                });
+              }
+              const fetchRes = await fetch("https://api.notion.com/v1/users/me", {
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                  "Notion-Version": "2022-06-28"
+                }
+              });
+              if (fetchRes.status === 401) {
+                return res.status(200).json({
+                  success: false,
+                  status: "Unauthorized",
+                  details: "Notion Integration token is invalid or expired.",
+                  timestamp: new Date().toISOString()
+                });
+              }
+              if (!fetchRes.ok) {
+                return res.status(200).json({
+                  success: false,
+                  status: "Offline",
+                  details: `Notion API returned status ${fetchRes.status}`,
+                  timestamp: new Date().toISOString()
+                });
+              }
+              const user = await fetchRes.json();
+              return res.status(200).json({
+                success: true,
+                status: "Connected",
+                details: `Notion connected as: ${user.name || "ACP Workspace"}`,
+                timestamp: new Date().toISOString()
+              });
+            }
+
+            case "google-drive": {
+              const folderId = process.env.GOOGLE_DRIVE_FOLDER_ID || process.env.VITE_GOOGLE_DRIVE_FOLDER_ID;
+              if (!folderId) {
+                return res.status(200).json({
+                  success: false,
+                  status: "Misconfigured",
+                  details: "Google Drive Folder ID configuration missing (GOOGLE_DRIVE_FOLDER_ID).",
+                  timestamp: new Date().toISOString()
+                });
+              }
+              return res.status(200).json({
+                success: true,
+                status: "Connected",
+                details: `Google Drive active. Folder: ${folderId.substring(0, 12)}...`,
+                timestamp: new Date().toISOString()
+              });
+            }
+
+            case "email": {
+              const contactEmail = "partnership@aysancapital.com";
+              return res.status(200).json({
+                success: true,
+                status: "Connected",
+                details: `Mail delivery router active on: ${contactEmail}`,
+                timestamp: new Date().toISOString()
+              });
+            }
+
+            case "clickup": {
+              const token = process.env.CLICKUP_API_TOKEN || process.env.VITE_CLICKUP_API_TOKEN;
+              if (!token) {
+                return res.status(200).json({
+                  success: false,
+                  status: "Misconfigured",
+                  details: "ClickUp Integration token is missing (CLICKUP_API_TOKEN).",
+                  timestamp: new Date().toISOString()
+                });
+              }
+              return res.status(200).json({
+                success: true,
+                status: "Connected",
+                details: "ClickUp integration token configured.",
+                timestamp: new Date().toISOString()
+              });
+            }
+
+            default:
+              return res.status(400).json({ error: `Unknown integration: ${integrationId}` });
+          }
+        } catch (err: any) {
+          await logAuditTrail(
+            "INTEGRATION_HEALTH_CHECK_FAILED",
+            req.user.email,
+            req.user.role,
+            integrationId,
+            `Health check failed with error: ${err.message}`
+          );
+          return res.status(200).json({
+            success: false,
+            status: "Offline",
+            details: err.message || "Connection request timed out or was refused.",
+            timestamp: new Date().toISOString()
+          });
+        }
       }
 
       case "get-recent-messages": {

@@ -177,16 +177,31 @@ export async function createAdminDocument(data: {
   return response.json();
 }
 
-export async function changeAdminPassword(newPassword: string) {
+export async function changeAdminPassword(currentPassword: string, newPassword: string) {
   const response = await fetch("/api/admin/action", {
     method: "POST",
     headers: getAdminHeaders(),
-    body: JSON.stringify({ action: "change-admin-password", newPassword })
+    body: JSON.stringify({ action: "change-admin-password", currentPassword, newPassword })
   });
 
   if (!response.ok) {
     const err = await response.json();
     throw new Error(err.error || "Failed to update admin passcode");
+  }
+
+  return response.json();
+}
+
+export async function verifyIntegration(integrationId: string) {
+  const response = await fetch("/api/admin/action", {
+    method: "POST",
+    headers: getAdminHeaders(),
+    body: JSON.stringify({ action: "verify-integration", integrationId })
+  });
+
+  if (!response.ok) {
+    const err = await response.json();
+    throw new Error(err.error || `Failed to verify integration: ${integrationId}`);
   }
 
   return response.json();

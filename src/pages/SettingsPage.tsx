@@ -1,14 +1,15 @@
 import { useState, useEffect } from "react";
 import { 
-  Key, RefreshCw, Check, Database, Server, CheckCircle2, Zap, Bell, Link2, AlertTriangle, HelpCircle, ShieldAlert
+  Key, RefreshCw, Check, Database, Server, CheckCircle2, Zap, Bell, Link2, AlertTriangle, ShieldAlert, Loader2
 } from "lucide-react";
-import { changeAdminPassword } from "../api/admin";
+import { changeAdminPassword, verifyIntegration } from "../api/admin";
 import { clearAirtableCache } from "../api/airtable";
 import { cx } from "../utils/cx";
 import { HeaderMetrics } from "../components/ui/HeaderMetrics";
 import { FormField, inputClass } from "../components/ui/FormField";
 
 export function SettingsPage() {
+  const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
@@ -16,24 +17,75 @@ export function SettingsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [cacheFlushed, setCacheFlushed] = useState(false);
-  const [diagnostics, setDiagnostics] = useState({
+  const [diagnostics] = useState({
     nodeEnv: import.meta.env.MODE || "production",
     port: window.location.port || "5173",
     airtableStatus: "Connected",
     metadataStatus: "Cached Fallback ready"
   });
 
-  // Make.com interactive connection verification state
-  const [verifyingMake, setVerifyingMake] = useState(false);
-  const [makeStatus, setMakeStatus] = useState<"IDLE" | "VERIFYING" | "VERIFIED">("IDLE");
+  // Integration Connection states
+  const [connectionStatuses, setConnectionStatuses] = useState<Record<string, {
+    status: "Connected" | "Misconfigured" | "Unauthorized" | "Offline" | "Pending Verification" | "Idle";
+    details: string;
+    loading: boolean;
+  }>>({});
+
+  const INTEGRATIONS = [
+    { key: "airtable", name: "Airtable Base", id: "appSlarPHIotXrgL4..." },
+    { key: "notion", name: "Notion Docs Hub", id: "Notion Workspaces" },
+    { key: "claude", name: "Claude API", id: "claude-sonnet-4.5" },
+    { key: "make", name: "Make.com", id: "Scenario webhook triggers" },
+    { key: "google-drive", name: "Google Drive", id: "Google Cloud folders" },
+    { key: "email", name: "Email Router", id: "partnership@aysancapital.com" },
+    { key: "clickup", name: "ClickUp Integration", id: "ClickUp Workspaces" }
+  ];
+
+  const checkIntegration = async (id: string) => {
+    setConnectionStatuses(prev => ({
+      ...prev,
+      [id]: { status: "Pending Verification", details: "Checking connectivity...", loading: true }
+    }));
+    try {
+      const res = await verifyIntegration(id);
+      setConnectionStatuses(prev => ({
+        ...prev,
+        [id]: { status: res.status, details: res.details, loading: false }
+      }));
+    } catch (err: any) {
+      setConnectionStatuses(prev => ({
+        ...prev,
+        [id]: { status: "Offline", details: err.message || "Connection refused.", loading: false }
+      }));
+    }
+  };
+
+  useEffect(() => {
+    const ids = ["airtable", "notion", "claude", "make", "google-drive", "email", "clickup"];
+    ids.forEach(id => {
+      checkIntegration(id);
+    });
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setSuccess(false);
 
+    if (!currentPassword) {
+      setError("Current passcode is required.");
+      return;
+    }
+
     if (!newPassword || newPassword.trim() === "") {
-      setError("Password cannot be empty.");
+      setError("New passcode cannot be empty.");
+      return;
+    }
+
+    // Password strength check
+    const passwordRegex = /^(?=.*[a-zA-Z])(?=.*[0-9!@#$%^&*()_+\-=[\]{};':",\\|.<>?]).{8,}$/;
+    if (!passwordRegex.test(newPassword)) {
+      setError("New passcode must be at least 8 characters long and contain both letters and numbers/special characters.");
       return;
     }
 
@@ -44,8 +96,9 @@ export function SettingsPage() {
 
     setIsSubmitting(true);
     try {
-      await changeAdminPassword(newPassword);
+      await changeAdminPassword(currentPassword, newPassword);
       setSuccess(true);
+      setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
       setTimeout(() => setSuccess(false), 3000);
@@ -61,33 +114,6 @@ export function SettingsPage() {
     setCacheFlushed(true);
     setTimeout(() => setCacheFlushed(false), 2000);
   };
-
-  const handleVerifyMake = () => {
-    if (makeStatus === "VERIFYING") return;
-    setVerifyingMake(true);
-    setMakeStatus("VERIFYING");
-    setTimeout(() => {
-      setVerifyingMake(false);
-      setMakeStatus("VERIFIED");
-      // Reset after 3 seconds back to verify state
-      setTimeout(() => setMakeStatus("IDLE"), 4000);
-    }, 1200);
-  };
-
-  const connections = [
-    { name: "Airtable Base", id: "appGwrPtwxbzgz...", status: "CONNECTED", type: "success" },
-    { name: "Notion Docs Hub", id: "21000dec-ce9f-503a-8ab4...", status: "CONNECTED", type: "success" },
-    { name: "Claude API", id: "claude-server-3.5-20241022", status: "ACTIVE", type: "success" },
-    { 
-      name: "Make.com", 
-      id: "0 scenarios", 
-      status: makeStatus === "VERIFIED" ? "CONNECTED" : (makeStatus === "VERIFYING" ? "VERIFYING" : "VERIFY CONNECTION"), 
-      type: "action" 
-    },
-    { name: "Google Drive", id: "folder-ref/0B3ybsK1x4v5hM0t3Q...", status: "CONNECTED", type: "success" },
-    { name: "Email", id: "partnership@aysancapital.com", status: "CONNECTED", type: "success" },
-    { name: "ClickUp", id: "Task management - 901823982397", status: "CONNECTED", type: "success" }
-  ];
 
   const checklistItems = [
     { text: "Airtable field IDs documented for team", status: "REQUIRES ACTION", type: "warning" },
@@ -156,44 +182,74 @@ export function SettingsPage() {
             </div>
 
             <div className="space-y-4">
-              {connections.map((conn, idx) => (
-                <div key={idx} className="flex items-center justify-between py-1.5 border-b border-white/[0.02] last:border-0">
-                  <div className="space-y-1">
-                    <p className="text-xs font-bold text-white tracking-wide">
-                      {conn.name}
-                    </p>
-                    <p className="text-[10px] font-medium text-slate-500 font-mono tracking-tight">
-                      {conn.id}
-                    </p>
-                  </div>
+              {INTEGRATIONS.map((conn, idx) => {
+                const state = connectionStatuses[conn.key] || { status: "Idle", details: "", loading: false };
+                return (
+                  <div key={idx} className="flex flex-col py-2 border-b border-white/[0.02] last:border-0 last:pb-0">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-1">
+                        <p className="text-xs font-bold text-white tracking-wide">
+                          {conn.name}
+                        </p>
+                        <p className="text-[10px] font-medium text-slate-500 font-mono tracking-tight">
+                          {conn.id}
+                        </p>
+                      </div>
 
-                  <div>
-                    {conn.type === "success" ? (
-                      <span className="inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-emerald-450 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/15">
-                        <span className="h-1 w-1.5 rotate-45 border-r border-b border-emerald-450 block transform -translate-y-0.5" />
-                        {conn.status}
-                      </span>
-                    ) : (
-                      <button
-                        onClick={handleVerifyMake}
-                        disabled={makeStatus === "VERIFYING"}
-                        className={cx(
-                          "px-2.5 py-1 text-[9px] font-extrabold uppercase tracking-widest rounded transition-all duration-200 cursor-pointer shadow-sm",
-                          makeStatus === "VERIFIED"
-                            ? "bg-emerald-500/10 text-emerald-450 border border-emerald-500/15"
-                            : makeStatus === "VERIFYING"
-                            ? "bg-[#C6A66B]/20 text-[#C6A66B] border border-[#C6A66B]/30 animate-pulse"
-                            : "bg-[#C6A66B] hover:bg-[#b5904a] text-slate-950"
+                      <div className="flex items-center gap-2">
+                        {state.status === "Connected" && (
+                          <span className="inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-emerald-450 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/15">
+                            <span className="h-1 w-1.5 rotate-45 border-r border-b border-emerald-450 block transform -translate-y-0.5" />
+                            Connected
+                          </span>
                         )}
-                      >
-                        {makeStatus === "VERIFYING" && "VERIFYING..."}
-                        {makeStatus === "VERIFIED" && "CONNECTED"}
-                        {makeStatus === "IDLE" && "VERIFY CONNECTION"}
-                      </button>
+                        {state.status === "Pending Verification" && (
+                          <span className="inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-slate-400 bg-slate-500/10 px-2 py-0.5 rounded border border-slate-500/15 animate-pulse">
+                            <Loader2 className="h-2 w-2 animate-spin text-slate-400" />
+                            Verifying...
+                          </span>
+                        )}
+                        {state.status === "Misconfigured" && (
+                          <span className="inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/15">
+                            <AlertTriangle className="h-2.5 w-2.5 text-amber-500" />
+                            Misconfigured
+                          </span>
+                        )}
+                        {state.status === "Unauthorized" && (
+                          <span className="inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-rose-500 bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/15">
+                            <ShieldAlert className="h-2.5 w-2.5 text-rose-500" />
+                            Unauthorized
+                          </span>
+                        )}
+                        {state.status === "Offline" && (
+                          <span className="inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-rose-500 bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/15">
+                            <AlertTriangle className="h-2.5 w-2.5 text-rose-550" />
+                            Offline
+                          </span>
+                        )}
+                        {state.status === "Idle" && (
+                          <span className="inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-slate-500 bg-slate-500/5 px-2 py-0.5 rounded border border-slate-550/10">
+                            Unchecked
+                          </span>
+                        )}
+
+                        <button
+                          onClick={() => checkIntegration(conn.key)}
+                          disabled={state.loading}
+                          className="px-2.5 py-1 text-[9px] font-extrabold uppercase tracking-widest rounded transition-all duration-200 cursor-pointer shadow-sm bg-[#C6A66B] hover:bg-[#b5904a] text-slate-950 disabled:opacity-40"
+                        >
+                          {state.loading ? "Checking..." : "Re-Verify"}
+                        </button>
+                      </div>
+                    </div>
+                    {state.status !== "Connected" && state.status !== "Idle" && state.details && (
+                      <div className="mt-1.5 text-[9px] text-rose-400 font-semibold leading-relaxed max-w-lg border border-red-500/10 bg-red-950/10 rounded px-2.5 py-1">
+                        {state.details}
+                      </div>
                     )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
@@ -206,7 +262,7 @@ export function SettingsPage() {
 
             <form onSubmit={handleSubmit} className="space-y-4">
               {error && (
-                <div className="rounded-xl border border-rose-500/10 bg-rose-500/5 p-3.5 text-center text-xs font-semibold text-rose-455">
+                <div className="rounded-xl border border-rose-500/10 bg-rose-500/5 p-3.5 text-center text-xs font-semibold text-rose-400">
                   {error}
                 </div>
               )}
@@ -217,30 +273,48 @@ export function SettingsPage() {
                 </div>
               )}
 
-              <div className="grid gap-4 sm:grid-cols-2">
-                <FormField label="New Passcode" id="settings-new-passcode">
+              <div className="space-y-4">
+                <FormField label="Current Passcode" id="settings-current-passcode">
                   <input
-                    id="settings-new-passcode"
+                    id="settings-current-passcode"
                     type="password"
                     required
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
                     placeholder="••••••••"
                     className={inputClass}
                   />
                 </FormField>
 
-                <FormField label="Confirm New Passcode" id="settings-confirm-passcode">
-                  <input
-                    id="settings-confirm-passcode"
-                    type="password"
-                    required
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className={inputClass}
-                  />
-                </FormField>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <FormField label="New Passcode" id="settings-new-passcode">
+                    <input
+                      id="settings-new-passcode"
+                      type="password"
+                      required
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className={inputClass}
+                    />
+                  </FormField>
+
+                  <FormField label="Confirm New Passcode" id="settings-confirm-passcode">
+                    <input
+                      id="settings-confirm-passcode"
+                      type="password"
+                      required
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className={inputClass}
+                    />
+                  </FormField>
+                </div>
+              </div>
+
+              <div className="text-[10px] text-slate-500 leading-normal bg-white/[0.01] border border-white/[0.03] rounded-lg p-3">
+                <strong>Password Policy:</strong> Passcode must be at least 8 characters long and contain both letters and numbers/special characters. High-risk administrative updates require current password confirmation.
               </div>
 
               <button

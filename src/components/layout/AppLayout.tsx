@@ -550,6 +550,7 @@ function UserFooter({
 
 // ─── Change Password Modal ────────────────────────────────────────────────────
 function ChangePasswordModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+  const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
@@ -561,10 +562,23 @@ function ChangePasswordModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
     setError("");
     setSuccess(false);
 
-    if (!newPassword.trim()) {
-      setError("Password cannot be empty.");
+    if (!currentPassword) {
+      setError("Current passcode is required.");
       return;
     }
+
+    if (!newPassword || newPassword.trim() === "") {
+      setError("New passcode cannot be empty.");
+      return;
+    }
+
+    // Password strength check
+    const passwordRegex = /^(?=.*[a-zA-Z])(?=.*[0-9!@#$%^&*()_+\-=[\]{};':",\\|.<>?]).{8,}$/;
+    if (!passwordRegex.test(newPassword)) {
+      setError("New passcode must be at least 8 characters long and contain both letters and numbers/special characters.");
+      return;
+    }
+
     if (newPassword !== confirmPassword) {
       setError("Passwords do not match.");
       return;
@@ -572,8 +586,9 @@ function ChangePasswordModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
 
     setIsSubmitting(true);
     try {
-      await changeAdminPassword(newPassword);
+      await changeAdminPassword(currentPassword, newPassword);
       setSuccess(true);
+      setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
       setTimeout(() => {
@@ -601,6 +616,18 @@ function ChangePasswordModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
           </div>
         )}
 
+        <FormField label="Current Passcode" required id="change-pwd-current">
+          <input
+            id="change-pwd-current"
+            type="password"
+            required
+            value={currentPassword}
+            onChange={(e) => setCurrentPassword(e.target.value)}
+            placeholder="••••••••"
+            className="h-10 w-full rounded-xl border border-white/[0.02] bg-white/[0.015] px-3 text-xs text-white placeholder-slate-600 outline-none focus:border-acp-bronze transition"
+          />
+        </FormField>
+
         <FormField label="New Passcode" required id="change-pwd-new">
           <input
             id="change-pwd-new"
@@ -624,6 +651,10 @@ function ChangePasswordModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
             className="h-10 w-full rounded-xl border border-white/[0.02] bg-white/[0.015] px-3 text-xs text-white placeholder-slate-600 outline-none focus:border-acp-bronze transition"
           />
         </FormField>
+
+        <div className="text-[10px] text-slate-500 leading-normal bg-white/[0.01] border border-white/[0.03] rounded-lg p-2.5">
+          <strong>Password Policy:</strong> Passcode must be at least 8 characters long and contain both letters and numbers/special characters.
+        </div>
 
         <div className="flex justify-end gap-2.5 pt-2">
           <button
