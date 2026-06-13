@@ -699,5 +699,21 @@ export async function fetchDashboardStats(owner: string) {
   return response.json();
 }
 
+export async function fetchLenderPasscode(lenderRecordId: string): Promise<string> {
+  const response = await fetch("/api/admin/action", {
+    method: "POST",
+    headers: getAdminHeaders(),
+    body: JSON.stringify({ action: "get-lender-passcode", lenderRecordId })
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to retrieve passcode");
+  }
+
+  const data = await response.json();
+  return data.passcode || "";
+}
+
 
 

@@ -160,9 +160,10 @@ export default async function handler(req: any, res: any) {
         const normFields = normalizeLenderFields(lenderData.fields);
         const emailValue = normFields.Email;
 
-        // Update Lenders record with hashed password
+        // Update Lenders record with hashed password and plaintext password
         await airtableUpdate(TABLES.LENDERS, lenderRecordId, {
-          Portal_Password: hash
+          Portal_Password: hash,
+          Passcode_Plain: newPassword
         });
 
         // Update Users record if email is present
@@ -188,6 +189,17 @@ export default async function handler(req: any, res: any) {
         }
 
         return res.status(200).json({ success: true, password: newPassword });
+      }
+
+      case "get-lender-passcode": {
+        const { lenderRecordId } = req.body;
+        if (!lenderRecordId) {
+          return res.status(400).json({ error: "Lender record ID is required" });
+        }
+        const lenderData = await airtableFetchRecord(TABLES.LENDERS, lenderRecordId);
+        const normFields = normalizeLenderFields(lenderData.fields);
+        const passcode = normFields.Passcode_Plain || "";
+        return res.status(200).json({ success: true, passcode });
       }
 
       case "regenerate-portal": {

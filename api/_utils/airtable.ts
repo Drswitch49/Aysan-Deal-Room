@@ -274,7 +274,10 @@ const LENDER_FIELD_MAPPING: Record<string, string> = {
   status: "Status",
   createdat: "Created_At",
   nda: "NDA_Approved",
-  ndaapproved: "NDA_Approved"
+  ndaapproved: "NDA_Approved",
+  criteriapills: "Criteria_Pills",
+  lastcontactdate: "Last_Contact_Date",
+  passcodeplain: "Passcode_Plain"
 };
 
 export function normalizeLenderFields(fields: Record<string, any>): Record<string, any> {
@@ -292,6 +295,9 @@ export function normalizeLenderFields(fields: Record<string, any>): Record<strin
   normalized.Status = "Active";
   normalized.Created_At = "";
   normalized.NDA_Approved = "No";
+  normalized.Criteria_Pills = "";
+  normalized.Last_Contact_Date = "";
+  normalized.Passcode_Plain = "";
 
   Object.keys(fields).forEach(key => {
     const cleanKey = key.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
