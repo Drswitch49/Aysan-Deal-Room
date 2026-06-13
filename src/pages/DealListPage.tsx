@@ -19,15 +19,11 @@ import { DealKanban } from "../components/deals/DealKanban";
 export function DealListPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { deals, refresh: refreshPipeline } = usePipeline();
+  const { deals, loading: pipelineLoading, error: pipelineError, refresh: refreshPipeline } = usePipeline();
   const [viewMode, setViewMode] = useState<"list" | "kanban">("list");
-  const [inbox, setInbox] = useState<any[]>([]);
-  const [documents, setDocuments] = useState<DealDocument[]>([]);
-  const [lenders, setLenders] = useState<any[]>([]);
   
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const isLoading = pipelineLoading;
+  const error = pipelineError;
 
   // Search & Pagination States
   const [searchQuery, setSearchQuery] = useState("");
@@ -60,29 +56,6 @@ export function DealListPage() {
       setSearchParams(newParams, { replace: true });
     }
   }, [searchParams, setSearchParams]);
-
-  useEffect(() => {
-    setIsLoading(true);
-    setError("");
-
-    Promise.all([
-      getDealInbox().catch(() => []),
-      getAllDocuments().catch(() => []),
-      fetchAdminLenders().catch(() => [])
-    ])
-      .then(([inboxData, docsData, lendersData]) => {
-        setInbox(inboxData);
-        setDocuments(docsData);
-        setLenders(lendersData);
-      })
-      .catch((err) => {
-        console.error("Error loading deal pipeline data:", err);
-        setError("Failed to load deal pipeline metrics.");
-      })
-      .finally(() => {
-        setIsLoading(false);
-      });
-  }, [refreshTrigger]);
 
   // Available unique stages for raw items (excluding Killed by default for calculations)
   const stages = useMemo(() => {
@@ -130,85 +103,10 @@ export function DealListPage() {
     return name.replace(/^[A-Z0-9]+\s*[—\-:]\s*/i, "").replace(/^(PARKED|KILLED|INBOUND|INTRO)\s*[—\-:]\s*/i, "").trim();
   };
 
-  // Process & Join deals with Inbox data
+  // Pre-joined deals are served directly from the backend
   const joinedDeals = useMemo(() => {
-    return deals.map(d => {
-      // Find matching Deal_Inbox record using record link array or ref match
-      const inboxRec = inbox.find(i => {
-        const dealInboxLinks = d.rawFields["Deal_Inbox"] as any;
-        return (dealInboxLinks && 
-         Array.isArray(dealInboxLinks) && 
-         dealInboxLinks.includes(i.id)) ||
-        (i.fields["REF. NO"] && 
-         d.dealRef && 
-         String(i.fields["REF. NO"]).toLowerCase() === String(d.dealRef).toLowerCase());
-      });
-
-      const fields = inboxRec ? inboxRec.fields : {};
-
-      // Match financials
-      const revenue = fields["Turnover"] || d.rawFields["Turnover"] || "";
-      const ebitda = fields["EBITDA_GBP"] || d.rawFields["EBITDA_GBP"] || "";
-      const evAsk = fields["Asking_Price_GBP"] || d.rawFields["Asking_Price_GBP"] || d.rawFields["EV"] || "";
-      const multiplier = fields["EV Multiple"] || d.rawFields["EV Multiple"] || d.rawFields["EV"] || "";
-
-      // Sector and Location fallbacks
-      const sector = fields["Sector"] || d.sector || "General";
-      const location = fields["Location"] || d.location || "UK";
-
-      // Match collaborator
-      let ownerName = "Unassigned";
-      let ownerInitials = "??";
-      const collabs = d.rawFields["Collaborator"] as any;
-      if (collabs && Array.isArray(collabs) && collabs.length > 0) {
-        ownerName = String(collabs[0]?.name || "Unassigned");
-        // Simplify name
-        if (ownerName.includes("Ayodeji") || ownerName.includes("Ayo")) {
-          ownerName = "Ayo";
-        } else if (ownerName.toLowerCase().includes("dami") || ownerName.toLowerCase().includes("dallience")) {
-          ownerName = "Dami";
-        } else if (ownerName.toLowerCase().includes("chante")) {
-          ownerName = "Chante";
-        } else if (ownerName.toLowerCase().includes("prince")) {
-          ownerName = "Prince";
-        }
-        ownerInitials = ownerName.slice(0, 2).toUpperCase();
-      }
-
-      // Next Action details
-      const actionDate = d.rawFields["Next Action Date"];
-      const actionText = d.rawFields["Next Action"];
-      let nextActionTitle = "Initial Screening";
-      let nextActionSub = "Outreach phase";
-      let nextActionColor: "red" | "yellow" | "blue" | "green" = "blue";
-      
-      if (actionDate && actionText) {
-        const todayStr = new Date().toISOString().split("T")[0];
-        const isOverdue = actionDate < todayStr;
-        const isToday = actionDate === todayStr;
-
-        nextActionTitle = String(actionText).split("\n")[0].split("|")[0].split("—")[0].trim();
-        nextActionSub = isOverdue ? "Urgent focus" : isToday ? "Chante to update" : "Awaiting callback";
-        nextActionColor = isOverdue ? "red" : isToday ? "yellow" : "blue";
-      }
-
-      return {
-        ...d,
-        sector,
-        location,
-        revenue,
-        ebitda,
-        evAsk,
-        multiplier,
-        ownerName,
-        ownerInitials,
-        nextActionTitle,
-        nextActionSub,
-        nextActionColor,
-        actionDate
-      };
-    });
-  }, [deals, inbox]);
+    return deals;
+  }, [deals]);
 
   // Dynamically extract unique owners & sectors from joinedDeals
   const owners = useMemo(() => {
@@ -367,7 +265,6 @@ export function DealListPage() {
       setIsModalOpen(false);
       
       // Trigger data refresh
-      setRefreshTrigger(prev => prev + 1);
       refreshPipeline();
     } catch (err: any) {
       console.error("Error creating deal:", err);
@@ -431,7 +328,7 @@ export function DealListPage() {
               className={cx(
                 "px-3.5 py-1.5 rounded-full border transition cursor-pointer font-bold",
                 selectedStageFilter === "Inbound"
-                  ? "border-blue-500/30 bg-blue-500/5 text-blue-400"
+                  ? "border-[#C6A66B] bg-[#C6A66B]/5 text-[#C6A66B]"
                   : "border-white/[0.02] bg-white/[0.01] text-slate-400 hover:text-white hover:bg-white/[0.03]"
               )}
             >
@@ -447,7 +344,7 @@ export function DealListPage() {
               className={cx(
                 "px-3.5 py-1.5 rounded-full border transition cursor-pointer font-bold",
                 selectedStageFilter === "Seller Call"
-                  ? "border-indigo-500/30 bg-indigo-500/5 text-indigo-400"
+                  ? "border-[#C6A66B] bg-[#C6A66B]/5 text-[#C6A66B]"
                   : "border-white/[0.02] bg-white/[0.01] text-slate-400 hover:text-white hover:bg-white/[0.03]"
               )}
             >
@@ -460,7 +357,7 @@ export function DealListPage() {
               className={cx(
                 "px-3.5 py-1.5 rounded-full border transition cursor-pointer font-bold",
                 selectedStageFilter === "IM Review"
-                  ? "border-amber-500/30 bg-amber-500/5 text-amber-500"
+                  ? "border-[#C6A66B] bg-[#C6A66B]/5 text-[#C6A66B]"
                   : "border-white/[0.02] bg-white/[0.01] text-slate-400 hover:text-white hover:bg-white/[0.03]"
               )}
             >
@@ -473,7 +370,7 @@ export function DealListPage() {
               className={cx(
                 "px-3.5 py-1.5 rounded-full border transition cursor-pointer font-bold",
                 selectedStageFilter === "DD"
-                  ? "border-emerald-500/30 bg-emerald-500/5 text-emerald-400"
+                  ? "border-[#C6A66B] bg-[#C6A66B]/5 text-[#C6A66B]"
                   : "border-white/[0.02] bg-white/[0.01] text-slate-400 hover:text-white hover:bg-white/[0.03]"
               )}
             >
@@ -490,7 +387,7 @@ export function DealListPage() {
                 "px-3.5 py-1.5 rounded-full border transition cursor-pointer font-bold",
                 selectedStageFilter === "Killed"
                   ? "border-rose-500 bg-rose-500/5 text-rose-500"
-                  : "border-rose-500/10 bg-white/[0.01] text-rose-400/70 hover:text-rose-400"
+                  : "border-rose-500/10 bg-white/[0.01] text-rose-400 hover:text-rose-300"
               )}
             >
               Killed ({baseFilteredDeals.filter(d => (d.status || "").toLowerCase() === "killed").length})
@@ -741,7 +638,7 @@ export function DealListPage() {
                           {/* Owner Avatars */}
                           <td className="px-5 py-4 select-none">
                             <div className="flex items-center gap-2">
-                              {getOwnerAvatar(deal.ownerInitials)}
+                              {getOwnerAvatar(deal.ownerInitials || "")}
                               <span className="text-[10px] font-medium text-slate-400">{deal.ownerName}</span>
                             </div>
                           </td>

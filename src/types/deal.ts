@@ -18,6 +18,24 @@ export type PipelineDeal = {
   rawFields: RawAirtableFields;
   dealFiles: string;
   ndaApproved?: boolean;
+
+  // Enriched fields from server-side joins
+  revenue?: string;
+  ebitda?: string;
+  evAsk?: string;
+  multiplier?: string;
+  ownerName?: string;
+  ownerInitials?: string;
+  nextActionTitle?: string;
+  nextActionSub?: string;
+  nextActionColor?: string;
+  actionDate?: string;
+  isBlocked?: boolean;
+  blockerCount?: number;
+  blockers?: string[];
+  isProcessing?: boolean;
+  processingStatusText?: string;
+  stageAgeDays?: number;
 };
 
 export type CapitalStructureRow = {

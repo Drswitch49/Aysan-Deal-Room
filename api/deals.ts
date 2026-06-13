@@ -3,6 +3,34 @@ import { TABLES } from "../src/lib/airtable/schema.js";
 import { mapPipelineDeal, mapDocument, mapSubmissionLogEntry } from "../src/lib/airtable/mapper.js";
 import { authenticateAdmin } from "./admin/lenders.js";
 
+// Helper to strip raw Airtable mention markup from text
+function cleanAirtableMentions(text: string | undefined | null): string {
+  if (!text) return "";
+  return text.replace(/<airtable:mention[^>]*>(@?[^<]+)<\/airtable:mention>/g, "$1");
+}
+
+// Helper to extract the core company/deal name
+function cleanCompanyName(name: string | undefined | null): string {
+  if (!name) return "";
+  let clean = cleanAirtableMentions(name);
+  if (clean.includes("|")) {
+    const parts = clean.split("|").map(p => p.trim());
+    const namePart = parts.find(p => !/^ACP-CFS-\d+$/i.test(p) && p.length > 0);
+    if (namePart) {
+      clean = namePart;
+    }
+  }
+  const separators = [" — ", " – ", " - "];
+  for (const sep of separators) {
+    if (clean.includes(sep)) {
+      clean = clean.split(sep)[0].trim();
+    }
+  }
+  if (clean.includes("—")) clean = clean.split("—")[0].trim();
+  if (clean.includes("–")) clean = clean.split("–")[0].trim();
+  return clean.replace(/^[\s\-|–|—|:|·|•]+|[\s\-|–|—|:|·|•]+$/g, "").trim();
+}
+
 // In-memory cache variables for server warm starts
 interface CacheEntry {
   timestamp: number;
@@ -111,18 +139,219 @@ export default async function handler(req: any, res: any) {
     }
 
     // 3. Fetch from Airtable client
-    const response = await airtableFetchAll(tableName);
     let results: any[];
+    if (!type) {
+      // Perform server-side joins & enrichments
+      const [dealsRes, inboxRes, docsRes, precallBriefsRes, postcallBriefsRes] = await Promise.all([
+        airtableFetchAll(TABLES.PIPELINE),
+        airtableFetchAll(TABLES.DEAL_INBOX).catch(() => ({ records: [] })),
+        airtableFetchAll(TABLES.DOCUMENTS).catch(() => ({ records: [] })),
+        airtableFetchAll(TABLES.PRECALL_BRIEFS).catch(() => ({ records: [] })),
+        airtableFetchAll(TABLES.POSTCALL_BRIEFS).catch(() => ({ records: [] }))
+      ]);
 
-    if (type === "inbox") {
-      // Inbox keeps raw fields but returns mapped record objects
-      results = response.records.map((rec: any) => ({
-        id: rec.id,
-        fields: rec.fields
-      }));
+      const inbox = inboxRes.records.map((rec: any) => ({ id: rec.id, fields: rec.fields }));
+      const docs = docsRes.records;
+      const precallBriefs = precallBriefsRes.records;
+      const postcallBriefs = postcallBriefsRes.records;
+      const todayStr = new Date().toISOString().split("T")[0];
+
+      results = dealsRes.records.map((rec: any) => {
+        const deal = mapPipelineDeal(rec.id, rec.fields);
+        
+        // Find matching Deal_Inbox record
+        const inboxRec = inbox.find((i: any) => {
+          const dealInboxLinks = rec.fields["Deal_Inbox"] as any;
+          return (dealInboxLinks && 
+           Array.isArray(dealInboxLinks) && 
+           dealInboxLinks.includes(i.id)) ||
+          (i.fields["REF. NO"] && 
+           deal.dealRef && 
+           String(i.fields["REF. NO"]).toLowerCase() === String(deal.dealRef).toLowerCase());
+        });
+
+        const inboxFields = inboxRec ? inboxRec.fields : {};
+
+        // Financial & location fields
+        const revenue = inboxFields["Turnover"] || rec.fields["Turnover"] || "";
+        const ebitda = inboxFields["EBITDA_GBP"] || rec.fields["EBITDA_GBP"] || "";
+        const evAsk = inboxFields["Asking_Price_GBP"] || rec.fields["Asking_Price_GBP"] || rec.fields["EV"] || "";
+        const multiplier = inboxFields["EV Multiple"] || rec.fields["EV Multiple"] || rec.fields["EV"] || "";
+        const sector = inboxFields["Sector"] || deal.sector || "General";
+        const location = inboxFields["Location"] || deal.location || "UK";
+
+        // Collaborator details
+        let ownerName = "Unassigned";
+        let ownerInitials = "??";
+        const collabs = rec.fields["Collaborator"] as any;
+        if (collabs && Array.isArray(collabs) && collabs.length > 0) {
+          ownerName = String(collabs[0]?.name || "Unassigned");
+          if (ownerName.includes("Ayodeji") || ownerName.includes("Ayo")) {
+            ownerName = "Ayo";
+          } else if (ownerName.toLowerCase().includes("dami") || ownerName.toLowerCase().includes("dallience")) {
+            ownerName = "Dami";
+          } else if (ownerName.toLowerCase().includes("chante")) {
+            ownerName = "Chante";
+          } else if (ownerName.toLowerCase().includes("prince")) {
+            ownerName = "Prince";
+          }
+          ownerInitials = ownerName.slice(0, 2).toUpperCase();
+        }
+
+        // Next Action details
+        const actionDate = rec.fields["Next Action Date"];
+        const actionText = rec.fields["Next Action"];
+        let nextActionTitle = "Missing next action details";
+        let nextActionSub = "Assign action items immediately";
+        let nextActionColor = "red";
+        
+        if (actionDate && actionText) {
+          const isOverdue = actionDate < todayStr;
+          const isToday = actionDate === todayStr;
+
+          nextActionTitle = cleanAirtableMentions(String(actionText).split("\n")[0].split("|")[0].split("—")[0].trim());
+          nextActionSub = isOverdue ? "Urgent focus" : isToday ? "Update today" : "Awaiting callback";
+          nextActionColor = isOverdue ? "red" : isToday ? "yellow" : "blue";
+        }
+
+        // Calculate Blockers
+        const blockers: string[] = [];
+        
+        // 1. Missing ABL Critical Document & Overdue diligence
+        const dealDocs = docs.filter((d: any) => {
+          const refs = d.fields["Deal_Ref"] || d.fields["Deal Ref"] || d.fields["Deal_Reference"];
+          if (Array.isArray(refs)) return refs.includes(rec.id);
+          return refs === rec.id;
+        });
+
+        dealDocs.forEach((d: any) => {
+          const isCritical = d.fields["ABL_Critical"] || d.fields["ABL Critical"] || d.fields["Critical"];
+          const docStatus = (d.fields["Status"] || d.fields["status"] || d.fields["Stage"] || "").toLowerCase();
+          if (isCritical && docStatus === "outstanding") {
+            blockers.push(`Missing Critical ABL: ${d.fields["Document_Name"] || d.fields["Document Name"] || "Document"}`);
+          }
+          const expectedDate = d.fields["Expected_Date"] || d.fields["Expected Date"];
+          if (expectedDate && expectedDate < todayStr && docStatus === "outstanding") {
+            blockers.push(`Overdue diligence item: ${d.fields["Document_Name"] || d.fields["Document Name"] || "Document"}`);
+          }
+        });
+
+        // 2. Overdue task blocker
+        if (actionDate && actionDate < todayStr && actionText) {
+          blockers.push(`Overdue task: ${nextActionTitle}`);
+        }
+
+        // 3. SLA breach - Stalled Progression
+        const stageUpdatedAtStr = rec.fields["Stage_Updated_At"];
+        let stageAgeDays = 0;
+        if (stageUpdatedAtStr) {
+          const stageUpdatedAt = new Date(stageUpdatedAtStr).getTime();
+          stageAgeDays = Math.floor((Date.now() - stageUpdatedAt) / (1000 * 60 * 60 * 24));
+          const stage = (rec.fields["Stage"] || rec.fields["Status"] || rec.fields["Deal_Status"] || "").toUpperCase();
+          
+          let breachLimit = 999;
+          if (stage === "INTRO" || stage === "INBOUND") breachLimit = 7;
+          else if (stage === "DISCOVERY" || stage === "SELLER CALL") breachLimit = 14;
+          else if (stage === "LOI" || stage === "IM REVIEW") breachLimit = 21;
+          
+          if (stageAgeDays > breachLimit) {
+            blockers.push(`Stalled in stage for ${stageAgeDays} days`);
+          }
+        }
+
+        // 4. Missing next action details blocker
+        if (!actionDate || !actionText) {
+          blockers.push("No next action configured");
+        }
+
+        // Calculate background workflows
+        let isProcessing = false;
+        let processingStatusText = "";
+
+        // Check OSINT Workflows
+        const osintStatus = rec.fields["OSINT_Status"];
+        if (osintStatus && ["queued", "processing", "Queued", "Scraping Website", "Extracting Metadata", "Analyzing Company", "Generating Risk Profile", "Processing"].includes(osintStatus)) {
+          isProcessing = true;
+          processingStatusText = `OSINT: ${osintStatus}`;
+        }
+
+        // Check Financial Workflows
+        const finStatus = rec.fields["Financial_Analysis_Status"];
+        if (!isProcessing && finStatus && ["queued", "processing", "analyzing", "Processing"].includes(finStatus)) {
+          isProcessing = true;
+          processingStatusText = `Financials: ${finStatus}`;
+        }
+
+        // Check Document parsing/analysis
+        if (!isProcessing) {
+          const processingDoc = dealDocs.find((d: any) => {
+            const procStatus = d.fields["Processing_Status"];
+            return procStatus && ["queued", "processing", "analyzing", "extracted", "Processing"].includes(procStatus);
+          });
+          if (processingDoc) {
+            isProcessing = true;
+            processingStatusText = `Doc parse: ${processingDoc.fields["Document_Name"] || "Document"}`;
+          }
+        }
+
+        // Check Pre/Post-call Briefs
+        const dealName = rec.fields["Deal Name"] || rec.fields["Company_Name"] || rec.fields["Company Name"];
+        if (!isProcessing) {
+          const procPrecall = precallBriefs.find((b: any) => {
+            const refs = b.fields["Active_Pipeline"];
+            const isMatch = Array.isArray(refs) ? (refs.includes(rec.id) || refs.includes(dealName)) : (refs === rec.id || refs === dealName);
+            return isMatch && b.fields["Processing_Status"] && ["queued", "processing", "Processing"].includes(b.fields["Processing_Status"]);
+          });
+          if (procPrecall) {
+            isProcessing = true;
+            processingStatusText = "Generating pre-call brief";
+          }
+        }
+
+        if (!isProcessing) {
+          const procPostcall = postcallBriefs.find((b: any) => {
+            const refs = b.fields["Active_Pipeline"];
+            const isMatch = Array.isArray(refs) ? (refs.includes(rec.id) || refs.includes(dealName)) : (refs === rec.id || refs === dealName);
+            return isMatch && b.fields["Processing_Status"] && ["queued", "processing", "Processing"].includes(b.fields["Processing_Status"]);
+          });
+          if (procPostcall) {
+            isProcessing = true;
+            processingStatusText = "Analyzing post-meeting transcript";
+          }
+        }
+
+        return {
+          ...deal,
+          revenue,
+          ebitda,
+          evAsk,
+          multiplier,
+          sector,
+          location,
+          ownerName,
+          ownerInitials,
+          nextActionTitle,
+          nextActionSub,
+          nextActionColor,
+          actionDate,
+          isBlocked: blockers.length > 0,
+          blockerCount: blockers.length,
+          blockers,
+          isProcessing,
+          processingStatusText,
+          stageAgeDays
+        };
+      });
     } else {
-      // Map to standardized domain types
-      results = response.records.map((rec: any) => mapper(rec.id, rec.fields));
+      const response = await airtableFetchAll(tableName);
+      if (type === "inbox") {
+        results = response.records.map((rec: any) => ({
+          id: rec.id,
+          fields: rec.fields
+        }));
+      } else {
+        results = response.records.map((rec: any) => mapper(rec.id, rec.fields));
+      }
     }
 
     // 4. Update in-memory cache

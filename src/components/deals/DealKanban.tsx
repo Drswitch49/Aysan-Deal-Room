@@ -25,7 +25,7 @@ import {
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import { Link } from "react-router-dom";
-import { AlertTriangle, GripVertical, Building2, TrendingUp, Loader2, ChevronRight } from "lucide-react";
+import { AlertTriangle, GripVertical, Building2, TrendingUp, Loader2, ChevronRight, Clock, Sparkles } from "lucide-react";
 import type { PipelineDeal } from "../../types/deal";
 import { transitionDealStage } from "../../api/admin";
 import { CANONICAL_STAGES, STAGE_LABELS, type DealStage } from "../../lib/airtable/schema";
@@ -74,6 +74,24 @@ function normalizeStage(raw: string): DealStage {
   );
 }
 
+// ─── Owner Avatar Initials ────────────────────────────────────────────────────
+
+const getOwnerAvatar = (initials: string) => {
+  if (initials === "AY") {
+    return <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-[#C6A66B] to-[#D4B06A] text-slate-950 text-[8px] font-bold border border-[#C6A66B]/10 shadow-inner select-none">AY</div>;
+  }
+  if (initials === "CH") {
+    return <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-purple-500/80 to-purple-400/80 text-white text-[8px] font-bold border border-purple-500/10 shadow-inner select-none">CH</div>;
+  }
+  if (initials === "PR") {
+    return <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-blue-500/80 to-blue-400/80 text-white text-[8px] font-bold border border-blue-500/10 shadow-inner select-none">PR</div>;
+  }
+  if (initials === "DA" || initials === "DM") {
+    return <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-emerald-500/80 to-[#10b981] text-slate-950 text-[8px] font-bold border border-emerald-500/10 shadow-inner select-none">DM</div>;
+  }
+  return <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/[0.015] border border-white/[0.02] text-slate-400 text-[8px] font-bold shadow-sm select-none">?</div>;
+};
+
 // ─── Deal Card Component ──────────────────────────────────────────────────────
 
 interface DealCardProps {
@@ -104,11 +122,11 @@ function DealCard({ deal, isDragging = false, isTransitioning = false }: DealCar
       ref={setNodeRef}
       style={style}
       className={cx(
-        "group relative rounded-xl border bg-[#0e0e10] p-3.5 transition-all duration-200",
-        "hover:border-white/[0.12] hover:bg-[#141417]",
+        "group relative rounded-xl border bg-[#0B0B0C] p-3.5 transition-all duration-200 space-y-2.5",
+        "hover:border-white/[0.12] hover:bg-[#121214] shadow-md",
         isDragging
           ? "opacity-50 scale-95 border-white/[0.02]"
-          : "border-white/[0.02]",
+          : "border-white/[0.04]",
         isTransitioning && "opacity-60 pointer-events-none"
       )}
     >
@@ -122,29 +140,37 @@ function DealCard({ deal, isDragging = false, isTransitioning = false }: DealCar
       <div
         {...attributes}
         {...listeners}
-        className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition cursor-grab active:cursor-grabbing text-slate-600 hover:text-slate-400 touch-none"
+        className="absolute top-3.5 right-3.5 opacity-0 group-hover:opacity-100 transition cursor-grab active:cursor-grabbing text-slate-600 hover:text-slate-400 touch-none z-20"
       >
         <GripVertical className="h-3.5 w-3.5" />
       </div>
 
-      {/* Company name */}
-      <Link
-        to={`/deals/${encodeURIComponent(deal.dealRef || deal.id)}`}
-        className="block mb-2 pr-5"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <p className="text-[12px] font-semibold text-white leading-snug hover:text-[#C6A66B] transition line-clamp-2">
-          {deal.companyName || deal.dealRef}
-        </p>
-      </Link>
-
-      {/* Metadata row */}
-      <div className="flex items-center gap-1.5 flex-wrap">
-        {deal.dealRef && (
-          <span className="text-[9px] font-mono text-slate-600">{deal.dealRef}</span>
+      {/* Top row: Company name & Stage Age Label */}
+      <div className="flex items-start justify-between gap-2 pr-4">
+        <Link
+          to={`/deals/${encodeURIComponent(deal.dealRef || deal.id)}`}
+          className="block font-sans"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <p className="text-[12px] font-semibold text-white leading-snug hover:text-[#C6A66B] transition line-clamp-2">
+            {deal.companyName || deal.dealRef}
+          </p>
+        </Link>
+        {deal.stageAgeDays !== undefined && deal.stageAgeDays !== null && (
+          <span
+            className="inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[8px] font-medium font-mono bg-white/[0.02] border border-white/[0.02] text-slate-500 shrink-0 select-none"
+            title={`${deal.stageAgeDays} days in this stage`}
+          >
+            <Clock className="h-2 w-2 text-slate-600" />
+            {deal.stageAgeDays}d
+          </span>
         )}
+      </div>
+
+      {/* Metadata tags: Sector & EV */}
+      <div className="flex items-center gap-1.5 flex-wrap">
         {deal.sector && (
-          <span className="inline-flex items-center gap-1 rounded-md border border-white/[0.02] bg-white/[0.02] px-1.5 py-0.5 text-[9px] font-medium text-slate-500">
+          <span className="inline-flex items-center gap-1 rounded bg-blue-500/5 border border-blue-500/10 px-1.5 py-0.5 text-[9px] font-semibold text-blue-400/90 select-none">
             {deal.sector}
           </span>
         )}
@@ -154,6 +180,65 @@ function DealCard({ deal, isDragging = false, isTransitioning = false }: DealCar
             {evFormatted}
           </span>
         )}
+      </div>
+
+      {/* Background AI crawler state */}
+      {deal.isProcessing && (
+        <div className="flex items-center gap-1.5 rounded-lg border border-[#C6A66B]/15 bg-[#C6A66B]/5 px-2 py-1 text-[9px] text-[#C6A66B]">
+          <Loader2 className="h-2.5 w-2.5 animate-spin text-[#C6A66B] shrink-0" />
+          <span className="truncate font-medium">{deal.processingStatusText || "AI enriching..."}</span>
+        </div>
+      )}
+
+      {/* Blocker count badge */}
+      {deal.isBlocked && (
+        <div className="flex items-center gap-1.5 rounded-lg border border-rose-500/15 bg-rose-500/5 px-2 py-1 text-[9px] text-rose-400 font-semibold">
+          <AlertTriangle className="h-2.5 w-2.5 text-rose-400 shrink-0" />
+          <span>{deal.blockerCount || 1} {deal.blockerCount === 1 ? 'blocker' : 'blockers'} active</span>
+        </div>
+      )}
+
+      {/* Next Action Area */}
+      {deal.nextActionTitle ? (
+        <div className="rounded-lg border border-white/[0.03] bg-white/[0.01] p-2 space-y-1">
+          <div className="flex items-start gap-1.5 min-w-0">
+            <span className={cx(
+              "mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full",
+              deal.nextActionColor === "red" ? "bg-rose-500 animate-pulse" :
+              deal.nextActionColor === "yellow" ? "bg-amber-500" : "bg-blue-400"
+            )} />
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-bold text-white leading-tight truncate">
+                {deal.nextActionTitle}
+              </p>
+              {deal.nextActionSub && (
+                <p className="mt-0.5 text-[9px] font-medium text-slate-500 leading-none truncate">
+                  {deal.nextActionSub}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="rounded-lg border border-rose-500/20 bg-rose-500/5 p-2 flex items-center gap-1.5 select-none">
+          <AlertTriangle className="h-3 w-3 text-rose-500 shrink-0" />
+          <span className="text-[9px] font-bold text-rose-500 uppercase tracking-wider">Missing Next Action</span>
+        </div>
+      )}
+
+      {/* Card Footer: Owner Info */}
+      <div className="pt-2 border-t border-white/[0.02] flex items-center justify-between">
+        <div>
+          {deal.dealRef && (
+            <span className="text-[9px] font-mono text-slate-600 select-none">{deal.dealRef}</span>
+          )}
+        </div>
+        <div className="flex items-center gap-1.5 select-none" title={deal.ownerName}>
+          {deal.ownerInitials && getOwnerAvatar(deal.ownerInitials)}
+          <span className="text-[9px] font-medium text-slate-500 max-w-[85px] truncate">
+            {deal.ownerName}
+          </span>
+        </div>
       </div>
     </div>
   );
@@ -174,7 +259,7 @@ function KanbanColumn({ stage, deals, transitioningDealId, isDropTarget = false 
   const label = STAGE_LABELS[stage];
 
   return (
-    <div className="flex flex-col min-w-[220px] w-[220px] flex-shrink-0">
+    <div className="flex flex-col min-w-[280px] w-[280px] flex-shrink-0">
       {/* Column header */}
       <div className={cx(
         "flex items-center justify-between mb-3 px-3 py-2 rounded-xl border",
@@ -358,7 +443,7 @@ export function DealKanban({ deals, onStageChanged }: DealKanbanProps) {
         {/* Drag overlay — ghost card while dragging */}
         <DragOverlay>
           {activeDeal && (
-            <div className="rounded-xl border border-white/20 bg-[#141417] p-3.5 shadow-2xl ring-1 ring-white/10 w-[220px] opacity-95 rotate-2 scale-105">
+            <div className="rounded-xl border border-white/20 bg-[#141417] p-3.5 shadow-2xl ring-1 ring-white/10 w-[280px] opacity-95 rotate-2 scale-105">
               <p className="text-[12px] font-semibold text-white line-clamp-2">
                 {activeDeal.companyName || activeDeal.dealRef}
               </p>
