@@ -136,6 +136,34 @@ export function DealChat({
   };
 
   if (isTableMissing) {
+    if (mode === "lender") {
+      return (
+        <div className="rounded-2xl border border-white/5 bg-acp-card p-6 md:p-8 backdrop-blur-md shadow-premium-card text-left max-w-2xl mx-auto my-6 animate-fade-in-up">
+          <div className="flex items-center gap-3 text-acp-bronze mb-4">
+            <MessageSquare className="h-6 w-6 shrink-0" />
+            <h3 className="text-lg font-semibold tracking-wide font-display text-white">
+              Secure Chat Offline
+            </h3>
+          </div>
+          <p className="text-sm text-slate-305 mb-6 leading-relaxed">
+            The secure communication channel for this transaction room is temporarily offline or undergoing scheduled maintenance. Please reach out to your Aysan Capital Partners representative directly via email or phone for immediate coordination.
+          </p>
+          <div className="mt-8 flex justify-end">
+            <button
+              onClick={() => {
+                setLoading(true);
+                loadChat();
+              }}
+              className="flex items-center gap-2 rounded-xl bg-white/[0.015] border border-white/[0.02] px-4 py-2 text-xs font-semibold text-white transition-all hover:bg-white/[0.02] hover:border-acp-bronze"
+            >
+              <RefreshCw className="h-3 w-3" />
+              Retry Connection
+            </button>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="rounded-2xl border border-acp-bronze/20 bg-acp-card p-6 md:p-8 backdrop-blur-md shadow-premium-card text-left max-w-2xl mx-auto my-6 animate-fade-in-up">
         <div className="flex items-center gap-3 text-acp-bronze mb-4">

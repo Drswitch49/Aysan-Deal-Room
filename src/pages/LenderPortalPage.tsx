@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useParams, Navigate, useSearchParams } from "react-router-dom";
 import { 
   Building2, Database, ShieldCheck, LockKeyhole, Landmark, 
-  LogOut, Files, History, Menu, X, MessageSquare
+  LogOut, Files, History, Menu, X, MessageSquare, Eye, EyeOff
 } from "lucide-react";
 import { 
   loginLender, fetchLenderDeals, fetchLenderDocuments, fetchLenderSubmissions 
@@ -25,6 +25,7 @@ export function LenderPortalPage() {
   const { portalSlug } = useParams<{ portalSlug: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
   const [passcode, setPasscode] = useState("");
+  const [showPasscode, setShowPasscode] = useState(false);
   const [error, setError] = useState("");
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [loggingIn, setLoggingIn] = useState(false);
@@ -66,23 +67,10 @@ export function LenderPortalPage() {
           if (sessionData.authenticated && (sessionData.user.role === "lender" || sessionData.user.role === "admin" || sessionData.user.role === "analyst")) {
             setLenderProfile(sessionData.user);
             setIsAuthorized(true);
-            return;
           }
         }
       } catch (err) {
         console.error("Failed to check lender session:", err);
-      }
-
-      // Fallback to local session check
-      const sessionStr = sessionStorage.getItem(`lender_session_${portalSlug}`);
-      if (sessionStr) {
-        try {
-          const session = JSON.parse(sessionStr);
-          setLenderProfile(session.profile);
-          setIsAuthorized(true);
-        } catch {
-          sessionStorage.removeItem(`lender_session_${portalSlug}`);
-        }
       }
     }
 
@@ -184,7 +172,6 @@ export function LenderPortalPage() {
     } catch (err) {
       console.error("Logout request failed:", err);
     }
-    sessionStorage.removeItem(`lender_session_${portalSlug}`);
     setIsAuthorized(false);
     setLenderProfile(null);
     setDeals([]);
@@ -256,15 +243,25 @@ export function LenderPortalPage() {
               <label className="block text-[9px] font-extrabold uppercase tracking-[0.18em] text-slate-555" htmlFor="passcode">
                 Portal Passcode
               </label>
-              <input
-                id="passcode"
-                type="password"
-                value={passcode}
-                onChange={(e) => setPasscode(e.target.value)}
-                placeholder="••••••••"
-                className="mt-2.5 h-11 w-full rounded-xl border border-white/[0.02] bg-white/[0.015] px-4 text-sm text-white placeholder-slate-650 outline-none transition-all duration-300 focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze"
-                autoComplete="current-password"
-              />
+              <div className="relative mt-2.5">
+                <input
+                  id="passcode"
+                  type={showPasscode ? "text" : "password"}
+                  value={passcode}
+                  onChange={(e) => setPasscode(e.target.value)}
+                  placeholder="••••••••"
+                  className="h-11 w-full rounded-xl border border-white/[0.02] bg-white/[0.015] pl-4 pr-11 text-sm text-white placeholder-slate-650 outline-none transition-all duration-300 focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze"
+                  autoComplete="current-password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPasscode(!showPasscode)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition p-1 cursor-pointer"
+                  title={showPasscode ? "Hide passcode" : "Show passcode"}
+                >
+                  {showPasscode ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
 
             {error ? (

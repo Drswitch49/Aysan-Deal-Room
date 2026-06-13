@@ -72,7 +72,6 @@ export default async function handler(req: any, res: any) {
       Phone: phone || "",
       Portal_Slug: slug,
       Portal_Password: hash,
-      Passcode_Plain: password,
       Status: status || "Active",
       Created_At: new Date().toISOString()
     };

@@ -199,10 +199,9 @@ export default async function handler(req: any, res: any) {
         const normFields = normalizeLenderFields(lenderData.fields);
         const emailValue = normFields.Email;
 
-        // Update Lenders record with hashed password and plaintext password
+        // Update Lenders record with hashed password only
         await airtableUpdate(TABLES.LENDERS, lenderRecordId, {
-          Portal_Password: hash,
-          Passcode_Plain: newPassword
+          Portal_Password: hash
         });
 
         // Update Users record if email is present
@@ -240,14 +239,7 @@ export default async function handler(req: any, res: any) {
       }
 
       case "get-lender-passcode": {
-        const { lenderRecordId } = req.body;
-        if (!lenderRecordId) {
-          return res.status(400).json({ error: "Lender record ID is required" });
-        }
-        const lenderData = await airtableFetchRecord(TABLES.LENDERS, lenderRecordId);
-        const normFields = normalizeLenderFields(lenderData.fields);
-        const passcode = normFields.Passcode_Plain || "";
-        return res.status(200).json({ success: true, passcode });
+        return res.status(403).json({ error: "Plaintext passcode retrieval is disabled for security compliance. Please use the Reset Passcode option instead." });
       }
 
       case "regenerate-portal": {
