@@ -69,14 +69,15 @@ export default async function handler(req: any, res: any) {
 
   const owner = req.query.owner || "All";
   const todayStr = new Date().toISOString().split("T")[0];
-
   try {
-    // 2. Fetch all required tables in parallel (omitting STAGE_HISTORY)
-    const [dealsRes, docsRes, precallBriefsRes, postcallBriefsRes] = await Promise.all([
+    // 2. Fetch all required tables in parallel (omitting Precall/Postcall briefs to speed up fetch)
+    const [dealsRes, docsRes, historyRes] = await Promise.all([
       airtableFetchAll(TABLES.PIPELINE).catch(() => ({ records: [] })),
       airtableFetchAll(TABLES.DOCUMENTS).catch(() => ({ records: [] })),
-      airtableFetchAll(TABLES.PRECALL_BRIEFS).catch(() => ({ records: [] })),
-      airtableFetchAll(TABLES.POSTCALL_BRIEFS).catch(() => ({ records: [] }))
+      airtableFetchAll(TABLES.STAGE_HISTORY, {
+        sort: [{ field: "Changed_At", direction: "desc" }],
+        maxRecords: 30
+      }).catch(() => ({ records: [] }))
     ]);
 
     // 3. Extract unique list of collaborators for filtering dropdown
@@ -102,22 +103,138 @@ export default async function handler(req: any, res: any) {
     const filteredDeals = activeDeals.filter((rec: any) => matchOwner(rec.fields, owner));
     const dealIdsSet = new Set(filteredDeals.map(d => d.id));
 
-    // 5. Build Workflows
-    const workflows: any[] = [];
+    // 5. Compute Deals in Due Diligence
+    const ddDealsCount = filteredDeals.filter((rec: any) => {
+      const stage = (rec.fields["Stage"] || rec.fields["Status"] || rec.fields["Deal_Status"] || "").toLowerCase();
+      return ["due diligence", "due_diligence", "diligence"].includes(stage);
+    }).length;
 
-    // Stage Distribution (Real Counts only)
+    // 6. Build Recent Deal Movements Feed (Transitions & Doc Uploads)
+    const movements: any[] = [];
+
+    // Map stage transitions from historyRes
+    for (const r of (historyRes?.records || [])) {
+      const histDealId = Array.isArray(r.fields.Deal_ID) ? r.fields.Deal_ID[0] : r.fields.Deal_ID;
+      if (!histDealId) continue;
+      
+      const deal = filteredDeals.find(d => d.id === histDealId);
+      if (!deal) continue;
+
+      const toStage = r.fields.To_Stage || "";
+      const toLabel = r.fields.To_Stage_Label || toStage || "—";
+      const companyName = cleanCompanyName(deal.fields["Deal Name"] || deal.fields["Company_Name"] || deal.fields["Company Name"] || "Unknown Company");
+      const dealRef = deal.fields["REF No."] || deal.fields["Deal_Ref"] || "ACP-CFS";
+      const normalizedRef = encodeURIComponent(deal.fields["Deal_Ref"] || deal.fields["REF No."] || deal.id);
+
+      movements.push({
+        id: `transition-${r.id}`,
+        type: "transition",
+        title: `${companyName} moved to ${toLabel}`,
+        detail: r.fields.Notes ? cleanAirtableMentions(String(r.fields.Notes)) : `Stage change by ${r.fields.Changed_By || "operator"}`,
+        dealId: histDealId,
+        dealRef,
+        companyName,
+        changedBy: r.fields.Changed_By || "System",
+        timestamp: r.fields.Changed_At || r.createdTime,
+        link: `/deals/${normalizedRef}?tab=overview`
+      });
+    }
+
+    // Map recent document uploads
+    docsRes.records.forEach((doc: any) => {
+      const docRefs = doc.fields["Deal_Ref"] || doc.fields["Deal Ref"] || doc.fields["Deal_Reference"];
+      const parentDealId = Array.isArray(docRefs) ? docRefs[0] : docRefs;
+      if (!parentDealId) return;
+
+      const deal = filteredDeals.find(d => d.id === parentDealId);
+      if (!deal) return;
+
+      const docName = doc.fields["Document_Name"] || doc.fields["Document Name"] || "Document";
+      const companyName = cleanCompanyName(deal.fields["Deal Name"] || deal.fields["Company_Name"] || deal.fields["Company Name"] || "Unknown Company");
+      const dealRef = deal.fields["REF No."] || deal.fields["Deal_Ref"] || "ACP-CFS";
+      const normalizedRef = encodeURIComponent(deal.fields["Deal_Ref"] || deal.fields["REF No."] || deal.id);
+      const dateReceived = doc.fields["Date_Received"] || doc.createdTime;
+
+      movements.push({
+        id: `doc-${doc.id}`,
+        type: "document",
+        title: `Document uploaded: ${docName}`,
+        detail: doc.fields.Category || "Ingested into Deal Room",
+        dealId: parentDealId,
+        dealRef,
+        companyName,
+        changedBy: "System",
+        timestamp: dateReceived,
+        link: `/deals/${normalizedRef}?tab=documents`
+      });
+    });
+
+    // Sort combined feed by timestamp descending
+    movements.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    const recentMovements = movements.slice(0, 7);
+
+    // 7. Build Critical Business Blockers
+    const criticalBlockers: any[] = [];
+
+    // Outstanding critical documents
+    docsRes.records.forEach((doc: any) => {
+      const isAblCritical = doc.fields["ABL_Critical"] || doc.fields["ABL Critical"] || doc.fields["abl_critical"] || doc.fields["Critical"];
+      const status = doc.fields["Status"] || doc.fields["status"];
+      if (isAblCritical && status === "Outstanding") {
+        const docRefs = doc.fields["Deal_Ref"] || doc.fields["Deal Ref"] || doc.fields["Deal_Reference"];
+        const parentDealId = Array.isArray(docRefs) ? docRefs[0] : docRefs;
+        if (!parentDealId) return;
+
+        const deal = filteredDeals.find(d => d.id === parentDealId);
+        if (!deal) return;
+
+        const docName = doc.fields["Document_Name"] || doc.fields["Document Name"] || "Document";
+        const companyName = cleanCompanyName(deal.fields["Deal Name"] || deal.fields["Company_Name"] || deal.fields["Company Name"] || "Unknown Company");
+        const dealRef = deal.fields["REF No."] || deal.fields["Deal_Ref"] || "ACP-CFS";
+        const normalizedRef = encodeURIComponent(deal.fields["Deal_Ref"] || deal.fields["REF No."] || deal.id);
+
+        criticalBlockers.push({
+          id: `blocker-doc-${doc.id}`,
+          type: "document",
+          title: "Missing Critical Document",
+          description: `${docName} is outstanding for ${companyName}`,
+          dealId: parentDealId,
+          dealRef,
+          companyName,
+          link: `/deals/${normalizedRef}?tab=documents`
+        });
+      }
+    });
+
+    // Overdue actions
+    filteredDeals.forEach((d: any) => {
+      const actionDate = d.fields["Next Action Date"];
+      const actionText = d.fields["Next Action"];
+      if (actionDate && actionDate < todayStr && actionText) {
+        const companyName = cleanCompanyName(d.fields["Deal Name"] || d.fields["Company_Name"] || d.fields["Company Name"] || "Unknown Company");
+        const dealRef = d.fields["REF No."] || d.fields["Deal_Ref"] || "ACP-CFS";
+        const normalizedRef = encodeURIComponent(d.fields["Deal_Ref"] || d.fields["REF No."] || d.id);
+
+        criticalBlockers.push({
+          id: `blocker-action-${d.id}`,
+          type: "action",
+          title: "Overdue Action Deadline",
+          description: `${cleanAirtableMentions(String(actionText).split("\n")[0])}`,
+          dealId: d.id,
+          dealRef,
+          companyName,
+          link: `/deals/${normalizedRef}?tab=overview`
+        });
+      }
+    });
+
+    // 8. Build Stage Distribution
     let stageInbound = 0;
     let stageSellerCall = 0;
     let stageImReview = 0;
     let stageDueDiligence = 0;
 
     filteredDeals.forEach((deal: any) => {
-      const dealId = deal.id;
-      const dealRef = deal.fields["REF No."] || deal.fields["Deal_Ref"] || dealId;
-      const companyName = cleanCompanyName(deal.fields["Deal Name"] || deal.fields["Company_Name"] || deal.fields["Company Name"] || "Unknown Company");
-      const normalizedRef = encodeURIComponent(deal.fields["Deal_Ref"] || deal.fields["REF No."] || dealId);
-
-      // Stage Tally
       const currentStageRaw = (deal.fields["Stage"] || deal.fields["Status"] || deal.fields["Deal_Status"] || "").toLowerCase();
       if (["intro", "inbound", "information requested", "information_requested"].includes(currentStageRaw)) {
         stageInbound++;
@@ -128,163 +245,9 @@ export default async function handler(req: any, res: any) {
       } else if (["due diligence", "due_diligence", "diligence"].includes(currentStageRaw)) {
         stageDueDiligence++;
       }
-
-      // Check OSINT Workflows
-      const osintStatus = deal.fields["OSINT_Status"];
-      if (osintStatus) {
-        const isProcessing = ["queued", "processing", "Queued", "Scraping Website", "Extracting Metadata", "Analyzing Company", "Generating Risk Profile", "Processing"].includes(osintStatus);
-        const isFailed = ["failed", "Failed"].includes(osintStatus) || !!deal.fields["OSINT_Failure_Reason"];
-        if (isProcessing || isFailed) {
-          workflows.push({
-            id: `osint-${dealId}`,
-            type: "OSINT Crawl",
-            dealId,
-            dealRef,
-            companyName,
-            status: isProcessing ? "processing" : "failed",
-            statusText: osintStatus,
-            error: deal.fields["OSINT_Failure_Reason"] || null,
-            timestamp: deal.fields["OSINT_Started_At"] || deal.fields["OSINT_Completed_At"] || deal.createdTime,
-            link: `/deals/${normalizedRef}?tab=overview`
-          });
-        }
-      }
-
-      // Check Financial Workflows
-      const finStatus = deal.fields["Financial_Analysis_Status"];
-      if (finStatus) {
-        const isProcessing = ["queued", "processing", "analyzing", "Processing"].includes(finStatus);
-        const isFailed = ["failed", "Failed"].includes(finStatus) || !!deal.fields["Financial_Anomalies"];
-        if (isProcessing || isFailed) {
-          workflows.push({
-            id: `financial-${dealId}`,
-            type: "Financial Analysis",
-            dealId,
-            dealRef,
-            companyName,
-            status: isProcessing ? "processing" : "failed",
-            statusText: finStatus,
-            error: deal.fields["Financial_Anomalies"] || null,
-            timestamp: deal.fields["Financial_Completed_At"] || deal.createdTime,
-            link: `/deals/${normalizedRef}?tab=financials`
-          });
-        }
-      }
     });
 
-    // Check Documents
-    docsRes.records.forEach((doc: any) => {
-      const docRefs = doc.fields["Deal_Ref"] || doc.fields["Deal Ref"] || doc.fields["Deal_Reference"];
-      const parentDealId = Array.isArray(docRefs) ? docRefs[0] : docRefs;
-      
-      if (!parentDealId || !dealIdsSet.has(parentDealId)) return;
-
-      const associatedDeal = filteredDeals.find(d => d.id === parentDealId);
-      if (!associatedDeal) return;
-
-      const dealRef = associatedDeal.fields["REF No."] || associatedDeal.fields["Deal_Ref"] || parentDealId;
-      const companyName = cleanCompanyName(associatedDeal.fields["Deal Name"] || associatedDeal.fields["Company_Name"] || associatedDeal.fields["Company Name"] || "Unknown Company");
-      const normalizedRef = encodeURIComponent(associatedDeal.fields["Deal_Ref"] || associatedDeal.fields["REF No."] || parentDealId);
-
-      const docName = doc.fields["Document_Name"] || doc.fields["Document Name"] || "Document";
-
-      // Check Doc parsing workflow
-      const procStatus = doc.fields["Processing_Status"];
-      if (procStatus) {
-        const isProcessing = ["queued", "processing", "analyzing", "extracted", "Processing"].includes(procStatus);
-        const isFailed = ["failed", "Failed"].includes(procStatus) || !!doc.fields["Processing_Error"];
-        if (isProcessing || isFailed) {
-          workflows.push({
-            id: `doc-parse-${doc.id}`,
-            type: "Document Parsing",
-            dealId: parentDealId,
-            dealRef,
-            companyName,
-            status: isProcessing ? "processing" : "failed",
-            statusText: `${procStatus}: ${docName}`,
-            error: doc.fields["Processing_Error"] || null,
-            timestamp: doc.fields["Date_Received"] || doc.createdTime,
-            link: `/deals/${normalizedRef}?tab=documents`
-          });
-        }
-      }
-    });
-
-    // Check Pre-call briefs
-    precallBriefsRes.records.forEach((b: any) => {
-      const briefRefs = b.fields["Active_Pipeline"];
-      const briefDealId = Array.isArray(briefRefs) ? briefRefs[0] : briefRefs;
-      if (!briefDealId) return;
-
-      const associatedDeal = filteredDeals.find(d => 
-        d.id === briefDealId || 
-        String(d.fields["REF No."] || d.fields["Deal_Ref"]).toLowerCase() === String(briefDealId).toLowerCase()
-      );
-      if (!associatedDeal) return;
-
-      const dealRef = associatedDeal.fields["REF No."] || associatedDeal.fields["Deal_Ref"] || associatedDeal.id;
-      const companyName = cleanCompanyName(associatedDeal.fields["Deal Name"] || associatedDeal.fields["Company_Name"] || associatedDeal.fields["Company Name"] || "Unknown Company");
-      const normalizedRef = encodeURIComponent(associatedDeal.fields["Deal_Ref"] || associatedDeal.fields["REF No."] || associatedDeal.id);
-
-      const procStatus = b.fields["Processing_Status"];
-      if (procStatus) {
-        const isProcessing = ["queued", "processing", "Processing"].includes(procStatus);
-        const isFailed = ["failed", "Failed"].includes(procStatus) || !!b.fields["Processing_Error"];
-        if (isProcessing || isFailed) {
-          workflows.push({
-            id: `precall-${b.id}`,
-            type: "Pre-call Brief",
-            dealId: associatedDeal.id,
-            dealRef,
-            companyName,
-            status: isProcessing ? "processing" : "failed",
-            statusText: procStatus,
-            error: b.fields["Processing_Error"] || null,
-            timestamp: b.fields["Created_At"] || b.createdTime,
-            link: `/deals/${normalizedRef}?tab=brief`
-          });
-        }
-      }
-    });
-
-    // Check Post-call briefs
-    postcallBriefsRes.records.forEach((b: any) => {
-      const briefRefs = b.fields["Active_Pipeline"];
-      const briefDealId = Array.isArray(briefRefs) ? briefRefs[0] : briefRefs;
-      if (!briefDealId) return;
-
-      const associatedDeal = filteredDeals.find(d => 
-        d.id === briefDealId || 
-        String(d.fields["REF No."] || d.fields["Deal_Ref"]).toLowerCase() === String(briefDealId).toLowerCase()
-      );
-      if (!associatedDeal) return;
-
-      const dealRef = associatedDeal.fields["REF No."] || associatedDeal.fields["Deal_Ref"] || associatedDeal.id;
-      const companyName = cleanCompanyName(associatedDeal.fields["Deal Name"] || associatedDeal.fields["Company_Name"] || associatedDeal.fields["Company Name"] || "Unknown Company");
-      const normalizedRef = encodeURIComponent(associatedDeal.fields["Deal_Ref"] || associatedDeal.fields["REF No."] || associatedDeal.id);
-
-      const procStatus = b.fields["Processing_Status"];
-      if (procStatus) {
-        const isProcessing = ["queued", "processing", "Processing"].includes(procStatus);
-        const isFailed = ["failed", "Failed"].includes(procStatus) || !!b.fields["Processing_Error"];
-        if (isProcessing || isFailed) {
-          workflows.push({
-            id: `postcall-${b.id}`,
-            type: "Post-call Brief",
-            dealId: associatedDeal.id,
-            dealRef,
-            companyName,
-            status: isProcessing ? "processing" : "failed",
-            statusText: procStatus,
-            error: b.fields["Processing_Error"] || null,
-            timestamp: b.fields["Created_At"] || b.createdTime,
-            link: `/deals/${normalizedRef}?tab=post-meeting`
-          });
-        }
-      }
-    });
-
-    // 6. Build Actions Due Today
+    // 9. Build Actions Due Today
     const actionsList: any[] = [];
     filteredDeals.forEach(d => {
       const actionDate = d.fields["Next Action Date"];
@@ -345,19 +308,17 @@ export default async function handler(req: any, res: any) {
       }
     });
 
-    // 7. Compile the consolidated payload
+    // 10. Compile the consolidated payload
     return res.status(200).json({
       success: true,
       owner,
       uniqueOwners,
       activePipelineCount: filteredDeals.length,
       pendingActionsCount: filteredDeals.filter(d => d.fields["Next Action Date"]).length,
-      blockedDealsCount: 0,
-      activeWorkflowsCount: workflows.filter(w => w.status === "processing").length,
-      blockersQueue: [],
-      activeWorkflows: workflows,
+      ddDealsCount,
+      recentMovements,
+      criticalBlockers,
       actionsDueToday: actionsList,
-      recentActivity: [],
       stageDistribution: {
         inbound: stageInbound,
         sellerCall: stageSellerCall,

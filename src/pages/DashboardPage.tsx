@@ -162,10 +162,7 @@ export function DashboardPage() {
     }
   };
 
-  const activeWorkflowsProcessingCount = useMemo(() => {
-    if (!stats || !stats.activeWorkflows) return 0;
-    return stats.activeWorkflows.filter((w: any) => w.status === "processing").length;
-  }, [stats]);
+
 
   return (
     <div className="space-y-8 animate-fade-in-up">
@@ -264,11 +261,12 @@ export function DashboardPage() {
               to="/deals"
             />
             <StatCard
-              label="Active AI Workflows"
-              value={activeWorkflowsProcessingCount}
-              subLabel="Crawler & parsing engines"
-              icon={<Database className="h-4 w-4" />}
-              tone={activeWorkflowsProcessingCount > 0 ? "blue" : "default"}
+              label="Deals in Due Diligence"
+              value={stats.ddDealsCount}
+              subLabel="Late-stage milestones"
+              icon={<Building2 className="h-4 w-4" />}
+              tone="default"
+              to="/deals"
             />
           </div>
 
@@ -277,51 +275,28 @@ export function DashboardPage() {
             {/* Left Column — Command Layer */}
             <div className="space-y-8">
               
-              {/* Active Workflow Intelligence */}
+              {/* Recent Deal Movements Feed */}
               <div className="rounded-2xl p-6 premium-card card-sheen">
                 <div className="flex items-center justify-between border-b border-white/[0.02] pb-4 mb-4 select-none">
-                  <SectionHeader>Active Workflow Intelligence</SectionHeader>
-                  <span className="inline-flex items-center gap-1 rounded bg-blue-500/5 border border-blue-500/10 px-2 py-0.5 text-[9px] font-mono font-bold text-blue-400">
-                    {activeWorkflowsProcessingCount} active
-                  </span>
+                  <SectionHeader>Recent Deal Movements</SectionHeader>
                 </div>
 
-                <div className="divide-y divide-white/[0.02]">
-                  {stats.activeWorkflows && stats.activeWorkflows.map((work: any) => (
-                    <div key={work.id} className="py-3.5 flex items-center justify-between gap-4 first:pt-1">
+                <div className="divide-y divide-white/[0.02] font-sans">
+                  {stats.recentMovements && stats.recentMovements.map((move: any) => (
+                    <div key={move.id} className="py-3.5 flex items-center justify-between gap-4 first:pt-1 group/move block">
                       <div className="flex items-center gap-3 min-w-0">
                         {/* Status Icon */}
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-white/[0.015] border border-white/[0.02] text-slate-400">
-                          {work.type === "OSINT Crawl" ? <Database className="h-4 w-4" /> :
-                           work.type === "Financial Analysis" ? <LineChart className="h-4 w-4" /> :
-                           work.type === "Document Parsing" ? <FileText className="h-4 w-4" /> :
-                           <MessageSquare className="h-4 w-4" />}
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-white/[0.015] border border-white/[0.02] text-slate-400 group-hover/move:text-[#C6A66B] transition-colors">
+                          {move.type === "transition" ? <Kanban className="h-4 w-4" /> : <FileText className="h-4 w-4" />}
                         </div>
 
                         {/* Status detail */}
                         <div className="min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-xs font-semibold text-white leading-none">
-                              {work.type}
-                            </span>
-                            <span className="text-slate-650 select-none">•</span>
-                            <span className={cx(
-                              "text-[10px] font-semibold leading-none capitalize",
-                              work.status === "processing" ? "text-blue-400" : "text-rose-400 font-bold"
-                            )}>
-                              {work.status === "processing" ? "Running" : "Failed"}
-                            </span>
-                            {work.status === "processing" && (
-                              <span className="relative flex h-1.5 w-1.5">
-                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-                                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-blue-500"></span>
-                              </span>
-                            )}
-                          </div>
-                          
-                          <p className="mt-1.5 text-[10px] text-slate-400 font-medium leading-relaxed truncate">
-                            {work.statusText}
-                            {work.error && <span className="text-rose-500"> — {work.error}</span>}
+                          <p className="text-xs font-semibold text-white leading-normal truncate group-hover/move:text-[#C6A66B] transition-colors">
+                            {move.title}
+                          </p>
+                          <p className="mt-1 text-[10px] text-slate-400 font-medium leading-relaxed truncate font-sans">
+                            {move.detail}
                           </p>
                         </div>
                       </div>
@@ -330,22 +305,24 @@ export function DashboardPage() {
                       <div className="flex items-center gap-3 shrink-0 select-none">
                         <div className="text-right">
                           <p className="text-[10px] font-semibold text-slate-350 leading-none">
-                            {work.companyName}
+                            {move.companyName}
                           </p>
-                          <p className="text-[9px] font-mono text-slate-550 mt-1">
-                            {work.dealRef}
-                          </p>
-                          {work.timestamp && (
-                            <p className="text-[8px] text-slate-600 mt-0.5">
-                              {new Date(work.timestamp).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
+                          {move.timestamp && (
+                            <p className="text-[8px] text-slate-500 mt-1.5">
+                              {new Date(move.timestamp).toLocaleDateString("en-GB", {
+                                day: "numeric",
+                                month: "short",
+                                hour: "2-digit",
+                                minute: "2-digit"
+                              })}
                             </p>
                           )}
                         </div>
                         
                         <Link 
-                          to={work.link}
+                          to={move.link}
                           className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/[0.02] bg-white/[0.015] hover:bg-white/[0.03] text-slate-400 hover:text-white transition"
-                          title="Open affected tab"
+                          title="Open Deal"
                         >
                           <ArrowRight className="h-3.5 w-3.5" />
                         </Link>
@@ -353,12 +330,62 @@ export function DashboardPage() {
                     </div>
                   ))}
 
-                  {(!stats.activeWorkflows || stats.activeWorkflows.length === 0) && (
-                    <div className="flex flex-col items-center justify-center py-10 text-center space-y-3 select-none">
-                      <Database className="h-8 w-8 text-slate-600" />
-                      <p className="text-xs font-semibold text-white uppercase tracking-wider">No active workflows</p>
-                      <p className="text-[10px] text-slate-500 max-w-sm leading-relaxed">
-                        All crawler, parsing, and AI analysis jobs have completed.
+                  {(!stats.recentMovements || stats.recentMovements.length === 0) && (
+                    <div className="flex flex-col items-center justify-center py-10 text-center space-y-2 select-none">
+                      <Clock className="h-8 w-8 text-slate-700 animate-pulse" />
+                      <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">No recent movements</p>
+                      <p className="text-[10px] text-slate-500 max-w-sm leading-relaxed font-sans">
+                        Transaction flow updates and stage transitions will appear here.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Critical Business Blockers */}
+              <div className="rounded-2xl p-6 premium-card card-sheen">
+                <div className="flex items-center justify-between border-b border-white/[0.02] pb-4 mb-4 select-none">
+                  <SectionHeader>Critical Business Blockers</SectionHeader>
+                  {stats.criticalBlockers && stats.criticalBlockers.length > 0 && (
+                    <span className="inline-flex items-center gap-1 rounded bg-rose-500/5 border border-rose-500/10 px-2 py-0.5 text-[9px] font-mono font-bold text-rose-455">
+                      {stats.criticalBlockers.length} issues
+                    </span>
+                  )}
+                </div>
+
+                <div className="space-y-3 font-sans">
+                  {stats.criticalBlockers && stats.criticalBlockers.map((block: any) => (
+                    <Link
+                      key={block.id}
+                      to={block.link}
+                      className="p-3.5 flex items-start gap-3 rounded-xl border border-rose-500/10 bg-rose-500/[0.02] hover:bg-rose-500/[0.04] transition duration-200 block group/blocker"
+                    >
+                      <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-rose-500/5 border border-rose-500/10 text-rose-455 group-hover/blocker:bg-rose-500/10">
+                        <AlertTriangle className="h-3.5 w-3.5" />
+                      </span>
+                      
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[11px] font-bold text-white uppercase tracking-wider leading-none">
+                            {block.title}
+                          </span>
+                          <span className="text-[9px] font-mono text-slate-550 leading-none">
+                            {block.dealRef}
+                          </span>
+                        </div>
+                        <p className="mt-1.5 text-xs text-slate-400 leading-relaxed group-hover/blocker:text-slate-300 transition-colors">
+                          {block.description}
+                        </p>
+                      </div>
+                    </Link>
+                  ))}
+
+                  {(!stats.criticalBlockers || stats.criticalBlockers.length === 0) && (
+                    <div className="flex flex-col items-center justify-center py-8 text-center space-y-2 select-none border border-dashed border-white/[0.02] rounded-xl p-4">
+                      <CheckCircle2 className="h-6 w-6 text-emerald-500/40" />
+                      <p className="text-xs font-semibold text-slate-405 uppercase tracking-wider">No critical blockers</p>
+                      <p className="text-[10px] text-slate-555">
+                        All checklists are satisfied and deal timelines are active.
                       </p>
                     </div>
                   )}
@@ -453,7 +480,7 @@ export function DashboardPage() {
                         <div className="h-1.5 w-full bg-white/[0.02] border border-white/[0.02] rounded-full overflow-hidden">
                           <div
                             className={`h-full ${color} rounded-full transition-all duration-700 ease-out`}
-                            style={{ width: `${Math.max(pct, count > 0 ? 4 : 0)}%` }}
+                            style={{ width: `${pct}%` }}
                           />
                         </div>
                       </div>
