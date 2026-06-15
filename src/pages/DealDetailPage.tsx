@@ -24,7 +24,8 @@ import {
   fetchAdminLenders, createLender, assignDealToLender,
   fetchPrecallBriefs, generatePrecallBrief, askPrecallBriefQuestion,
   fetchPostcallBriefs, generatePostcallBrief, overridePostcallScores,
-  transitionDealStage, triggerOsintEnrichment, triggerFinancialAnalysis
+  transitionDealStage, triggerOsintEnrichment, triggerFinancialAnalysis,
+  sendLoiWebhook, sendEmailWebhook
 } from "../api/admin";
 import { getDealInbox } from "../api/airtable";
 import { HeaderMetrics } from "../components/ui/HeaderMetrics";
@@ -204,6 +205,32 @@ export function DealDetailPage() {
   const [isTransitionModalOpen, setIsTransitionModalOpen] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [transitionError, setTransitionError] = useState<string | null>(null);
+  
+  // Composer states
+  const [isComposerOpen, setIsComposerOpen] = useState(false);
+  const [composerMode, setComposerMode] = useState<"loi" | "email">("loi");
+  const [composerDefaultRecipientName, setComposerDefaultRecipientName] = useState("");
+  const [composerDefaultRecipientEmail, setComposerDefaultRecipientEmail] = useState("");
+  const [composerDefaultSubject, setComposerDefaultSubject] = useState("");
+  const [composerDefaultBody, setComposerDefaultBody] = useState("");
+  const [composerGeneratedBy, setComposerGeneratedBy] = useState("precall_brief_engine");
+
+  const openComposer = (opts: {
+    type: "loi" | "email";
+    recipientName?: string;
+    recipientEmail?: string;
+    subject?: string;
+    body?: string;
+    generatedBy?: string;
+  }) => {
+    setComposerMode(opts.type);
+    setComposerDefaultRecipientName(opts.recipientName || "");
+    setComposerDefaultRecipientEmail(opts.recipientEmail || "");
+    setComposerDefaultSubject(opts.subject || "");
+    setComposerDefaultBody(opts.body || "");
+    setComposerGeneratedBy(opts.generatedBy || "precall_brief_engine");
+    setIsComposerOpen(true);
+  };
   
   const [inboxRecords, setInboxRecords] = useState<any[]>([]);
   const [isLoadingInbox, setIsLoadingInbox] = useState(true);
@@ -524,15 +551,16 @@ export function DealDetailPage() {
             setTransitionNotes={setTransitionNotes}
             setTransitionError={setTransitionError}
             overallDisplayScore={latestPostcallScore}
+            openComposer={openComposer}
           />
         )}
         
         {activeTab === "brief" && (
-          <PreCallBriefTab deal={joinedDeal} />
+          <PreCallBriefTab deal={joinedDeal} openComposer={openComposer} />
         )}
         
         {activeTab === "post-meeting" && (
-          <PostMeetingTab deal={joinedDeal} onScoreChange={setLatestPostcallScore} />
+          <PostMeetingTab deal={joinedDeal} onScoreChange={setLatestPostcallScore} openComposer={openComposer} />
         )}
 
         {activeTab === "financials" && (
@@ -548,7 +576,7 @@ export function DealDetailPage() {
         )}
 
         {activeTab === "loi" && (
-          <LOIStructureTab deal={joinedDeal} />
+          <LOIStructureTab deal={joinedDeal} openComposer={openComposer} />
         )}
 
         {activeTab === "documents" && (
@@ -834,13 +862,13 @@ export function DealDetailPage() {
       >
         <form onSubmit={handleTransitionSubmit} className="space-y-4 font-sans">
           {transitionError && (
-            <div className="rounded-lg border border-rose-500/20 bg-rose-500/5 p-3 text-xs font-semibold text-rose-450 flex items-center gap-2">
+            <div className="rounded-lg border border-rose-500/20 bg-rose-500/5 p-3 text-xs font-semibold text-rose-455 flex items-center gap-2">
               <AlertTriangle className="h-3.5 w-3.5 shrink-0 animate-pulse" />
               <span>{transitionError}</span>
             </div>
           )}
 
-          <div className="text-xs text-slate-350 leading-relaxed select-none">
+          <div className="text-xs text-slate-355 leading-relaxed select-none">
             You are changing the deal stage from <span className="font-bold text-white">{STAGE_LABELS[currentStage] || currentStage}</span> to <span className="font-bold text-[#C6A66B]">{targetStage ? STAGE_LABELS[targetStage] : ""}</span>.
             This action will record an entry in the immutable audit trail and trigger downstream workflows.
           </div>
@@ -863,7 +891,7 @@ export function DealDetailPage() {
                 setIsTransitionModalOpen(false);
                 setTargetStage(null);
               }}
-              className="h-9 px-4 rounded-xl border border-white/[0.02] text-slate-400 text-xs font-bold uppercase tracking-wider hover:bg-white/[0.015] transition cursor-pointer"
+              className="h-9 px-4 rounded-xl border border-white/[0.02] text-slate-405 text-xs font-bold uppercase tracking-wider hover:bg-white/[0.015] transition cursor-pointer"
             >
               Cancel
             </button>
@@ -877,6 +905,20 @@ export function DealDetailPage() {
           </div>
         </form>
       </Modal>
+
+      {/* Email/LOI Composer Modal */}
+      <EmailComposerModal
+        isOpen={isComposerOpen}
+        onClose={() => setIsComposerOpen(false)}
+        type={composerMode}
+        dealId={joinedDeal.id}
+        dealName={joinedDeal.companyName || joinedDeal.dealRef}
+        defaultRecipientName={composerDefaultRecipientName}
+        defaultRecipientEmail={composerDefaultRecipientEmail}
+        defaultSubject={composerDefaultSubject}
+        defaultBody={composerDefaultBody}
+        generatedBy={composerGeneratedBy}
+      />
     </div>
   );
 }
@@ -997,7 +1039,8 @@ function OverviewTab({
   setIsTransitionModalOpen,
   setTransitionNotes,
   setTransitionError,
-  overallDisplayScore
+  overallDisplayScore,
+  openComposer
 }: { 
   deal: any; 
   assignedLenders: any[]; 
@@ -1016,9 +1059,13 @@ function OverviewTab({
   setTransitionNotes: (val: string) => void;
   setTransitionError: (err: string | null) => void;
   overallDisplayScore: string;
+  openComposer: (opts: any) => void;
 }) {
   const ebitdaVal = Number(deal.ebitda) || 0;
   const multVal = Number(deal.multiplier) || 0;
+
+  const ownerName = deal.ownerName || deal.rawFields?.Collaborator?.[0]?.name || "Ayo Oyesanya";
+  const ownerInitials = deal.ownerInitials || (ownerName ? ownerName.split(" ").map((n: string) => n[0]).join("").toUpperCase() : "AO");
   
   const isEbitdaPass = ebitdaVal >= 150000;
   const isMultPass = multVal > 0 ? multVal <= 9.0 : true;
@@ -1460,6 +1507,20 @@ function OverviewTab({
         {/* RIGHT COLUMN: Operational Guidance Sidebar */}
         <div className="space-y-6 lg:sticky lg:top-24">
           
+          {/* Section 0: Deal Owner Profile */}
+          <div className="rounded-2xl border border-white/[0.04] bg-[#161B22] p-5 space-y-3 shadow-premium-card card-sheen">
+            <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 select-none block font-sans">Deal Owner</span>
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-[#C6A66B]/10 border border-[#C6A66B]/20 flex items-center justify-center text-[#C6A66B] font-bold text-sm tracking-wide font-mono">
+                {ownerInitials}
+              </div>
+              <div className="flex flex-col">
+                <span className="text-xs font-bold text-white">{ownerName}</span>
+                <span className="text-[10px] text-slate-450 font-medium font-sans">Deal Lead / Partner</span>
+              </div>
+            </div>
+          </div>
+
           {/* Section 1: Deal Stage & Transition Dropdown */}
           <div className="rounded-2xl border border-white/[0.04] bg-[#161B22] p-5 space-y-4 shadow-premium-card card-sheen">
             <div className="flex flex-col gap-1.5">
@@ -1496,7 +1557,14 @@ function OverviewTab({
             
             <div className="space-y-3">
               <button
-                onClick={() => setActiveTab("loi")}
+                onClick={() => openComposer({
+                  type: "loi",
+                  recipientName: deal.rawFields?.["Contact Name"] || deal.rawFields?.["Broker Name"] || "",
+                  recipientEmail: deal.rawFields?.["Contact Email"] || deal.rawFields?.["Broker Email"] || "",
+                  subject: `Letter of Intent (LOI) - ${deal.companyName || deal.dealRef || "Project"}`,
+                  body: deal.rawFields?.["LOI Draft"] || `Dear ${deal.rawFields?.["Contact Name"] || "Sir/Madam"},\n\nWe are pleased to submit this Letter of Intent for the acquisition of ${deal.companyName || "the company"}.\n\nKind regards,\n${ownerName}`,
+                  generatedBy: "precall_brief_engine"
+                })}
                 className="w-full h-10 rounded-xl bg-[#C6A66B] hover:bg-[#B8924F] text-slate-950 font-black text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 cursor-pointer shadow-glow-bronze/10"
               >
                 <Send className="h-3.5 w-3.5" />
@@ -1583,7 +1651,7 @@ function OverviewTab({
   );
 }
 
-function PreCallBriefTab({ deal }: { deal: any }) {
+function PreCallBriefTab({ deal, openComposer }: { deal: any; openComposer: (opts: any) => void }) {
   const [briefs, setBriefs] = useState<any[]>([]);
   const [selectedBrief, setSelectedBrief] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -1596,7 +1664,6 @@ function PreCallBriefTab({ deal }: { deal: any }) {
   const [selectedCallType, setSelectedCallType] = useState<"1st" | "2nd" | "neg">("1st");
   const [dataSources, setDataSources] = useState<Record<string, boolean>>({
     companiesHouse: true,
-    linkedIn: true,
     notionSops: true,
     airtable: true,
   });
@@ -1613,7 +1680,6 @@ function PreCallBriefTab({ deal }: { deal: any }) {
   const [loadingStep, setLoadingStep] = useState(0);
   const steps = [
     "Scraping Companies House data...",
-    "Crawling LinkedIn profiles...",
     "Ingesting Airtable records...",
     "Querying Claude 3.5 Sonnet...",
     "Formatting intelligence brief..."
@@ -1932,7 +1998,6 @@ function PreCallBriefTab({ deal }: { deal: any }) {
                 <div className="grid grid-cols-2 gap-2">
                   {[
                     { id: "companiesHouse", label: "Companies House" },
-                    { id: "linkedIn", label: "LinkedIn" },
                     { id: "notionSops", label: "Notion SOPs" },
                     { id: "airtable", label: "Airtable record" },
                   ].map((src) => {
@@ -1980,6 +2045,22 @@ function PreCallBriefTab({ deal }: { deal: any }) {
                     </h2>
                   </div>
                 </div>
+
+                <button
+                  type="button"
+                  onClick={() => openComposer({
+                    type: "loi",
+                    recipientName: deal.rawFields?.["Contact Name"] || deal.rawFields?.["Broker Name"] || "",
+                    recipientEmail: deal.rawFields?.["Contact Email"] || deal.rawFields?.["Broker Email"] || "",
+                    subject: `Letter of Intent (LOI) - ${deal.companyName || deal.dealRef || "Project"}`,
+                    body: deal.rawFields?.["LOI Draft"] || `Dear ${deal.rawFields?.["Contact Name"] || "Sir/Madam"},\n\nFollowing our discussion, we are pleased to submit this Letter of Intent for the acquisition of ${deal.companyName || "the company"}.\n\nKind regards,\n${deal.ownerName || "Ayo Oyesanya"}`,
+                    generatedBy: "precall_brief_engine"
+                  })}
+                  className="h-8 px-3 rounded-lg bg-[#C6A66B] hover:bg-[#B8924F] text-slate-950 font-bold text-[10px] uppercase tracking-wider transition flex items-center justify-center gap-1.5 cursor-pointer shadow-glow-bronze/10"
+                >
+                  <Send className="h-3 w-3" />
+                  Send LOI
+                </button>
               </div>
 
               {/* Section 1: Business Profile Card */}
@@ -2214,7 +2295,6 @@ function PreCallBriefTab({ deal }: { deal: any }) {
                 <div className="grid grid-cols-2 gap-2">
                   {[
                     { id: "companiesHouse", label: "Companies House" },
-                    { id: "linkedIn", label: "LinkedIn" },
                     { id: "notionSops", label: "Notion SOPs" },
                     { id: "airtable", label: "Airtable record" },
                   ].map((src) => {
@@ -2265,7 +2345,7 @@ function PreCallBriefTab({ deal }: { deal: any }) {
   );
 }
 
-function PostMeetingTab({ deal, onScoreChange }: { deal: any; onScoreChange: (score: string) => void }) {
+function PostMeetingTab({ deal, onScoreChange, openComposer }: { deal: any; onScoreChange: (score: string) => void; openComposer: (opts: any) => void }) {
   const [briefs, setBriefs] = useState<any[]>([]);
   const [loadingBriefs, setLoadingBriefs] = useState(true);
   const [selectedBrief, setSelectedBrief] = useState<any | null>(null);
@@ -2751,22 +2831,39 @@ Owner is open to deferred payment structures, specifically accepting 20% Vendor 
               <h3 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 select-none">
                 BROKER FOLLOW-UP EMAIL DRAFT
               </h3>
-              <button
-                onClick={handleCopyEmail}
-                className="inline-flex h-7 items-center gap-1.5 rounded-lg border border-white/[0.02] bg-[#C6A66B]/10 text-[#C6A66B] border-[#C6A66B]/20 px-3 text-[10px] font-extrabold uppercase tracking-wider hover:bg-[#C6A66B]/20 cursor-pointer transition"
-              >
-                {copiedEmail ? (
-                  <>
-                    <Check className="h-3 w-3 text-emerald-400" />
-                    COPIED
-                  </>
-                ) : (
-                  <>
-                    <Copy className="h-3 w-3" />
-                    COPY EMAIL
-                  </>
-                )}
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleCopyEmail}
+                  className="inline-flex h-7 items-center gap-1.5 rounded-lg border border-white/[0.02] bg-[#C6A66B]/10 text-[#C6A66B] border-[#C6A66B]/20 px-3 text-[10px] font-extrabold uppercase tracking-wider hover:bg-[#C6A66B]/20 cursor-pointer transition"
+                >
+                  {copiedEmail ? (
+                    <>
+                      <Check className="h-3 w-3 text-emerald-400" />
+                      COPIED
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="h-3 w-3" />
+                      COPY EMAIL
+                    </>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => openComposer({
+                    type: "email",
+                    recipientName: deal.rawFields?.["Contact Name"] || deal.rawFields?.["Broker Name"] || "",
+                    recipientEmail: deal.rawFields?.["Contact Email"] || deal.rawFields?.["Broker Email"] || "",
+                    subject: emailSubject,
+                    body: emailBody,
+                    generatedBy: "postcall_analysis_engine"
+                  })}
+                  className="inline-flex h-7 items-center gap-1.5 rounded-lg bg-[#C6A66B] hover:bg-[#B8924F] text-slate-950 px-3 text-[10px] font-black uppercase tracking-wider transition cursor-pointer"
+                >
+                  <Send className="h-3 w-3" />
+                  SEND EMAIL
+                </button>
+              </div>
             </div>
             
             {/* Mock Email client window */}
@@ -3587,7 +3684,7 @@ function FinancialsTab({
   );
 }
 
-function LOIStructureTab({ deal }: { deal: any }) {
+function LOIStructureTab({ deal, openComposer }: { deal: any; openComposer: (opts: any) => void }) {
   const [totalEv, setTotalEv] = useState("525,000");
   const [cashAtClose, setCashAtClose] = useState("341,000");
   const [vln, setVln] = useState("105,000");
@@ -3691,14 +3788,31 @@ We look forward to your positive response.
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={downloadLoiDraft}
-          className="w-full h-10 rounded-xl bg-gradient-to-r from-[#C6A66B] to-[#B8924F] hover:opacity-90 text-xs font-black uppercase tracking-wider text-white transition flex items-center justify-center gap-1.5 cursor-pointer mt-6 shadow-glow-bronze/10"
-        >
-          <BrainCircuit className="h-4 w-4" />
-          Generate LOI draft
-        </button>
+        <div className="flex gap-2 mt-6">
+          <button
+            type="button"
+            onClick={downloadLoiDraft}
+            className="flex-1 h-10 rounded-xl bg-[#161B22] hover:bg-white/[0.02] border border-white/[0.04] text-white font-bold text-xs uppercase tracking-wider transition flex items-center justify-center gap-1.5 cursor-pointer"
+          >
+            <BrainCircuit className="h-4 w-4" />
+            Download LOI
+          </button>
+          <button
+            type="button"
+            onClick={() => openComposer({
+              type: "loi",
+              recipientName: deal.rawFields?.["Contact Name"] || deal.rawFields?.["Broker Name"] || "",
+              recipientEmail: deal.rawFields?.["Contact Email"] || deal.rawFields?.["Broker Email"] || "",
+              subject: `Letter of Intent (LOI) - ${deal.companyName || deal.dealRef || "Project"}`,
+              body: `LETTER OF INTENT\n\nFrom: Aysan Capital Partners - YOFY Ltd\nTo: ${deal.vendorNames || "[Vendor name]"} - ${deal.companyName || deal.dealRef} Ltd\nDate: ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}\n\nWe are pleased to confirm our non-binding intention to acquire 100% of the issued share capital of ${deal.companyName || deal.dealRef} (Kent) Ltd on the following principal terms:\n\nConsideration: £${totalEv} total EV comprising cash at completion of £${cashAtClose}, a Vendor Loan Note of £${vln} over 36 months at 5% per annum, and deferred consideration of £${deferred} subject to EBITDA performance milestones in months 13-24.\n\nThis proposal is subject to detailed financial, legal, and operational due diligence. We propose an exclusivity period of ${exclusivity} from the date of this letter to conclude the transaction.\n\nOur team has extensive experience in the cleaning services sector and we believe our partnership will preserve the legacy of the company while driving next-phase growth through our operational platform.\n\nWe look forward to your positive response.`,
+              generatedBy: "precall_brief_engine"
+            })}
+            className="flex-1 h-10 rounded-xl bg-[#C6A66B] hover:bg-[#B8924F] text-slate-950 font-black text-xs uppercase tracking-wider transition flex items-center justify-center gap-1.5 cursor-pointer shadow-glow-bronze/10"
+          >
+            <Send className="h-3.5 w-3.5" />
+            Send LOI
+          </button>
+        </div>
       </div>
 
       {/* Right Pane Preview */}
@@ -3954,5 +4068,198 @@ Ayo
 
       </div>
     </div>
+  );
+}
+
+function EmailComposerModal({
+  isOpen,
+  onClose,
+  type,
+  dealId,
+  dealName,
+  defaultRecipientName,
+  defaultRecipientEmail,
+  defaultSubject,
+  defaultBody,
+  generatedBy
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  type: "loi" | "email";
+  dealId: string;
+  dealName: string;
+  defaultRecipientName: string;
+  defaultRecipientEmail: string;
+  defaultSubject: string;
+  defaultBody: string;
+  generatedBy: string;
+}) {
+  const [recipientName, setRecipientName] = useState("");
+  const [recipientEmail, setRecipientEmail] = useState("");
+  const [subject, setSubject] = useState("");
+  const [body, setBody] = useState("");
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+
+  // Sync inputs with defaults when modal opens or defaults change
+  useEffect(() => {
+    if (isOpen) {
+      setRecipientName(defaultRecipientName);
+      setRecipientEmail(defaultRecipientEmail);
+      setSubject(defaultSubject);
+      setBody(defaultBody);
+      setError(null);
+      setSuccess(false);
+      setSending(false);
+    }
+  }, [isOpen, defaultRecipientName, defaultRecipientEmail, defaultSubject, defaultBody]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSending(true);
+    setError(null);
+    try {
+      const payload = {
+        recipient_name: recipientName,
+        recipient_email: recipientEmail,
+        subject,
+        body,
+        deal_id: dealId,
+        deal_name: dealName,
+        generated_by: generatedBy
+      };
+
+      if (type === "loi") {
+        await sendLoiWebhook(payload);
+      } else {
+        await sendEmailWebhook(payload);
+      }
+      setSuccess(true);
+      setTimeout(() => {
+        onClose();
+      }, 1500);
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || `Failed to send ${type === "loi" ? "LOI" : "email"}.`);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={type === "loi" ? "Send Letter of Intent (LOI)" : "Send Follow-up Email"}
+    >
+      {success ? (
+        <div className="flex flex-col items-center justify-center py-8 space-y-3 font-sans text-center animate-scale-in">
+          <div className="h-12 w-12 rounded-full bg-[#C6A66B]/10 border border-[#C6A66B]/20 flex items-center justify-center text-[#C6A66B]">
+            <Check className="h-6 w-6" />
+          </div>
+          <h4 className="text-sm font-bold text-white uppercase tracking-wider">
+            {type === "loi" ? "LOI Sent Successfully" : "Email Sent Successfully"}
+          </h4>
+          <p className="text-xs text-slate-405 max-w-xs leading-relaxed">
+            The webhook has been posted to Make.com and recorded in the audit trail.
+          </p>
+        </div>
+      ) : (
+        <form onSubmit={handleSubmit} className="space-y-4 font-sans text-slate-200">
+          {error && (
+            <div className="rounded-lg border border-rose-500/20 bg-rose-500/5 p-3 text-xs font-semibold text-rose-455 flex items-center gap-2">
+              <AlertTriangle className="h-3.5 w-3.5 shrink-0 animate-pulse" />
+              <span>{error}</span>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-500 mb-1">
+                Recipient Name
+              </label>
+              <input
+                type="text"
+                required
+                value={recipientName}
+                onChange={(e) => setRecipientName(e.target.value)}
+                placeholder="e.g. John Doe"
+                className="w-full h-9 rounded-xl border border-white/[0.02] bg-[#161B22] px-3 text-xs text-white focus:border-[#C6A66B] outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-500 mb-1">
+                Recipient Email
+              </label>
+              <input
+                type="email"
+                required
+                value={recipientEmail}
+                onChange={(e) => setRecipientEmail(e.target.value)}
+                placeholder="e.g. john@example.com"
+                className="w-full h-9 rounded-xl border border-white/[0.02] bg-[#161B22] px-3 text-xs text-white focus:border-[#C6A66B] outline-none"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-500 mb-1">
+              Subject Line
+            </label>
+            <input
+              type="text"
+              required
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+              placeholder="Enter subject..."
+              className="w-full h-9 rounded-xl border border-white/[0.02] bg-[#161B22] px-3 text-xs text-white focus:border-[#C6A66B] outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-500 mb-1">
+              Message Body
+            </label>
+            <textarea
+              required
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+              placeholder="Compose your message..."
+              rows={12}
+              className="w-full rounded-xl border border-white/[0.02] bg-[#161B22] p-3 text-xs text-white focus:border-[#C6A66B] outline-none resize-none font-sans leading-relaxed"
+            />
+          </div>
+
+          <div className="flex items-center justify-end gap-3 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={sending}
+              className="h-9 px-4 rounded-xl border border-white/[0.02] text-slate-400 text-xs font-bold uppercase tracking-wider hover:bg-white/[0.015] transition cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={sending}
+              className="h-9 px-5 rounded-xl bg-[#C6A66B] hover:bg-[#B8924F] text-slate-950 font-black text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 cursor-pointer shadow-glow-bronze/10"
+            >
+              {sending ? (
+                <>
+                  <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                <>
+                  <Send className="h-3.5 w-3.5" />
+                  Send {type === "loi" ? "LOI" : "Email"}
+                </>
+              )}
+            </button>
+          </div>
+        </form>
+      )}
+    </Modal>
   );
 }

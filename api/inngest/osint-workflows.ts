@@ -177,19 +177,13 @@ const onOsintScrapeRequested = inngest.createFunction(
         });
       });
 
-      // Step 5: LinkedIn Enrichment
+      // Step 5: LinkedIn Enrichment (Stubbed out to remove scraping dependency)
       const linkedinResult = await step.run("scrape-linkedin", async () => {
-        const targetLinkedinUrl =
-          linkedInUrl ||
-          (websiteResult.success && (websiteResult as any).socialAndSchema?.socialLinks?.linkedin) ||
-          "";
-
-        const { enrichFromLinkedIn } = await import("../../lib/playwright/linkedin.js");
-        return enrichFromLinkedIn({
-          linkedInUrl: targetLinkedinUrl || undefined,
-          companyName,
-          website,
-        });
+        return { 
+          found: false, 
+          error: "LinkedIn scraping is disabled", 
+          data: { linkedInUrl: "" } 
+        };
       });
 
       // Step 6: Mark as Analyzing Company

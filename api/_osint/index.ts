@@ -15,7 +15,6 @@
  */
 
 import { searchCompaniesHouse } from "./providers/companiesHouse.js";
-import { enrichFromLinkedIn } from "./providers/linkedin.js";
 import { fetchCompanyNews } from "./providers/news.js";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -155,12 +154,8 @@ export async function runOsintEnrichment(
     fetchCompanyNews(companyName),
   ]);
 
-  // LinkedIn enrichment (graceful skip if unconfigured)
-  const liResult = await enrichFromLinkedIn({
-    linkedInUrl,
-    companyName,
-    website,
-  });
+  // LinkedIn enrichment is removed as per operational guidelines
+  const liResult = { found: false, error: "LinkedIn scraping is disabled", data: undefined };
 
   console.log(
     `[OSINT] Providers done — CH: ${chResult.found}, LI: ${liResult.found}, News: ${newsResult.articles.length} articles`

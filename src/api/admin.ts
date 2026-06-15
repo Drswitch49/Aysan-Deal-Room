@@ -739,5 +739,51 @@ export async function fetchLenderPasscode(lenderRecordId: string): Promise<strin
   return data.passcode || "";
 }
 
+export async function sendLoiWebhook(data: {
+  recipient_email: string;
+  recipient_name: string;
+  deal_name: string;
+  subject: string;
+  body: string;
+  deal_id: string;
+}) {
+  const response = await fetch("/api/admin/action", {
+    method: "POST",
+    headers: getAdminHeaders(),
+    body: JSON.stringify({ action: "send-loi", ...data })
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to send LOI");
+  }
+
+  clearAirtableCache();
+  return response.json();
+}
+
+export async function sendEmailWebhook(data: {
+  recipient_email: string;
+  recipient_name: string;
+  deal_name: string;
+  subject: string;
+  body: string;
+  deal_id: string;
+}) {
+  const response = await fetch("/api/admin/action", {
+    method: "POST",
+    headers: getAdminHeaders(),
+    body: JSON.stringify({ action: "send-email", ...data })
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to send email");
+  }
+
+  clearAirtableCache();
+  return response.json();
+}
+
 
 

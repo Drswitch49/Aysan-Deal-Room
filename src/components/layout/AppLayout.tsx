@@ -1,19 +1,17 @@
 import { useState, useEffect, useCallback } from "react";
 import type { ReactNode } from "react";
 import {
-  Building2, Database, LogOut, Menu, X,
+  Building2, LogOut, Menu, X,
   LayoutDashboard, Kanban, Users, Settings, KeyRound, Activity,
-  ChevronLeft, ChevronRight, Inbox, Eye, FileText, ClipboardList,
-  TrendingUp, Globe, Clock, MessageSquare, CheckSquare, History, Loader2, ShieldAlert
+  ChevronLeft, ChevronRight, Inbox
 } from "lucide-react";
-import { Link, NavLink, Outlet, useLocation, useSearchParams } from "react-router-dom";
+import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import { cx } from "../../utils/cx";
 import { changeAdminPassword, fetchAdminLenders } from "../../api/admin";
 import { fetchRecentAdminChat } from "../../api/chat";
 import { ChatNotificationWatcher } from "../ui/ChatNotificationWatcher";
 import { Modal } from "../ui/Modal";
 import { FormField, inputClass } from "../ui/FormField";
-import { usePipeline } from "../../context/PipelineContext";
 
 // ─── Navigation items data ──────────────────────────────────────────────────
 const NAV_SECTIONS = [
@@ -345,26 +343,6 @@ function NavContent({
   onNavigate?: () => void;
   isCollapsed?: boolean;
 }) {
-  const location = useLocation();
-  const [searchParams] = useSearchParams();
-  const { deals } = usePipeline();
-
-  const match = location.pathname.match(/^\/deals\/([^/]+)/);
-  const activeDealRef = match ? decodeURIComponent(match[1]) : null;
-  const isDealContext = activeDealRef && activeDealRef !== "current" && activeDealRef !== "create";
-  
-  const activeDeal = isDealContext
-    ? deals.find(
-        (d) =>
-          d.dealRef?.toLowerCase() === activeDealRef.toLowerCase() ||
-          d.id.toLowerCase() === activeDealRef.toLowerCase()
-      )
-    : null;
-
-  const dealDisplayName = activeDeal ? activeDeal.companyName || activeDeal.dealRef : activeDealRef;
-  const activeTab = searchParams.get("tab") || "overview";
-  const activeSection = searchParams.get("section") || "";
-
   return (
     <nav className={cx("space-y-5 pr-1 select-none", className)}>
       {NAV_SECTIONS.map((section) => (
@@ -405,114 +383,6 @@ function NavContent({
           })}
         </div>
       ))}
-
-      {isDealContext && (
-        <div className={cx("space-y-1 mt-4 pt-4 border-t border-white/[0.03] flex flex-col", isCollapsed ? "px-0" : "px-3.5")}>
-          {!isCollapsed ? (
-            <div className="space-y-1 mb-2 px-1">
-              <span className="block text-[8px] font-extrabold uppercase tracking-[0.18em] text-[#C6A66B]/80">
-                Active Transaction
-              </span>
-              <span className="block text-[10px] font-bold text-white truncate max-w-[200px]" title={dealDisplayName || ""}>
-                {dealDisplayName}
-              </span>
-            </div>
-          ) : (
-            <div className="h-px bg-white/[0.03] my-2 mx-2" />
-          )}
-
-          <div className="space-y-1">
-            <SideNavItem
-              to={`/deals/${activeDealRef}?tab=overview`}
-              icon={<Eye className="h-3.5 w-3.5" />}
-              label="Overview"
-              isCollapsed={isCollapsed}
-              activeOverride={activeTab === "overview" && !activeSection}
-              onClick={onNavigate}
-            />
-            <SideNavItem
-              to={`/deals/${activeDealRef}?tab=documents`}
-              icon={<ClipboardList className="h-3.5 w-3.5" />}
-              label="Documents"
-              isCollapsed={isCollapsed}
-              activeOverride={activeTab === "documents" && activeSection !== "tasks"}
-              onClick={onNavigate}
-            />
-            <SideNavItem
-              to={`/deals/${activeDealRef}?tab=post-meeting`}
-              icon={<History className="h-3.5 w-3.5" />}
-              label="Scorecards"
-              isCollapsed={isCollapsed}
-              activeOverride={activeTab === "post-meeting"}
-              onClick={onNavigate}
-            />
-            <SideNavItem
-              to={`/deals/${activeDealRef}?tab=overview&section=osint`}
-              icon={<Globe className="h-3.5 w-3.5" />}
-              label="OSINT"
-              isCollapsed={isCollapsed}
-              activeOverride={activeTab === "overview" && activeSection === "osint"}
-              onClick={onNavigate}
-            />
-            <SideNavItem
-              to={`/deals/${activeDealRef}?tab=financials`}
-              icon={<TrendingUp className="h-3.5 w-3.5" />}
-              label="Financials"
-              isCollapsed={isCollapsed}
-              activeOverride={activeTab === "financials"}
-              onClick={onNavigate}
-            />
-            <SideNavItem
-              to={`/deals/${activeDealRef}?tab=activity`}
-              icon={<Clock className="h-3.5 w-3.5" />}
-              label="Activity Feed"
-              isCollapsed={isCollapsed}
-              activeOverride={activeTab === "activity" && activeSection !== "history"}
-              onClick={onNavigate}
-            />
-            <SideNavItem
-              to={`/deals/${activeDealRef}?tab=overview&section=timeline`}
-              icon={<Clock className="h-3.5 w-3.5" />}
-              label="Timeline"
-              isCollapsed={isCollapsed}
-              activeOverride={activeTab === "overview" && activeSection === "timeline"}
-              onClick={onNavigate}
-            />
-            <SideNavItem
-              to={`/deals/${activeDealRef}?tab=chat&section=stakeholders`}
-              icon={<Users className="h-3.5 w-3.5" />}
-              label="Stakeholders"
-              isCollapsed={isCollapsed}
-              activeOverride={activeTab === "chat" && activeSection === "stakeholders"}
-              onClick={onNavigate}
-            />
-            <SideNavItem
-              to={`/deals/${activeDealRef}?tab=chat`}
-              icon={<MessageSquare className="h-3.5 w-3.5" />}
-              label="Communications"
-              isCollapsed={isCollapsed}
-              activeOverride={activeTab === "chat" && activeSection !== "stakeholders"}
-              onClick={onNavigate}
-            />
-            <SideNavItem
-              to={`/deals/${activeDealRef}?tab=documents&section=tasks`}
-              icon={<CheckSquare className="h-3.5 w-3.5" />}
-              label="Tasks"
-              isCollapsed={isCollapsed}
-              activeOverride={activeTab === "documents" && activeSection === "tasks"}
-              onClick={onNavigate}
-            />
-            <SideNavItem
-              to={`/deals/${activeDealRef}?tab=activity&section=history`}
-              icon={<History className="h-3.5 w-3.5" />}
-              label="Deal History"
-              isCollapsed={isCollapsed}
-              activeOverride={activeTab === "activity" && activeSection === "history"}
-              onClick={onNavigate}
-            />
-          </div>
-        </div>
-      )}
     </nav>
   );
 }

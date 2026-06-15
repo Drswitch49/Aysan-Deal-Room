@@ -367,19 +367,72 @@ export default async function handler(req: any, res: any) {
         if (!dealName) {
           return res.status(400).json({ error: "Deal Name is required" });
         }
+
+        // Fetch all existing deals for duplicate checks and auto-ref generation
+        const existingDeals = await airtableFetch(TABLES.PIPELINE);
+        
+        // 1. Duplicate detection
+        const normalizeName = (name: string) => {
+          return name
+            .toLowerCase()
+            .replace(/\b(ltd|limited|plc|group|co|corp|corporation|uk|kent)\b/g, "")
+            .replace(/[^a-z0-9]/g, "")
+            .trim();
+        };
+        const normalizedNew = normalizeName(dealName);
+        const isDuplicate = existingDeals.records?.some((r: any) => {
+          const existingName = r.fields["Deal Name"] || r.fields["Company_Name"] || r.fields["Company Name"] || "";
+          return normalizeName(existingName) === normalizedNew;
+        });
+
+        if (isDuplicate) {
+          return res.status(409).json({ error: `A deal for '${dealName}' already exists in the pipeline.` });
+        }
+
+        // 2. Auto-increment reference number (ACP-CFS-XXX)
+        let finalRef = acpRefNo?.trim();
+        if (!finalRef) {
+          let maxNum = 0;
+          existingDeals.records?.forEach((r: any) => {
+            const ref = r.fields["REF No."] || r.fields["ACP REF NO"] || r.fields["Deal_Ref"] || "";
+            const match = String(ref).match(/ACP-CFS-(\d+)/i);
+            if (match) {
+              const num = parseInt(match[1], 10);
+              if (num > maxNum) maxNum = num;
+            }
+          });
+          const nextNum = maxNum + 1;
+          finalRef = `ACP-CFS-${String(nextNum).padStart(3, "0")}`;
+        }
+
+        const todayStr = new Date().toISOString().split("T")[0];
+        
+        const normalizeWorkflowStage = (stg: string): string => {
+          const s = String(stg).toLowerCase().trim();
+          if (s === "intro" || s === "inbound") return "INTRO";
+          if (s === "discovery" || s === "seller call") return "DISCOVERY";
+          if (s === "im review" || s === "offer submitted" || s === "loi") return "LOI";
+          if (s === "due diligence" || s === "diligence") return "DUE_DILIGENCE";
+          if (s === "closing") return "CLOSING";
+          if (s === "portfolio" || s === "completed") return "PORTFOLIO";
+          if (s === "killed") return "KILLED";
+          return "INTRO";
+        };
+
         const fields: Record<string, any> = {
           "Deal Name": dealName,
-          "Stage": stage || "Intro"
+          "Stage": stage || "Intro",
+          "ACP REF NO": finalRef,
+          "REF No.": finalRef,
+          "Deal_Ref": finalRef,
+          "Next Action": nextAction || "Schedule initial discovery call",
+          "Next Action Date": nextActionDate || todayStr,
+          "OSINT_Status": "Not Started",
+          "Created_At": new Date().toISOString(),
+          "Stage_Updated_At": new Date().toISOString(),
+          "Workflow_Stage": normalizeWorkflowStage(stage || "Intro")
         };
-        if (acpRefNo) {
-          fields["ACP REF NO"] = acpRefNo;
-        }
-        if (nextAction) {
-          fields["Next Action"] = nextAction;
-        }
-        if (nextActionDate) {
-          fields["Next Action Date"] = nextActionDate;
-        }
+
         const result = await airtableCreate(TABLES.PIPELINE, fields);
 
         // Immutable Audit Log
@@ -387,123 +440,142 @@ export default async function handler(req: any, res: any) {
           "CREATE_PIPELINE_DEAL",
           req.user.email,
           req.user.role,
-          dealName,
-          `Created new active pipeline deal: ${dealName} (Stage: ${stage || "Intro"}, Ref: ${acpRefNo || "none"})`
+          finalRef,
+          `Created new active pipeline deal: ${dealName} (Stage: ${stage || "Intro"}, Ref: ${finalRef})`
         );
 
         return res.status(200).json({ success: true, result });
       }
 
-      case "change-admin-password": {
-        // Enforce Admin Only
-        if (req.user.role !== "admin") {
-          return res.status(403).json({ error: "Access denied: Requires Admin role" });
+      case "send-loi": {
+        const { recipient_email, recipient_name, deal_name, subject, body, deal_id } = req.body;
+        if (!recipient_email || !recipient_name || !deal_name || !subject || !body || !deal_id) {
+          return res.status(400).json({ error: "All fields are required (recipient_email, recipient_name, deal_name, subject, body, deal_id)" });
         }
 
-        const { currentPassword, newPassword } = req.body;
-        if (!currentPassword || currentPassword.trim() === "") {
-          return res.status(400).json({ error: "Current passcode is required" });
-        }
-        if (!newPassword || newPassword.trim() === "") {
-          return res.status(400).json({ error: "New passcode is required" });
-        }
+        const payload = {
+          recipient_email: String(recipient_email),
+          recipient_name: String(recipient_name),
+          deal_name: String(deal_name),
+          subject: String(subject),
+          body: String(body),
+          generated_by: "precall_brief_engine",
+          deal_id: String(deal_id),
+          timestamp: new Date().toISOString()
+        };
 
-        const operatorEmail = req.user.email || "admin@aysancapital.com";
-
-        // Check if rate-limited lock is active
-        const lockInfo = failedPasscodeAttempts.get(operatorEmail);
-        if (lockInfo && lockInfo.lockUntil > Date.now()) {
-          const minutesLeft = Math.ceil((lockInfo.lockUntil - Date.now()) / 60000);
-          return res.status(429).json({ error: `Too many failed attempts. Password update locked. Please try again in ${minutesLeft} minutes.` });
-        }
-
-        // Retrieve admin user from the DB to verify current password
-        const usersRes = await airtableFetch("Users", {
-          filterByFormula: `{Email} = '${escapeFormulaString(operatorEmail)}'`,
-          maxRecords: 1
-        });
-
-        if (!usersRes.records || usersRes.records.length === 0) {
-          return res.status(404).json({ error: "Administrator account not found in database." });
+        const webhookUrl = process.env.MAKE_WEBHOOK_URL || process.env.VITE_MAKE_WEBHOOK_URL;
+        if (!webhookUrl) {
+          return res.status(400).json({ error: "Make.com Webhook URL is not configured in environment variables." });
         }
 
-        const adminUserRecord = usersRes.records[0];
-        const storedHash = adminUserRecord.fields.PasswordHash || "";
-        const isBcrypt = storedHash.startsWith("$2a$") || storedHash.startsWith("$2b$");
-        const isValid = isBcrypt ? bcrypt.compareSync(currentPassword, storedHash) : storedHash === currentPassword;
-
-        if (!isValid) {
-          const currentCount = (lockInfo?.count || 0) + 1;
-          if (currentCount >= 5) {
-            // Lock for 15 minutes
-            failedPasscodeAttempts.set(operatorEmail, {
-              count: currentCount,
-              lockUntil: Date.now() + 15 * 60 * 1000
+        let retries = 3;
+        let delay = 1000;
+        let lastError = null;
+        let success = false;
+        
+        for (let i = 0; i < retries; i++) {
+          try {
+            const postRes = await fetch(webhookUrl, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload)
             });
-            await logAuditTrail(
-              "ADMIN_SECURITY_LOCKOUT",
-              operatorEmail,
-              req.user.role,
-              operatorEmail,
-              "Admin passcode update locked for 15 minutes due to 5 consecutive failures."
-            );
-            return res.status(429).json({ error: "Too many failed attempts. Admin passcode changes locked for 15 minutes." });
-          } else {
-            failedPasscodeAttempts.set(operatorEmail, {
-              count: currentCount,
-              lockUntil: 0
-            });
-            await logAuditTrail(
-              "ADMIN_PASSWORD_CHANGE_FAILED",
-              operatorEmail,
-              req.user.role,
-              operatorEmail,
-              `Failed passcode update attempt ${currentCount}/5: incorrect current passcode.`
-            );
-            return res.status(401).json({ error: "Incorrect current passcode." });
+            if (postRes.ok) {
+              success = true;
+              break;
+            }
+            throw new Error(`Webhook returned status ${postRes.status}`);
+          } catch (err: any) {
+            lastError = err;
+            if (i < retries - 1) {
+              await new Promise(resolve => setTimeout(resolve, delay));
+              delay *= 2;
+            }
           }
         }
 
-        // Reset fail count on successful verification
-        failedPasscodeAttempts.delete(operatorEmail);
-
-        // Hash the new password
-        const salt = bcrypt.genSaltSync(10);
-        const hash = bcrypt.hashSync(newPassword, salt);
-
-        // Update the Users table record for the admin
-        await airtableUpdate("Users", adminUserRecord.id, {
-          PasswordHash: hash
-        });
-
-        // Update Lenders table admin record for legacy compatibility
-        const adminLendersRes = await airtableFetch(TABLES.LENDERS, {
-          filterByFormula: `{Lender_ID} = 'admin'`,
-          maxRecords: 1
-        });
-        if (adminLendersRes.records && adminLendersRes.records.length > 0) {
-          await airtableUpdate(TABLES.LENDERS, adminLendersRes.records[0].id, {
-            Portal_Password: hash
-          });
-        } else {
-          await airtableCreate(TABLES.LENDERS, {
-            Lender_ID: "admin",
-            Company_Name: "Admin Settings",
-            Portal_Password: hash,
-            Status: "Active"
-          });
+        if (!success) {
+          return res.status(502).json({ error: `Failed to deliver LOI webhook: ${lastError?.message || "unknown error"}` });
         }
 
-        // Immutable Audit Log
         await logAuditTrail(
-          "CHANGE_ADMIN_PASSWORD",
-          operatorEmail,
+          "SEND_LOI",
+          req.user.email,
           req.user.role,
-          operatorEmail,
-          `Admin passcode successfully updated.`
+          deal_id,
+          `Sent LOI to ${recipient_name} (${recipient_email}) for deal: ${deal_name}`
         );
 
-        return res.status(200).json({ success: true, message: "Admin passcode successfully updated." });
+        return res.status(200).json({ success: true, message: "LOI sent successfully." });
+      }
+
+      case "send-email": {
+        const { recipient_email, recipient_name, deal_name, subject, body, deal_id } = req.body;
+        if (!recipient_email || !recipient_name || !deal_name || !subject || !body || !deal_id) {
+          return res.status(400).json({ error: "All fields are required (recipient_email, recipient_name, deal_name, subject, body, deal_id)" });
+        }
+
+        const payload = {
+          recipient_email: String(recipient_email),
+          recipient_name: String(recipient_name),
+          deal_name: String(deal_name),
+          subject: String(subject),
+          body: String(body),
+          generated_by: "postcall_analysis_engine",
+          deal_id: String(deal_id),
+          timestamp: new Date().toISOString()
+        };
+
+        const webhookUrl = process.env.MAKE_WEBHOOK_URL || process.env.VITE_MAKE_WEBHOOK_URL;
+        if (!webhookUrl) {
+          return res.status(400).json({ error: "Make.com Webhook URL is not configured in environment variables." });
+        }
+
+        let retries = 3;
+        let delay = 1000;
+        let lastError = null;
+        let success = false;
+        
+        for (let i = 0; i < retries; i++) {
+          try {
+            const postRes = await fetch(webhookUrl, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload)
+            });
+            if (postRes.ok) {
+              success = true;
+              break;
+            }
+            throw new Error(`Webhook returned status ${postRes.status}`);
+          } catch (err: any) {
+            lastError = err;
+            if (i < retries - 1) {
+              await new Promise(resolve => setTimeout(resolve, delay));
+              delay *= 2;
+            }
+          }
+        }
+
+        if (!success) {
+          return res.status(502).json({ error: `Failed to deliver follow-up email webhook: ${lastError?.message || "unknown error"}` });
+        }
+
+        await logAuditTrail(
+          "SEND_EMAIL",
+          req.user.email,
+          req.user.role,
+          deal_id,
+          `Sent follow-up email to ${recipient_name} (${recipient_email}) for deal: ${deal_name}`
+        );
+
+        return res.status(200).json({ success: true, message: "Follow-up email sent successfully." });
+      }
+
+
+      case "change-admin-password": {
+        return res.status(403).json({ error: "Administrative password changes via this endpoint are disabled for security compliance." });
       }
 
       case "verify-integration": {
@@ -1071,18 +1143,8 @@ export default async function handler(req: any, res: any) {
                   OSINT_Status: "Extracting Metadata",
                 });
 
-                // LinkedIn enrichment
-                const { enrichFromLinkedIn } = await import("../../lib/playwright/linkedin.js");
-                const targetLinkedinUrl =
-                  linkedInUrl ||
-                  (websiteResult.success && (websiteResult as any).socialAndSchema?.socialLinks?.linkedin) ||
-                  "";
-
-                const linkedinResult = await enrichFromLinkedIn({
-                  linkedInUrl: targetLinkedinUrl || undefined,
-                  companyName: String(companyName),
-                  website: website ? String(website) : undefined,
-                }).catch(err => ({ found: false, error: err.message, data: {} }));
+                // LinkedIn enrichment is removed as per operational guidelines
+                const linkedinResult = { found: false, error: "LinkedIn scraping is disabled", data: {} };
 
                 // 4. Analyzing Company
                 await airtableUpdate(PIPELINE_TABLE, dealId, {

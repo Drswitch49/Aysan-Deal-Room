@@ -2,6 +2,9 @@ import bcrypt from "bcryptjs";
 import { airtableFetch, airtableUpdate, escapeFormulaString } from "../_utils/airtable.js";
 import { signJWT, setSessionCookie } from "../_utils/jwt.js";
 
+// Global map to track failed administrative login attempts
+const failedAdminLogins = new Map<string, { count: number; lockUntil: number }>();
+
 export default async function handler(req: any, res: any) {
   if (req.method !== "POST") {
     return res.status(455).json({ error: "Method not allowed" });
@@ -12,6 +15,23 @@ export default async function handler(req: any, res: any) {
     return res.status(400).json({ error: "Email and password are required" });
   }
 
+  const rawIp = req.headers["x-forwarded-for"] || req.headers["x-real-ip"] || "unknown-ip";
+  const clientIp = Array.isArray(rawIp)
+    ? rawIp[0]
+    : typeof rawIp === "string"
+    ? rawIp.split(",")[0].trim()
+    : "unknown-ip";
+  const rateLimitKey = `${clientIp}:${email.toLowerCase().trim()}`;
+
+  // Check rate limit lock status
+  const lockInfo = failedAdminLogins.get(rateLimitKey);
+  if (lockInfo && lockInfo.lockUntil > Date.now()) {
+    const minutesLeft = Math.ceil((lockInfo.lockUntil - Date.now()) / 60000);
+    return res.status(429).json({ 
+      error: `Too many failed attempts. Locked out. Please try again in ${minutesLeft} minute(s).` 
+    });
+  }
+
   try {
     // 1. Fetch user by email from Users table
     const usersData = await airtableFetch("Users", {
@@ -20,6 +40,7 @@ export default async function handler(req: any, res: any) {
     });
 
     if (!usersData.records || usersData.records.length === 0) {
+      handleLoginFailure(rateLimitKey);
       return res.status(401).json({ error: "Invalid credentials" });
     }
 
@@ -34,8 +55,12 @@ export default async function handler(req: any, res: any) {
     // 3. Verify password hash
     const isMatch = bcrypt.compareSync(password, userFields.PasswordHash || "");
     if (!isMatch) {
+      handleLoginFailure(rateLimitKey);
       return res.status(401).json({ error: "Invalid credentials" });
     }
+
+    // Clear failed attempts on successful login
+    failedAdminLogins.delete(rateLimitKey);
 
     // 4. Generate JWT
     const payload = {
@@ -64,6 +89,25 @@ export default async function handler(req: any, res: any) {
     });
   } catch (err: any) {
     console.error("[Login API Error]:", err);
-    return res.status(500).json({ error: err.message || "Failed to process login" });
+    return res.status(500).json({ 
+      error: "Authentication service is temporarily unavailable. Please try again later." 
+    });
+  }
+}
+
+function handleLoginFailure(rateLimitKey: string) {
+  const currentFail = failedAdminLogins.get(rateLimitKey) || { count: 0, lockUntil: 0 };
+  const newCount = currentFail.count + 1;
+  
+  if (newCount >= 5) {
+    failedAdminLogins.set(rateLimitKey, {
+      count: newCount,
+      lockUntil: Date.now() + 15 * 60 * 1000 // lock for 15 minutes
+    });
+  } else {
+    failedAdminLogins.set(rateLimitKey, {
+      count: newCount,
+      lockUntil: 0
+    });
   }
 }

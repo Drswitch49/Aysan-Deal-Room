@@ -183,17 +183,7 @@ export function DashboardPage() {
             <span className="text-slate-650">·</span>
             <span className="text-[10px] font-semibold text-slate-500">
               {stats?.pendingActionsCount ?? 0} actions pending
-            </span>
-            {stats && stats.blockedDealsCount > 0 && (
-              <>
-                <span className="text-slate-650">·</span>
-                <span className="inline-flex items-center gap-1 rounded-full bg-rose-500/5 border border-rose-500/10 px-2.5 py-0.5 text-[9px] font-semibold text-rose-400">
-                  <AlertTriangle className="h-2.5 w-2.5" />
-                  {stats.blockedDealsCount} blockers
-                </span>
-              </>
-            )}
-            <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/5 border border-blue-500/10 px-2.5 py-0.5 text-[9px] font-semibold text-blue-400">
+            </span>            <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/5 border border-blue-500/10 px-2.5 py-0.5 text-[9px] font-semibold text-blue-400">
               {stats?.activePipelineCount ?? 0} live
             </span>
           </div>
@@ -256,7 +246,7 @@ export function DashboardPage() {
           )}
 
           {/* Row 1 — Operational Telemetry */}
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-6 sm:grid-cols-3">
             <StatCard
               label="Active Pipeline"
               value={stats.activePipelineCount}
@@ -274,13 +264,6 @@ export function DashboardPage() {
               to="/deals"
             />
             <StatCard
-              label="Blocked Deals"
-              value={stats.blockedDealsCount}
-              subLabel="Critical bottlenecks detected"
-              icon={<AlertTriangle className="h-4 w-4" />}
-              tone={stats.blockedDealsCount > 0 ? "rose" : "emerald"}
-            />
-            <StatCard
               label="Active AI Workflows"
               value={activeWorkflowsProcessingCount}
               subLabel="Crawler & parsing engines"
@@ -294,70 +277,11 @@ export function DashboardPage() {
             {/* Left Column — Command Layer */}
             <div className="space-y-8">
               
-              {/* Critical Blockers Queue */}
+              {/* Active Workflow Intelligence */}
               <div className="rounded-2xl p-6 premium-card card-sheen">
                 <div className="flex items-center justify-between border-b border-white/[0.02] pb-4 mb-4 select-none">
-                  <SectionHeader>Critical Blockers Queue</SectionHeader>
-                  <span className="text-[10px] font-mono text-slate-500 font-bold uppercase tracking-wider">
-                    {stats.blockedDealsCount} exceptions
-                  </span>
-                </div>
-
-                <div className="divide-y divide-white/[0.02]">
-                  {stats.blockersQueue && stats.blockersQueue.map((blocker: any) => (
-                    <div key={blocker.id} className="py-4 flex items-start gap-4 first:pt-1">
-                      {/* Urgency Badge */}
-                      <span className={cx(
-                        "inline-flex shrink-0 items-center justify-center rounded px-2 py-0.5 text-[8.5px] font-bold font-mono tracking-wider border select-none w-28 text-center",
-                        blocker.type === "MISSING ABL" ? "bg-rose-500/5 border-rose-500/10 text-rose-400" :
-                        blocker.type === "WORKFLOW FAILED" ? "bg-rose-500/5 border-rose-500/10 text-rose-455" :
-                        "bg-amber-500/5 border-amber-500/10 text-amber-400"
-                      )}>
-                        {blocker.type}
-                      </span>
-
-                      {/* Detail block */}
-                      <div className="min-w-0 flex-1 space-y-1">
-                        <Link 
-                          to={blocker.link}
-                          className="block text-xs font-semibold text-white hover:text-[#C6A66B] transition-colors leading-tight truncate"
-                        >
-                          {blocker.title}
-                        </Link>
-                        <p className="text-[10px] text-slate-500 font-medium leading-relaxed">
-                          {blocker.details}
-                        </p>
-                      </div>
-
-                      {/* Deal Context badge */}
-                      <div className="shrink-0 text-right select-none">
-                        <p className="text-[10.5px] font-semibold text-slate-350 leading-tight">
-                          {blocker.companyName}
-                        </p>
-                        <p className="text-[9px] font-mono text-slate-650 mt-0.5">
-                          {blocker.dealRef}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-
-                  {(!stats.blockersQueue || stats.blockersQueue.length === 0) && (
-                    <div className="flex flex-col items-center justify-center py-10 text-center space-y-3 select-none">
-                      <CheckCircle2 className="h-8 w-8 text-emerald-500/90" />
-                      <p className="text-xs font-semibold text-white uppercase tracking-wider">All systems progressing normally</p>
-                      <p className="text-[10px] text-slate-500 max-w-sm leading-relaxed">
-                        No active blockers, SLA breaches, or document exceptions detected for this view.
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Active AI Workflow Monitor */}
-              <div className="rounded-2xl p-6 premium-card card-sheen">
-                <div className="flex items-center justify-between border-b border-white/[0.02] pb-4 mb-4 select-none">
-                  <SectionHeader>Active AI Workflow Monitor</SectionHeader>
-                  <span className="inline-flex items-center gap-1 rounded bg-blue-500/5 border border-blue-500/10 px-2 py-0.5 text-[9px] font-mono font-bold text-blue-400 animate-pulse">
+                  <SectionHeader>Active Workflow Intelligence</SectionHeader>
+                  <span className="inline-flex items-center gap-1 rounded bg-blue-500/5 border border-blue-500/10 px-2 py-0.5 text-[9px] font-mono font-bold text-blue-400">
                     {activeWorkflowsProcessingCount} active
                   </span>
                 </div>
@@ -383,7 +307,7 @@ export function DashboardPage() {
                             <span className="text-slate-650 select-none">•</span>
                             <span className={cx(
                               "text-[10px] font-semibold leading-none capitalize",
-                              work.status === "processing" ? "text-blue-400" : "text-rose-455 font-bold"
+                              work.status === "processing" ? "text-blue-400" : "text-rose-400 font-bold"
                             )}>
                               {work.status === "processing" ? "Running" : "Failed"}
                             </span>
@@ -405,12 +329,17 @@ export function DashboardPage() {
                       {/* Context link */}
                       <div className="flex items-center gap-3 shrink-0 select-none">
                         <div className="text-right">
-                          <p className="text-[10px] font-semibold text-slate-300 leading-none">
+                          <p className="text-[10px] font-semibold text-slate-350 leading-none">
                             {work.companyName}
                           </p>
                           <p className="text-[9px] font-mono text-slate-550 mt-1">
                             {work.dealRef}
                           </p>
+                          {work.timestamp && (
+                            <p className="text-[8px] text-slate-600 mt-0.5">
+                              {new Date(work.timestamp).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
+                            </p>
+                          )}
                         </div>
                         
                         <Link 
@@ -474,7 +403,7 @@ export function DashboardPage() {
                           <span className="text-slate-700">·</span>
                           <span className={cx(
                             "font-bold uppercase tracking-wider",
-                            act.statusText === "OVERDUE" ? "text-rose-455" : "text-amber-400"
+                            act.statusText === "OVERDUE" ? "text-rose-400" : "text-amber-400"
                           )}>
                             {act.statusText}
                           </span>
@@ -495,47 +424,6 @@ export function DashboardPage() {
                       <p className="text-[10px] text-slate-605">
                         All scheduled milestones and tasks are up to date.
                       </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Recent Activity Log */}
-              <div className="rounded-2xl p-6 premium-card card-sheen">
-                <SectionHeader>Recent Activity</SectionHeader>
-                
-                <div className="mt-4 divide-y divide-white/[0.02] font-sans">
-                  {stats.recentActivity && stats.recentActivity.map((act: any) => (
-                    <Link 
-                      key={act.id} 
-                      to={act.link}
-                      className="py-4 flex items-start gap-4 first:pt-1 group/act block"
-                    >
-                      {/* Left accent accent */}
-                      <div className={cx(
-                        "mt-0.5 w-0.5 h-8 self-stretch shrink-0 rounded-full",
-                        act.color === "emerald" ? "bg-emerald-400/50" :
-                        act.color === "blue" ? "bg-blue-400/50" :
-                        act.color === "bronze" ? "bg-[#C6A66B]/50" :
-                        "bg-rose-500/50"
-                      )} />
-
-                      <div className="min-w-0 flex-1">
-                        <p className="text-[11px] font-semibold text-white/90 leading-snug group-hover/act:text-[#C6A66B] transition-colors">
-                          {act.title}
-                          {act.companyName && <span className="text-slate-400"> — {act.companyName}</span>}
-                        </p>
-                        <p className="mt-1 text-[9.5px] font-medium text-slate-500 select-none">
-                          {new Date(act.timestamp).toLocaleDateString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
-                          {act.changedBy && <> · <span className="text-slate-600">{act.changedBy}</span></>}
-                        </p>
-                      </div>
-                    </Link>
-                  ))}
-
-                  {(!stats.recentActivity || stats.recentActivity.length === 0) && (
-                    <div className="py-6 text-center select-none">
-                      <p className="text-xs text-slate-500">No recent operational activity</p>
                     </div>
                   )}
                 </div>

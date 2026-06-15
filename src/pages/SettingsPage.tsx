@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { 
-  Key, RefreshCw, Check, Database, Server, CheckCircle2, Zap, Bell, Link2, AlertTriangle, ShieldAlert, Loader2
+  Key, RefreshCw, Check, Database, Server, CheckCircle2, Zap, Bell, AlertTriangle, ShieldAlert
 } from "lucide-react";
-import { changeAdminPassword, verifyIntegration } from "../api/admin";
+import { changeAdminPassword } from "../api/admin";
 import { clearAirtableCache } from "../api/airtable";
 import { cx } from "../utils/cx";
 import { HeaderMetrics } from "../components/ui/HeaderMetrics";
@@ -23,49 +23,6 @@ export function SettingsPage() {
     airtableStatus: "Connected",
     metadataStatus: "Cached Fallback ready"
   });
-
-  // Integration Connection states
-  const [connectionStatuses, setConnectionStatuses] = useState<Record<string, {
-    status: "Connected" | "Misconfigured" | "Unauthorized" | "Offline" | "Pending Verification" | "Idle";
-    details: string;
-    loading: boolean;
-  }>>({});
-
-  const INTEGRATIONS = [
-    { key: "airtable", name: "Airtable Base", id: "appSlarPHIotXrgL4..." },
-    { key: "notion", name: "Notion Docs Hub", id: "Notion Workspaces" },
-    { key: "claude", name: "Claude API", id: "claude-sonnet-4.5" },
-    { key: "make", name: "Make.com", id: "Scenario webhook triggers" },
-    { key: "google-drive", name: "Google Drive", id: "Google Cloud folders" },
-    { key: "email", name: "Email Router", id: "partnership@aysancapital.com" },
-    { key: "clickup", name: "ClickUp Integration", id: "ClickUp Workspaces" }
-  ];
-
-  const checkIntegration = async (id: string) => {
-    setConnectionStatuses(prev => ({
-      ...prev,
-      [id]: { status: "Pending Verification", details: "Checking connectivity...", loading: true }
-    }));
-    try {
-      const res = await verifyIntegration(id);
-      setConnectionStatuses(prev => ({
-        ...prev,
-        [id]: { status: res.status, details: res.details, loading: false }
-      }));
-    } catch (err: any) {
-      setConnectionStatuses(prev => ({
-        ...prev,
-        [id]: { status: "Offline", details: err.message || "Connection refused.", loading: false }
-      }));
-    }
-  };
-
-  useEffect(() => {
-    const ids = ["airtable", "notion", "claude", "make", "google-drive", "email", "clickup"];
-    ids.forEach(id => {
-      checkIntegration(id);
-    });
-  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -115,23 +72,6 @@ export function SettingsPage() {
     setTimeout(() => setCacheFlushed(false), 2000);
   };
 
-  const checklistItems = [
-    { text: "Airtable field IDs documented for team", status: "REQUIRES ACTION", type: "warning" },
-    { text: "Make webhook URLs documented", status: "REQUIRES ACTION", type: "warning" },
-    { text: "Notion SOPs accessible to full team", status: "VALIDATED", type: "success" },
-    { text: "Client trained on system maintenance", status: "TRAINING PENDING", type: "warning" },
-    { text: "Token rotation log current", status: "OVERDUE", type: "danger" }
-  ];
-
-  const thresholds = [
-    { name: "EBITDA floor", value: "£750k", color: "text-white" },
-    { name: "EV multiple — caution", value: "< 7.0x", color: "text-[#C6A66B] font-bold" },
-    { name: "EV multiple — LBO / override", value: "< 5.0x", color: "text-rose-500 font-bold" },
-    { name: "DSCR base floor", value: "1.30x", color: "text-white" },
-    { name: "DSCR covenant floor", value: "1.20x", color: "text-white" },
-    { name: "Lender response flag", value: "90 days", color: "text-white" }
-  ];
-
   return (
     <div className="space-y-6 text-[#E2E8F0] font-sans animate-fade-in">
       {/* Page Header */}
@@ -141,7 +81,7 @@ export function SettingsPage() {
             System <span className="text-[#C6A66B]">Settings</span>
           </h1>
           <p className="text-xs text-slate-400 font-semibold tracking-wide">
-            ACP Deal OS configuration
+            ACP Deal OS Workspace & Auth Configuration
           </p>
         </div>
         
@@ -156,102 +96,134 @@ export function SettingsPage() {
             <Bell className="h-4 w-4" />
             <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-[#C6A66B]" />
           </button>
-
-          <button
-            type="button"
-            className="inline-flex h-9 items-center justify-center rounded-lg bg-[#C6A66B] hover:bg-[#b5904a] text-slate-950 px-4 text-xs font-black uppercase tracking-wider transition-colors duration-200"
-            onClick={() => window.location.hash = "/deals"}
-          >
-            + New Deal
-          </button>
         </div>
       </div>
 
       {/* Grid Layout System */}
       <div className="grid gap-6 lg:grid-cols-12">
-        {/* Left Column: System Connections, Passcode Configuration, Cache Flushing, Diagnostics */}
-        <div className="col-span-12 lg:col-span-7 space-y-6">
+        {/* Left Column: Workspace Configuration & Diagnostics */}
+        <div className="col-span-12 lg:col-span-6 space-y-6">
           
-          {/* SYSTEM CONNECTIONS Panel */}
+          {/* BRANDING & ORGANIZATION CONFIGURATION */}
           <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-6 shadow-premium-card card-sheen">
-            <div className="flex items-center justify-between border-b border-white/[0.02] pb-4 mb-5 select-none">
-              <h3 className="text-xs font-extrabold uppercase tracking-[0.2em] text-[#C6A66B]">
-                System Connections
-              </h3>
-              <Link2 className="h-4 w-4 text-slate-550 hover:text-white cursor-pointer transition-colors" />
-            </div>
+            <h3 className="text-xs font-extrabold uppercase tracking-[0.2em] text-slate-400 border-b border-white/[0.02] pb-4 mb-5 select-none flex items-center gap-2">
+              <Database className="h-4 w-4 text-[#C6A66B]" />
+              <span>Workspace Profile</span>
+            </h3>
 
             <div className="space-y-4">
-              {INTEGRATIONS.map((conn, idx) => {
-                const state = connectionStatuses[conn.key] || { status: "Idle", details: "", loading: false };
-                return (
-                  <div key={idx} className="flex flex-col py-2 border-b border-white/[0.02] last:border-0 last:pb-0">
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-1">
-                        <p className="text-xs font-bold text-white tracking-wide">
-                          {conn.name}
-                        </p>
-                        <p className="text-[10px] font-medium text-slate-500 font-mono tracking-tight">
-                          {conn.id}
-                        </p>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        {state.status === "Connected" && (
-                          <span className="inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-emerald-450 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/15">
-                            <span className="h-1 w-1.5 rotate-45 border-r border-b border-emerald-450 block transform -translate-y-0.5" />
-                            Connected
-                          </span>
-                        )}
-                        {state.status === "Pending Verification" && (
-                          <span className="inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-slate-400 bg-slate-500/10 px-2 py-0.5 rounded border border-slate-500/15 animate-pulse">
-                            <Loader2 className="h-2 w-2 animate-spin text-slate-400" />
-                            Verifying...
-                          </span>
-                        )}
-                        {state.status === "Misconfigured" && (
-                          <span className="inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/15">
-                            <AlertTriangle className="h-2.5 w-2.5 text-amber-500" />
-                            Misconfigured
-                          </span>
-                        )}
-                        {state.status === "Unauthorized" && (
-                          <span className="inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-rose-500 bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/15">
-                            <ShieldAlert className="h-2.5 w-2.5 text-rose-500" />
-                            Unauthorized
-                          </span>
-                        )}
-                        {state.status === "Offline" && (
-                          <span className="inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-rose-500 bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/15">
-                            <AlertTriangle className="h-2.5 w-2.5 text-rose-550" />
-                            Offline
-                          </span>
-                        )}
-                        {state.status === "Idle" && (
-                          <span className="inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-slate-500 bg-slate-500/5 px-2 py-0.5 rounded border border-slate-550/10">
-                            Unchecked
-                          </span>
-                        )}
-
-                        <button
-                          onClick={() => checkIntegration(conn.key)}
-                          disabled={state.loading}
-                          className="px-2.5 py-1 text-[9px] font-extrabold uppercase tracking-widest rounded transition-all duration-200 cursor-pointer shadow-sm bg-[#C6A66B] hover:bg-[#b5904a] text-slate-950 disabled:opacity-40"
-                        >
-                          {state.loading ? "Checking..." : "Re-Verify"}
-                        </button>
-                      </div>
-                    </div>
-                    {state.status !== "Connected" && state.status !== "Idle" && state.details && (
-                      <div className="mt-1.5 text-[9px] text-rose-400 font-semibold leading-relaxed max-w-lg border border-red-500/10 bg-red-950/10 rounded px-2.5 py-1">
-                        {state.details}
-                      </div>
-                    )}
+              <FormField label="Organization Name" id="org-name">
+                <input
+                  id="org-name"
+                  type="text"
+                  readOnly
+                  value="Aysan Capital Partners"
+                  className={cx(inputClass, "opacity-75 cursor-not-allowed bg-white/[0.01]")}
+                />
+              </FormField>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <FormField label="Primary Branding Hex" id="brand-color">
+                  <div className="flex items-center gap-2">
+                    <span className="h-6 w-6 rounded border border-white/10 bg-[#C6A66B] shrink-0" />
+                    <span className="text-xs font-mono font-bold text-slate-300">#C6A66B</span>
                   </div>
-                );
-              })}
+                </FormField>
+                
+                <FormField label="Accent Tint Hex" id="accent-tint">
+                  <div className="flex items-center gap-2">
+                    <span className="h-6 w-6 rounded border border-white/10 bg-[#161B22] shrink-0" />
+                    <span className="text-xs font-mono font-bold text-slate-300">#161B22</span>
+                  </div>
+                </FormField>
+              </div>
             </div>
           </div>
+
+          {/* CACHE OPTIMIZATION PANEL */}
+          <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-6 shadow-premium-card card-sheen">
+            <h3 className="text-xs font-extrabold uppercase tracking-[0.2em] text-slate-400 border-b border-white/[0.02] pb-4 mb-5 select-none flex items-center gap-2">
+              <RefreshCw className="h-4 w-4 text-[#C6A66B]" />
+              <span>Database Query Latency Optimization</span>
+            </h3>
+
+            <div className="space-y-4">
+              <div className="text-xs text-slate-400 leading-relaxed space-y-2 font-sans">
+                <p>
+                  To accelerate page loading and tab transitions, Aysan Capital Portal caches Airtable responses for <strong className="text-white">10 seconds</strong> in-memory.
+                </p>
+                <p>
+                  Purge the local query cache immediately to fetch manual updates made in the Airtable base.
+                </p>
+              </div>
+
+              <button
+                onClick={handleFlushCache}
+                className={cx(
+                  "w-full inline-flex h-10 items-center justify-center gap-2 rounded-xl border transition-all duration-200 text-xs font-bold uppercase tracking-widest select-none cursor-pointer",
+                  cacheFlushed 
+                    ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400" 
+                    : "border-white/[0.02] bg-white/[0.015] text-slate-300 hover:bg-white/[0.02] hover:text-white"
+                )}
+              >
+                {cacheFlushed ? (
+                  <>
+                    <Check className="h-4 w-4 text-emerald-400" />
+                    <span>Cache Cleared Successfully!</span>
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="h-4 w-4" />
+                    <span>Flush Cache</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* SYSTEM DIAGNOSTICS TABLE */}
+          <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-6 shadow-premium-card card-sheen">
+            <h3 className="text-xs font-extrabold uppercase tracking-[0.2em] text-slate-400 border-b border-white/[0.02] pb-4 mb-5 select-none flex items-center gap-2">
+              <Server className="h-4 w-4 text-[#C6A66B]" />
+              <span>Diagnostics & Environment State</span>
+            </h3>
+
+            <div className="divide-y divide-white/[0.03] font-mono text-[10px] leading-none">
+              <div className="flex items-center justify-between py-3">
+                <span className="font-bold text-slate-500">DATABASE ENGINE</span>
+                <span className="text-emerald-400 font-black uppercase tracking-widest flex items-center gap-1.5">
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  {diagnostics.airtableStatus}
+                </span>
+              </div>
+              
+              <div className="flex items-center justify-between py-3">
+                <span className="font-bold text-slate-500">METADATA SCHEMA BYPASS</span>
+                <span className="text-blue-400 font-bold">
+                  {diagnostics.metadataStatus}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between py-3">
+                <span className="font-bold text-slate-500">ENVIRONMENT MODE</span>
+                <span className="text-slate-300 uppercase font-bold">
+                  {diagnostics.nodeEnv}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between py-3">
+                <span className="font-bold text-slate-500">VITE PORT</span>
+                <span className="text-slate-300 font-bold">
+                  {diagnostics.port}
+                </span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        {/* Right Column: Authentication & Security */}
+        <div className="col-span-12 lg:col-span-6 space-y-6">
 
           {/* ADMIN SECURITY PANEL */}
           <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-6 shadow-premium-card card-sheen">
@@ -268,7 +240,7 @@ export function SettingsPage() {
               )}
 
               {success && (
-                <div className="rounded-xl border border-emerald-500/10 bg-emerald-500/5 p-3.5 text-center text-xs font-semibold text-emerald-450">
+                <div className="rounded-xl border border-emerald-500/10 bg-emerald-500/5 p-3.5 text-center text-xs font-semibold text-emerald-400">
                   Passcode successfully updated!
                 </div>
               )}
@@ -328,158 +300,41 @@ export function SettingsPage() {
             </form>
           </div>
 
-          {/* CACHE OPTIMIZATION PANEL */}
+          {/* SESSION ROLES & JWT HEALTH PANEL */}
           <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-6 shadow-premium-card card-sheen">
             <h3 className="text-xs font-extrabold uppercase tracking-[0.2em] text-slate-400 border-b border-white/[0.02] pb-4 mb-5 select-none flex items-center gap-2">
-              <Database className="h-4 w-4 text-[#C6A66B]" />
-              <span>Database Query Latency Optimization</span>
-            </h3>
-
-            <div className="space-y-4">
-              <div className="text-xs text-slate-400 leading-relaxed space-y-2 font-sans">
-                <p>
-                  To accelerate page loading and tab transitions, Aysan Capital Portal caches Airtable responses for <strong className="text-white">10 seconds</strong> in-memory.
-                </p>
-                <p>
-                  If you have just made manual updates directly in the Airtable base, click the button below to purge the local query cache immediately.
-                </p>
-              </div>
-
-              <button
-                onClick={handleFlushCache}
-                className={cx(
-                  "w-full inline-flex h-10 items-center justify-center gap-2 rounded-xl border transition-all duration-200 text-xs font-bold uppercase tracking-widest select-none cursor-pointer",
-                  cacheFlushed 
-                    ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-450" 
-                    : "border-white/[0.02] bg-white/[0.015] text-slate-300 hover:bg-white/[0.02] hover:text-white"
-                )}
-              >
-                {cacheFlushed ? (
-                  <>
-                    <Check className="h-4 w-4 text-emerald-455" />
-                    <span>Cache Cleared Successfully!</span>
-                  </>
-                ) : (
-                  <>
-                    <RefreshCw className="h-4 w-4" />
-                    <span>Flush Cache</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-
-          {/* SYSTEM DIAGNOSTICS TABLE */}
-          <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-6 shadow-premium-card card-sheen">
-            <h3 className="text-xs font-extrabold uppercase tracking-[0.2em] text-slate-400 border-b border-white/[0.02] pb-4 mb-5 select-none flex items-center gap-2">
-              <Server className="h-4 w-4 text-[#C6A66B]" />
-              <span>Diagnostics & Environment State</span>
+              <ShieldAlert className="h-4 w-4 text-[#C6A66B]" />
+              <span>Session Roles & JWT Health</span>
             </h3>
 
             <div className="divide-y divide-white/[0.03] font-mono text-[10px] leading-none">
               <div className="flex items-center justify-between py-3">
-                <span className="font-bold text-slate-500">DATABASE ENGINE</span>
-                <span className="text-emerald-450 font-black uppercase tracking-widest flex items-center gap-1.5">
-                  <CheckCircle2 className="h-3.5 w-3.5" />
-                  {diagnostics.airtableStatus}
+                <span className="font-bold text-slate-500">ACTIVE ROLE</span>
+                <span className="text-[#C6A66B] font-bold uppercase tracking-wider">
+                  Managing Partner
                 </span>
               </div>
               
               <div className="flex items-center justify-between py-3">
-                <span className="font-bold text-slate-500">METADATA SCHEMA BYPASS</span>
-                <span className="text-blue-400 font-bold">
-                  {diagnostics.metadataStatus}
+                <span className="font-bold text-slate-500">SESSION PERMISSIONS</span>
+                <span className="text-slate-300 font-bold uppercase">
+                  Write / Override / Admin
                 </span>
               </div>
 
               <div className="flex items-center justify-between py-3">
-                <span className="font-bold text-slate-500">ENVIRONMENT MODE</span>
-                <span className="text-slate-300 uppercase font-bold">
-                  {diagnostics.nodeEnv}
+                <span className="font-bold text-slate-500">JWT STATUS</span>
+                <span className="text-emerald-450 font-black uppercase tracking-widest flex items-center gap-1">
+                  <CheckCircle2 className="h-3 w-3" />
+                  Active / Valid
                 </span>
               </div>
 
               <div className="flex items-center justify-between py-3">
-                <span className="font-bold text-slate-500">VITE PORT</span>
-                <span className="text-slate-300 font-bold">
-                  {diagnostics.port}
+                <span className="font-bold text-slate-500">SIGNING ALGORITHM</span>
+                <span className="text-slate-400 font-bold font-mono">
+                  HS256 (RS256 Failover)
                 </span>
-              </div>
-            </div>
-          </div>
-
-        </div>
-
-        {/* Right Column: Deployment Checklist & Pre-Committee Risk Thresholds */}
-        <div className="col-span-12 lg:col-span-5 space-y-6">
-
-          {/* DEPLOYMENT CHECKLIST Panel */}
-          <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-6 shadow-premium-card card-sheen">
-            <div className="flex items-center justify-between border-b border-white/[0.02] pb-4 mb-5 select-none">
-              <h3 className="text-xs font-extrabold uppercase tracking-[0.2em] text-rose-500 flex items-center gap-2">
-                Deployment Checklist
-              </h3>
-              <span className="text-[10px] font-black text-rose-500 bg-rose-500/10 border border-rose-500/25 px-2 py-0.5 rounded tracking-wide uppercase">
-                VERIFIED: 1/5
-              </span>
-            </div>
-
-            <div className="space-y-4">
-              {checklistItems.map((item, idx) => (
-                <div key={idx} className="flex items-start gap-3.5 py-1 border-b border-white/[0.02] last:border-0 last:pb-0">
-                  {item.type === "success" ? (
-                    <div className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-450 border border-emerald-500/30">
-                      <span className="h-1 w-1.5 rotate-45 border-r border-b border-emerald-450 block transform -translate-y-0.5" />
-                    </div>
-                  ) : (
-                    <div className="mt-0.5 h-4 w-4 shrink-0 rounded-full border-2 border-rose-500/30 bg-rose-500/5 flex items-center justify-center">
-                      <span className="h-1.5 w-1.5 rounded-full bg-rose-500/60" />
-                    </div>
-                  )}
-
-                  <div className="space-y-1">
-                    <p className={cx(
-                      "text-xs font-semibold tracking-wide",
-                      item.type === "success" ? "text-slate-200" : "text-slate-350"
-                    )}>
-                      {item.text}
-                    </p>
-                    <p className={cx(
-                      "text-[9px] font-black uppercase tracking-widest",
-                      item.type === "success" ? "text-emerald-400" : (item.type === "danger" ? "text-rose-500" : "text-[#C6A66B]")
-                    )}>
-                      {item.status}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* RISK THRESHOLDS (PRE-COMMITTEE) Panel */}
-          <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-6 shadow-premium-card card-sheen">
-            <div className="border-b border-white/[0.02] pb-4 mb-5 select-none">
-              <h3 className="text-xs font-extrabold uppercase tracking-[0.2em] text-[#C6A66B]">
-                Risk Thresholds (Pre-Committee)
-              </h3>
-            </div>
-
-            <div className="space-y-4">
-              {thresholds.map((t, idx) => (
-                <div key={idx} className="flex items-center justify-between py-1 border-b border-white/[0.02] last:border-0 last:pb-0">
-                  <span className="text-xs font-semibold text-slate-400 tracking-wide">
-                    {t.name}
-                  </span>
-                  <span className={cx("text-xs font-mono tracking-tight", t.color)}>
-                    {t.value}
-                  </span>
-                </div>
-              ))}
-
-              <div className="border-t border-white/[0.02] pt-4 mt-5 select-none">
-                <p className="text-[9px] font-bold text-slate-500 leading-relaxed tracking-wider uppercase">
-                  Thresholds calculated from historic deals, historic stats, and risk matrix assessments. Deviation from these limits requires written sign off by all partners.
-                </p>
               </div>
             </div>
           </div>

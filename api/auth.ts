@@ -5,6 +5,9 @@ import { normalizeLenderFields, getAssignmentFields } from "./_utils/airtable.js
 import { signJWT, setSessionCookie } from "./_utils/jwt.js";
 import bcrypt from "bcryptjs";
 
+// Global map to track failed lender login attempts
+const failedLenderLogins = new Map<string, { count: number; lockUntil: number }>();
+
 export default async function handler(req: any, res: any) {
   if (req.method !== "POST") {
     return res.status(455).json({ error: "Method not allowed" });
@@ -15,6 +18,23 @@ export default async function handler(req: any, res: any) {
     return res.status(400).json({ error: "Portal slug and password are required" });
   }
 
+  const rawIp = req.headers["x-forwarded-for"] || req.headers["x-real-ip"] || "unknown-ip";
+  const clientIp = Array.isArray(rawIp)
+    ? rawIp[0]
+    : typeof rawIp === "string"
+    ? rawIp.split(",")[0].trim()
+    : "unknown-ip";
+  const rateLimitKey = `${clientIp}:${portalSlug.toLowerCase().trim()}`;
+
+  // Check rate limit lock status
+  const lockInfo = failedLenderLogins.get(rateLimitKey);
+  if (lockInfo && lockInfo.lockUntil > Date.now()) {
+    const minutesLeft = Math.ceil((lockInfo.lockUntil - Date.now()) / 60000);
+    return res.status(429).json({ 
+      error: `Too many failed attempts. Locked out. Please try again in ${minutesLeft} minute(s).` 
+    });
+  }
+
   try {
     // 1. Fetch lender matching the slug
     const lendersData = await airtableFetchAll(TABLES.LENDERS, {
@@ -23,6 +43,7 @@ export default async function handler(req: any, res: any) {
     });
 
     if (!lendersData.records || lendersData.records.length === 0) {
+      handleLenderLoginFailure(rateLimitKey);
       return res.status(401).json({ error: "Invalid portal URL or access expired." });
     }
 
@@ -67,8 +88,12 @@ export default async function handler(req: any, res: any) {
     }
 
     if (!isValid) {
+      handleLenderLoginFailure(rateLimitKey);
       return res.status(401).json({ error: "Incorrect portal passcode." });
     }
+
+    // Clear failed attempts on successful verification
+    failedLenderLogins.delete(rateLimitKey);
 
     if (fields.Status !== "Active") {
       return res.status(403).json({ error: "Portal access has been deactivated." });
@@ -135,6 +160,26 @@ export default async function handler(req: any, res: any) {
       assignedDeals: Array.from(new Set(assignedDealRefs))
     });
   } catch (err: any) {
-    return res.status(err.status || 500).json({ error: err.message, type: err.type });
+    console.error("[Lender Login API Error]:", err);
+    return res.status(500).json({ 
+      error: "Authentication service is temporarily unavailable. Please try again later." 
+    });
+  }
+}
+
+function handleLenderLoginFailure(rateLimitKey: string) {
+  const currentFail = failedLenderLogins.get(rateLimitKey) || { count: 0, lockUntil: 0 };
+  const newCount = currentFail.count + 1;
+  
+  if (newCount >= 5) {
+    failedLenderLogins.set(rateLimitKey, {
+      count: newCount,
+      lockUntil: Date.now() + 15 * 60 * 1000 // lock for 15 minutes
+    });
+  } else {
+    failedLenderLogins.set(rateLimitKey, {
+      count: newCount,
+      lockUntil: 0
+    });
   }
 }
