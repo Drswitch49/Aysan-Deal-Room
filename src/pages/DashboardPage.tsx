@@ -282,13 +282,24 @@ export function DashboardPage() {
                 </div>
 
                 <div className="divide-y divide-white/[0.02] font-sans">
-                  {stats.recentMovements && stats.recentMovements.map((move: any) => (
-                    <div key={move.id} className="py-3.5 flex items-center justify-between gap-4 first:pt-1 group/move block">
-                      <div className="flex items-center gap-3 min-w-0">
-                        {/* Status Icon */}
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-white/[0.015] border border-white/[0.02] text-slate-400 group-hover/move:text-[#C6A66B] transition-colors">
-                          {move.type === "transition" ? <Kanban className="h-4 w-4" /> : <FileText className="h-4 w-4" />}
-                        </div>
+                  {stats.recentMovements && stats.recentMovements.map((move: any) => {
+                    let IconComponent = Kanban;
+                    if (move.type === "deal_created") IconComponent = Plus;
+                    else if (move.type === "deal_assigned") IconComponent = Database;
+                    else if (move.type === "im_received") IconComponent = FileText;
+                    else if (move.type === "lender_engaged") IconComponent = Building2;
+                    else if (move.type === "loi_sent") IconComponent = FileText;
+                    else if (move.type === "dd_started") IconComponent = Clock;
+                    else if (move.type === "dd_completed") IconComponent = CheckCircle2;
+                    else if (move.type === "deal_archived") IconComponent = AlertTriangle;
+
+                    return (
+                      <div key={move.id} className="py-3.5 flex items-center justify-between gap-4 first:pt-1 group/move block">
+                        <div className="flex items-center gap-3 min-w-0">
+                          {/* Status Icon */}
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-white/[0.015] border border-white/[0.02] text-slate-400 group-hover/move:text-[#C6A66B] transition-colors">
+                            <IconComponent className="h-4 w-4" />
+                          </div>
 
                         {/* Status detail */}
                         <div className="min-w-0">
@@ -328,7 +339,8 @@ export function DashboardPage() {
                         </Link>
                       </div>
                     </div>
-                  ))}
+                  );
+                })}
 
                   {(!stats.recentMovements || stats.recentMovements.length === 0) && (
                     <div className="flex flex-col items-center justify-center py-10 text-center space-y-2 select-none">
@@ -486,6 +498,29 @@ export function DashboardPage() {
                       </div>
                     );
                   })}
+                </div>
+              </div>
+
+              {/* LOI Tracker */}
+              <div className="rounded-2xl p-6 premium-card card-sheen">
+                <SectionHeader>LOI Tracker</SectionHeader>
+                
+                <div className="mt-4 space-y-3 font-sans">
+                  {[
+                    { label: "LOI Drafting", count: stats.loiTracker?.drafting ?? 0, color: "bg-slate-400/70" },
+                    { label: "LOI Sent", count: stats.loiTracker?.sent ?? 0, color: "bg-blue-400/70" },
+                    { label: "Awaiting Seller Response", count: stats.loiTracker?.awaitingResponse ?? 0, color: "bg-amber-400/70" },
+                    { label: "Accepted", count: stats.loiTracker?.accepted ?? 0, color: "bg-emerald-400/70" },
+                    { label: "Declined", count: stats.loiTracker?.declined ?? 0, color: "bg-rose-500/70" },
+                  ].map(({ label, count, color }) => (
+                    <div key={label} className="flex items-center justify-between py-1.5 border-b border-white/[0.01] last:border-b-0">
+                      <div className="flex items-center gap-2.5">
+                        <span className={`h-1.5 w-1.5 rounded-full ${color}`} />
+                        <span className="text-[11px] font-semibold text-slate-350">{label}</span>
+                      </div>
+                      <span className="text-xs font-bold text-white tabular-nums">{count}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
 

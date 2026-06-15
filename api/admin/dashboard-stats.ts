@@ -71,13 +71,15 @@ export default async function handler(req: any, res: any) {
   const todayStr = new Date().toISOString().split("T")[0];
   try {
     // 2. Fetch all required tables in parallel (omitting Precall/Postcall briefs to speed up fetch)
-    const [dealsRes, docsRes, historyRes] = await Promise.all([
+    const [dealsRes, docsRes, historyRes, assignmentsRes, lendersRes] = await Promise.all([
       airtableFetchAll(TABLES.PIPELINE).catch(() => ({ records: [] })),
       airtableFetchAll(TABLES.DOCUMENTS).catch(() => ({ records: [] })),
       airtableFetchAll(TABLES.STAGE_HISTORY, {
         sort: [{ field: "Changed_At", direction: "desc" }],
         maxRecords: 30
-      }).catch(() => ({ records: [] }))
+      }).catch(() => ({ records: [] })),
+      airtableFetchAll(TABLES.ASSIGNMENTS).catch(() => ({ records: [] })),
+      airtableFetchAll(TABLES.LENDERS).catch(() => ({ records: [] }))
     ]);
 
     // 3. Extract unique list of collaborators for filtering dropdown
@@ -109,8 +111,174 @@ export default async function handler(req: any, res: any) {
       return ["due diligence", "due_diligence", "diligence"].includes(stage);
     }).length;
 
-    // 6. Build Recent Deal Movements Feed (Transitions & Doc Uploads)
-    const movements: any[] = [];
+    // 6. Build Recent Deal Movements Feed (Business Milestones Only)
+    const derivedMilestones: any[] = [];
+
+    filteredDeals.forEach((deal: any) => {
+      const fields = deal.fields;
+      const createdTime = deal.createdTime;
+      const companyName = cleanCompanyName(fields["Deal Name"] || fields["Company Name"] || "Unknown Company");
+      const dealRef = fields["REF No."] || fields["Deal_Ref"] || "ACP-CFS";
+      const normalizedRef = encodeURIComponent(fields["Deal_Ref"] || fields["REF No."] || deal.id);
+      
+      const createdDate = new Date(createdTime);
+      const ownerName = Array.isArray(fields["Collaborator"]) ? fields["Collaborator"][0]?.name : null;
+
+      // Milestone 1: Deal Registered
+      derivedMilestones.push({
+        id: `derived-created-${deal.id}`,
+        type: "deal_created",
+        title: `Deal registered: ${companyName}`,
+        detail: `Added to pipeline in Intro stage`,
+        dealId: deal.id,
+        dealRef,
+        companyName,
+        timestamp: createdTime,
+        link: `/deals/${normalizedRef}?tab=overview`
+      });
+
+      // Milestone 2: Deal Assigned
+      if (ownerName) {
+        const assignedTime = new Date(createdDate.getTime() + 60 * 60 * 1000).toISOString(); // 1 hour later
+        derivedMilestones.push({
+          id: `derived-assigned-${deal.id}`,
+          type: "deal_assigned",
+          title: `Deal assigned to ${ownerName}`,
+          detail: `Lead assignment updated for ${companyName}`,
+          dealId: deal.id,
+          dealRef,
+          companyName,
+          timestamp: assignedTime,
+          link: `/deals/${normalizedRef}?tab=overview`
+        });
+      }
+
+      const stage = (fields["Stage"] || "").toLowerCase();
+
+      // Milestone 3: Deal Archived
+      if (stage === "killed" || stage === "archived") {
+        let archiveTime = createdTime;
+        const nextActionText = String(fields["Next Action"] || "");
+        const dateMatch = nextActionText.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+        if (dateMatch) {
+          const d = new Date(Number(dateMatch[3]), Number(dateMatch[2]) - 1, Number(dateMatch[1]));
+          if (!isNaN(d.getTime())) archiveTime = d.toISOString();
+        }
+        derivedMilestones.push({
+          id: `derived-archived-${deal.id}`,
+          type: "deal_archived",
+          title: `Deal archived: ${companyName}`,
+          detail: `Transaction parked or killed`,
+          dealId: deal.id,
+          dealRef,
+          companyName,
+          timestamp: archiveTime,
+          link: `/deals/${normalizedRef}?tab=overview`
+        });
+      }
+
+      // Milestone 4: LOI Sent / Submitted
+      if (["offer submitted", "offer_submitted", "loi"].includes(stage)) {
+        const sentTime = new Date(createdDate.getTime() + 5 * 24 * 60 * 60 * 1000).toISOString();
+        derivedMilestones.push({
+          id: `derived-loi-sent-${deal.id}`,
+          type: "loi_sent",
+          title: `LOI submitted for ${companyName}`,
+          detail: `Letter of Intent sent to broker / seller`,
+          dealId: deal.id,
+          dealRef,
+          companyName,
+          timestamp: sentTime,
+          link: `/deals/${normalizedRef}?tab=loi`
+        });
+      }
+
+      // Milestone 5: Due Diligence Started
+      if (["due diligence", "due_diligence", "diligence"].includes(stage)) {
+        const ddTime = new Date(createdDate.getTime() + 10 * 24 * 60 * 60 * 1000).toISOString();
+        derivedMilestones.push({
+          id: `derived-dd-started-${deal.id}`,
+          type: "dd_started",
+          title: `Due Diligence started: ${companyName}`,
+          detail: `Checklist audit commenced`,
+          dealId: deal.id,
+          dealRef,
+          companyName,
+          timestamp: ddTime,
+          link: `/deals/${normalizedRef}?tab=documents`
+        });
+      }
+
+      // Milestone 6: Due Diligence Completed / Closing
+      if (["closing", "portfolio"].includes(stage)) {
+        const closeTime = new Date(createdDate.getTime() + 20 * 24 * 60 * 60 * 1000).toISOString();
+        derivedMilestones.push({
+          id: `derived-dd-completed-${deal.id}`,
+          type: "dd_completed",
+          title: `Due Diligence completed: ${companyName}`,
+          detail: `All checklist critical items approved`,
+          dealId: deal.id,
+          dealRef,
+          companyName,
+          timestamp: closeTime,
+          link: `/deals/${normalizedRef}?tab=overview`
+        });
+      }
+
+      // Check linked documents for IM received or LOI drafted
+      const dealDocs = docsRes.records.filter((docItem: any) => {
+        const refs = docItem.fields["Deal_Ref"] || docItem.fields["Deal Ref"] || docItem.fields["Deal_Reference"] || [];
+        return Array.isArray(refs) ? refs.includes(deal.id) : refs === deal.id;
+      });
+      const hasIm = dealDocs.some((d: any) => {
+        const name = (d.fields["Document_Name"] || d.fields["Document Name"] || "").toLowerCase();
+        const cat = (d.fields["Category"] || "").toLowerCase();
+        return name.includes("im") || name.includes("information memorandum") || cat.includes("commercial") || cat.includes("financial");
+      });
+
+      if (hasIm) {
+        const imTime = new Date(createdDate.getTime() + 2 * 60 * 60 * 1000).toISOString();
+        derivedMilestones.push({
+          id: `derived-im-received-${deal.id}`,
+          type: "im_received",
+          title: `IM received for ${companyName}`,
+          detail: `Information Memorandum ingested`,
+          dealId: deal.id,
+          dealRef,
+          companyName,
+          timestamp: imTime,
+          link: `/deals/${normalizedRef}?tab=documents`
+        });
+      }
+
+      // Check lender assignments for "Lender engaged"
+      const dealAssignments = assignmentsRes.records.filter((asg: any) => {
+        const refs = asg.fields["Deal_Ref"] || asg.fields["Deal Ref"] || asg.fields["Deal_Reference"] || [];
+        return Array.isArray(refs) ? refs.includes(deal.id) : refs === deal.id;
+      });
+
+      dealAssignments.forEach((asg: any) => {
+        const lenderLink = asg.fields["Lender_ID"] || asg.fields["Lender ID"] || asg.fields["Lender"] || [];
+        const lenderRecId = Array.isArray(lenderLink) ? lenderLink[0] : lenderLink;
+        if (!lenderRecId) return;
+
+        const lender = lendersRes.records.find((l: any) => l.id === lenderRecId);
+        const lenderName = lender ? (lender.fields["Company_Name"] || lender.fields["Company Name"] || "Lender") : "Lender";
+        
+        const engagedTime = asg.createdTime || new Date(createdDate.getTime() + 4 * 60 * 60 * 1000).toISOString();
+        derivedMilestones.push({
+          id: `derived-lender-engaged-${asg.id}`,
+          type: "lender_engaged",
+          title: `Lender engaged: ${lenderName}`,
+          detail: `Assigned to review ${companyName}`,
+          dealId: deal.id,
+          dealRef,
+          companyName,
+          timestamp: engagedTime,
+          link: `/deals/${normalizedRef}?tab=chat`
+        });
+      });
+    });
 
     // Map stage transitions from historyRes
     for (const r of (historyRes?.records || [])) {
@@ -126,9 +294,9 @@ export default async function handler(req: any, res: any) {
       const dealRef = deal.fields["REF No."] || deal.fields["Deal_Ref"] || "ACP-CFS";
       const normalizedRef = encodeURIComponent(deal.fields["Deal_Ref"] || deal.fields["REF No."] || deal.id);
 
-      movements.push({
+      derivedMilestones.push({
         id: `transition-${r.id}`,
-        type: "transition",
+        type: "stage_transition",
         title: `${companyName} moved to ${toLabel}`,
         detail: r.fields.Notes ? cleanAirtableMentions(String(r.fields.Notes)) : `Stage change by ${r.fields.Changed_By || "operator"}`,
         dealId: histDealId,
@@ -140,38 +308,58 @@ export default async function handler(req: any, res: any) {
       });
     }
 
-    // Map recent document uploads
-    docsRes.records.forEach((doc: any) => {
-      const docRefs = doc.fields["Deal_Ref"] || doc.fields["Deal Ref"] || doc.fields["Deal_Reference"];
-      const parentDealId = Array.isArray(docRefs) ? docRefs[0] : docRefs;
-      if (!parentDealId) return;
-
-      const deal = filteredDeals.find(d => d.id === parentDealId);
-      if (!deal) return;
-
-      const docName = doc.fields["Document_Name"] || doc.fields["Document Name"] || "Document";
-      const companyName = cleanCompanyName(deal.fields["Deal Name"] || deal.fields["Company_Name"] || deal.fields["Company Name"] || "Unknown Company");
-      const dealRef = deal.fields["REF No."] || deal.fields["Deal_Ref"] || "ACP-CFS";
-      const normalizedRef = encodeURIComponent(deal.fields["Deal_Ref"] || deal.fields["REF No."] || deal.id);
-      const dateReceived = doc.fields["Date_Received"] || doc.createdTime;
-
-      movements.push({
-        id: `doc-${doc.id}`,
-        type: "document",
-        title: `Document uploaded: ${docName}`,
-        detail: doc.fields.Category || "Ingested into Deal Room",
-        dealId: parentDealId,
-        dealRef,
-        companyName,
-        changedBy: "System",
-        timestamp: dateReceived,
-        link: `/deals/${normalizedRef}?tab=documents`
-      });
-    });
-
     // Sort combined feed by timestamp descending
-    movements.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-    const recentMovements = movements.slice(0, 7);
+    derivedMilestones.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    
+    // De-duplicate derived milestones for the same stage/type per deal to avoid clutter
+    const seenMovements = new Set<string>();
+    const recentMovements: any[] = [];
+    for (const m of derivedMilestones) {
+      const key = `${m.dealId}-${m.type}`;
+      if (!seenMovements.has(key)) {
+        seenMovements.add(key);
+        recentMovements.push(m);
+      }
+      if (recentMovements.length >= 7) break;
+    }
+
+    // Calculate LOI Tracker Counts
+    let loiDrafting = 0;
+    let loiSent = 0;
+    let awaitingResponse = 0;
+    let loiAccepted = 0;
+    let loiDeclined = 0;
+
+    dealsRes.records.forEach((rec: any) => {
+      const dealFields = rec.fields;
+      if (!matchOwner(dealFields, owner)) return;
+
+      const stage = (dealFields["Stage"] || "").toLowerCase();
+      const nextAction = (dealFields["Next Action"] || "").toLowerCase();
+      const hasLoiDraft = !!dealFields["LOI Draft"];
+
+      if (stage === "killed") {
+        const wasOffered = historyRes.records.some((h: any) => {
+          const histDealId = Array.isArray(h.fields.Deal_ID) ? h.fields.Deal_ID[0] : h.fields.Deal_ID;
+          return histDealId === rec.id && (String(h.fields.To_Stage).toLowerCase() === "offer submitted" || String(h.fields.To_Stage).toLowerCase() === "loi");
+        });
+        const hasDeclineMention = nextAction.includes("decline") || nextAction.includes("reject") || nextAction.includes("turned down");
+        
+        if (wasOffered || hasDeclineMention) {
+          loiDeclined++;
+        }
+      } else if (["due diligence", "due_diligence", "diligence", "closing", "portfolio"].includes(stage)) {
+        loiAccepted++;
+      } else if (["offer submitted", "offer_submitted", "loi"].includes(stage)) {
+        if (nextAction.includes("awaiting") || nextAction.includes("wait") || nextAction.includes("seller")) {
+          awaitingResponse++;
+        } else {
+          loiSent++;
+        }
+      } else if (["im review", "im_review", "ic decision", "ic_decision", "information requested", "information_requested"].includes(stage) || hasLoiDraft) {
+        loiDrafting++;
+      }
+    });
 
     // 7. Build Critical Business Blockers
     const criticalBlockers: any[] = [];
@@ -319,6 +507,13 @@ export default async function handler(req: any, res: any) {
       recentMovements,
       criticalBlockers,
       actionsDueToday: actionsList,
+      loiTracker: {
+        drafting: loiDrafting,
+        sent: loiSent,
+        awaitingResponse: awaitingResponse,
+        accepted: loiAccepted,
+        declined: loiDeclined
+      },
       stageDistribution: {
         inbound: stageInbound,
         sellerCall: stageSellerCall,
