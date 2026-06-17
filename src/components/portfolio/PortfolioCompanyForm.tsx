@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import type { CreatePortfolioCompanyInput } from "../types/entities";
+import type { CreatePortfolioCompanyInput } from "../../types/entities";
 
 interface PortfolioCompanyFormProps {
   onSubmit: (company: CreatePortfolioCompanyInput) => Promise<void>;
@@ -27,7 +27,7 @@ export function PortfolioCompanyForm({ onSubmit, onCancel, initialData, isLoadin
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
-    setFormData(prev => ({
+    setFormData((prev: CreatePortfolioCompanyInput) => ({
       ...prev,
       [name]: type === "number" ? (value ? parseFloat(value) : undefined) : value
     }));

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import type { CreateTeamMemberInput, UserRole } from "../types/entities";
+import type { CreateTeamMemberInput, UserRole } from "../../types/entities";
 
 interface TeamMemberFormProps {
   onSubmit: (member: CreateTeamMemberInput) => Promise<void>;
@@ -23,7 +23,7 @@ export function TeamMemberForm({ onSubmit, onCancel, initialData, isLoading }: T
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
+    setFormData((prev: CreateTeamMemberInput) => ({
       ...prev,
       [name]: value
     }));

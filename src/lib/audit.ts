@@ -1,5 +1,5 @@
-import { airtableCreate } from "./client.js";
-import { ensureTable } from "./schema-manager.js";
+import { airtableCreate } from "./airtable/client";
+import { ensureTable } from "./airtable/schema-manager";
 import type { AuditEventType, CreateAuditLogInput } from "../types/entities.js";
 
 /**

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import type { CreateExternalStakeholderInput, StakeholderType } from "../types/entities";
+import type { CreateExternalStakeholderInput, StakeholderType } from "../../types/entities";
 
 interface StakeholderFormProps {
   onSubmit: (stakeholder: CreateExternalStakeholderInput) => Promise<void>;
@@ -24,7 +24,7 @@ export function StakeholderForm({ onSubmit, onCancel, initialData, isLoading }: 
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
+    setFormData((prev: CreateExternalStakeholderInput) => ({
       ...prev,
       [name]: value
     }));

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import type { CreateDealInput } from "../types/entities";
+import type { CreateDealInput } from "../../types/entities";
 
 interface DealFormProps {
   onSubmit: (deal: CreateDealInput) => Promise<void>;
@@ -34,7 +34,7 @@ export function DealForm({ onSubmit, onCancel, initialData, isLoading }: DealFor
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
-    setFormData(prev => ({
+    setFormData((prev: CreateDealInput) => ({
       ...prev,
       [name]: type === "number" ? (value ? parseFloat(value) : undefined) : value
     }));
