@@ -1,16 +1,15 @@
 import { useState, useEffect, useMemo } from "react";
 import { 
-  Plus, AlertTriangle, CheckCircle2,
+  AlertTriangle, CheckCircle2,
   Kanban, Building2, Clock, MessageSquare,
   FileText, Database, ArrowRight, LineChart
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { fetchAdminLenders, createAdminDeal, fetchDashboardStats } from "../api/admin";
+import { fetchAdminLenders, fetchDashboardStats } from "../api/admin";
 import { fetchRecentAdminChat } from "../api/chat";
 import { usePipeline } from "../context/PipelineContext";
 import { StatCard } from "../components/ui/StatCard";
-import { Modal } from "../components/ui/Modal";
-import { FormField, inputClass, selectClass, textareaClass } from "../components/ui/FormField";
+
 import { LoadingState } from "../components/ui/LoadingState";
 import { SectionHeader } from "../components/ui/SectionHeader";
 import { cx } from "../utils/cx";
@@ -28,15 +27,7 @@ export function DashboardPage() {
   const [selectedAssignee, setSelectedAssignee] = useState<string>("All");
   const [assignees, setAssignees] = useState<string[]>(["All", "Ayo", "Prince", "Dami", "Chante"]);
 
-  // New deal modal state
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [newDealName, setNewDealName] = useState("");
-  const [newDealRef, setNewDealRef] = useState("");
-  const [newDealStage, setNewDealStage] = useState("Intro");
-  const [newDealNextAction, setNewDealNextAction] = useState("");
-  const [newDealNextActionDate, setNewDealNextActionDate] = useState("");
-  const [isSubmittingDeal, setIsSubmittingDeal] = useState(false);
-  const [dealSubmitError, setDealSubmitError] = useState("");
+  
 
   // Initial Data Fetch
   useEffect(() => {
@@ -125,42 +116,7 @@ export function DashboardPage() {
     });
   }, []);
 
-  // Handle New Deal Submission
-  const handleCreateDeal = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setDealSubmitError("");
-    setIsSubmittingDeal(true);
-
-    if (!newDealName.trim()) {
-      setDealSubmitError("Deal Name is required.");
-      setIsSubmittingDeal(false);
-      return;
-    }
-
-    try {
-      await createAdminDeal({
-        dealName: newDealName.trim(),
-        acpRefNo: newDealRef.trim() || undefined,
-        stage: newDealStage,
-        nextAction: newDealNextAction.trim() || undefined,
-        nextActionDate: newDealNextActionDate || undefined
-      });
-
-      setNewDealName("");
-      setNewDealRef("");
-      setNewDealStage("Intro");
-      setNewDealNextAction("");
-      setNewDealNextActionDate("");
-      setIsModalOpen(false);
-      
-      setRefreshTrigger(prev => prev + 1);
-      refreshPipeline();
-    } catch (err: any) {
-      setDealSubmitError(err.message || "Failed to create deal.");
-    } finally {
-      setIsSubmittingDeal(false);
-    }
-  };
+  
 
 
 
@@ -201,13 +157,12 @@ export function DashboardPage() {
             </select>
           </div>
 
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="inline-flex h-8 items-center gap-1.5 rounded-xl bg-[#C6A66B] hover:bg-[#b5904a] text-slate-950 px-3.5 text-[10px] font-bold uppercase tracking-wider transition cursor-pointer shadow-sm select-none"
+          <Link
+            to="/deals"
+            className="inline-flex h-8 items-center gap-1.5 rounded-xl border border-white/[0.02] bg-white/[0.02] px-3.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-white transition cursor-pointer select-none"
           >
-            <Plus className="h-3.5 w-3.5 text-slate-950" />
-            <span>New Deal</span>
-          </button>
+            View Pipeline
+          </Link>
         </div>
       </div>
 
@@ -490,97 +445,7 @@ export function DashboardPage() {
       )}
 
 
-      {/* New Deal Creation Modal */}
-      <Modal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        title="Add New Deal to Pipeline"
-      >
-        <form onSubmit={handleCreateDeal} className="space-y-4 font-sans">
-          {dealSubmitError && (
-            <div className="rounded-lg border border-rose-500/20 bg-rose-500/5 p-3 text-xs font-semibold text-rose-400 flex items-center gap-2">
-              <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-              {dealSubmitError}
-            </div>
-          )}
-
-          <FormField label="Deal / Company Name" required id="new-deal-company">
-            <input
-              id="new-deal-company"
-              type="text"
-              required
-              value={newDealName}
-              onChange={(e) => setNewDealName(e.target.value)}
-              placeholder="e.g. Acme Manufacturing Ltd"
-              className={inputClass}
-            />
-          </FormField>
-
-          <FormField label="ACP Reference No." id="new-deal-ref">
-            <input
-              id="new-deal-ref"
-              type="text"
-              value={newDealRef}
-              onChange={(e) => setNewDealRef(e.target.value)}
-              placeholder="e.g. ACP-CFS-008"
-              className={inputClass}
-            />
-          </FormField>
-
-          <FormField label="Pipeline Stage" id="new-deal-stage">
-            <select
-              id="new-deal-stage"
-              value={newDealStage}
-              onChange={(e) => setNewDealStage(e.target.value)}
-              className={selectClass}
-            >
-              <option value="Intro">Intro</option>
-              <option value="IM Review">IM Review</option>
-              <option value="Information Requested">Information Requested</option>
-              <option value="Offer Submitted">Offer Submitted</option>
-              <option value="Seller Call">Seller Call</option>
-            </select>
-          </FormField>
-
-          <FormField label="Next Action Details" id="new-deal-next-action">
-            <textarea
-              id="new-deal-next-action"
-              value={newDealNextAction}
-              onChange={(e) => setNewDealNextAction(e.target.value)}
-              placeholder="Describe the immediate next action required..."
-              rows={3}
-              className={textareaClass}
-            />
-          </FormField>
-
-          <FormField label="Next Action Target Date" id="new-deal-target-date">
-            <input
-              id="new-deal-target-date"
-              type="date"
-              value={newDealNextActionDate}
-              onChange={(e) => setNewDealNextActionDate(e.target.value)}
-              className={inputClass}
-            />
-          </FormField>
-
-          <div className="flex justify-end gap-2.5 pt-1">
-            <button
-              type="button"
-              onClick={() => setIsModalOpen(false)}
-              className="h-9 px-4 rounded-xl border border-white/[0.02] text-slate-400 text-xs font-bold uppercase tracking-wider hover:bg-white/[0.015] transition cursor-pointer"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmittingDeal}
-              className="h-9 px-4 rounded-xl bg-gradient-to-r from-acp-bronze to-acp-bronze-dark text-white text-xs font-bold uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none hover:shadow-glow-bronze transition cursor-pointer"
-            >
-              {isSubmittingDeal ? "Adding..." : "Add Deal"}
-            </button>
-          </div>
-        </form>
-      </Modal>
+      
     </div>
   );
 }

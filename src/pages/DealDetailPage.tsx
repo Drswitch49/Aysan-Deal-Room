@@ -25,7 +25,7 @@ import {
   fetchPrecallBriefs, generatePrecallBrief, askPrecallBriefQuestion,
   fetchPostcallBriefs, generatePostcallBrief, overridePostcallScores,
   transitionDealStage, triggerOsintEnrichment, triggerFinancialAnalysis,
-  sendLoiWebhook, sendEmailWebhook
+  sendLoiWebhook, sendEmailWebhook, updateAdminDeal
 } from "../api/admin";
 import { getDealInbox } from "../api/airtable";
 import { HeaderMetrics } from "../components/ui/HeaderMetrics";
@@ -245,6 +245,58 @@ export function DealDetailPage() {
   const [errorMessage, setErrorMessage] = useState("");
 
   const [activeChatLenderId, setActiveChatLenderId] = useState<string>("");
+
+  // Edit Deal Modal States
+  const [isEditDealOpen, setIsEditDealOpen] = useState(false);
+  const [editFields, setEditFields] = useState<Record<string, any>>({});
+  const [isEditSaving, setIsEditSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
+  const openEditDeal = () => {
+    const d = dealState.data;
+    if (!d) return;
+    setEditFields({
+      companyName: d.companyName || d.rawFields?.["Company_Name"] || d.rawFields?.["Deal Name"] || "",
+      projectName: d.rawFields?.["Project_Name"] || "",
+      industry: d.sector || d.rawFields?.["Industry"] || "",
+      website: d.rawFields?.["Website"] || "",
+      location: d.location || d.rawFields?.["Location"] || "",
+      owner: d.ownerName || d.rawFields?.["Owner"] || "",
+      analyst: d.rawFields?.["Analyst"] || "",
+      source: d.rawFields?.["Source"] || "",
+      revenue: d.rawFields?.["Turnover"] || "",
+      ebitda: d.rawFields?.["EBITDA_GBP"] || "",
+      enterpriseValue: d.rawFields?.["Enterprise_Value"] || "",
+      askingPrice: d.rawFields?.["Asking_Price_GBP"] || "",
+      nextAction: d.rawFields?.["Next Action"] || "",
+      nextActionDate: d.rawFields?.["Next Action Date"] || "",
+      internalNotes: d.rawFields?.["Internal_Notes"] || "",
+    });
+    setEditError(null);
+    setIsEditDealOpen(true);
+  };
+
+  useEffect(() => {
+    if (isEditDealOpen && dealState.data) openEditDeal();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleEditDealSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!dealState.data?.id) return;
+    setIsEditSaving(true);
+    setEditError(null);
+    try {
+      await updateAdminDeal(dealState.data.id, editFields);
+      setIsEditDealOpen(false);
+      setRefreshTrigger(prev => prev + 1);
+      refreshPipeline();
+    } catch (err: any) {
+      setEditError(err.message || "Failed to update deal");
+    } finally {
+      setIsEditSaving(false);
+    }
+  };
 
   const handleTransitionSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -498,12 +550,13 @@ export function DealDetailPage() {
           </div>
           
           <div className="flex items-center gap-2 shrink-0">
-            <Link
-              to="/deals?create=true"
+            <button
+              onClick={openEditDeal}
               className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-white/[0.02] bg-white/[0.015] px-3.5 text-[10px] font-extrabold uppercase tracking-wider text-slate-300 shadow-sm transition hover:border-white/20 hover:text-white hover:bg-white/[0.02] cursor-pointer"
+              type="button"
             >
-              + NEW DEAL
-            </Link>
+              Edit Deal
+            </button>
           </div>
         </div>
       </div>
@@ -901,6 +954,90 @@ export function DealDetailPage() {
               className="h-9 px-4 rounded-xl bg-gradient-to-r from-[#C6A66B] to-[#B8924F] text-slate-950 text-xs font-bold uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none hover:shadow-glow-bronze transition cursor-pointer"
             >
               {isTransitioning ? "Transitioning..." : "Confirm Move"}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Edit Deal Modal */}
+      <Modal isOpen={isEditDealOpen} onClose={() => setIsEditDealOpen(false)} title="Edit Deal" maxWidth="max-w-2xl">
+        <form onSubmit={handleEditDealSubmit} className="space-y-5 font-sans max-h-[75vh] overflow-y-auto pr-1">
+          {editError && (
+            <div className="rounded-lg border border-rose-500/20 bg-rose-500/5 p-3 text-xs font-semibold text-rose-400 flex items-center gap-2">
+              <AlertTriangle className="h-3.5 w-3.5 shrink-0" />{editError}
+            </div>
+          )}
+          <div className="space-y-3">
+            <p className="text-[9px] font-extrabold uppercase tracking-widest text-slate-500">Company Information</p>
+            <div className="grid grid-cols-2 gap-3">
+              <FormField label="Company Name" id="edit-company" required>
+                <input id="edit-company" type="text" required value={editFields.companyName || ""} onChange={e => setEditFields(f => ({...f, companyName: e.target.value}))} className={inputClass} />
+              </FormField>
+              <FormField label="Project Name" id="edit-project">
+                <input id="edit-project" type="text" value={editFields.projectName || ""} onChange={e => setEditFields(f => ({...f, projectName: e.target.value}))} className={inputClass} />
+              </FormField>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <FormField label="Industry" id="edit-industry">
+                <input id="edit-industry" type="text" value={editFields.industry || ""} onChange={e => setEditFields(f => ({...f, industry: e.target.value}))} className={inputClass} />
+              </FormField>
+              <FormField label="Website" id="edit-website">
+                <input id="edit-website" type="text" value={editFields.website || ""} onChange={e => setEditFields(f => ({...f, website: e.target.value}))} className={inputClass} />
+              </FormField>
+              <FormField label="Location" id="edit-location">
+                <input id="edit-location" type="text" value={editFields.location || ""} onChange={e => setEditFields(f => ({...f, location: e.target.value}))} className={inputClass} />
+              </FormField>
+            </div>
+          </div>
+          <div className="space-y-3">
+            <p className="text-[9px] font-extrabold uppercase tracking-widest text-slate-500">Ownership</p>
+            <div className="grid grid-cols-3 gap-3">
+              <FormField label="Owner" id="edit-owner">
+                <input id="edit-owner" type="text" value={editFields.owner || ""} onChange={e => setEditFields(f => ({...f, owner: e.target.value}))} className={inputClass} />
+              </FormField>
+              <FormField label="Analyst" id="edit-analyst">
+                <input id="edit-analyst" type="text" value={editFields.analyst || ""} onChange={e => setEditFields(f => ({...f, analyst: e.target.value}))} className={inputClass} />
+              </FormField>
+              <FormField label="Source" id="edit-source">
+                <input id="edit-source" type="text" value={editFields.source || ""} onChange={e => setEditFields(f => ({...f, source: e.target.value}))} className={inputClass} />
+              </FormField>
+            </div>
+          </div>
+          <div className="space-y-3">
+            <p className="text-[9px] font-extrabold uppercase tracking-widest text-slate-500">Financials (£)</p>
+            <div className="grid grid-cols-4 gap-3">
+              <FormField label="Revenue" id="edit-revenue">
+                <input id="edit-revenue" type="number" step="any" value={editFields.revenue || ""} onChange={e => setEditFields(f => ({...f, revenue: e.target.value ? Number(e.target.value) : ""}))} className={inputClass} />
+              </FormField>
+              <FormField label="EBITDA" id="edit-ebitda">
+                <input id="edit-ebitda" type="number" step="any" value={editFields.ebitda || ""} onChange={e => setEditFields(f => ({...f, ebitda: e.target.value ? Number(e.target.value) : ""}))} className={inputClass} />
+              </FormField>
+              <FormField label="Enterprise Value" id="edit-ev">
+                <input id="edit-ev" type="number" step="any" value={editFields.enterpriseValue || ""} onChange={e => setEditFields(f => ({...f, enterpriseValue: e.target.value ? Number(e.target.value) : ""}))} className={inputClass} />
+              </FormField>
+              <FormField label="Asking Price" id="edit-asking">
+                <input id="edit-asking" type="number" step="any" value={editFields.askingPrice || ""} onChange={e => setEditFields(f => ({...f, askingPrice: e.target.value ? Number(e.target.value) : ""}))} className={inputClass} />
+              </FormField>
+            </div>
+          </div>
+          <div className="space-y-3">
+            <p className="text-[9px] font-extrabold uppercase tracking-widest text-slate-500">Workflow</p>
+            <div className="grid grid-cols-2 gap-3">
+              <FormField label="Next Action" id="edit-next-action">
+                <input id="edit-next-action" type="text" value={editFields.nextAction || ""} onChange={e => setEditFields(f => ({...f, nextAction: e.target.value}))} className={inputClass} />
+              </FormField>
+              <FormField label="Target Date" id="edit-target-date">
+                <input id="edit-target-date" type="date" value={editFields.nextActionDate || ""} onChange={e => setEditFields(f => ({...f, nextActionDate: e.target.value}))} className={inputClass} />
+              </FormField>
+            </div>
+          </div>
+          <FormField label="Internal Notes" id="edit-notes">
+            <textarea id="edit-notes" value={editFields.internalNotes || ""} onChange={e => setEditFields(f => ({...f, internalNotes: e.target.value}))} rows={2} className={textareaClass} />
+          </FormField>
+          <div className="flex justify-end gap-2.5 pt-2 border-t border-white/[0.02]">
+            <button type="button" onClick={() => setIsEditDealOpen(false)} className="h-9 px-4 rounded-xl border border-white/[0.02] text-slate-400 text-xs font-bold uppercase tracking-wider hover:bg-white/[0.015] transition cursor-pointer">Cancel</button>
+            <button type="submit" disabled={isEditSaving} className="h-9 px-5 rounded-xl bg-gradient-to-r from-[#C6A66B] to-[#B8924F] text-slate-950 text-xs font-bold uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none hover:shadow-glow-bronze transition cursor-pointer">
+              {isEditSaving ? "Saving..." : "Save Changes"}
             </button>
           </div>
         </form>

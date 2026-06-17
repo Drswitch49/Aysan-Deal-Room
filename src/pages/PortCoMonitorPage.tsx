@@ -13,10 +13,13 @@ import {
   Building2,
   MapPin,
   Sparkles,
+  Plus,
 } from "lucide-react";
 import { cx } from "../utils/cx";
 import { fetchPortfolioData, triggerPortfolioAnalysis, getJobStatus } from "../api/admin";
 import { StatCard } from "../components/ui/StatCard";
+import { Modal } from "../components/ui/Modal";
+import { FormField, inputClass, selectClass, textareaClass } from "../components/ui/FormField";
 import type { PortfolioMetricRecord, PortfolioAlertRecord, PortfolioHealthRecord } from "../../lib/portfolio/db";
 
 // ─── Inline Premium Sparkline ──────────────────────────────────────────────────
@@ -146,6 +149,50 @@ export function PortCoMonitorPage() {
 
   const toggleCardExpansion = (id: string) => {
     setExpandedCards((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  // Add Portfolio Company modal states
+  const [isAddCompanyOpen, setIsAddCompanyOpen] = useState(false);
+  const [companyForm, setCompanyForm] = useState({
+    companyName: "", industry: "", location: "", status: "Active" as string,
+    revenue: "", ebitda: "", debt: "", headcount: "", notes: "",
+  });
+  const [isCompanySaving, setIsCompanySaving] = useState(false);
+  const [companyError, setCompanyError] = useState("");
+
+  const handleAddCompany = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!companyForm.companyName.trim() || !companyForm.industry.trim() || !companyForm.location.trim()) {
+      setCompanyError("Company Name, Industry and Location are required.");
+      return;
+    }
+    setIsCompanySaving(true);
+    setCompanyError("");
+    try {
+      await fetch("/api/portfolio-companies-crud", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          companyName: companyForm.companyName.trim(),
+          industry: companyForm.industry.trim(),
+          location: companyForm.location.trim(),
+          status: companyForm.status,
+          revenue: companyForm.revenue ? Number(companyForm.revenue) : undefined,
+          ebitda: companyForm.ebitda ? Number(companyForm.ebitda) : undefined,
+          debt: companyForm.debt ? Number(companyForm.debt) : undefined,
+          headcount: companyForm.headcount ? Number(companyForm.headcount) : undefined,
+          notes: companyForm.notes.trim() || undefined,
+        }),
+      }).then(r => { if (!r.ok) return r.json().then(e => { throw new Error(e.error); }); return r.json(); });
+
+      setCompanyForm({ companyName: "", industry: "", location: "", status: "Active", revenue: "", ebitda: "", debt: "", headcount: "", notes: "" });
+      setIsAddCompanyOpen(false);
+      loadPortfolioData();
+    } catch (err: any) {
+      setCompanyError(err.message || "Failed to create portfolio company");
+    } finally {
+      setIsCompanySaving(false);
+    }
   };
 
   // Load portfolio data
@@ -365,14 +412,23 @@ export function PortCoMonitorPage() {
           </p>
         </div>
 
-        <button
-          onClick={handleRunAnalysis}
-          disabled={isProcessing}
-          className="inline-flex h-9 items-center gap-2 rounded-xl border border-white/[0.02] bg-[#C6A66B]/10 hover:bg-[#C6A66B]/20 px-4 text-xs font-extrabold uppercase tracking-wider text-[#C6A66B] shadow-sm cursor-pointer disabled:opacity-50 transition"
-        >
-          <RefreshCw className={cx("h-3.5 w-3.5", isProcessing && "animate-spin")} />
-          <span>{isProcessing ? "Analyzing..." : "Run Portfolio Analysis"}</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setIsAddCompanyOpen(true)}
+            className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-white/[0.02] bg-white/[0.02] px-3.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-white cursor-pointer transition"
+            type="button"
+          >
+            <Plus className="h-3.5 w-3.5" /> Add Company
+          </button>
+          <button
+            onClick={handleRunAnalysis}
+            disabled={isProcessing}
+            className="inline-flex h-9 items-center gap-2 rounded-xl border border-white/[0.02] bg-[#C6A66B]/10 hover:bg-[#C6A66B]/20 px-4 text-xs font-extrabold uppercase tracking-wider text-[#C6A66B] shadow-sm cursor-pointer disabled:opacity-50 transition"
+          >
+            <RefreshCw className={cx("h-3.5 w-3.5", isProcessing && "animate-spin")} />
+            <span>{isProcessing ? "Analyzing..." : "Run Portfolio Analysis"}</span>
+          </button>
+        </div>
       </div>
 
       {/* Global Errors / Processing States */}
@@ -801,6 +857,66 @@ export function PortCoMonitorPage() {
           </div>
         </>
       )}
+
+      {/* Add Portfolio Company Modal */}
+      <Modal isOpen={isAddCompanyOpen} onClose={() => setIsAddCompanyOpen(false)} title="Add Portfolio Company" maxWidth="max-w-xl">
+        <form onSubmit={handleAddCompany} className="space-y-4 font-sans">
+          {companyError && (
+            <div className="rounded-lg border border-rose-500/20 bg-rose-500/5 p-3 text-xs font-semibold text-rose-400 flex items-center gap-2">
+              <AlertTriangle className="h-3.5 w-3.5 shrink-0" />{companyError}
+            </div>
+          )}
+          <div className="space-y-3">
+            <p className="text-[9px] font-extrabold uppercase tracking-widest text-slate-500">Company Information</p>
+            <div className="grid grid-cols-2 gap-3">
+              <FormField label="Company Name" id="pc-name" required>
+                <input id="pc-name" type="text" required value={companyForm.companyName} onChange={e => setCompanyForm(f => ({...f, companyName: e.target.value}))} placeholder="e.g. Clear Water Services Ltd" className={inputClass} />
+              </FormField>
+              <FormField label="Industry" id="pc-industry" required>
+                <input id="pc-industry" type="text" required value={companyForm.industry} onChange={e => setCompanyForm(f => ({...f, industry: e.target.value}))} placeholder="e.g. Facilities Management" className={inputClass} />
+              </FormField>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <FormField label="Location" id="pc-location" required>
+                <input id="pc-location" type="text" required value={companyForm.location} onChange={e => setCompanyForm(f => ({...f, location: e.target.value}))} placeholder="e.g. London, UK" className={inputClass} />
+              </FormField>
+              <FormField label="Status" id="pc-status">
+                <select id="pc-status" value={companyForm.status} onChange={e => setCompanyForm(f => ({...f, status: e.target.value}))} className={selectClass}>
+                  <option value="Active">Active</option>
+                  <option value="In Transition">In Transition</option>
+                  <option value="Exited">Exited</option>
+                </select>
+              </FormField>
+            </div>
+          </div>
+          <div className="space-y-3">
+            <p className="text-[9px] font-extrabold uppercase tracking-widest text-slate-500">Financials (£)</p>
+            <div className="grid grid-cols-4 gap-3">
+              <FormField label="Revenue" id="pc-revenue">
+                <input id="pc-revenue" type="number" step="any" value={companyForm.revenue} onChange={e => setCompanyForm(f => ({...f, revenue: e.target.value}))} className={inputClass} />
+              </FormField>
+              <FormField label="EBITDA" id="pc-ebitda">
+                <input id="pc-ebitda" type="number" step="any" value={companyForm.ebitda} onChange={e => setCompanyForm(f => ({...f, ebitda: e.target.value}))} className={inputClass} />
+              </FormField>
+              <FormField label="Debt" id="pc-debt">
+                <input id="pc-debt" type="number" step="any" value={companyForm.debt} onChange={e => setCompanyForm(f => ({...f, debt: e.target.value}))} className={inputClass} />
+              </FormField>
+              <FormField label="Headcount" id="pc-headcount">
+                <input id="pc-headcount" type="number" step="1" value={companyForm.headcount} onChange={e => setCompanyForm(f => ({...f, headcount: e.target.value}))} className={inputClass} />
+              </FormField>
+            </div>
+          </div>
+          <FormField label="Notes" id="pc-notes">
+            <textarea id="pc-notes" value={companyForm.notes} onChange={e => setCompanyForm(f => ({...f, notes: e.target.value}))} rows={2} placeholder="Internal notes..." className={textareaClass} />
+          </FormField>
+          <div className="flex justify-end gap-2.5 pt-1">
+            <button type="button" onClick={() => setIsAddCompanyOpen(false)} className="h-9 px-4 rounded-xl border border-white/[0.02] text-slate-400 text-xs font-bold uppercase tracking-wider hover:bg-white/[0.015] transition cursor-pointer">Cancel</button>
+            <button type="submit" disabled={isCompanySaving} className="h-9 px-5 rounded-xl bg-gradient-to-r from-[#C6A66B] to-[#B8924F] text-slate-950 text-xs font-bold uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none hover:shadow-glow-bronze transition cursor-pointer">
+              {isCompanySaving ? "Adding..." : "Add Company"}
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

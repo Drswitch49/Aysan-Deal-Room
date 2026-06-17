@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { Plus, Trash, Loader2, AlertCircle } from "lucide-react";
+import { Plus, Trash, Loader2, AlertCircle, UserPlus } from "lucide-react";
 import { cx } from "../utils/cx";
 import { HeaderMetrics } from "../components/ui/HeaderMetrics";
 import { fetchHrRegistry, addHiringBrief, deleteHiringBrief } from "../api/admin";
@@ -42,8 +41,6 @@ const themeMap: Record<string, { bg: string; text: string }> = {
 };
 
 export function HrStakeholdersPage() {
-  const navigate = useNavigate();
-
   const [team, setTeam] = useState<TeamMember[]>([]);
   const [hires, setHires] = useState<HiringBrief[]>([]);
   const [stakeholders, setStakeholders] = useState<ExternalStakeholder[]>([]);
@@ -60,6 +57,52 @@ export function HrStakeholdersPage() {
   const [formColor, setFormColor] = useState<"amber" | "blue" | "green">("amber");
   const [isSaving, setIsSaving] = useState(false);
   const [modalError, setModalError] = useState<{ title: string; message: string } | null>(null);
+
+  // Add Team Member modal states
+  const [isAddTeamMemberOpen, setIsAddTeamMemberOpen] = useState(false);
+  const [teamForm, setTeamForm] = useState({ name: "", email: "", phone: "", role: "Analyst" as string, status: "Active" as string });
+  const [isTeamSaving, setIsTeamSaving] = useState(false);
+  const [teamFormError, setTeamFormError] = useState("");
+
+  const handleAddTeamMember = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!teamForm.name.trim() || !teamForm.email.trim()) { setTeamFormError("Name and Email are required."); return; }
+    setIsTeamSaving(true); setTeamFormError("");
+    try {
+      const res = await fetch("/api/team-members-crud", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(teamForm),
+      });
+      if (!res.ok) { const err = await res.json(); throw new Error(err.error || "Failed to add team member"); }
+      setTeamForm({ name: "", email: "", phone: "", role: "Analyst", status: "Active" });
+      setIsAddTeamMemberOpen(false);
+      loadData();
+    } catch (err: any) { setTeamFormError(err.message || "Failed"); } finally { setIsTeamSaving(false); }
+  };
+
+  // Add Stakeholder modal states
+  const [isAddStakeholderOpen, setIsAddStakeholderOpen] = useState(false);
+  const [stakeholderForm, setStakeholderForm] = useState({ name: "", type: "Advisor" as string, email: "", phone: "", organization: "", notes: "" });
+  const [isStakeholderSaving, setIsStakeholderSaving] = useState(false);
+  const [stakeholderFormError, setStakeholderFormError] = useState("");
+
+  const handleAddStakeholder = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!stakeholderForm.name.trim() || !stakeholderForm.type) { setStakeholderFormError("Name and Type are required."); return; }
+    setIsStakeholderSaving(true); setStakeholderFormError("");
+    try {
+      const res = await fetch("/api/stakeholders-crud", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(stakeholderForm),
+      });
+      if (!res.ok) { const err = await res.json(); throw new Error(err.error || "Failed to add stakeholder"); }
+      setStakeholderForm({ name: "", type: "Advisor", email: "", phone: "", organization: "", notes: "" });
+      setIsAddStakeholderOpen(false);
+      loadData();
+    } catch (err: any) { setStakeholderFormError(err.message || "Failed"); } finally { setIsStakeholderSaving(false); }
+  };
 
   const loadData = async () => {
     try {
@@ -158,10 +201,18 @@ export function HrStakeholdersPage() {
           <HeaderMetrics />
           
           <button
-            onClick={() => navigate("/deals?create=true")}
-            className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-[#C6A66B] px-3.5 text-[10px] font-extrabold uppercase tracking-wider text-slate-950 shadow-sm hover:bg-[#C6A66B]/90 cursor-pointer transition"
+            onClick={() => setIsAddTeamMemberOpen(true)}
+            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-white/[0.02] bg-white/[0.02] px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-white cursor-pointer transition"
+            type="button"
           >
-            + New Deal
+            <UserPlus className="h-3 w-3" /> Team Member
+          </button>
+          <button
+            onClick={() => setIsAddStakeholderOpen(true)}
+            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-white/[0.02] bg-white/[0.02] px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-white cursor-pointer transition"
+            type="button"
+          >
+            <Plus className="h-3 w-3" /> Stakeholder
           </button>
         </div>
       </div>
@@ -472,6 +523,97 @@ export function HrStakeholdersPage() {
               ) : (
                 <span>Add Brief</span>
               )}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Add Team Member Modal */}
+      <Modal isOpen={isAddTeamMemberOpen} onClose={() => setIsAddTeamMemberOpen(false)} title="Add Team Member">
+        <form onSubmit={handleAddTeamMember} className="space-y-4 font-sans">
+          {teamFormError && (
+            <div className="rounded-lg border border-rose-500/20 bg-rose-500/5 p-3 text-xs font-semibold text-rose-400 flex items-center gap-2">
+              <AlertCircle className="h-3.5 w-3.5 shrink-0" />{teamFormError}
+            </div>
+          )}
+          <div className="grid grid-cols-2 gap-3">
+            <FormField label="Full Name" id="tm-name" required>
+              <input id="tm-name" type="text" required value={teamForm.name} onChange={e => setTeamForm(f => ({...f, name: e.target.value}))} placeholder="e.g. Ayo Yusuf" className={inputClass} />
+            </FormField>
+            <FormField label="Email" id="tm-email" required>
+              <input id="tm-email" type="email" required value={teamForm.email} onChange={e => setTeamForm(f => ({...f, email: e.target.value}))} placeholder="e.g. ayo@aysan.capital" className={inputClass} />
+            </FormField>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <FormField label="Phone" id="tm-phone">
+              <input id="tm-phone" type="text" value={teamForm.phone} onChange={e => setTeamForm(f => ({...f, phone: e.target.value}))} placeholder="+44..." className={inputClass} />
+            </FormField>
+            <FormField label="Role" id="tm-role">
+              <select id="tm-role" value={teamForm.role} onChange={e => setTeamForm(f => ({...f, role: e.target.value}))} className={selectClass}>
+                <option value="Managing Partner">Managing Partner</option>
+                <option value="Partner">Partner</option>
+                <option value="Analyst">Analyst</option>
+                <option value="Admin">Admin</option>
+                <option value="Read Only">Read Only</option>
+              </select>
+            </FormField>
+            <FormField label="Status" id="tm-status">
+              <select id="tm-status" value={teamForm.status} onChange={e => setTeamForm(f => ({...f, status: e.target.value}))} className={selectClass}>
+                <option value="Active">Active</option>
+                <option value="Inactive">Inactive</option>
+              </select>
+            </FormField>
+          </div>
+          <div className="flex justify-end gap-2.5 pt-1">
+            <button type="button" onClick={() => setIsAddTeamMemberOpen(false)} className="h-9 px-4 rounded-xl border border-white/[0.02] text-slate-400 text-xs font-bold uppercase tracking-wider hover:bg-white/[0.015] transition cursor-pointer">Cancel</button>
+            <button type="submit" disabled={isTeamSaving} className="h-9 px-5 rounded-xl bg-gradient-to-r from-[#C6A66B] to-[#B8924F] text-slate-950 text-xs font-bold uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none hover:shadow-glow-bronze transition cursor-pointer">
+              {isTeamSaving ? "Adding..." : "Add Member"}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Add Stakeholder Modal */}
+      <Modal isOpen={isAddStakeholderOpen} onClose={() => setIsAddStakeholderOpen(false)} title="Add External Stakeholder" maxWidth="max-w-lg">
+        <form onSubmit={handleAddStakeholder} className="space-y-4 font-sans">
+          {stakeholderFormError && (
+            <div className="rounded-lg border border-rose-500/20 bg-rose-500/5 p-3 text-xs font-semibold text-rose-400 flex items-center gap-2">
+              <AlertCircle className="h-3.5 w-3.5 shrink-0" />{stakeholderFormError}
+            </div>
+          )}
+          <div className="grid grid-cols-2 gap-3">
+            <FormField label="Name" id="sh-name" required>
+              <input id="sh-name" type="text" required value={stakeholderForm.name} onChange={e => setStakeholderForm(f => ({...f, name: e.target.value}))} placeholder="e.g. John Smith" className={inputClass} />
+            </FormField>
+            <FormField label="Type" id="sh-type" required>
+              <select id="sh-type" value={stakeholderForm.type} onChange={e => setStakeholderForm(f => ({...f, type: e.target.value}))} className={selectClass}>
+                <option value="Advisor">Advisor</option>
+                <option value="Lawyer">Lawyer</option>
+                <option value="Broker">Broker</option>
+                <option value="Consultant">Consultant</option>
+                <option value="Investor">Investor</option>
+                <option value="Portfolio Contact">Portfolio Contact</option>
+              </select>
+            </FormField>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <FormField label="Email" id="sh-email">
+              <input id="sh-email" type="email" value={stakeholderForm.email} onChange={e => setStakeholderForm(f => ({...f, email: e.target.value}))} placeholder="e.g. john@firm.com" className={inputClass} />
+            </FormField>
+            <FormField label="Phone" id="sh-phone">
+              <input id="sh-phone" type="text" value={stakeholderForm.phone} onChange={e => setStakeholderForm(f => ({...f, phone: e.target.value}))} placeholder="+44..." className={inputClass} />
+            </FormField>
+          </div>
+          <FormField label="Organization" id="sh-org">
+            <input id="sh-org" type="text" value={stakeholderForm.organization} onChange={e => setStakeholderForm(f => ({...f, organization: e.target.value}))} placeholder="e.g. Deloitte LLP" className={inputClass} />
+          </FormField>
+          <FormField label="Notes" id="sh-notes">
+            <textarea id="sh-notes" value={stakeholderForm.notes} onChange={e => setStakeholderForm(f => ({...f, notes: e.target.value}))} rows={2} placeholder="Internal notes..." className={inputClass} />
+          </FormField>
+          <div className="flex justify-end gap-2.5 pt-1">
+            <button type="button" onClick={() => setIsAddStakeholderOpen(false)} className="h-9 px-4 rounded-xl border border-white/[0.02] text-slate-400 text-xs font-bold uppercase tracking-wider hover:bg-white/[0.015] transition cursor-pointer">Cancel</button>
+            <button type="submit" disabled={isStakeholderSaving} className="h-9 px-5 rounded-xl bg-gradient-to-r from-[#C6A66B] to-[#B8924F] text-slate-950 text-xs font-bold uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none hover:shadow-glow-bronze transition cursor-pointer">
+              {isStakeholderSaving ? "Adding..." : "Add Stakeholder"}
             </button>
           </div>
         </form>

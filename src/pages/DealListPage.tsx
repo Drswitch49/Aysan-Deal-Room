@@ -47,6 +47,19 @@ export function DealListPage() {
   const [newDealNextActionDate, setNewDealNextActionDate] = useState("");
   const [isSubmittingDeal, setIsSubmittingDeal] = useState(false);
   const [dealSubmitError, setDealSubmitError] = useState("");
+  // Institutional fields
+  const [newDealProject, setNewDealProject] = useState("");
+  const [newDealIndustry, setNewDealIndustry] = useState("");
+  const [newDealWebsite, setNewDealWebsite] = useState("");
+  const [newDealLocation, setNewDealLocation] = useState("");
+  const [newDealOwner, setNewDealOwner] = useState("");
+  const [newDealAnalyst, setNewDealAnalyst] = useState("");
+  const [newDealSource, setNewDealSource] = useState("");
+  const [newDealRevenue, setNewDealRevenue] = useState("");
+  const [newDealEbitda, setNewDealEbitda] = useState("");
+  const [newDealEV, setNewDealEV] = useState("");
+  const [newDealAskingPrice, setNewDealAskingPrice] = useState("");
+  const [newDealNotes, setNewDealNotes] = useState("");
 
   useEffect(() => {
     if (searchParams.get("create") === "true") {
@@ -250,18 +263,32 @@ export function DealListPage() {
     try {
       await createAdminDeal({
         dealName: newDealName.trim(),
+        companyName: newDealName.trim(),
+        projectName: newDealProject.trim() || undefined,
+        industry: newDealIndustry.trim() || undefined,
+        website: newDealWebsite.trim() || undefined,
+        location: newDealLocation.trim() || undefined,
+        owner: newDealOwner.trim() || undefined,
+        analyst: newDealAnalyst.trim() || undefined,
+        source: newDealSource.trim() || undefined,
+        revenue: newDealRevenue ? Number(newDealRevenue) : undefined,
+        ebitda: newDealEbitda ? Number(newDealEbitda) : undefined,
+        enterpriseValue: newDealEV ? Number(newDealEV) : undefined,
+        askingPrice: newDealAskingPrice ? Number(newDealAskingPrice) : undefined,
         acpRefNo: newDealRef.trim() || undefined,
         stage: newDealStage,
         nextAction: newDealNextAction.trim() || undefined,
         nextActionDate: newDealNextActionDate || undefined,
+        internalNotes: newDealNotes.trim() || undefined,
       });
 
       // Reset state and close modal
-      setNewDealName("");
-      setNewDealRef("");
-      setNewDealStage("Intro");
-      setNewDealNextAction("");
-      setNewDealNextActionDate("");
+      setNewDealName(""); setNewDealRef(""); setNewDealStage("Intro");
+      setNewDealNextAction(""); setNewDealNextActionDate("");
+      setNewDealProject(""); setNewDealIndustry(""); setNewDealWebsite("");
+      setNewDealLocation(""); setNewDealOwner(""); setNewDealAnalyst("");
+      setNewDealSource(""); setNewDealRevenue(""); setNewDealEbitda("");
+      setNewDealEV(""); setNewDealAskingPrice(""); setNewDealNotes("");
       setIsModalOpen(false);
       
       // Trigger data refresh
@@ -694,13 +721,14 @@ export function DealListPage() {
         </div>
       )}
 
-      {/* New Deal Creation Modal */}
+      {/* New Deal Creation Modal — Full Institutional Intake */}
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         title="Add New Deal to Pipeline"
+        maxWidth="max-w-2xl"
       >
-        <form onSubmit={handleCreateDeal} className="space-y-4 font-sans">
+        <form onSubmit={handleCreateDeal} className="space-y-5 font-sans max-h-[75vh] overflow-y-auto pr-1">
           {dealSubmitError && (
             <div className="rounded-lg border border-rose-500/20 bg-rose-500/5 p-3 text-xs font-semibold text-rose-400 flex items-center gap-2">
               <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
@@ -708,78 +736,101 @@ export function DealListPage() {
             </div>
           )}
 
-          <FormField label="Deal / Company Name" id="new-deal-company" required>
-            <input
-              id="new-deal-company"
-              type="text"
-              required
-              value={newDealName}
-              onChange={(e) => setNewDealName(e.target.value)}
-              placeholder="e.g. Clear Water Cleaning Services"
-              className={inputClass}
-            />
+          {/* Company Information */}
+          <div className="space-y-3">
+            <p className="text-[9px] font-extrabold uppercase tracking-widest text-slate-500">Company Information</p>
+            <div className="grid grid-cols-2 gap-3">
+              <FormField label="Company Name" id="new-deal-company" required>
+                <input id="new-deal-company" type="text" required value={newDealName} onChange={(e) => setNewDealName(e.target.value)} placeholder="e.g. Clear Water Cleaning Services" className={inputClass} />
+              </FormField>
+              <FormField label="Project Name" id="new-deal-project">
+                <input id="new-deal-project" type="text" value={newDealProject} onChange={(e) => setNewDealProject(e.target.value)} placeholder="e.g. Project Aqua" className={inputClass} />
+              </FormField>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <FormField label="Industry" id="new-deal-industry">
+                <input id="new-deal-industry" type="text" value={newDealIndustry} onChange={(e) => setNewDealIndustry(e.target.value)} placeholder="e.g. Facilities Management" className={inputClass} />
+              </FormField>
+              <FormField label="Website" id="new-deal-website">
+                <input id="new-deal-website" type="text" value={newDealWebsite} onChange={(e) => setNewDealWebsite(e.target.value)} placeholder="e.g. https://example.com" className={inputClass} />
+              </FormField>
+              <FormField label="Location" id="new-deal-location">
+                <input id="new-deal-location" type="text" value={newDealLocation} onChange={(e) => setNewDealLocation(e.target.value)} placeholder="e.g. London, UK" className={inputClass} />
+              </FormField>
+            </div>
+          </div>
+
+          {/* Ownership */}
+          <div className="space-y-3">
+            <p className="text-[9px] font-extrabold uppercase tracking-widest text-slate-500">Ownership</p>
+            <div className="grid grid-cols-3 gap-3">
+              <FormField label="Owner" id="new-deal-owner">
+                <input id="new-deal-owner" type="text" value={newDealOwner} onChange={(e) => setNewDealOwner(e.target.value)} placeholder="e.g. Ayo Yusuf" className={inputClass} />
+              </FormField>
+              <FormField label="Analyst" id="new-deal-analyst">
+                <input id="new-deal-analyst" type="text" value={newDealAnalyst} onChange={(e) => setNewDealAnalyst(e.target.value)} placeholder="e.g. Prince Realo" className={inputClass} />
+              </FormField>
+              <FormField label="Source" id="new-deal-source">
+                <input id="new-deal-source" type="text" value={newDealSource} onChange={(e) => setNewDealSource(e.target.value)} placeholder="e.g. Broker / Direct" className={inputClass} />
+              </FormField>
+            </div>
+          </div>
+
+          {/* Financials */}
+          <div className="space-y-3">
+            <p className="text-[9px] font-extrabold uppercase tracking-widest text-slate-500">Financials (£)</p>
+            <div className="grid grid-cols-4 gap-3">
+              <FormField label="Revenue" id="new-deal-revenue">
+                <input id="new-deal-revenue" type="number" step="any" value={newDealRevenue} onChange={(e) => setNewDealRevenue(e.target.value)} placeholder="0" className={inputClass} />
+              </FormField>
+              <FormField label="EBITDA" id="new-deal-ebitda">
+                <input id="new-deal-ebitda" type="number" step="any" value={newDealEbitda} onChange={(e) => setNewDealEbitda(e.target.value)} placeholder="0" className={inputClass} />
+              </FormField>
+              <FormField label="Enterprise Value" id="new-deal-ev">
+                <input id="new-deal-ev" type="number" step="any" value={newDealEV} onChange={(e) => setNewDealEV(e.target.value)} placeholder="0" className={inputClass} />
+              </FormField>
+              <FormField label="Asking Price" id="new-deal-asking">
+                <input id="new-deal-asking" type="number" step="any" value={newDealAskingPrice} onChange={(e) => setNewDealAskingPrice(e.target.value)} placeholder="0" className={inputClass} />
+              </FormField>
+            </div>
+          </div>
+
+          {/* Workflow */}
+          <div className="space-y-3">
+            <p className="text-[9px] font-extrabold uppercase tracking-widest text-slate-500">Workflow</p>
+            <div className="grid grid-cols-3 gap-3">
+              <FormField label="Pipeline Stage" id="new-deal-stage">
+                <select id="new-deal-stage" value={newDealStage} onChange={(e) => setNewDealStage(e.target.value)} className={selectClass}>
+                  <option value="Intro">Intro</option>
+                  <option value="Seller Call">Seller Call</option>
+                  <option value="IM Review">IM Review</option>
+                  <option value="Information Requested">Information Requested</option>
+                  <option value="Offer Submitted">Offer Submitted</option>
+                  <option value="Due Diligence">Due Diligence</option>
+                </select>
+              </FormField>
+              <FormField label="ACP Reference" id="new-deal-ref">
+                <input id="new-deal-ref" type="text" value={newDealRef} onChange={(e) => setNewDealRef(e.target.value)} placeholder="Auto-generated" className={inputClass} />
+              </FormField>
+              <FormField label="Target Date" id="new-deal-target-date">
+                <input id="new-deal-target-date" type="date" value={newDealNextActionDate} onChange={(e) => setNewDealNextActionDate(e.target.value)} className={inputClass} />
+              </FormField>
+            </div>
+            <FormField label="Next Action" id="new-deal-next-action">
+              <input id="new-deal-next-action" type="text" value={newDealNextAction} onChange={(e) => setNewDealNextAction(e.target.value)} placeholder="e.g. Schedule initial discovery call" className={inputClass} />
+            </FormField>
+          </div>
+
+          {/* Notes */}
+          <FormField label="Internal Notes" id="new-deal-notes">
+            <textarea id="new-deal-notes" value={newDealNotes} onChange={(e) => setNewDealNotes(e.target.value)} placeholder="Private internal notes..." rows={2} className={textareaClass} />
           </FormField>
 
-          <FormField label="ACP Reference No." id="new-deal-ref">
-            <input
-              id="new-deal-ref"
-              type="text"
-              value={newDealRef}
-              onChange={(e) => setNewDealRef(e.target.value)}
-              placeholder="e.g. ACP-CFS-006"
-              className={inputClass}
-            />
-          </FormField>
-
-          <FormField label="Pipeline Stage" id="new-deal-stage">
-            <select
-              id="new-deal-stage"
-              value={newDealStage}
-              onChange={(e) => setNewDealStage(e.target.value)}
-              className={selectClass}
-            >
-              <option value="Intro">Intro</option>
-              <option value="IM Review">IM Review</option>
-              <option value="Information Requested">Information Requested</option>
-              <option value="Offer Submitted">Offer Submitted</option>
-              <option value="Seller Call">Seller Call</option>
-            </select>
-          </FormField>
-
-          <FormField label="Next Action Details" id="new-deal-next-action">
-            <textarea
-              id="new-deal-next-action"
-              value={newDealNextAction}
-              onChange={(e) => setNewDealNextAction(e.target.value)}
-              placeholder="e.g. 2nd call TBC"
-              rows={3}
-              className={textareaClass}
-            />
-          </FormField>
-
-          <FormField label="Next Action Target Date" id="new-deal-target-date">
-            <input
-              id="new-deal-target-date"
-              type="date"
-              value={newDealNextActionDate}
-              onChange={(e) => setNewDealNextActionDate(e.target.value)}
-              className={inputClass}
-            />
-          </FormField>
-
-          <div className="flex justify-end gap-2.5 pt-1">
-            <button
-              type="button"
-              onClick={() => setIsModalOpen(false)}
-              className="h-9 px-4 rounded-xl border border-white/[0.02] text-slate-400 text-xs font-bold uppercase tracking-wider hover:bg-white/[0.015] transition cursor-pointer"
-            >
+          <div className="flex justify-end gap-2.5 pt-2 border-t border-white/[0.02]">
+            <button type="button" onClick={() => setIsModalOpen(false)} className="h-9 px-4 rounded-xl border border-white/[0.02] text-slate-400 text-xs font-bold uppercase tracking-wider hover:bg-white/[0.015] transition cursor-pointer">
               Cancel
             </button>
-            <button
-              type="submit"
-              disabled={isSubmittingDeal}
-              className="h-9 px-4 rounded-xl bg-gradient-to-r from-[#C6A66B] to-[#B8924F] text-slate-950 text-xs font-bold uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none hover:shadow-glow-bronze transition cursor-pointer"
-            >
+            <button type="submit" disabled={isSubmittingDeal} className="h-9 px-5 rounded-xl bg-gradient-to-r from-[#C6A66B] to-[#B8924F] text-slate-950 text-xs font-bold uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none hover:shadow-glow-bronze transition cursor-pointer">
               {isSubmittingDeal ? "Adding..." : "Add Deal"}
             </button>
           </div>
