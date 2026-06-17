@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import {
   Building2, LogOut, Menu, X,
   LayoutDashboard, Kanban, Users, Settings, KeyRound, Activity,
-  ChevronLeft, ChevronRight, Inbox, Plus, Briefcase, UserCheck
+  ChevronLeft, ChevronRight, Inbox
 } from "lucide-react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import { cx } from "../../utils/cx";
@@ -21,17 +21,13 @@ const NAV_SECTIONS = [
       { to: "/", icon: <LayoutDashboard className="h-4 w-4" />, label: "Dashboard", end: true },
       { to: "/admin/messages", icon: <Inbox className="h-4 w-4" />, label: "Inbox" },
       { to: "/deals", icon: <Kanban className="h-4 w-4" />, label: "Deal Pipeline", end: true },
-      { to: "/deals/create", icon: <Plus className="h-4 w-4" />, label: "Create Deal" },
-      { to: "/admin/portfolio", icon: <Building2 className="h-4 w-4" />, label: "Portfolio Companies" },
       { to: "/admin/portco", icon: <Activity className="h-4 w-4" />, label: "Portfolio Monitor" },
     ],
   },
   {
     group: "Relations & Intelligence",
     items: [
-      { to: "/admin/lenders", icon: <Briefcase className="h-4 w-4" />, label: "Lender Intel" },
-      { to: "/admin/team", icon: <Users className="h-4 w-4" />, label: "Team Members" },
-      { to: "/admin/stakeholders", icon: <UserCheck className="h-4 w-4" />, label: "Stakeholders" },
+      { to: "/admin/lenders", icon: <Building2 className="h-4 w-4" />, label: "Lender Intel" },
       { to: "/admin/hr", icon: <Users className="h-4 w-4" />, label: "HR & Stakeholders" },
       { to: "/admin/settings", icon: <Settings className="h-4 w-4" />, label: "Settings" },
     ],

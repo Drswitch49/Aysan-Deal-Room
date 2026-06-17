@@ -11,15 +11,10 @@ import "./styles.css";
 const DashboardPage = lazy(() => import("./pages/DashboardPage").then(m => ({ default: m.DashboardPage })));
 const DealListPage = lazy(() => import("./pages/DealListPage").then(m => ({ default: m.DealListPage })));
 const DealDetailPage = lazy(() => import("./pages/DealDetailPage").then(m => ({ default: m.DealDetailPage })));
-const CreateDealPage = lazy(() => import("./pages/CreateDealPage").then(m => ({ default: m.CreateDealPage })));
-const EditDealPage = lazy(() => import("./pages/EditDealPage").then(m => ({ default: m.EditDealPage })));
 const LenderManagementPage = lazy(() => import("./pages/LenderManagementPage").then(m => ({ default: m.LenderManagementPage })));
 const LenderPortalPage = lazy(() => import("./pages/LenderPortalPage").then(m => ({ default: m.LenderPortalPage })));
 const PortCoMonitorPage = lazy(() => import("./pages/PortCoMonitorPage").then(m => ({ default: m.PortCoMonitorPage })));
-const PortfolioManagementPage = lazy(() => import("./pages/PortfolioManagementPage").then(m => ({ default: m.PortfolioManagementPage })));
 const HrStakeholdersPage = lazy(() => import("./pages/HrStakeholdersPage").then(m => ({ default: m.HrStakeholdersPage })));
-const TeamManagementPage = lazy(() => import("./pages/TeamManagementPage").then(m => ({ default: m.TeamManagementPage })));
-const StakeholderManagementPage = lazy(() => import("./pages/StakeholderManagementPage").then(m => ({ default: m.StakeholderManagementPage })));
 const SettingsPage = lazy(() => import("./pages/SettingsPage").then(m => ({ default: m.SettingsPage })));
 const AdminMessagesPage = lazy(() => import("./pages/AdminMessagesPage").then(m => ({ default: m.AdminMessagesPage })));
 const NotFoundPage = lazy(() => import("./pages/NotFoundPage").then(m => ({ default: m.NotFoundPage })));
@@ -86,16 +81,11 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: withSuspense(DashboardPage) },
       { path: "deals", element: withSuspense(DealListPage) },
-      { path: "deals/create", element: withSuspense(CreateDealPage) },
       { path: "deals/current", element: <CurrentDealRedirect /> },
       { path: "deals/:ref", element: withSuspense(DealDetailPage) },
-      { path: "deals/:id/edit", element: withSuspense(EditDealPage) },
       { path: "admin/lenders", element: withSuspense(LenderManagementPage) },
-      { path: "admin/portfolio", element: withSuspense(PortfolioManagementPage) },
       { path: "admin/portco", element: withSuspense(PortCoMonitorPage) },
-      { path: "admin/team", element: withSuspense(TeamManagementPage) },
       { path: "admin/hr", element: withSuspense(HrStakeholdersPage) },
-      { path: "admin/stakeholders", element: withSuspense(StakeholderManagementPage) },
       { path: "admin/settings", element: withSuspense(SettingsPage) },
       { path: "admin/messages", element: withSuspense(AdminMessagesPage) },
       { path: "*", element: withSuspense(NotFoundPage) },
