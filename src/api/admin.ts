@@ -225,13 +225,29 @@ export async function resetAdminPassword(masterPasscode: string, newPassword: st
   return response.json();
 }
 
-export async function createAdminDeal(data: {
-  dealName: string;
+export interface CreateDealPayload {
+  companyName?: string;
+  projectName?: string;
+  industry?: string;
+  website?: string;
+  location?: string;
+  revenue?: number;
+  ebitda?: number;
+  enterpriseValue?: number;
+  askingPrice?: number;
+  owner?: string;
+  analyst?: string;
+  source?: string;
   acpRefNo?: string;
   stage?: string;
   nextAction?: string;
   nextActionDate?: string;
-}) {
+  internalNotes?: string;
+  // Legacy support
+  dealName?: string;
+}
+
+export async function createAdminDeal(data: CreateDealPayload) {
   const response = await fetch("/api/admin/action", {
     method: "POST",
     headers: getAdminHeaders(),
@@ -785,5 +801,218 @@ export async function sendEmailWebhook(data: {
   return response.json();
 }
 
+// ─── Deal Update ─────────────────────────────────────────────────────────────
 
+export async function updateAdminDeal(dealId: string, fields: Record<string, any>) {
+  const response = await fetch("/api/admin/action", {
+    method: "POST",
+    headers: getAdminHeaders(),
+    body: JSON.stringify({ action: "update-deal", dealId, fields })
+  });
 
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to update deal");
+  }
+
+  clearAirtableCache();
+  return response.json();
+}
+
+// ─── IM Documents ────────────────────────────────────────────────────────────
+
+export async function uploadImDocument(dealId: string, fileName: string, fileType: string, fileData: string) {
+  const response = await fetch("/api/admin/action", {
+    method: "POST",
+    headers: getAdminHeaders(),
+    body: JSON.stringify({ action: "upload-im-document", dealId, fileName, fileType, fileData })
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to upload IM document");
+  }
+
+  clearAirtableCache();
+  return response.json();
+}
+
+export async function removeImDocument(dealId: string, attachmentIndex: number) {
+  const response = await fetch("/api/admin/action", {
+    method: "POST",
+    headers: getAdminHeaders(),
+    body: JSON.stringify({ action: "remove-im-document", dealId, attachmentIndex })
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to remove IM document");
+  }
+
+  clearAirtableCache();
+  return response.json();
+}
+
+// ─── Portfolio Company CRUD ──────────────────────────────────────────────────
+
+export interface PortfolioCompanyPayload {
+  companyName: string;
+  industry?: string;
+  revenue?: number;
+  ebitda?: number;
+  debt?: number;
+  headcount?: number;
+  status?: string;
+  location?: string;
+  notes?: string;
+}
+
+export async function createPortfolioCompany(data: PortfolioCompanyPayload) {
+  const response = await fetch("/api/admin/action", {
+    method: "POST",
+    headers: getAdminHeaders(),
+    body: JSON.stringify({ action: "create-portfolio-company", ...data })
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to create portfolio company");
+  }
+
+  clearAirtableCache();
+  return response.json();
+}
+
+export async function updatePortfolioCompany(companyId: string, fields: Record<string, any>) {
+  const response = await fetch("/api/admin/action", {
+    method: "POST",
+    headers: getAdminHeaders(),
+    body: JSON.stringify({ action: "update-portfolio-company", companyId, fields })
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to update portfolio company");
+  }
+
+  clearAirtableCache();
+  return response.json();
+}
+
+export async function archivePortfolioCompany(companyId: string) {
+  const response = await fetch("/api/admin/action", {
+    method: "POST",
+    headers: getAdminHeaders(),
+    body: JSON.stringify({ action: "archive-portfolio-company", companyId })
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to archive portfolio company");
+  }
+
+  clearAirtableCache();
+  return response.json();
+}
+
+export async function fetchPortfolioCompanies() {
+  const response = await fetch("/api/admin/portfolio?section=companies", {
+    headers: getAdminHeaders(),
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to fetch portfolio companies");
+  }
+
+  return response.json();
+}
+
+// ─── Team Member CRUD ────────────────────────────────────────────────────────
+
+export interface TeamMemberPayload {
+  name: string;
+  email?: string;
+  phone?: string;
+  role: string;
+  status?: string;
+  accessLevel?: string;
+}
+
+export async function createTeamMember(data: TeamMemberPayload) {
+  const response = await fetch("/api/admin/action", {
+    method: "POST",
+    headers: getAdminHeaders(),
+    body: JSON.stringify({ action: "create-team-member", ...data })
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to create team member");
+  }
+
+  clearAirtableCache();
+  return response.json();
+}
+
+export async function updateTeamMember(memberId: string, fields: Record<string, any>) {
+  const response = await fetch("/api/admin/action", {
+    method: "POST",
+    headers: getAdminHeaders(),
+    body: JSON.stringify({ action: "update-team-member", memberId, fields })
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to update team member");
+  }
+
+  clearAirtableCache();
+  return response.json();
+}
+
+// ─── Stakeholder CRUD ────────────────────────────────────────────────────────
+
+export interface StakeholderPayload {
+  name: string;
+  company?: string;
+  email?: string;
+  phone?: string;
+  type?: string;
+  status?: string;
+  notes?: string;
+  association?: string;
+  accentColor?: string;
+}
+
+export async function createStakeholder(data: StakeholderPayload) {
+  const response = await fetch("/api/admin/action", {
+    method: "POST",
+    headers: getAdminHeaders(),
+    body: JSON.stringify({ action: "create-stakeholder", ...data })
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to create stakeholder");
+  }
+
+  clearAirtableCache();
+  return response.json();
+}
+
+export async function updateStakeholder(stakeholderId: string, fields: Record<string, any>) {
+  const response = await fetch("/api/admin/action", {
+    method: "POST",
+    headers: getAdminHeaders(),
+    body: JSON.stringify({ action: "update-stakeholder", stakeholderId, fields })
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to update stakeholder");
+  }
+
+  clearAirtableCache();
+  return response.json();
+}

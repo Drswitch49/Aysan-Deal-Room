@@ -12,6 +12,7 @@ import {
 } from "../_utils/airtable.js";
 import { authenticateAdmin } from "./lenders.js";
 import { logAuditTrail } from "../_utils/audit.js";
+import { ensureTable, ensurePipelineFields, persistSchemaLogs, TABLE_SPECS, TEAM_FIELD_SPECS, STAKEHOLDER_FIELD_SPECS } from "../_utils/schema-manager.js";
 import bcrypt from "bcryptjs";
 
 // Global in-memory map to track failed passcode update attempts for security rate-limiting
@@ -363,10 +364,22 @@ export default async function handler(req: any, res: any) {
       }
 
       case "create-deal": {
-        const { dealName, acpRefNo, stage, nextAction, nextActionDate } = req.body;
-        if (!dealName) {
-          return res.status(400).json({ error: "Deal Name is required" });
+        const {
+          dealName, companyName, projectName, industry, website, location,
+          revenue, ebitda, enterpriseValue, askingPrice,
+          owner, analyst, source,
+          acpRefNo, stage, nextAction, nextActionDate,
+          internalNotes
+        } = req.body;
+
+        const resolvedName = companyName || dealName;
+        if (!resolvedName) {
+          return res.status(400).json({ error: "Company Name is required" });
         }
+
+        // Ensure pipeline fields exist
+        const schemeLogs = await ensurePipelineFields(TABLES.PIPELINE);
+        await persistSchemaLogs(schemeLogs);
 
         // Fetch all existing deals for duplicate checks and auto-ref generation
         const existingDeals = await airtableFetch(TABLES.PIPELINE);
@@ -379,14 +392,14 @@ export default async function handler(req: any, res: any) {
             .replace(/[^a-z0-9]/g, "")
             .trim();
         };
-        const normalizedNew = normalizeName(dealName);
+        const normalizedNew = normalizeName(resolvedName);
         const isDuplicate = existingDeals.records?.some((r: any) => {
           const existingName = r.fields["Deal Name"] || r.fields["Company_Name"] || r.fields["Company Name"] || "";
           return normalizeName(existingName) === normalizedNew;
         });
 
         if (isDuplicate) {
-          return res.status(409).json({ error: `A deal for '${dealName}' already exists in the pipeline.` });
+          return res.status(409).json({ error: `A deal for '${resolvedName}' already exists in the pipeline.` });
         }
 
         // 2. Auto-increment reference number (ACP-CFS-XXX)
@@ -413,15 +426,15 @@ export default async function handler(req: any, res: any) {
           if (s === "discovery" || s === "seller call") return "DISCOVERY";
           if (s === "im review" || s === "offer submitted" || s === "loi") return "LOI";
           if (s === "due diligence" || s === "diligence") return "DUE_DILIGENCE";
-          if (s === "closing") return "CLOSING";
-          if (s === "portfolio" || s === "completed") return "PORTFOLIO";
-          if (s === "killed") return "KILLED";
+          if (s === "closing" || s === "under offer") return "CLOSING";
+          if (s === "portfolio" || s === "completed" || s === "closed") return "PORTFOLIO";
+          if (s === "killed" || s === "archived") return "KILLED";
           return "INTRO";
         };
 
         const fields: Record<string, any> = {
-          "Deal Name": dealName,
-          "Stage": stage || "Intro",
+          "Deal Name": resolvedName,
+          "Stage": stage || "Inbound",
           "ACP REF NO": finalRef,
           "REF No.": finalRef,
           "Deal_Ref": finalRef,
@@ -430,18 +443,413 @@ export default async function handler(req: any, res: any) {
           "OSINT_Status": "Not Started",
           "Created_At": new Date().toISOString(),
           "Stage_Updated_At": new Date().toISOString(),
-          "Workflow_Stage": normalizeWorkflowStage(stage || "Intro")
+          "Workflow_Stage": normalizeWorkflowStage(stage || "Inbound")
         };
+
+        // Institutional fields
+        if (companyName) fields["Company_Name"] = companyName;
+        if (projectName) fields["Project_Name"] = projectName;
+        if (industry) fields["Industry"] = industry;
+        if (website) fields["Website"] = website;
+        if (location) fields["Location"] = location;
+        if (revenue) fields["Turnover"] = Number(revenue) || 0;
+        if (ebitda) fields["EBITDA_GBP"] = Number(ebitda) || 0;
+        if (enterpriseValue) fields["Enterprise_Value"] = Number(enterpriseValue) || 0;
+        if (askingPrice) fields["Asking_Price_GBP"] = Number(askingPrice) || 0;
+        if (owner) fields["Owner"] = owner;
+        if (analyst) fields["Analyst"] = analyst;
+        if (source) fields["Source"] = source;
+        if (internalNotes) fields["Internal_Notes"] = internalNotes;
 
         const result = await airtableCreate(TABLES.PIPELINE, fields);
 
         // Immutable Audit Log
         await logAuditTrail(
-          "CREATE_PIPELINE_DEAL",
+          "CREATE_DEAL",
           req.user.email,
           req.user.role,
           finalRef,
-          `Created new active pipeline deal: ${dealName} (Stage: ${stage || "Intro"}, Ref: ${finalRef})`
+          `Created deal: ${resolvedName} (Stage: ${stage || "Inbound"}, Ref: ${finalRef}, Industry: ${industry || "—"}, EV: ${enterpriseValue || "—"})`
+        );
+
+        return res.status(200).json({ success: true, result });
+      }
+
+      case "update-deal": {
+        const { dealId, fields: updateFields } = req.body;
+        if (!dealId) {
+          return res.status(400).json({ error: "Deal ID is required" });
+        }
+        if (!updateFields || typeof updateFields !== "object") {
+          return res.status(400).json({ error: "Fields object is required" });
+        }
+
+        // Map frontend field names to Airtable field names
+        const fieldMap: Record<string, string> = {
+          companyName: "Company_Name",
+          dealName: "Deal Name",
+          projectName: "Project_Name",
+          industry: "Industry",
+          website: "Website",
+          location: "Location",
+          revenue: "Turnover",
+          ebitda: "EBITDA_GBP",
+          enterpriseValue: "Enterprise_Value",
+          askingPrice: "Asking_Price_GBP",
+          owner: "Owner",
+          analyst: "Analyst",
+          source: "Source",
+          nextAction: "Next Action",
+          nextActionDate: "Next Action Date",
+          internalNotes: "Internal_Notes",
+        };
+
+        const airtableFields: Record<string, any> = {};
+        const changedSummary: string[] = [];
+
+        for (const [key, value] of Object.entries(updateFields)) {
+          const airtableKey = fieldMap[key] || key;
+          // Convert numeric fields
+          if (["revenue", "ebitda", "enterpriseValue", "askingPrice"].includes(key)) {
+            airtableFields[airtableKey] = Number(value) || 0;
+          } else {
+            airtableFields[airtableKey] = value;
+          }
+          changedSummary.push(`${key}: ${String(value).substring(0, 50)}`);
+        }
+
+        // Also update Deal Name if companyName changed
+        if (updateFields.companyName && !updateFields.dealName) {
+          airtableFields["Deal Name"] = updateFields.companyName;
+        }
+
+        const updated = await airtableUpdate(TABLES.PIPELINE, dealId, airtableFields);
+
+        await logAuditTrail(
+          "UPDATE_DEAL",
+          req.user.email,
+          req.user.role,
+          dealId,
+          `Updated deal fields: ${changedSummary.join(", ")}`
+        );
+
+        return res.status(200).json({ success: true, result: updated });
+      }
+
+      case "upload-im-document": {
+        const { dealId, fileName, fileType, fileData } = req.body;
+        if (!dealId || !fileData) {
+          return res.status(400).json({ error: "Deal ID and file data are required" });
+        }
+
+        const supportedTypes = ["application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/msword", "application/vnd.ms-excel"];
+        if (fileType && !supportedTypes.includes(fileType) && !fileType.includes("pdf") && !fileType.includes("doc") && !fileType.includes("xls")) {
+          return res.status(400).json({ error: "Only PDF, DOCX, and XLSX files are supported" });
+        }
+
+        // Ensure IM_Review_Documents field exists
+        const schemeLogs = await ensurePipelineFields(TABLES.PIPELINE);
+        await persistSchemaLogs(schemeLogs);
+
+        // Fetch current attachments to preserve existing ones
+        const dealRecord = await airtableFetchRecord(TABLES.PIPELINE, dealId);
+        const existingAttachments = dealRecord.fields["IM_Review_Documents"] || [];
+
+        // Add new attachment — Airtable accepts base64 data URLs
+        const newAttachment = {
+          url: `data:${fileType || "application/pdf"};base64,${fileData}`,
+          filename: fileName || "IM_Document",
+        };
+
+        const updatedAttachments = [...(Array.isArray(existingAttachments) ? existingAttachments.map((a: any) => ({ url: a.url, filename: a.filename })) : []), newAttachment];
+
+        await airtableUpdate(TABLES.PIPELINE, dealId, {
+          "IM_Review_Documents": updatedAttachments,
+        });
+
+        await logAuditTrail(
+          "IM_UPLOADED",
+          req.user.email,
+          req.user.role,
+          dealId,
+          `Uploaded IM document: ${fileName || "document"} (${fileType || "unknown"}) to deal ${dealId}`
+        );
+
+        return res.status(200).json({ success: true, message: "IM document uploaded." });
+      }
+
+      case "remove-im-document": {
+        const { dealId, attachmentIndex } = req.body;
+        if (!dealId || attachmentIndex === undefined) {
+          return res.status(400).json({ error: "Deal ID and attachment index are required" });
+        }
+
+        const dealRecord = await airtableFetchRecord(TABLES.PIPELINE, dealId);
+        const existingAttachments = dealRecord.fields["IM_Review_Documents"] || [];
+
+        if (!Array.isArray(existingAttachments) || attachmentIndex >= existingAttachments.length) {
+          return res.status(404).json({ error: "Attachment not found" });
+        }
+
+        const removedName = existingAttachments[attachmentIndex]?.filename || "document";
+        const remaining = existingAttachments
+          .filter((_: any, i: number) => i !== attachmentIndex)
+          .map((a: any) => ({ url: a.url, filename: a.filename }));
+
+        await airtableUpdate(TABLES.PIPELINE, dealId, {
+          "IM_Review_Documents": remaining.length > 0 ? remaining : [],
+        });
+
+        await logAuditTrail(
+          "IM_REMOVED",
+          req.user.email,
+          req.user.role,
+          dealId,
+          `Removed IM document: ${removedName} from deal ${dealId}`
+        );
+
+        return res.status(200).json({ success: true, message: "IM document removed." });
+      }
+
+      case "create-portfolio-company": {
+        const { companyName, industry, revenue, ebitda, debt, headcount, status, location, notes } = req.body;
+        if (!companyName) {
+          return res.status(400).json({ error: "Company Name is required" });
+        }
+
+        // Ensure table exists
+        const schemeLogs = await ensureTable(TABLE_SPECS.PORTFOLIO_COMPANIES);
+        await persistSchemaLogs(schemeLogs);
+
+        const fields: Record<string, any> = {
+          "Company_Name": companyName,
+          "Status": status || "Active",
+          "Created_At": new Date().toISOString(),
+        };
+        if (industry) fields["Industry"] = industry;
+        if (revenue) fields["Revenue"] = Number(revenue) || 0;
+        if (ebitda) fields["EBITDA"] = Number(ebitda) || 0;
+        if (debt) fields["Debt"] = Number(debt) || 0;
+        if (headcount) fields["Headcount"] = Number(headcount) || 0;
+        if (location) fields["Location"] = location;
+        if (notes) fields["Notes"] = notes;
+
+        const result = await airtableCreate("Portfolio_Companies", fields);
+
+        await logAuditTrail(
+          "PORTCO_CREATED",
+          req.user.email,
+          req.user.role,
+          companyName,
+          `Created portfolio company: ${companyName} (Industry: ${industry || "—"}, Status: ${status || "Active"})`
+        );
+
+        return res.status(200).json({ success: true, result });
+      }
+
+      case "update-portfolio-company": {
+        const { companyId, fields: pcFields } = req.body;
+        if (!companyId || !pcFields) {
+          return res.status(400).json({ error: "Company ID and fields are required" });
+        }
+
+        const fieldMap: Record<string, string> = {
+          companyName: "Company_Name", industry: "Industry", revenue: "Revenue",
+          ebitda: "EBITDA", debt: "Debt", headcount: "Headcount",
+          status: "Status", location: "Location", notes: "Notes",
+        };
+
+        const mapped: Record<string, any> = {};
+        for (const [k, v] of Object.entries(pcFields)) {
+          const key = fieldMap[k] || k;
+          if (["revenue", "ebitda", "debt", "headcount"].includes(k)) {
+            mapped[key] = Number(v) || 0;
+          } else {
+            mapped[key] = v;
+          }
+        }
+
+        const result = await airtableUpdate("Portfolio_Companies", companyId, mapped);
+
+        await logAuditTrail(
+          "PORTCO_UPDATED",
+          req.user.email,
+          req.user.role,
+          companyId,
+          `Updated portfolio company ${companyId}: ${Object.keys(pcFields).join(", ")}`
+        );
+
+        return res.status(200).json({ success: true, result });
+      }
+
+      case "archive-portfolio-company": {
+        const { companyId } = req.body;
+        if (!companyId) {
+          return res.status(400).json({ error: "Company ID is required" });
+        }
+
+        const result = await airtableUpdate("Portfolio_Companies", companyId, { Status: "Archived" });
+
+        await logAuditTrail(
+          "PORTCO_ARCHIVED",
+          req.user.email,
+          req.user.role,
+          companyId,
+          `Archived portfolio company ${companyId}`
+        );
+
+        return res.status(200).json({ success: true, result });
+      }
+
+      case "create-team-member": {
+        const { name, email, phone, role, status, accessLevel } = req.body;
+        if (!name || !role) {
+          return res.status(400).json({ error: "Name and Role are required" });
+        }
+
+        // Ensure team table fields exist
+        const schemeLogs = await ensureTable({ name: TABLES.TEAM, fields: TEAM_FIELD_SPECS });
+        await persistSchemaLogs(schemeLogs);
+
+        // Derive initials
+        const nameParts = name.trim().split(/\s+/);
+        const initials = nameParts.length >= 2
+          ? (nameParts[0][0] + nameParts[nameParts.length - 1][0]).toUpperCase()
+          : name.substring(0, 2).toUpperCase();
+
+        const teamFields: Record<string, any> = {
+          Name: name,
+          Role: role,
+          Status: status || "Active",
+          Access_Level: accessLevel || "READ ACCESS",
+          Initials: initials,
+          Avatar_Theme: "blue",
+          Order: 99,
+        };
+        if (email) teamFields["Email"] = email;
+        if (phone) teamFields["Phone"] = phone;
+
+        const result = await airtableCreate(TABLES.TEAM, teamFields);
+
+        // Create Users record with generated password
+        if (email) {
+          try {
+            const tempPassword = generatePassword();
+            const salt = bcrypt.genSaltSync(10);
+            const hash = bcrypt.hashSync(tempPassword, salt);
+            await airtableCreate("Users", {
+              Email: email,
+              PasswordHash: hash,
+              Role: role.toLowerCase().replace(/\s+/g, "_"),
+              Status: "Active",
+              Permissions: role === "Admin" || role === "Managing Partner" ? "admin" : "read",
+              CreatedAt: new Date().toISOString(),
+            });
+          } catch (err: any) {
+            console.warn("[Team] Failed to create Users record:", err.message);
+          }
+        }
+
+        await logAuditTrail(
+          "USER_CREATED",
+          req.user.email,
+          req.user.role,
+          name,
+          `Created team member: ${name} (Role: ${role}, Email: ${email || "—"})`
+        );
+
+        return res.status(200).json({ success: true, result });
+      }
+
+      case "update-team-member": {
+        const { memberId, fields: tmFields } = req.body;
+        if (!memberId || !tmFields) {
+          return res.status(400).json({ error: "Member ID and fields are required" });
+        }
+
+        const fieldMap: Record<string, string> = {
+          name: "Name", email: "Email", phone: "Phone",
+          role: "Role", status: "Status", accessLevel: "Access_Level",
+        };
+
+        const mapped: Record<string, any> = {};
+        for (const [k, v] of Object.entries(tmFields)) {
+          mapped[fieldMap[k] || k] = v;
+        }
+
+        const result = await airtableUpdate(TABLES.TEAM, memberId, mapped);
+
+        await logAuditTrail(
+          "USER_UPDATED",
+          req.user.email,
+          req.user.role,
+          memberId,
+          `Updated team member ${memberId}: ${Object.keys(tmFields).join(", ")}`
+        );
+
+        return res.status(200).json({ success: true, result });
+      }
+
+      case "create-stakeholder": {
+        const { name, company, email, phone, type, status, notes, association, accentColor } = req.body;
+        if (!name) {
+          return res.status(400).json({ error: "Stakeholder Name is required" });
+        }
+
+        // Ensure stakeholder fields exist
+        const schemeLogs = await ensureTable({ name: TABLES.STAKEHOLDERS, fields: STAKEHOLDER_FIELD_SPECS });
+        await persistSchemaLogs(schemeLogs);
+
+        const fields: Record<string, any> = {
+          Name: name,
+          Association: association || company || "",
+          Description: notes || "",
+          Accent_Color: accentColor || "blue",
+        };
+        if (company) fields["Company"] = company;
+        if (email) fields["Email"] = email;
+        if (phone) fields["Phone"] = phone;
+        if (type) fields["Type"] = type;
+        if (status) fields["Status"] = status;
+
+        const result = await airtableCreate(TABLES.STAKEHOLDERS, fields);
+
+        await logAuditTrail(
+          "STAKEHOLDER_CREATED",
+          req.user.email,
+          req.user.role,
+          name,
+          `Created stakeholder: ${name} (Type: ${type || "—"}, Company: ${company || "—"})`
+        );
+
+        return res.status(200).json({ success: true, result });
+      }
+
+      case "update-stakeholder": {
+        const { stakeholderId, fields: shFields } = req.body;
+        if (!stakeholderId || !shFields) {
+          return res.status(400).json({ error: "Stakeholder ID and fields are required" });
+        }
+
+        const fieldMap: Record<string, string> = {
+          name: "Name", company: "Company", email: "Email", phone: "Phone",
+          type: "Type", status: "Status", notes: "Description",
+          association: "Association", accentColor: "Accent_Color",
+        };
+
+        const mapped: Record<string, any> = {};
+        for (const [k, v] of Object.entries(shFields)) {
+          mapped[fieldMap[k] || k] = v;
+        }
+
+        const result = await airtableUpdate(TABLES.STAKEHOLDERS, stakeholderId, mapped);
+
+        await logAuditTrail(
+          "STAKEHOLDER_UPDATED",
+          req.user.email,
+          req.user.role,
+          stakeholderId,
+          `Updated stakeholder ${stakeholderId}: ${Object.keys(shFields).join(", ")}`
         );
 
         return res.status(200).json({ success: true, result });

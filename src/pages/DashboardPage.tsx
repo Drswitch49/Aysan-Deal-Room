@@ -242,13 +242,12 @@ export function DashboardPage() {
             </div>
           )}
 
-          {/* Row 1 — Operational Telemetry */}
-          <div className="grid gap-6 sm:grid-cols-3">
+          {/* Row 1 — Operational Telemetry (KPI Strip) */}
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             <StatCard
               label="Active Pipeline"
               value={stats.activePipelineCount}
               subLabel={`Inbound: ${stats.stageDistribution.inbound} · DD: ${stats.stageDistribution.dueDiligence}`}
-              icon={<Kanban className="h-4 w-4" />}
               tone="default"
               to="/deals"
             />
@@ -256,15 +255,20 @@ export function DashboardPage() {
               label="Pending Actions"
               value={stats.pendingActionsCount}
               subLabel="Milestones scheduled"
-              icon={<Clock className="h-4 w-4" />}
               tone="bronze"
               to="/deals"
             />
             <StatCard
               label="Deals in Due Diligence"
               value={stats.ddDealsCount}
-              subLabel="Late-stage milestones"
-              icon={<Building2 className="h-4 w-4" />}
+              subLabel="Late-stage audit"
+              tone="default"
+              to="/deals"
+            />
+            <StatCard
+              label="LOIs Awaiting Response"
+              value={stats.loiTracker?.awaitingResponse ?? 0}
+              subLabel="Sent to seller / broker"
               tone="default"
               to="/deals"
             />
@@ -276,77 +280,75 @@ export function DashboardPage() {
             <div className="space-y-8">
               
               {/* Recent Deal Movements Feed */}
-              <div className="rounded-2xl p-6 premium-card card-sheen">
+              <div className="rounded-2xl p-6 pe-card">
                 <div className="flex items-center justify-between border-b border-white/[0.02] pb-4 mb-4 select-none">
-                  <SectionHeader>Recent Deal Movements</SectionHeader>
+                  <SectionHeader>Recent Deal Progress</SectionHeader>
                 </div>
 
                 <div className="divide-y divide-white/[0.02] font-sans">
                   {stats.recentMovements && stats.recentMovements.map((move: any) => {
-                    let IconComponent = Kanban;
-                    if (move.type === "deal_created") IconComponent = Plus;
-                    else if (move.type === "deal_assigned") IconComponent = Database;
-                    else if (move.type === "im_received") IconComponent = FileText;
-                    else if (move.type === "lender_engaged") IconComponent = Building2;
-                    else if (move.type === "loi_sent") IconComponent = FileText;
-                    else if (move.type === "dd_started") IconComponent = Clock;
-                    else if (move.type === "dd_completed") IconComponent = CheckCircle2;
-                    else if (move.type === "deal_archived") IconComponent = AlertTriangle;
+                    // Muted color dots based on update type
+                    let dotColor = "bg-slate-500";
+                    if (move.type === "loi_sent") dotColor = "bg-[#C6A66B]";
+                    else if (move.type === "dd_started" || move.type === "dd_completed") dotColor = "bg-emerald-500/80";
+                    else if (move.type === "deal_archived") dotColor = "bg-rose-500/70";
+                    else if (move.type === "lender_engaged") dotColor = "bg-amber-500/70";
+                    else if (move.type === "im_received") dotColor = "bg-slate-400";
 
                     return (
                       <div key={move.id} className="py-3.5 flex items-center justify-between gap-4 first:pt-1 group/move block">
                         <div className="flex items-center gap-3 min-w-0">
-                          {/* Status Icon */}
-                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-white/[0.015] border border-white/[0.02] text-slate-400 group-hover/move:text-[#C6A66B] transition-colors">
-                            <IconComponent className="h-4 w-4" />
+                          {/* Minimalist dot instead of icon boxes */}
+                          <div className="h-6 w-6 flex items-center justify-center shrink-0">
+                            <span className={`h-1.5 w-1.5 rounded-full ${dotColor}`} />
                           </div>
 
-                        {/* Status detail */}
-                        <div className="min-w-0">
-                          <p className="text-xs font-semibold text-white leading-normal truncate group-hover/move:text-[#C6A66B] transition-colors">
-                            {move.title}
-                          </p>
-                          <p className="mt-1 text-[10px] text-slate-400 font-medium leading-relaxed truncate font-sans">
-                            {move.detail}
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Context link */}
-                      <div className="flex items-center gap-3 shrink-0 select-none">
-                        <div className="text-right">
-                          <p className="text-[10px] font-semibold text-slate-350 leading-none">
-                            {move.companyName}
-                          </p>
-                          {move.timestamp && (
-                            <p className="text-[8px] text-slate-500 mt-1.5">
-                              {new Date(move.timestamp).toLocaleDateString("en-GB", {
-                                day: "numeric",
-                                month: "short",
-                                hour: "2-digit",
-                                minute: "2-digit"
-                              })}
+                          {/* Status detail */}
+                          <div className="min-w-0">
+                            <p className="text-xs font-medium text-white leading-normal truncate group-hover/move:text-[#C6A66B] transition-colors">
+                              {move.title}
                             </p>
-                          )}
+                            <p className="mt-1 text-[10px] text-slate-450 leading-relaxed truncate">
+                              {move.detail}
+                            </p>
+                          </div>
                         </div>
-                        
-                        <Link 
-                          to={move.link}
-                          className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/[0.02] bg-white/[0.015] hover:bg-white/[0.03] text-slate-400 hover:text-white transition"
-                          title="Open Deal"
-                        >
-                          <ArrowRight className="h-3.5 w-3.5" />
-                        </Link>
+
+                        {/* Context link */}
+                        <div className="flex items-center gap-3 shrink-0 select-none">
+                          <div className="text-right">
+                            <p className="text-[10px] font-bold text-slate-400 leading-none">
+                              {move.companyName}
+                            </p>
+                            {move.timestamp && (
+                              <p className="text-[8px] text-slate-500 mt-1.5 font-medium">
+                                {new Date(move.timestamp).toLocaleDateString("en-GB", {
+                                  day: "numeric",
+                                  month: "short",
+                                  hour: "2-digit",
+                                  minute: "2-digit"
+                                })}
+                              </p>
+                            )}
+                          </div>
+                          
+                          <Link 
+                            to={move.link}
+                            className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/[0.02] bg-white/[0.01] hover:bg-white/[0.03] text-slate-400 hover:text-white transition"
+                            title="Open Deal"
+                          >
+                            <ArrowRight className="h-3.5 w-3.5" />
+                          </Link>
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
 
                   {(!stats.recentMovements || stats.recentMovements.length === 0) && (
                     <div className="flex flex-col items-center justify-center py-10 text-center space-y-2 select-none">
-                      <Clock className="h-8 w-8 text-slate-700 animate-pulse" />
+                      <span className="h-1.5 w-1.5 rounded-full bg-slate-700 animate-pulse" />
                       <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">No recent movements</p>
-                      <p className="text-[10px] text-slate-500 max-w-sm leading-relaxed font-sans">
+                      <p className="text-[10px] text-slate-500 max-w-sm leading-relaxed">
                         Transaction flow updates and stage transitions will appear here.
                       </p>
                     </div>
@@ -354,53 +356,38 @@ export function DashboardPage() {
                 </div>
               </div>
 
-              {/* Critical Business Blockers */}
-              <div className="rounded-2xl p-6 premium-card card-sheen">
-                <div className="flex items-center justify-between border-b border-white/[0.02] pb-4 mb-4 select-none">
-                  <SectionHeader>Critical Business Blockers</SectionHeader>
-                  {stats.criticalBlockers && stats.criticalBlockers.length > 0 && (
-                    <span className="inline-flex items-center gap-1 rounded bg-rose-500/5 border border-rose-500/10 px-2 py-0.5 text-[9px] font-mono font-bold text-rose-455">
-                      {stats.criticalBlockers.length} issues
-                    </span>
-                  )}
-                </div>
-
-                <div className="space-y-3 font-sans">
-                  {stats.criticalBlockers && stats.criticalBlockers.map((block: any) => (
-                    <Link
-                      key={block.id}
-                      to={block.link}
-                      className="p-3.5 flex items-start gap-3 rounded-xl border border-rose-500/10 bg-rose-500/[0.02] hover:bg-rose-500/[0.04] transition duration-200 block group/blocker"
-                    >
-                      <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-rose-500/5 border border-rose-500/10 text-rose-455 group-hover/blocker:bg-rose-500/10">
-                        <AlertTriangle className="h-3.5 w-3.5" />
-                      </span>
-                      
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-[11px] font-bold text-white uppercase tracking-wider leading-none">
-                            {block.title}
-                          </span>
-                          <span className="text-[9px] font-mono text-slate-550 leading-none">
-                            {block.dealRef}
-                          </span>
-                        </div>
-                        <p className="mt-1.5 text-xs text-slate-400 leading-relaxed group-hover/blocker:text-slate-300 transition-colors">
-                          {block.description}
-                        </p>
-                      </div>
-                    </Link>
-                  ))}
-
-                  {(!stats.criticalBlockers || stats.criticalBlockers.length === 0) && (
-                    <div className="flex flex-col items-center justify-center py-8 text-center space-y-2 select-none border border-dashed border-white/[0.02] rounded-xl p-4">
-                      <CheckCircle2 className="h-6 w-6 text-emerald-500/40" />
-                      <p className="text-xs font-semibold text-slate-405 uppercase tracking-wider">No critical blockers</p>
-                      <p className="text-[10px] text-slate-555">
-                        All checklists are satisfied and deal timelines are active.
-                      </p>
-                    </div>
-                  )}
+              {/* Key Pipeline Insights */}
+              <div className="rounded-2xl p-6 pe-card">
+                <SectionHeader>Key Pipeline Insights</SectionHeader>
+                <div className="mt-5 grid gap-4 grid-cols-2 sm:grid-cols-4 font-sans select-none">
+                  <div className="p-4 rounded-xl bg-white/[0.01] border border-white/[0.02]">
+                    <p className="text-[9.5px] font-bold uppercase tracking-wider text-slate-500">Pipeline Value</p>
+                    <p className="text-lg font-semibold text-white mt-1.5">
+                      {stats.pipelineInsights?.totalEV 
+                        ? (stats.pipelineInsights.totalEV >= 1000000 
+                          ? `£${(stats.pipelineInsights.totalEV / 1000000).toFixed(2)}M` 
+                          : `£${(stats.pipelineInsights.totalEV / 1000).toFixed(0)}k`) 
+                        : "—"}
+                    </p>
+                  </div>
+                  <div className="p-4 rounded-xl bg-white/[0.01] border border-white/[0.02]">
+                    <p className="text-[9.5px] font-bold uppercase tracking-wider text-slate-500">Avg Deal Score</p>
+                    <p className="text-lg font-semibold text-white mt-1.5">
+                      {stats.pipelineInsights?.avgDealScore ? `${stats.pipelineInsights.avgDealScore} / 10` : "—"}
+                    </p>
+                  </div>
+                  <div className="p-4 rounded-xl bg-white/[0.01] border border-white/[0.02]">
+                    <p className="text-[9.5px] font-bold uppercase tracking-wider text-slate-500">Seller Chats</p>
+                    <p className="text-lg font-semibold text-white mt-1.5">
+                      {stats.pipelineInsights?.activeConversations ?? 0} active
+                    </p>
+                  </div>
+                  <div className="p-4 rounded-xl bg-white/[0.01] border border-white/[0.02]">
+                    <p className="text-[9.5px] font-bold uppercase tracking-wider text-slate-500">Avg Pipeline Age</p>
+                    <p className="text-lg font-semibold text-white mt-1.5">
+                      {stats.pipelineInsights?.avgVelocityDays ? `${stats.pipelineInsights.avgVelocityDays} days` : "—"}
+                    </p>
+                  </div>
                 </div>
               </div>
 
@@ -410,7 +397,7 @@ export function DashboardPage() {
             <div className="space-y-8">
               
               {/* Actions Due Today */}
-              <div className="rounded-2xl p-6 premium-card card-sheen">
+              <div className="rounded-2xl p-6 pe-card">
                 <SectionHeader>Actions Due Today</SectionHeader>
                 
                 <div className="mt-4 divide-y divide-white/[0.02] font-sans">
@@ -420,29 +407,25 @@ export function DashboardPage() {
                       to={act.link}
                       className="py-4 flex items-start gap-4 first:pt-1 group/act block"
                     >
-                      {/* Urgency Badge */}
+                      {/* Quiet marker left-border or bullet */}
                       <div className={cx(
-                        "mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border transition",
-                        act.color === "red"
-                          ? "bg-rose-500/5 border-rose-500/10 text-rose-400 group-hover/act:bg-rose-500/10"
-                          : "bg-amber-500/5 border-amber-500/10 text-amber-400 group-hover/act:bg-amber-500/10"
-                      )}>
-                        <Clock className="h-3.5 w-3.5" />
-                      </div>
+                        "mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full transition-colors",
+                        act.color === "red" ? "bg-rose-500/70" : "bg-amber-500/70"
+                      )} />
 
                       {/* Action Detail */}
                       <div className="min-w-0 flex-1">
-                        <p className="text-[11px] font-semibold text-white leading-tight group-hover/act:text-[#C6A66B] transition-colors truncate">
+                        <p className="text-xs font-medium text-white leading-tight group-hover/act:text-[#C6A66B] transition-colors truncate">
                           {act.title}
                         </p>
-                        <div className="mt-1 flex items-center gap-1.5 flex-wrap select-none text-[9px]">
-                          <span className="font-mono text-slate-500">{act.dealRef}</span>
+                        <div className="mt-1.5 flex items-center gap-1.5 flex-wrap select-none text-[9px] font-medium text-slate-500">
+                          <span className="font-mono">{act.dealRef}</span>
                           <span className="text-slate-700">·</span>
-                          <span className="font-semibold text-slate-400">{act.assignee}</span>
+                          <span>{act.assignee}</span>
                           <span className="text-slate-700">·</span>
                           <span className={cx(
                             "font-bold uppercase tracking-wider",
-                            act.statusText === "OVERDUE" ? "text-rose-400" : "text-amber-400"
+                            act.statusText === "OVERDUE" ? "text-rose-400" : "text-amber-450"
                           )}>
                             {act.statusText}
                           </span>
@@ -450,7 +433,7 @@ export function DashboardPage() {
                       </div>
 
                       {/* Deadline label */}
-                      <span className="shrink-0 text-[10px] font-semibold text-slate-500 whitespace-nowrap select-none group-hover/act:text-slate-400 transition-colors">
+                      <span className="shrink-0 text-[9px] font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap select-none group-hover/act:text-slate-400 transition-colors pt-0.5">
                         {act.dateStr}
                       </span>
                     </Link>
@@ -458,9 +441,9 @@ export function DashboardPage() {
 
                   {(!stats.actionsDueToday || stats.actionsDueToday.length === 0) && (
                     <div className="flex flex-col items-center justify-center py-8 text-center space-y-2 select-none">
-                      <CheckCircle2 className="h-6 w-6 text-slate-650" />
+                      <span className="h-1.5 w-1.5 rounded-full bg-slate-750" />
                       <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">No actions due today</p>
-                      <p className="text-[10px] text-slate-605">
+                      <p className="text-[10px] text-slate-600">
                         All scheduled milestones and tasks are up to date.
                       </p>
                     </div>
@@ -468,28 +451,28 @@ export function DashboardPage() {
                 </div>
               </div>
 
-              {/* Pipeline by Stage */}
-              <div className="rounded-2xl p-6 premium-card card-sheen">
-                <SectionHeader>Pipeline By Stage</SectionHeader>
+              {/* Pipeline Distribution (Stage Funnel) */}
+              <div className="rounded-2xl p-6 pe-card">
+                <SectionHeader>Pipeline Distribution</SectionHeader>
                 
                 <div className="mt-5 space-y-4 font-sans">
                   {[
-                    { label: "Inbound", count: stats.stageDistribution.inbound, color: "bg-blue-400/70" },
-                    { label: "Seller Call", count: stats.stageDistribution.sellerCall, color: "bg-indigo-400/70" },
+                    { label: "Inbound", count: stats.stageDistribution.inbound, color: "bg-[#717680]/50" },
+                    { label: "Seller Call", count: stats.stageDistribution.sellerCall, color: "bg-[#717680]/70" },
                     { label: "IM Review", count: stats.stageDistribution.imReview, color: "bg-[#C6A66B]/80" },
-                    { label: "Due Diligence", count: stats.stageDistribution.dueDiligence, color: "bg-emerald-400/70" },
+                    { label: "Due Diligence", count: stats.stageDistribution.dueDiligence, color: "bg-emerald-500/60" },
                   ].map(({ label, count, color }) => {
                     const pct = Math.round((count / Math.max(stats.activePipelineCount, 1)) * 100);
                     return (
                       <div key={label} className="space-y-2">
                         <div className="flex items-center justify-between">
-                          <span className="text-[11px] font-semibold text-slate-350">{label}</span>
+                          <span className="text-[11px] font-semibold text-slate-400">{label}</span>
                           <div className="flex items-center gap-2 select-none">
                             <span className="text-[10px] font-semibold text-slate-500">{pct}%</span>
-                            <span className="text-xs font-semibold text-white w-4 text-right">{count}</span>
+                            <span className="text-xs font-bold text-white w-4 text-right">{count}</span>
                           </div>
                         </div>
-                        <div className="h-1.5 w-full bg-white/[0.02] border border-white/[0.02] rounded-full overflow-hidden">
+                        <div className="h-1 w-full bg-white/[0.01] border border-white/[0.02] rounded-full overflow-hidden">
                           <div
                             className={`h-full ${color} rounded-full transition-all duration-700 ease-out`}
                             style={{ width: `${pct}%` }}
@@ -501,33 +484,11 @@ export function DashboardPage() {
                 </div>
               </div>
 
-              {/* LOI Tracker */}
-              <div className="rounded-2xl p-6 premium-card card-sheen">
-                <SectionHeader>LOI Tracker</SectionHeader>
-                
-                <div className="mt-4 space-y-3 font-sans">
-                  {[
-                    { label: "LOI Drafting", count: stats.loiTracker?.drafting ?? 0, color: "bg-slate-400/70" },
-                    { label: "LOI Sent", count: stats.loiTracker?.sent ?? 0, color: "bg-blue-400/70" },
-                    { label: "Awaiting Seller Response", count: stats.loiTracker?.awaitingResponse ?? 0, color: "bg-amber-400/70" },
-                    { label: "Accepted", count: stats.loiTracker?.accepted ?? 0, color: "bg-emerald-400/70" },
-                    { label: "Declined", count: stats.loiTracker?.declined ?? 0, color: "bg-rose-500/70" },
-                  ].map(({ label, count, color }) => (
-                    <div key={label} className="flex items-center justify-between py-1.5 border-b border-white/[0.01] last:border-b-0">
-                      <div className="flex items-center gap-2.5">
-                        <span className={`h-1.5 w-1.5 rounded-full ${color}`} />
-                        <span className="text-[11px] font-semibold text-slate-350">{label}</span>
-                      </div>
-                      <span className="text-xs font-bold text-white tabular-nums">{count}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
             </div>
           </div>
         </div>
       )}
+
 
       {/* New Deal Creation Modal */}
       <Modal

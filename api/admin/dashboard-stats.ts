@@ -242,7 +242,7 @@ export default async function handler(req: any, res: any) {
           id: `derived-im-received-${deal.id}`,
           type: "im_received",
           title: `IM received for ${companyName}`,
-          detail: `Information Memorandum ingested`,
+          detail: `Information Memorandum received`,
           dealId: deal.id,
           dealRef,
           companyName,
@@ -496,7 +496,80 @@ export default async function handler(req: any, res: any) {
       }
     });
 
-    // 10. Compile the consolidated payload
+    // 10. Compute executive pipeline insights
+    let totalEV = 0;
+    let evCount = 0;
+    let totalScore = 0;
+    let scoreCount = 0;
+    let totalAgeDays = 0;
+
+    filteredDeals.forEach((deal: any) => {
+      const fields = deal.fields;
+      
+      // Parse EV
+      const evVal = fields["EV"] || fields["Enterprise_Value"] || fields["Enterprise Value"];
+      if (evVal) {
+        const parsed = parseFloat(String(evVal).replace(/[^0-9.]/g, ""));
+        if (!isNaN(parsed)) {
+          totalEV += parsed;
+          evCount++;
+        }
+      } else {
+        // Try parsing from Deal Name
+        const name = fields["Deal Name"] || fields["Company Name"] || "";
+        const nameMatch = name.match(/£\s*(\d+(?:\.\d+)?)\s*(m|k|million|thousand)/i);
+        if (nameMatch) {
+          let val = parseFloat(nameMatch[1]);
+          const unit = nameMatch[2].toLowerCase();
+          if (unit === "m" || unit === "million") val *= 1000000;
+          else if (unit === "k" || unit === "thousand") val *= 1000;
+          totalEV += val;
+          evCount++;
+        } else {
+          // Try parsing from Next Action
+          const nextAction = fields["Next Action"] || "";
+          const naMatch = nextAction.match(/£\s*(\d+(?:\.\d+)?)\s*(m|k|million|thousand)\s*EV/i) || nextAction.match(/EV\s*of\s*£\s*(\d+(?:\.\d+)?)\s*(m|k|million|thousand)/i);
+          if (naMatch) {
+            let val = parseFloat(naMatch[1]);
+            const unit = naMatch[2].toLowerCase();
+            if (unit === "m" || unit === "million") val *= 1000000;
+            else if (unit === "k" || unit === "thousand") val *= 1000;
+            totalEV += val;
+            evCount++;
+          }
+        }
+      }
+
+      // Parse Score
+      const scoreVal = fields["Deal_Score"] || fields["Deal Score"];
+      if (scoreVal) {
+        const parsed = parseFloat(String(scoreVal));
+        if (!isNaN(parsed)) {
+          totalScore += parsed;
+          scoreCount++;
+        }
+      }
+
+      // Age/Velocity
+      if (deal.createdTime) {
+        const ageInMs = new Date().getTime() - new Date(deal.createdTime).getTime();
+        totalAgeDays += ageInMs / (1000 * 60 * 60 * 24);
+      }
+    });
+
+    const activeConversations = filteredDeals.filter((d: any) => {
+      const stage = (d.fields["Stage"] || "").toLowerCase();
+      return ["intro", "seller call", "seller_call", "discovery"].includes(stage);
+    }).length;
+
+    const pipelineInsights = {
+      totalEV: evCount > 0 ? totalEV : null,
+      avgDealScore: scoreCount > 0 ? Number((totalScore / scoreCount).toFixed(1)) : null,
+      activeConversations,
+      avgVelocityDays: filteredDeals.length > 0 ? Math.round(totalAgeDays / filteredDeals.length) : 0
+    };
+
+    // 11. Compile the consolidated payload
     return res.status(200).json({
       success: true,
       owner,
@@ -504,6 +577,7 @@ export default async function handler(req: any, res: any) {
       activePipelineCount: filteredDeals.length,
       pendingActionsCount: filteredDeals.filter(d => d.fields["Next Action Date"]).length,
       ddDealsCount,
+      pipelineInsights,
       recentMovements,
       criticalBlockers,
       actionsDueToday: actionsList,
