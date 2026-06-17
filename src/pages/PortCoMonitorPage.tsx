@@ -169,7 +169,7 @@ export function PortCoMonitorPage() {
     setIsCompanySaving(true);
     setCompanyError("");
     try {
-      await fetch("/api/portfolio-companies-crud", {
+      const resp = await fetch("/api/portfolio-companies-crud", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -183,7 +183,11 @@ export function PortCoMonitorPage() {
           headcount: companyForm.headcount ? Number(companyForm.headcount) : undefined,
           notes: companyForm.notes.trim() || undefined,
         }),
-      }).then(r => { if (!r.ok) return r.json().then(e => { throw new Error(e.error); }); return r.json(); });
+      });
+      if (!resp.ok) {
+        const errData = await resp.json().catch(() => ({ error: `Server error (${resp.status})` }));
+        throw new Error(errData.error || "Failed to create company");
+      }
 
       setCompanyForm({ companyName: "", industry: "", location: "", status: "Active", revenue: "", ebitda: "", debt: "", headcount: "", notes: "" });
       setIsAddCompanyOpen(false);

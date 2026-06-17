@@ -74,7 +74,7 @@ export function HrStakeholdersPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(teamForm),
       });
-      if (!res.ok) { const err = await res.json(); throw new Error(err.error || "Failed to add team member"); }
+      if (!res.ok) { const err = await res.json().catch(() => ({ error: `Server error (${res.status})` })); throw new Error(err.error || "Failed to add team member"); }
       setTeamForm({ name: "", email: "", phone: "", role: "Analyst", status: "Active" });
       setIsAddTeamMemberOpen(false);
       loadData();
@@ -97,7 +97,7 @@ export function HrStakeholdersPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(stakeholderForm),
       });
-      if (!res.ok) { const err = await res.json(); throw new Error(err.error || "Failed to add stakeholder"); }
+      if (!res.ok) { const err = await res.json().catch(() => ({ error: `Server error (${res.status})` })); throw new Error(err.error || "Failed to add stakeholder"); }
       setStakeholderForm({ name: "", type: "Advisor", email: "", phone: "", organization: "", notes: "" });
       setIsAddStakeholderOpen(false);
       loadData();
