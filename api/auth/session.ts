@@ -29,7 +29,8 @@ export default async function handler(req: any, res: any) {
     const permissions = decoded.permissions as string;
 
     // 1. Live Validation for Admin / Analyst (via Users table)
-    if (role === "admin" || role === "analyst") {
+    const roleLower = (role || "").toLowerCase();
+    if (roleLower === "admin" || roleLower === "analyst" || roleLower === "managing partner" || roleLower === "partner") {
       let userStatus = "";
       let userRole = "";
       let userPermissions = "";
@@ -82,7 +83,7 @@ export default async function handler(req: any, res: any) {
         return res.status(200).json({ authenticated: false });
       }
 
-      if (userRole !== role) {
+      if (userRole.toLowerCase() !== role.toLowerCase()) {
         clearSessionCookie(res);
         await logAuditTrail(
           "SESSION_REVOKED_ROLE_MISMATCH",

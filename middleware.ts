@@ -45,15 +45,16 @@ export async function middleware(request: Request) {
 
     try {
       const { payload } = await jwtVerify(sessionCookie, secretKey);
-      const role = payload.role;
+      const role = (payload.role as string || "").toLowerCase();
 
-      // 1. Admin/Analyst-only endpoints
+      // 1. Admin/Analyst/Partner-only endpoints
       if (
         pathname.startsWith("/api/admin/") ||
         pathname.startsWith("/api/deals") ||
         pathname.startsWith("/api/lenders")
       ) {
-        if (role !== "admin" && role !== "analyst") {
+        const adminRoles = ["admin", "analyst", "managing partner", "partner"];
+        if (!adminRoles.includes(role)) {
           return new Response(
             JSON.stringify({ error: "Forbidden: Access restricted to admins and analysts" }),
             { status: 403, headers: { "Content-Type": "application/json" } }

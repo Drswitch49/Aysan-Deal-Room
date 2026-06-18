@@ -58,6 +58,7 @@ export default async function handler(req: any, res: any) {
         let businessProfile = "";
         let openingAngle = "";
         let questionsToAsk: string[] = [];
+        let callScript = "";
         let attendees: string[] = ["Ayo (lead)", "Prince"];
         let selectedCallType = "1st";
         let dataSources = { companiesHouse: true, linkedIn: true, notionSops: true, airtable: true };
@@ -79,6 +80,7 @@ export default async function handler(req: any, res: any) {
           businessProfile = parsed.businessProfile || "";
           openingAngle = parsed.openingAngle || "";
           questionsToAsk = Array.isArray(parsed.questionsToAsk) ? parsed.questionsToAsk : [];
+          callScript = parsed.callScript || "";
           attendees = Array.isArray(parsed.attendees) ? parsed.attendees : attendees;
           selectedCallType = parsed.selectedCallType || selectedCallType;
           dataSources = parsed.dataSources || dataSources;
@@ -95,6 +97,7 @@ export default async function handler(req: any, res: any) {
           businessProfile,
           openingAngle,
           questionsToAsk,
+          callScript,
           attendees,
           selectedCallType,
           dataSources,

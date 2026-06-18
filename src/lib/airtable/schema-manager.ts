@@ -264,6 +264,11 @@ export async function ensureSchema(): Promise<void> {
     });
     await ensureField("Portfolio_Companies", "Location", "singleLineText");
     await ensureField("Portfolio_Companies", "Notes", "multilineText");
+    await ensureField("Portfolio_Companies", "Cash", "number");
+    await ensureField("Portfolio_Companies", "Current_Ratio", "number");
+    await ensureField("Portfolio_Companies", "DSCR", "number");
+    await ensureField("Portfolio_Companies", "Operational_KPI_Inputs", "multilineText");
+    await ensureField("Portfolio_Companies", "Document_Activity_Inputs", "multilineText");
     await ensureField("Portfolio_Companies", "Created_At", "createdTime");
     await ensureField("Portfolio_Companies", "Updated_At", "lastModifiedTime");
 

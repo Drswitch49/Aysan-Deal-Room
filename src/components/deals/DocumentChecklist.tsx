@@ -47,7 +47,7 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
   // Create document states
   const [isAddDocOpen, setIsAddDocOpen] = useState(false);
   const [newDocName, setNewDocName] = useState("");
-  const [newDocCategory, setNewDocCategory] = useState("Financials");
+  const [newDocCategory, setNewDocCategory] = useState("Financial");
   const [customCategory, setCustomCategory] = useState("");
   const [newDocStatus, setNewDocStatus] = useState("Outstanding");
   const [newDocLink, setNewDocLink] = useState("");
@@ -350,12 +350,7 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
     setIsSubmittingDoc(true);
     setDocErrorMessage("");
     try {
-      const categoryToWrite = newDocCategory === "__custom__" ? customCategory : newDocCategory;
-      if (!categoryToWrite.trim()) {
-        setDocErrorMessage("Category is required.");
-        setIsSubmittingDoc(false);
-        return;
-      }
+      const categoryToWrite = newDocCategory;
 
       if (uploadMode === "upload") {
         if (!selectedFileDataBase64) {
@@ -393,7 +388,7 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
       }
 
       setNewDocName("");
-      setNewDocCategory("Financials");
+      setNewDocCategory("Financial");
       setCustomCategory("");
       setNewDocStatus("Outstanding");
       setNewDocLink("");
@@ -1008,16 +1003,11 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
                     onChange={(e) => setNewDocCategory(e.target.value)}
                     className="h-9 w-full rounded-xl border border-white/[0.02] bg-[#161B22] px-3 text-white outline-none focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze transition-all cursor-pointer"
                   >
-                    <option value="Financials" className="bg-[#161B22] text-white">Financials</option>
-                    <option value="Legal" className="bg-[#161B22] text-white">Legal</option>
-                    <option value="Compliance" className="bg-[#161B22] text-white">Compliance</option>
-                    <option value="Insurance" className="bg-[#161B22] text-white">Insurance</option>
-                    <option value="Tax" className="bg-[#161B22] text-white">Tax</option>
-                    <option value="Operations" className="bg-[#161B22] text-white">Operations</option>
-                    {categories.filter(c => !["Financials", "Legal", "Compliance", "Insurance", "Tax", "Operations"].includes(c)).map((cat) => (
-                      <option key={cat} value={cat} className="bg-[#161B22] text-white">{cat}</option>
-                    ))}
-                    <option value="__custom__" className="bg-[#161B22] text-acp-bronze font-bold">+ Create New Category...</option>
+                    <option value="Financial" className="bg-[#161B22] text-white">Financial</option>
+                    <option value="Debtors-ABL" className="bg-[#161B22] text-white">Debtors-ABL</option>
+                    <option value="Commercial" className="bg-[#161B22] text-white">Commercial</option>
+                    <option value="Operational" className="bg-[#161B22] text-white">Operational</option>
+                    <option value="Internal Only" className="bg-[#161B22] text-white">Internal Only</option>
                   </select>
                 </div>
 
@@ -1035,22 +1025,6 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
                   </select>
                 </div>
               </div>
-
-              {newDocCategory === "__custom__" && (
-                <div className="space-y-1.5 animate-fade-in-up">
-                  <label className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
-                    Custom Category Name
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={customCategory}
-                    onChange={(e) => setCustomCategory(e.target.value)}
-                    placeholder="e.g. Board Minutes"
-                    className="h-9 w-full rounded-xl border border-white/[0.02] bg-[#161B22] px-3 text-white placeholder-slate-650 outline-none focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze transition-all"
-                  />
-                </div>
-              )}
 
               <div className="space-y-3">
                 <label className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-400">

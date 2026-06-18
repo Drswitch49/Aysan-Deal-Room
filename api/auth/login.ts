@@ -66,7 +66,7 @@ export default async function handler(req: any, res: any) {
     const payload = {
       id: userRecord.id,
       email: userFields.Email,
-      role: userFields.Role || "analyst",
+      role: (userFields.Role || "analyst").toLowerCase(),
       permissions: userFields.Permissions || ""
     };
     const token = await signJWT(payload);

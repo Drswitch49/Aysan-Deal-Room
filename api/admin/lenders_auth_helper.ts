@@ -30,15 +30,16 @@ export async function authenticateAdmin(req: any) {
   }
 
   const role = userFields.Role;
-  if (role !== "admin" && role !== "analyst") {
+  const roleLower = (role || "").toLowerCase();
+  if (roleLower !== "admin" && roleLower !== "analyst" && roleLower !== "managing partner" && roleLower !== "partner") {
     throw new Error("Unauthorized: Invalid role permissions");
   }
 
-  // Attach live database permissions & identity to request
+  // Attach live database permissions & identity to request (normalized to lowercase)
   req.user = {
     id: userRecord.id,
     email: userFields.Email,
-    role: role,
+    role: roleLower,
     permissions: userFields.Permissions || ""
   };
 }

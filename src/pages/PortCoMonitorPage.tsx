@@ -126,10 +126,30 @@ function HealthGauge({ score }: { score: number }) {
   );
 }
 
+interface PortfolioCompanyRecord {
+  id: string;
+  companyName: string;
+  industry: string;
+  location: string;
+  status: string;
+  revenue: number;
+  ebitda: number;
+  debt: number;
+  headcount: number;
+  cash: number;
+  currentRatio: number;
+  dscr: number;
+  operationalKpis: string;
+  documentActivity: string;
+  notes: string;
+  createdAt: string;
+}
+
 export function PortCoMonitorPage() {
   const [metrics, setMetrics] = useState<PortfolioMetricRecord[]>([]);
   const [alerts, setAlerts] = useState<PortfolioAlertRecord[]>([]);
   const [healths, setHealths] = useState<PortfolioHealthRecord[]>([]);
+  const [companies, setCompanies] = useState<PortfolioCompanyRecord[]>([]);
   const [summaryBriefing, setSummaryBriefing] = useState<string>("");
   const [healthIndex, setHealthIndex] = useState<number>(100);
 
@@ -156,9 +176,85 @@ export function PortCoMonitorPage() {
   const [companyForm, setCompanyForm] = useState({
     companyName: "", industry: "", location: "", status: "Active" as string,
     revenue: "", ebitda: "", debt: "", headcount: "", notes: "",
+    cash: "", currentRatio: "", dscr: "", operationalKpis: "", documentActivity: ""
   });
   const [isCompanySaving, setIsCompanySaving] = useState(false);
   const [companyError, setCompanyError] = useState("");
+
+  // Edit Portfolio Company modal states
+  const [isEditCompanyOpen, setIsEditCompanyOpen] = useState(false);
+  const [editingCompanyId, setEditingCompanyId] = useState<string | null>(null);
+  const [editCompanyForm, setEditCompanyForm] = useState({
+    companyName: "", industry: "", location: "", status: "Active" as string,
+    revenue: "", ebitda: "", debt: "", headcount: "", notes: "",
+    cash: "", currentRatio: "", dscr: "", operationalKpis: "", documentActivity: ""
+  });
+  const [isEditSaving, setIsEditSaving] = useState(false);
+  const [editCompanyError, setEditCompanyError] = useState("");
+
+  const openEditCompany = (comp: any) => {
+    setEditingCompanyId(comp.companyId);
+    setEditCompanyForm({
+      companyName: comp.companyName || "",
+      industry: comp.crud?.industry || comp.sector || "",
+      location: comp.crud?.location || comp.location || "",
+      status: comp.crud?.status || "Active",
+      revenue: comp.crud?.revenue !== undefined ? String(comp.crud.revenue) : String(comp.latestMetric?.revenue || ""),
+      ebitda: comp.crud?.ebitda !== undefined ? String(comp.crud.ebitda) : String(comp.latestMetric?.ebitda || ""),
+      debt: comp.crud?.debt !== undefined ? String(comp.crud.debt) : "",
+      headcount: comp.crud?.headcount !== undefined ? String(comp.crud.headcount) : String(comp.latestMetric?.headcount || ""),
+      cash: comp.crud?.cash !== undefined ? String(comp.crud.cash) : "",
+      currentRatio: comp.crud?.currentRatio !== undefined ? String(comp.crud.currentRatio) : "",
+      dscr: comp.crud?.dscr !== undefined ? String(comp.crud.dscr) : String(comp.latestMetric?.dscr || ""),
+      operationalKpis: comp.crud?.operationalKpis || "",
+      documentActivity: comp.crud?.documentActivity || "",
+      notes: comp.crud?.notes || comp.notes || ""
+    });
+    setEditCompanyError("");
+    setIsEditCompanyOpen(true);
+  };
+
+  const handleEditCompanySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editCompanyForm.companyName.trim() || !editCompanyForm.industry.trim() || !editCompanyForm.location.trim()) {
+      setEditCompanyError("Company Name, Industry and Location are required.");
+      return;
+    }
+    setIsEditSaving(true);
+    setEditCompanyError("");
+    try {
+      const resp = await fetch(`/api/portfolio-companies-crud?id=${editingCompanyId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          companyName: editCompanyForm.companyName.trim(),
+          industry: editCompanyForm.industry.trim(),
+          location: editCompanyForm.location.trim(),
+          status: editCompanyForm.status,
+          revenue: editCompanyForm.revenue ? Number(editCompanyForm.revenue) : null,
+          ebitda: editCompanyForm.ebitda ? Number(editCompanyForm.ebitda) : null,
+          debt: editCompanyForm.debt ? Number(editCompanyForm.debt) : null,
+          headcount: editCompanyForm.headcount ? Number(editCompanyForm.headcount) : null,
+          cash: editCompanyForm.cash ? Number(editCompanyForm.cash) : null,
+          currentRatio: editCompanyForm.currentRatio ? Number(editCompanyForm.currentRatio) : null,
+          dscr: editCompanyForm.dscr ? Number(editCompanyForm.dscr) : null,
+          operationalKpis: editCompanyForm.operationalKpis.trim() || null,
+          documentActivity: editCompanyForm.documentActivity.trim() || null,
+          notes: editCompanyForm.notes.trim() || null,
+        }),
+      });
+      if (!resp.ok) {
+        const errData = await resp.json().catch(() => ({ error: `Server error (${resp.status})` }));
+        throw new Error(errData.error || "Failed to update company");
+      }
+      setIsEditCompanyOpen(false);
+      loadPortfolioData();
+    } catch (err: any) {
+      setEditCompanyError(err.message || "Failed to update portfolio company");
+    } finally {
+      setIsEditSaving(false);
+    }
+  };
 
   const handleAddCompany = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -181,6 +277,11 @@ export function PortCoMonitorPage() {
           ebitda: companyForm.ebitda ? Number(companyForm.ebitda) : undefined,
           debt: companyForm.debt ? Number(companyForm.debt) : undefined,
           headcount: companyForm.headcount ? Number(companyForm.headcount) : undefined,
+          cash: companyForm.cash ? Number(companyForm.cash) : undefined,
+          currentRatio: companyForm.currentRatio ? Number(companyForm.currentRatio) : undefined,
+          dscr: companyForm.dscr ? Number(companyForm.dscr) : undefined,
+          operationalKpis: companyForm.operationalKpis.trim() || undefined,
+          documentActivity: companyForm.documentActivity.trim() || undefined,
           notes: companyForm.notes.trim() || undefined,
         }),
       });
@@ -189,7 +290,11 @@ export function PortCoMonitorPage() {
         throw new Error(errData.error || "Failed to create company");
       }
 
-      setCompanyForm({ companyName: "", industry: "", location: "", status: "Active", revenue: "", ebitda: "", debt: "", headcount: "", notes: "" });
+      setCompanyForm({
+        companyName: "", industry: "", location: "", status: "Active",
+        revenue: "", ebitda: "", debt: "", headcount: "", notes: "",
+        cash: "", currentRatio: "", dscr: "", operationalKpis: "", documentActivity: ""
+      });
       setIsAddCompanyOpen(false);
       loadPortfolioData();
     } catch (err: any) {
@@ -208,6 +313,7 @@ export function PortCoMonitorPage() {
         setMetrics(res.metrics || []);
         setAlerts(res.alerts || []);
         setHealths(res.healths || []);
+        setCompanies(res.companies || []);
         setSummaryBriefing(res.summaryBriefing || "");
         setHealthIndex(res.healthIndex ?? 100);
         setIsLocalFallbackActive(!!res.isFallbackActive);
@@ -267,19 +373,21 @@ export function PortCoMonitorPage() {
     }
   };
 
-  // Unique portfolio companies
+  // Unique portfolio companies — merged from BOTH analytics (health records) AND CRUD-created companies
   const portfolioCompanies = useMemo(() => {
-    const map = new Map<string, { companyId: string; companyName: string }>();
+    const map = new Map<string, any>();
+    // 1. Add companies from health analytics pipeline
     healths.forEach((h) => {
       map.set(h.companyId, { companyId: h.companyId, companyName: h.companyName });
     });
-    // Add default test companies if healths are empty to preview page beautifully
-    if (map.size === 0) {
-      map.set("recClearWater123", { companyId: "recClearWater123", companyName: "Clear Water Cleaning Services Ltd" });
-      map.set("recApexLogistics456", { companyId: "recApexLogistics456", companyName: "Apex Logistics Group" });
-    }
+    // 2. Merge CRUD-created companies (Portfolio_Companies table)
+    companies.forEach((c) => {
+      if (!map.has(c.id)) {
+        map.set(c.id, { ...c, companyId: c.id });
+      }
+    });
     return Array.from(map.values());
-  }, [healths]);
+  }, [healths, companies]);
 
   // Unique sectors from metrics
   const uniqueSectors = useMemo(() => {
@@ -294,25 +402,48 @@ export function PortCoMonitorPage() {
   // Filter & Search & Sort pipeline companies
   const filteredAndSortedCompanies = useMemo(() => {
     const enriched = portfolioCompanies.map((comp) => {
+      const crudComp = companies.find((c) => c.id === comp.companyId);
+
       const health = healths.find((h) => h.companyId === comp.companyId) || {
         portfolioScore: 100,
-        riskLevel: "low",
-        trendSummary: "Stable parameters.",
+        riskLevel: "low" as const,
+        trendSummary: "New company added. Stable parameters.",
+        activeAlerts: 0,
+        updatedAt: new Date().toISOString(),
       };
 
       const compMetrics = metrics
         .filter((m) => m.companyId === comp.companyId)
         .sort((a, b) => a.reportingPeriod.localeCompare(b.reportingPeriod));
 
-      const latestMetric = compMetrics[compMetrics.length - 1] || {
-        revenue: 0,
-        ebitda: 0,
-        dscr: 0,
-        leverage: 0,
-        headcount: 0,
-        churnRate: 0,
-        recurringRevenue: 0,
-      };
+      let latestMetric = compMetrics[compMetrics.length - 1];
+      if (!latestMetric && crudComp) {
+        latestMetric = {
+          companyId: crudComp.id,
+          companyName: crudComp.companyName,
+          reportingPeriod: "New",
+          revenue: crudComp.revenue || 0,
+          ebitda: crudComp.ebitda || 0,
+          dscr: crudComp.dscr || 0,
+          leverage: crudComp.ebitda ? Number((crudComp.debt / crudComp.ebitda).toFixed(2)) : 0,
+          headcount: crudComp.headcount || 0,
+          churnRate: 0,
+          recurringRevenue: 0,
+        };
+      } else if (!latestMetric) {
+        latestMetric = {
+          companyId: comp.companyId,
+          companyName: comp.companyName,
+          reportingPeriod: "",
+          revenue: 0,
+          ebitda: 0,
+          dscr: 0,
+          leverage: 0,
+          headcount: 0,
+          churnRate: 0,
+          recurringRevenue: 0,
+        };
+      }
 
       const sector = latestMetric.recurringRevenue ? "SaaS" : "Services";
 
@@ -322,6 +453,7 @@ export function PortCoMonitorPage() {
         compMetrics,
         latestMetric,
         sector,
+        crud: crudComp,
       };
     });
 
@@ -661,8 +793,8 @@ export function PortCoMonitorPage() {
                 const isExpanded = !!expandedCards[comp.companyId];
                 const health = comp.health;
                 const latestMetric = comp.latestMetric;
-                const revenues = comp.compMetrics.map((m) => m.revenue);
-                const dscrs = comp.compMetrics.map((m) => m.dscr);
+                const revenues = comp.compMetrics.map((m: any) => m.revenue);
+                const dscrs = comp.compMetrics.map((m: any) => m.dscr);
 
                 return (
                   <div
@@ -693,14 +825,21 @@ export function PortCoMonitorPage() {
                             <span className="text-white/10 select-none">|</span>
                             <span className="flex items-center gap-1">
                               <MapPin className="h-3 w-3 text-slate-500" />
-                              United Kingdom
+                              {comp.crud?.location || comp.location || "United Kingdom"}
                             </span>
                             <span className="text-white/10 select-none">|</span>
                             <span>Reporting Period: {latestMetric.reportingPeriod || "N/A"}</span>
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-3 select-none">
+                          <button
+                            type="button"
+                            onClick={() => openEditCompany(comp)}
+                            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl border border-white/[0.04] bg-white/[0.015] hover:bg-white/[0.03] text-[10px] font-extrabold uppercase tracking-wider text-slate-400 hover:text-white transition cursor-pointer"
+                          >
+                            Edit Company
+                          </button>
                           <span
                             className={cx(
                               "inline-flex items-center rounded-full border px-3 py-0.5 text-[9px] font-black uppercase tracking-wider select-none",
@@ -806,6 +945,59 @@ export function PortCoMonitorPage() {
                             </p>
                             <p className="text-[10px] text-slate-550 font-semibold uppercase pt-1">Target: &lt; 1.5%</p>
                           </div>
+
+                          {/* Cash */}
+                          <div className="rounded-2xl border border-white/[0.02] bg-white/[0.005] p-4.5 space-y-1">
+                            <p className="text-[9px] font-extrabold uppercase tracking-widest text-slate-500">
+                              Cash Reserves
+                            </p>
+                            <p className="text-xl font-black text-white tracking-tight">
+                              £{comp.crud?.cash ? (comp.crud.cash / 1000).toFixed(0) + "k" : "—"}
+                            </p>
+                            <p className="text-[10px] text-slate-550 font-semibold uppercase pt-1">Available Liquidity</p>
+                          </div>
+
+                          {/* Current Ratio */}
+                          <div className="rounded-2xl border border-white/[0.02] bg-white/[0.005] p-4.5 space-y-1">
+                            <p className="text-[9px] font-extrabold uppercase tracking-widest text-slate-500">
+                              Current Ratio
+                            </p>
+                            <p className="text-xl font-black text-white tracking-tight">
+                              {comp.crud?.currentRatio ? comp.crud.currentRatio.toFixed(2) + "x" : "—"}
+                            </p>
+                            <p className="text-[10px] text-slate-550 font-semibold uppercase pt-1">Target: &gt; 1.5x</p>
+                          </div>
+
+                          {/* DSCR (Crud) */}
+                          <div className="rounded-2xl border border-white/[0.02] bg-white/[0.005] p-4.5 space-y-1">
+                            <p className="text-[9px] font-extrabold uppercase tracking-widest text-slate-500">
+                              DSCR (Database)
+                            </p>
+                            <p className="text-xl font-black text-white tracking-tight">
+                              {comp.crud?.dscr ? comp.crud.dscr.toFixed(2) + "x" : "—"}
+                            </p>
+                            <p className="text-[10px] text-slate-550 font-semibold uppercase pt-1">Target: &gt; 1.25x</p>
+                          </div>
+
+                          {/* Operational KPI Inputs */}
+                          <div className="md:col-span-3 rounded-2xl border border-white/[0.02] bg-white/[0.005] p-4.5 space-y-1">
+                            <p className="text-[9px] font-extrabold uppercase tracking-widest text-[#C6A66B]">
+                              Operational KPI Inputs
+                            </p>
+                            <p className="text-xs text-slate-300 font-semibold leading-relaxed whitespace-pre-wrap mt-1">
+                              {comp.crud?.operationalKpis || "No operational KPIs entered."}
+                            </p>
+                          </div>
+
+                          {/* Document Activity Inputs */}
+                          <div className="md:col-span-3 rounded-2xl border border-white/[0.02] bg-white/[0.005] p-4.5 space-y-1">
+                            <p className="text-[9px] font-extrabold uppercase tracking-widest text-[#C6A66B]">
+                              Document Activity Inputs
+                            </p>
+                            <p className="text-xs text-slate-300 font-semibold leading-relaxed whitespace-pre-wrap mt-1">
+                              {comp.crud?.documentActivity || "No document activity inputs."}
+                            </p>
+                          </div>
                         </div>
                       )}
 
@@ -863,8 +1055,8 @@ export function PortCoMonitorPage() {
       )}
 
       {/* Add Portfolio Company Modal */}
-      <Modal isOpen={isAddCompanyOpen} onClose={() => setIsAddCompanyOpen(false)} title="Add Portfolio Company" maxWidth="max-w-xl">
-        <form onSubmit={handleAddCompany} className="space-y-4 font-sans">
+      <Modal isOpen={isAddCompanyOpen} onClose={() => setIsAddCompanyOpen(false)} title="Add Portfolio Company" maxWidth="max-w-2xl">
+        <form onSubmit={handleAddCompany} className="space-y-4 font-sans max-h-[75vh] overflow-y-auto pr-1">
           {companyError && (
             <div className="rounded-lg border border-rose-500/20 bg-rose-500/5 p-3 text-xs font-semibold text-rose-400 flex items-center gap-2">
               <AlertTriangle className="h-3.5 w-3.5 shrink-0" />{companyError}
@@ -909,14 +1101,112 @@ export function PortCoMonitorPage() {
                 <input id="pc-headcount" type="number" step="1" value={companyForm.headcount} onChange={e => setCompanyForm(f => ({...f, headcount: e.target.value}))} className={inputClass} />
               </FormField>
             </div>
+            <div className="grid grid-cols-3 gap-3">
+              <FormField label="Cash" id="pc-cash">
+                <input id="pc-cash" type="number" step="any" value={companyForm.cash} onChange={e => setCompanyForm(f => ({...f, cash: e.target.value}))} className={inputClass} />
+              </FormField>
+              <FormField label="Current Ratio" id="pc-currentRatio">
+                <input id="pc-currentRatio" type="number" step="any" value={companyForm.currentRatio} onChange={e => setCompanyForm(f => ({...f, currentRatio: e.target.value}))} className={inputClass} />
+              </FormField>
+              <FormField label="DSCR" id="pc-dscr">
+                <input id="pc-dscr" type="number" step="any" value={companyForm.dscr} onChange={e => setCompanyForm(f => ({...f, dscr: e.target.value}))} className={inputClass} />
+              </FormField>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <FormField label="Operational KPI Inputs" id="pc-operationalKpis">
+              <textarea id="pc-operationalKpis" value={companyForm.operationalKpis} onChange={e => setCompanyForm(f => ({...f, operationalKpis: e.target.value}))} rows={2} placeholder="e.g. Sales conversion 15%, customer retention 92%..." className={textareaClass} />
+            </FormField>
+            <FormField label="Document Activity Inputs" id="pc-documentActivity">
+              <textarea id="pc-documentActivity" value={companyForm.documentActivity} onChange={e => setCompanyForm(f => ({...f, documentActivity: e.target.value}))} rows={2} placeholder="e.g. Financial model uploaded 12/06..." className={textareaClass} />
+            </FormField>
           </div>
           <FormField label="Notes" id="pc-notes">
             <textarea id="pc-notes" value={companyForm.notes} onChange={e => setCompanyForm(f => ({...f, notes: e.target.value}))} rows={2} placeholder="Internal notes..." className={textareaClass} />
           </FormField>
           <div className="flex justify-end gap-2.5 pt-1">
-            <button type="button" onClick={() => setIsAddCompanyOpen(false)} className="h-9 px-4 rounded-xl border border-white/[0.02] text-slate-400 text-xs font-bold uppercase tracking-wider hover:bg-white/[0.015] transition cursor-pointer">Cancel</button>
+            <button type="button" onClick={() => setIsAddCompanyOpen(false)} className="h-9 px-4 rounded-xl border border-white/[0.02] text-slate-405 text-xs font-bold uppercase tracking-wider hover:bg-white/[0.015] transition cursor-pointer">Cancel</button>
             <button type="submit" disabled={isCompanySaving} className="h-9 px-5 rounded-xl bg-gradient-to-r from-[#C6A66B] to-[#B8924F] text-slate-950 text-xs font-bold uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none hover:shadow-glow-bronze transition cursor-pointer">
               {isCompanySaving ? "Adding..." : "Add Company"}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Edit Portfolio Company Modal */}
+      <Modal isOpen={isEditCompanyOpen} onClose={() => setIsEditCompanyOpen(false)} title="Edit Portfolio Company" maxWidth="max-w-2xl">
+        <form onSubmit={handleEditCompanySubmit} className="space-y-4 font-sans max-h-[75vh] overflow-y-auto pr-1">
+          {editCompanyError && (
+            <div className="rounded-lg border border-rose-500/20 bg-rose-500/5 p-3 text-xs font-semibold text-rose-450 flex items-center gap-2">
+              <AlertTriangle className="h-3.5 w-3.5 shrink-0" />{editCompanyError}
+            </div>
+          )}
+          <div className="space-y-3">
+            <p className="text-[9px] font-extrabold uppercase tracking-widest text-slate-500">Company Information</p>
+            <div className="grid grid-cols-2 gap-3">
+              <FormField label="Company Name" id="edit-pc-name" required>
+                <input id="edit-pc-name" type="text" required value={editCompanyForm.companyName} onChange={e => setEditCompanyForm(f => ({...f, companyName: e.target.value}))} className={inputClass} />
+              </FormField>
+              <FormField label="Industry" id="edit-pc-industry" required>
+                <input id="edit-pc-industry" type="text" required value={editCompanyForm.industry} onChange={e => setEditCompanyForm(f => ({...f, industry: e.target.value}))} className={inputClass} />
+              </FormField>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <FormField label="Location" id="edit-pc-location" required>
+                <input id="edit-pc-location" type="text" required value={editCompanyForm.location} onChange={e => setEditCompanyForm(f => ({...f, location: e.target.value}))} className={inputClass} />
+              </FormField>
+              <FormField label="Status" id="edit-pc-status">
+                <select id="edit-pc-status" value={editCompanyForm.status} onChange={e => setEditCompanyForm(f => ({...f, status: e.target.value}))} className={selectClass}>
+                  <option value="Active">Active</option>
+                  <option value="In Transition">In Transition</option>
+                  <option value="Exited">Exited</option>
+                </select>
+              </FormField>
+            </div>
+          </div>
+          <div className="space-y-3">
+            <p className="text-[9px] font-extrabold uppercase tracking-widest text-slate-500">Financials (£)</p>
+            <div className="grid grid-cols-4 gap-3">
+              <FormField label="Revenue" id="edit-pc-revenue">
+                <input id="edit-pc-revenue" type="number" step="any" value={editCompanyForm.revenue} onChange={e => setEditCompanyForm(f => ({...f, revenue: e.target.value}))} className={inputClass} />
+              </FormField>
+              <FormField label="EBITDA" id="edit-pc-ebitda">
+                <input id="edit-pc-ebitda" type="number" step="any" value={editCompanyForm.ebitda} onChange={e => setEditCompanyForm(f => ({...f, ebitda: e.target.value}))} className={inputClass} />
+              </FormField>
+              <FormField label="Debt" id="edit-pc-debt">
+                <input id="edit-pc-debt" type="number" step="any" value={editCompanyForm.debt} onChange={e => setEditCompanyForm(f => ({...f, debt: e.target.value}))} className={inputClass} />
+              </FormField>
+              <FormField label="Headcount" id="edit-pc-headcount">
+                <input id="edit-pc-headcount" type="number" step="1" value={editCompanyForm.headcount} onChange={e => setEditCompanyForm(f => ({...f, headcount: e.target.value}))} className={inputClass} />
+              </FormField>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <FormField label="Cash" id="edit-pc-cash">
+                <input id="edit-pc-cash" type="number" step="any" value={editCompanyForm.cash} onChange={e => setEditCompanyForm(f => ({...f, cash: e.target.value}))} className={inputClass} />
+              </FormField>
+              <FormField label="Current Ratio" id="edit-pc-currentRatio">
+                <input id="edit-pc-currentRatio" type="number" step="any" value={editCompanyForm.currentRatio} onChange={e => setEditCompanyForm(f => ({...f, currentRatio: e.target.value}))} className={inputClass} />
+              </FormField>
+              <FormField label="DSCR" id="edit-pc-dscr">
+                <input id="edit-pc-dscr" type="number" step="any" value={editCompanyForm.dscr} onChange={e => setEditCompanyForm(f => ({...f, dscr: e.target.value}))} className={inputClass} />
+              </FormField>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <FormField label="Operational KPI Inputs" id="edit-pc-operationalKpis">
+              <textarea id="edit-pc-operationalKpis" value={editCompanyForm.operationalKpis} onChange={e => setEditCompanyForm(f => ({...f, operationalKpis: e.target.value}))} rows={2} className={textareaClass} />
+            </FormField>
+            <FormField label="Document Activity Inputs" id="edit-pc-documentActivity">
+              <textarea id="edit-pc-documentActivity" value={editCompanyForm.documentActivity} onChange={e => setEditCompanyForm(f => ({...f, documentActivity: e.target.value}))} rows={2} className={textareaClass} />
+            </FormField>
+          </div>
+          <FormField label="Notes" id="edit-pc-notes">
+            <textarea id="edit-pc-notes" value={editCompanyForm.notes} onChange={e => setEditCompanyForm(f => ({...f, notes: e.target.value}))} rows={2} className={textareaClass} />
+          </FormField>
+          <div className="flex justify-end gap-2.5 pt-1">
+            <button type="button" onClick={() => setIsEditCompanyOpen(false)} className="h-9 px-4 rounded-xl border border-white/[0.02] text-slate-405 text-xs font-bold uppercase tracking-wider hover:bg-white/[0.015] transition cursor-pointer">Cancel</button>
+            <button type="submit" disabled={isEditSaving} className="h-9 px-5 rounded-xl bg-gradient-to-r from-[#C6A66B] to-[#B8924F] text-slate-950 text-xs font-bold uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none hover:shadow-glow-bronze transition cursor-pointer">
+              {isEditSaving ? "Saving..." : "Save Changes"}
             </button>
           </div>
         </form>

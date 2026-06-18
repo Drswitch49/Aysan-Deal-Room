@@ -756,12 +756,13 @@ export async function fetchLenderPasscode(lenderRecordId: string): Promise<strin
 }
 
 export async function sendLoiWebhook(data: {
-  recipient_email: string;
-  recipient_name: string;
-  deal_name: string;
+  lenderName: string;
+  lenderEmail: string;
+  companyName: string;
+  dealId: string;
   subject: string;
   body: string;
-  deal_id: string;
+  type: "loi";
 }) {
   const response = await fetch("/api/admin/action", {
     method: "POST",
@@ -779,12 +780,13 @@ export async function sendLoiWebhook(data: {
 }
 
 export async function sendEmailWebhook(data: {
-  recipient_email: string;
-  recipient_name: string;
-  deal_name: string;
+  lenderName: string;
+  lenderEmail: string;
+  companyName: string;
+  dealId: string;
   subject: string;
   body: string;
-  deal_id: string;
+  type: "post_meeting_email";
 }) {
   const response = await fetch("/api/admin/action", {
     method: "POST",

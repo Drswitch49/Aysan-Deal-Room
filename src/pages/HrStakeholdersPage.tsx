@@ -58,6 +58,9 @@ export function HrStakeholdersPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [modalError, setModalError] = useState<{ title: string; message: string } | null>(null);
 
+  // Credentials display modal state
+  const [createdCredentials, setCreatedCredentials] = useState<{ name: string; email: string; pass: string; type: string } | null>(null);
+
   // Add Team Member modal states
   const [isAddTeamMemberOpen, setIsAddTeamMemberOpen] = useState(false);
   const [teamForm, setTeamForm] = useState({ name: "", email: "", phone: "", role: "Analyst" as string, status: "Active" as string });
@@ -75,6 +78,13 @@ export function HrStakeholdersPage() {
         body: JSON.stringify(teamForm),
       });
       if (!res.ok) { const err = await res.json().catch(() => ({ error: `Server error (${res.status})` })); throw new Error(err.error || "Failed to add team member"); }
+      const data = await res.json();
+      setCreatedCredentials({
+        name: teamForm.name,
+        email: teamForm.email,
+        pass: data.tempPassword || "",
+        type: "Team Member"
+      });
       setTeamForm({ name: "", email: "", phone: "", role: "Analyst", status: "Active" });
       setIsAddTeamMemberOpen(false);
       loadData();
@@ -98,6 +108,13 @@ export function HrStakeholdersPage() {
         body: JSON.stringify(stakeholderForm),
       });
       if (!res.ok) { const err = await res.json().catch(() => ({ error: `Server error (${res.status})` })); throw new Error(err.error || "Failed to add stakeholder"); }
+      const data = await res.json();
+      setCreatedCredentials({
+        name: stakeholderForm.name,
+        email: stakeholderForm.email || "N/A",
+        pass: data.tempPassword || "",
+        type: "External Stakeholder"
+      });
       setStakeholderForm({ name: "", type: "Advisor", email: "", phone: "", organization: "", notes: "" });
       setIsAddStakeholderOpen(false);
       loadData();
@@ -617,6 +634,79 @@ export function HrStakeholdersPage() {
             </button>
           </div>
         </form>
+      </Modal>
+
+      {/* Credentials Display Modal */}
+      <Modal
+        isOpen={createdCredentials !== null}
+        onClose={() => setCreatedCredentials(null)}
+        title="Credentials Generated"
+      >
+        {createdCredentials && (
+          <div className="space-y-4 font-sans text-slate-200">
+            <div className="rounded-lg bg-[#C6A66B]/10 border border-[#C6A66B]/20 p-3 text-xs text-white">
+              Temporary credentials have been generated for {createdCredentials.name} ({createdCredentials.type}).
+            </div>
+            
+            <div className="space-y-2">
+              <div>
+                <label className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-500 mb-1">
+                  Name
+                </label>
+                <div className="w-full h-9 rounded-xl border border-white/[0.02] bg-[#161B22] px-3 flex items-center text-xs text-white">
+                  {createdCredentials.name}
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-500 mb-1">
+                  Email / Username
+                </label>
+                <div className="w-full h-9 rounded-xl border border-white/[0.02] bg-[#161B22] px-3 flex items-center text-xs text-white">
+                  {createdCredentials.email}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-500 mb-1">
+                  Temporary Password
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    readOnly
+                    value={createdCredentials.pass}
+                    className="flex-1 h-9 rounded-xl border border-white/[0.02] bg-[#161B22] px-3 text-xs text-white outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(createdCredentials.pass);
+                      alert("Password copied to clipboard!");
+                    }}
+                    className="h-9 px-3 rounded-xl bg-white/[0.015] border border-white/[0.02] hover:bg-white/[0.03] text-xs font-bold text-slate-350 transition cursor-pointer"
+                  >
+                    Copy
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-3 text-[10px] leading-relaxed text-amber-205">
+              <span className="font-bold text-amber-400">Warning:</span> This temporary password is only shown once and cannot be recovered. Ensure you have copied it before closing this window.
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <button
+                type="button"
+                onClick={() => setCreatedCredentials(null)}
+                className="h-9 px-5 rounded-xl bg-[#C6A66B] hover:bg-[#B8924F] text-slate-950 text-xs font-black uppercase tracking-wider transition cursor-pointer"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );

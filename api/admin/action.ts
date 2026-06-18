@@ -856,20 +856,19 @@ export default async function handler(req: any, res: any) {
       }
 
       case "send-loi": {
-        const { recipient_email, recipient_name, deal_name, subject, body, deal_id } = req.body;
-        if (!recipient_email || !recipient_name || !deal_name || !subject || !body || !deal_id) {
-          return res.status(400).json({ error: "All fields are required (recipient_email, recipient_name, deal_name, subject, body, deal_id)" });
+        const { lenderName, lenderEmail, companyName, dealId, subject, body } = req.body;
+        if (!lenderEmail || !lenderName || !dealId || !subject || !body) {
+          return res.status(400).json({ error: "All fields are required (lenderEmail, lenderName, dealId, subject, body)" });
         }
 
         const payload = {
-          recipient_email: String(recipient_email),
-          recipient_name: String(recipient_name),
-          deal_name: String(deal_name),
+          lenderName: String(lenderName),
+          lenderEmail: String(lenderEmail),
+          companyName: String(companyName || ""),
+          dealId: String(dealId),
           subject: String(subject),
           body: String(body),
-          generated_by: "precall_brief_engine",
-          deal_id: String(deal_id),
-          timestamp: new Date().toISOString()
+          type: "loi"
         };
 
         const webhookUrl = process.env.MAKE_WEBHOOK_URL || process.env.VITE_MAKE_WEBHOOK_URL;
@@ -911,28 +910,27 @@ export default async function handler(req: any, res: any) {
           "SEND_LOI",
           req.user.email,
           req.user.role,
-          deal_id,
-          `Sent LOI to ${recipient_name} (${recipient_email}) for deal: ${deal_name}`
+          dealId,
+          `Sent LOI to ${lenderName} (${lenderEmail}) for deal: ${dealId}`
         );
 
         return res.status(200).json({ success: true, message: "LOI sent successfully." });
       }
 
       case "send-email": {
-        const { recipient_email, recipient_name, deal_name, subject, body, deal_id } = req.body;
-        if (!recipient_email || !recipient_name || !deal_name || !subject || !body || !deal_id) {
-          return res.status(400).json({ error: "All fields are required (recipient_email, recipient_name, deal_name, subject, body, deal_id)" });
+        const { lenderName, lenderEmail, companyName, dealId, subject, body } = req.body;
+        if (!lenderEmail || !lenderName || !dealId || !subject || !body) {
+          return res.status(400).json({ error: "All fields are required (lenderEmail, lenderName, dealId, subject, body)" });
         }
 
         const payload = {
-          recipient_email: String(recipient_email),
-          recipient_name: String(recipient_name),
-          deal_name: String(deal_name),
+          lenderName: String(lenderName),
+          lenderEmail: String(lenderEmail),
+          companyName: String(companyName || ""),
+          dealId: String(dealId),
           subject: String(subject),
           body: String(body),
-          generated_by: "postcall_analysis_engine",
-          deal_id: String(deal_id),
-          timestamp: new Date().toISOString()
+          type: "post_meeting_email"
         };
 
         const webhookUrl = process.env.MAKE_WEBHOOK_URL || process.env.VITE_MAKE_WEBHOOK_URL;
@@ -974,11 +972,11 @@ export default async function handler(req: any, res: any) {
           "SEND_EMAIL",
           req.user.email,
           req.user.role,
-          deal_id,
-          `Sent follow-up email to ${recipient_name} (${recipient_email}) for deal: ${deal_name}`
+          dealId,
+          `Sent follow-up email to ${lenderName} (${lenderEmail}) for deal: ${dealId}`
         );
 
-        return res.status(200).json({ success: true, message: "Follow-up email sent successfully." });
+        return res.status(200).json({ success: true, message: "Email sent successfully." });
       }
 
 

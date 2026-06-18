@@ -1,5 +1,5 @@
 import path from "path";
-import { airtableCreate } from "../_utils/airtable.js";
+import { airtableCreate, getTableSchema } from "../_utils/airtable.js";
 import { TABLES } from "../../src/lib/airtable/schema.js";
 import { authenticateAdmin } from "../admin/lenders.js";
 
@@ -101,16 +101,57 @@ export default async function handler(req: any, res: any) {
     const directDownloadUrl = pageUrl.replace("https://tmpfiles.org/", "https://tmpfiles.org/dl/");
 
     // 5. Formulate Airtable record fields
-    // Note: Drive_Link maps via schema helper as string URL or Attachment list dynamically.
+    // Resolve single select choices dynamically to prevent "Insufficient permission to create new select option"
+    let resolvedCategory = category;
+    let resolvedStatus = status || "Outstanding";
+    let resolvedSource = "Upload Portal";
+
+    const documentTable = TABLES.DOCUMENTS || "Documents";
+    const schema = await getTableSchema(documentTable);
+    if (schema && schema.fields) {
+      const catField = schema.fields.find((f: any) => f.name === "Category");
+      if (catField && catField.options?.choices) {
+        const choices = catField.options.choices.map((c: any) => c.name);
+        const match = choices.find((c: any) => c.toLowerCase() === category.toLowerCase());
+        if (match) {
+          resolvedCategory = match;
+        } else if (choices.length > 0) {
+          resolvedCategory = choices[0];
+        }
+      }
+
+      const statusField = schema.fields.find((f: any) => f.name === "Status");
+      if (statusField && statusField.options?.choices) {
+        const choices = statusField.options.choices.map((c: any) => c.name);
+        const match = choices.find((c: any) => c.toLowerCase() === (status || "Outstanding").toLowerCase());
+        if (match) {
+          resolvedStatus = match;
+        } else if (choices.length > 0) {
+          resolvedStatus = choices[0];
+        }
+      }
+
+      const sourceField = schema.fields.find((f: any) => f.name === "Source");
+      if (sourceField && sourceField.options?.choices) {
+        const choices = sourceField.options.choices.map((c: any) => c.name);
+        const match = choices.find((c: any) => c.toLowerCase() === "upload portal");
+        if (match) {
+          resolvedSource = match;
+        } else if (choices.length > 0) {
+          resolvedSource = choices[0];
+        }
+      }
+    }
+
     const fields: Record<string, any> = {
       "Document_Name": documentName,
-      "Category": category,
-      "Status": status || "Outstanding",
-      "Drive_Link": directDownloadUrl, // Resolved dynamically via schema mapping
+      "Category": resolvedCategory,
+      "Status": resolvedStatus,
+      "Drive_Link": directDownloadUrl,
       "Deal_Ref": [dealId],
       "ABL_Critical": !!ablCritical,
       "Date_Received": new Date().toISOString().split("T")[0],
-      "Source": "Upload Portal"
+      "Source": resolvedSource
     };
 
     if (expectedDate) {
@@ -121,7 +162,6 @@ export default async function handler(req: any, res: any) {
     }
 
     // 6. Create in Airtable
-    const documentTable = TABLES.DOCUMENTS || "Documents";
     const createdRecord = await airtableCreate(documentTable, fields);
 
     // Resolve returned link (could be string or attachment list structure)

@@ -5,11 +5,15 @@
  * PATCH /api/portfolio-companies-crud?id=X - Update company
  */
 import { airtableCreate, airtableUpdate, airtableFetch, airtableFetchRecord } from "./_utils/airtable.js";
+import { authenticateAdmin } from "./admin/lenders_auth_helper.js";
 
 const TABLE = "Portfolio_Companies";
 
 export default async function handler(req: any, res: any) {
   try {
+    // Enforce Admin Authentication
+    await authenticateAdmin(req);
+
     if (req.method === "GET") {
       const { id, status } = req.query;
       if (id) {
@@ -25,7 +29,10 @@ export default async function handler(req: any, res: any) {
     }
 
     if (req.method === "POST") {
-      const { companyName, industry, location, status, revenue, ebitda, debt, headcount, notes } = req.body;
+      const {
+        companyName, industry, location, status, revenue, ebitda, debt, headcount, notes,
+        cash, currentRatio, dscr, operationalKpis, documentActivity
+      } = req.body;
       if (!companyName || !industry || !location) {
         return res.status(400).json({ error: "Missing required fields: companyName, industry, location" });
       }
@@ -40,6 +47,11 @@ export default async function handler(req: any, res: any) {
       if (debt) fields["Debt"] = Number(debt);
       if (headcount) fields["Headcount"] = Number(headcount);
       if (notes) fields["Notes"] = notes;
+      if (cash) fields["Cash"] = Number(cash);
+      if (currentRatio) fields["Current_Ratio"] = Number(currentRatio);
+      if (dscr) fields["DSCR"] = Number(dscr);
+      if (operationalKpis) fields["Operational_KPI_Inputs"] = operationalKpis;
+      if (documentActivity) fields["Document_Activity_Inputs"] = documentActivity;
 
       const record = await airtableCreate(TABLE, fields);
       return res.status(201).json(record);
@@ -59,6 +71,11 @@ export default async function handler(req: any, res: any) {
       if (body.debt !== undefined) fields["Debt"] = Number(body.debt);
       if (body.headcount !== undefined) fields["Headcount"] = Number(body.headcount);
       if (body.notes !== undefined) fields["Notes"] = body.notes;
+      if (body.cash !== undefined) fields["Cash"] = Number(body.cash);
+      if (body.currentRatio !== undefined) fields["Current_Ratio"] = Number(body.currentRatio);
+      if (body.dscr !== undefined) fields["DSCR"] = Number(body.dscr);
+      if (body.operationalKpis !== undefined) fields["Operational_KPI_Inputs"] = body.operationalKpis;
+      if (body.documentActivity !== undefined) fields["Document_Activity_Inputs"] = body.documentActivity;
 
       const record = await airtableUpdate(TABLE, id, fields);
       return res.status(200).json(record);

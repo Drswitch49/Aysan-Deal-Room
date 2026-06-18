@@ -261,8 +261,8 @@ export interface TransitionResult {
   success: true;
   dealId: string;
   dealRef: string;
-  fromStage: DealStage;
-  toStage: DealStage;
+  fromStage: string;
+  toStage: string;
   auditId: string;
   changedBy: string;
   timestamp: string;
@@ -275,7 +275,7 @@ export interface TransitionResult {
 
 export async function moveDealToStage(
   dealId: string,
-  toStage: DealStage,
+  toStage: string,
   options: TransitionOptions
 ): Promise<TransitionResult> {
   const { changedBy, role, notes = "" } = options;
@@ -288,33 +288,52 @@ export async function moveDealToStage(
   }
 
   const fields = dealRecord.fields as Record<string, any>;
-  const rawStage = fields["Stage"] || fields["Status"] || fields["Deal_Status"] || "";
+  const rawStage = fields["Stage"] || fields["Status"] || fields["Deal_Status"] || "Intro";
   const dealRef = String(
     fields["REF No."] || fields["ACP REF NO"] || fields["Deal_Ref"] || fields["Deal Name"] || dealId
   );
   const companyName = String(fields["Deal Name"] || fields["Company_Name"] || fields["Company Name"] || "");
 
-  const fromStage = normalizeStage(rawStage);
+  const fromStage = rawStage;
 
   // ── 2. Self-transition guard ───────────────────────────────────────────────
-  if (fromStage === toStage) {
+  if (String(fromStage).toLowerCase() === String(toStage).toLowerCase()) {
     throw Object.assign(
-      new Error(`Deal is already in stage: ${STAGE_CONFIG[toStage].label}`),
+      new Error(`Deal is already in stage: ${toStage}`),
       { status: 400 }
     );
   }
 
   // ── 3. Validate transition + permissions ──────────────────────────────────
-  const validation = validateTransition(fromStage, toStage, role);
-  if (!validation.valid) {
-    throw Object.assign(new Error(validation.reason!), { status: 422 });
+  const FALLBACK_STAGES = [
+    "Intro",
+    "NDA Signed",
+    "Information Requested",
+    "LOI Drafted",
+    "LOI Submitted",
+    "Killed",
+    "Due Diligence",
+    "IC Decision",
+    "IM Review",
+    "Seller Call",
+    "Offer Submitted"
+  ];
+  
+  const exactToStage = FALLBACK_STAGES.find(s => s.toLowerCase() === toStage.toLowerCase()) || toStage;
+  const isValidTarget = FALLBACK_STAGES.map(s => s.toLowerCase()).includes(toStage.toLowerCase());
+
+  if (!isValidTarget) {
+    throw Object.assign(
+      new Error(`Invalid stage target: ${toStage}. Valid stages are: ${FALLBACK_STAGES.join(", ")}`),
+      { status: 422 }
+    );
   }
 
   // ── 4. Update Active_Pipeline record ─────────────────────────────────────
   await airtableUpdate(TABLES.PIPELINE, dealId, {
-    Stage: stageToAirtableValue(toStage),
+    Stage: exactToStage,
     Stage_Updated_At: timestamp,
-    Workflow_Stage: toStage, // Canonical machine-readable field
+    Workflow_Stage: exactToStage.toUpperCase().replace(/[^A-Z0-9]/g, "_"),
   });
 
   // ── 5. Create immutable audit record in Deal_Stage_History ────────────────
@@ -325,9 +344,9 @@ export async function moveDealToStage(
       Deal_Ref: dealRef,
       Company_Name: companyName,
       From_Stage: fromStage,
-      To_Stage: toStage,
-      From_Stage_Label: STAGE_CONFIG[fromStage].label,
-      To_Stage_Label: STAGE_CONFIG[toStage].label,
+      To_Stage: exactToStage,
+      From_Stage_Label: fromStage,
+      To_Stage_Label: exactToStage,
       Changed_By: changedBy,
       Changed_By_Role: role,
       Changed_At: timestamp,
@@ -341,26 +360,30 @@ export async function moveDealToStage(
       `[Deal Lifecycle] Deal_Stage_History table not found — audit record skipped: ${err.message}`
     );
     console.warn(
-      `[Deal Lifecycle] Transition logged: ${dealRef} ${fromStage} → ${toStage} by ${changedBy} at ${timestamp}`
+      `[Deal Lifecycle] Transition logged: ${dealRef} ${fromStage} → ${exactToStage} by ${changedBy} at ${timestamp}`
     );
   }
 
   // ── 6. Emit deal/stage_changed event for Inngest workflows ────────────────
-  await emitEvent("deal/stage_changed", {
-    dealId,
-    dealRef,
-    companyName,
-    fromStage,
-    toStage,
-    changedBy,
-    changedByRole: role,
-    auditId,
-    notes,
-    timestamp,
-  });
+  try {
+    await emitEvent("deal/stage_changed", {
+      dealId,
+      dealRef,
+      companyName,
+      fromStage,
+      toStage: exactToStage,
+      changedBy,
+      changedByRole: role,
+      auditId,
+      notes,
+      timestamp,
+    });
+  } catch (emitErr: any) {
+    console.warn(`[Deal Lifecycle] Inngest emit failed: ${emitErr.message}`);
+  }
 
   console.log(
-    `[Deal Lifecycle] ✓ ${dealRef} | ${STAGE_CONFIG[fromStage].label} → ${STAGE_CONFIG[toStage].label} | by ${changedBy} (${role})`
+    `[Deal Lifecycle] ✓ ${dealRef} | ${fromStage} → ${exactToStage} | by ${changedBy} (${role})`
   );
 
   return {
@@ -368,7 +391,7 @@ export async function moveDealToStage(
     dealId,
     dealRef,
     fromStage,
-    toStage,
+    toStage: exactToStage,
     auditId,
     changedBy,
     timestamp,
@@ -381,8 +404,8 @@ export interface StageHistoryEntry {
   id: string;
   dealId: string;
   dealRef: string;
-  fromStage: DealStage;
-  toStage: DealStage;
+  fromStage: string;
+  toStage: string;
   fromStageLabel: string;
   toStageLabel: string;
   changedBy: string;
@@ -404,8 +427,8 @@ export async function getDealStageHistory(dealId: string): Promise<StageHistoryE
     id: r.id,
     dealId: Array.isArray(r.fields.Deal_ID) ? r.fields.Deal_ID[0] : (r.fields.Deal_ID || dealId),
     dealRef: r.fields.Deal_Ref || "",
-    fromStage: (r.fields.From_Stage || "INTRO") as DealStage,
-    toStage: (r.fields.To_Stage || "INTRO") as DealStage,
+    fromStage: (r.fields.From_Stage || "Intro") as string,
+    toStage: (r.fields.To_Stage || "Intro") as string,
     fromStageLabel: r.fields.From_Stage_Label || r.fields.From_Stage || "",
     toStageLabel: r.fields.To_Stage_Label || r.fields.To_Stage || "",
     changedBy: r.fields.Changed_By || "System",
@@ -414,3 +437,4 @@ export async function getDealStageHistory(dealId: string): Promise<StageHistoryE
     notes: r.fields.Notes || "",
   }));
 }
+

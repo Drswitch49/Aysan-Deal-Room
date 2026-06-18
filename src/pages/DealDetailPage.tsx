@@ -84,25 +84,26 @@ function normalizeStage(raw: string | undefined): DealStage {
   );
 }
 
-const STAGE_BADGE_COLORS: Record<DealStage, string> = {
-  INTRO:         "bg-indigo-500/10 text-indigo-400 border-indigo-500/20 hover:border-indigo-550/40 hover:bg-indigo-500/20",
-  DISCOVERY:     "bg-blue-500/10 text-blue-400 border-blue-500/20 hover:border-blue-550/40 hover:bg-blue-500/20",
-  LOI:           "bg-amber-500/10 text-amber-500 border-amber-500/20 hover:border-amber-550/40 hover:bg-amber-500/20",
-  DUE_DILIGENCE: "bg-purple-500/10 text-purple-400 border-purple-500/20 hover:border-purple-550/40 hover:bg-purple-500/20",
-  CLOSING:       "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:border-emerald-550/40 hover:bg-emerald-500/20",
-  PORTFOLIO:     "bg-[#C6A66B]/10 text-[#C6A66B] border-[#C6A66B]/20 hover:border-[#C6A66B]/40 hover:bg-[#C6A66B]/20",
-  KILLED:        "bg-red-500/10 text-red-400 border-red-500/20 hover:border-red-550/40 hover:bg-red-500/20",
+const STAGE_BADGE_COLORS: Record<string, string> = {
+  "Intro": "bg-indigo-500/10 text-indigo-400 border-indigo-500/20 hover:border-indigo-550/40 hover:bg-indigo-500/20",
+  "NDA Signed": "bg-blue-500/10 text-blue-400 border-blue-500/20 hover:border-blue-550/40 hover:bg-blue-500/20",
+  "Information Requested": "bg-purple-500/10 text-purple-400 border-purple-500/20 hover:border-purple-550/40 hover:bg-purple-500/20",
+  "LOI Drafted": "bg-amber-500/10 text-amber-550 border-amber-550/20 hover:border-amber-550/40 hover:bg-[#C6A66B]/20",
+  "LOI Submitted": "bg-amber-500/10 text-amber-500 border-amber-500/20 hover:border-amber-550/40 hover:bg-amber-500/20",
+  "Killed": "bg-red-500/10 text-red-400 border-red-500/20 hover:border-red-550/40 hover:bg-red-500/20",
+  "Due Diligence": "bg-purple-500/10 text-purple-400 border-purple-500/20 hover:border-purple-550/40 hover:bg-purple-500/20",
+  "IC Decision": "bg-emerald-500/10 text-emerald-450 border-emerald-500/20 hover:border-emerald-550/40 hover:bg-emerald-500/20",
+  "IM Review": "bg-purple-500/10 text-purple-400 border-purple-500/20 hover:border-purple-550/40 hover:bg-purple-500/20",
+  "Seller Call": "bg-blue-500/10 text-blue-400 border-blue-500/20 hover:border-blue-550/40 hover:bg-blue-500/20",
+  "Offer Submitted": "bg-[#C6A66B]/10 text-[#C6A66B] border-[#C6A66B]/20 hover:border-[#C6A66B]/40 hover:bg-[#C6A66B]/20",
 };
 
-const VALID_TRANSITIONS: Record<DealStage, DealStage[]> = {
-  INTRO:         ["DISCOVERY", "KILLED"],
-  DISCOVERY:     ["INTRO", "LOI", "KILLED"],
-  LOI:           ["DISCOVERY", "DUE_DILIGENCE", "KILLED"],
-  DUE_DILIGENCE: ["LOI", "CLOSING", "KILLED"],
-  CLOSING:       ["DUE_DILIGENCE", "PORTFOLIO", "KILLED"],
-  PORTFOLIO:     [],
-  KILLED:        [],
-};
+export function getStageBadgeColor(stg: string): string {
+  const clean = (stg || "").toLowerCase();
+  const matchedKey = Object.keys(STAGE_BADGE_COLORS).find(k => k.toLowerCase() === clean);
+  return matchedKey ? STAGE_BADGE_COLORS[matchedKey] : "bg-indigo-500/10 text-indigo-400 border-indigo-500/20";
+}
+
 
 export function DealDetailPage() {
   const { ref } = useParams();
@@ -200,11 +201,47 @@ export function DealDetailPage() {
   const { refresh: refreshPipeline } = usePipeline();
 
   // Stage transition states
-  const [targetStage, setTargetStage] = useState<DealStage | null>(null);
+  const [targetStage, setTargetStage] = useState<string | null>(null);
   const [transitionNotes, setTransitionNotes] = useState("");
   const [isTransitionModalOpen, setIsTransitionModalOpen] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [transitionError, setTransitionError] = useState<string | null>(null);
+
+  const [availableStages, setAvailableStages] = useState<string[]>([
+    "Intro",
+    "NDA Signed",
+    "Information Requested",
+    "LOI Drafted",
+    "LOI Submitted",
+    "Killed",
+    "Due Diligence",
+    "IC Decision",
+    "IM Review",
+    "Seller Call",
+    "Offer Submitted"
+  ]);
+
+  useEffect(() => {
+    async function loadStages() {
+      try {
+        const res = await fetch("/api/admin/deals/stages", {
+          headers: {
+            Authorization: `Bearer ${sessionStorage.getItem("admin_token") || ""}`,
+          }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && Array.isArray(data.stages)) {
+            setAvailableStages(data.stages);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load stages:", err);
+      }
+    }
+    loadStages();
+  }, []);
+
   
   // Composer states
   const [isComposerOpen, setIsComposerOpen] = useState(false);
@@ -318,6 +355,7 @@ export function DealDetailPage() {
       setIsTransitioning(false);
     }
   };
+
 
   useEffect(() => {
     setIsLoadingInbox(true);
@@ -511,8 +549,8 @@ export function DealDetailPage() {
     );
   }
 
-  const currentStage = normalizeStage(joinedDeal.status);
-  const allowedNext = VALID_TRANSITIONS[currentStage] || [];
+  const currentStage = String(joinedDeal.rawFields?.["Stage"] || joinedDeal.status || "Intro");
+
 
   return (
     <div className="space-y-6 text-[#E2E8F0] font-sans">
@@ -598,7 +636,7 @@ export function DealDetailPage() {
             handleTriggerOsint={handleTriggerOsint}
             documents={documentState.data || []}
             currentStage={currentStage}
-            allowedNext={allowedNext}
+            availableStages={availableStages}
             setTargetStage={setTargetStage}
             setIsTransitionModalOpen={setIsTransitionModalOpen}
             setTransitionNotes={setTransitionNotes}
@@ -607,6 +645,7 @@ export function DealDetailPage() {
             openComposer={openComposer}
           />
         )}
+
         
         {activeTab === "brief" && (
           <PreCallBriefTab deal={joinedDeal} openComposer={openComposer} />
@@ -922,9 +961,10 @@ export function DealDetailPage() {
           )}
 
           <div className="text-xs text-slate-355 leading-relaxed select-none">
-            You are changing the deal stage from <span className="font-bold text-white">{STAGE_LABELS[currentStage] || currentStage}</span> to <span className="font-bold text-[#C6A66B]">{targetStage ? STAGE_LABELS[targetStage] : ""}</span>.
+            You are changing the deal stage from <span className="font-bold text-white">{currentStage}</span> to <span className="font-bold text-[#C6A66B]">{targetStage || ""}</span>.
             This action will record an entry in the immutable audit trail and trigger downstream workflows.
           </div>
+
 
           <FormField label="Reason / Notes for this transition" id="transition-notes">
             <textarea
@@ -1055,6 +1095,7 @@ export function DealDetailPage() {
         defaultSubject={composerDefaultSubject}
         defaultBody={composerDefaultBody}
         generatedBy={composerGeneratedBy}
+        allLenders={allLenders}
       />
     </div>
   );
@@ -1171,7 +1212,7 @@ function OverviewTab({
   handleTriggerOsint,
   documents = [],
   currentStage,
-  allowedNext,
+  availableStages,
   setTargetStage,
   setIsTransitionModalOpen,
   setTransitionNotes,
@@ -1189,15 +1230,16 @@ function OverviewTab({
   osintTriggerError?: string | null;
   handleTriggerOsint?: () => Promise<void>;
   documents?: any[];
-  currentStage: DealStage;
-  allowedNext: DealStage[];
-  setTargetStage: (stage: DealStage | null) => void;
+  currentStage: string;
+  availableStages: string[];
+  setTargetStage: (stage: string | null) => void;
   setIsTransitionModalOpen: (open: boolean) => void;
   setTransitionNotes: (val: string) => void;
   setTransitionError: (err: string | null) => void;
   overallDisplayScore: string;
   openComposer: (opts: any) => void;
 }) {
+
   const ebitdaVal = Number(deal.ebitda) || 0;
   const multVal = Number(deal.multiplier) || 0;
 
@@ -1665,7 +1707,7 @@ function OverviewTab({
               <select
                 value={currentStage}
                 onChange={(e) => {
-                  const selected = e.target.value as DealStage;
+                  const selected = e.target.value;
                   if (selected !== currentStage) {
                     setTargetStage(selected);
                     setTransitionNotes("");
@@ -1675,18 +1717,19 @@ function OverviewTab({
                 }}
                 className={cx(
                   "w-full h-10 rounded-xl border px-3 text-xs font-bold uppercase tracking-wider outline-none cursor-pointer transition shadow-sm",
-                  STAGE_BADGE_COLORS[currentStage]
+                  getStageBadgeColor(currentStage)
                 )}
               >
-                <option value={currentStage}>{STAGE_LABELS[currentStage]}</option>
-                {allowedNext.map((stg) => (
+                <option value={currentStage}>{currentStage}</option>
+                {availableStages.filter((stg) => stg.toLowerCase() !== currentStage.toLowerCase()).map((stg) => (
                   <option key={stg} value={stg} className="bg-[#0e0e10] text-slate-250">
-                    → Move to {STAGE_LABELS[stg]}
+                    → Move to {stg}
                   </option>
                 ))}
               </select>
             </div>
           </div>
+
 
           {/* Section 2: Essential Actions */}
           <div className="rounded-2xl border border-white/[0.04] bg-[#161B22] p-5 space-y-4 shadow-premium-card card-sheen">
@@ -2217,6 +2260,30 @@ function PreCallBriefTab({ deal, openComposer }: { deal: any; openComposer: (opt
                 </div>
                 {renderRichText(selectedBrief.openingAngle)}
               </div>
+
+              {/* Section 2b: Prince's Call Script */}
+              {selectedBrief.callScript && (
+                <div className="rounded-xl border border-blue-500/15 bg-gradient-to-r from-blue-500/5 to-transparent p-5 space-y-3 border-l-2 border-l-blue-500 shadow-inner">
+                  <div className="flex items-center justify-between pb-1">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="h-4 w-4 text-blue-400" />
+                      <span className="text-[9px] font-black uppercase tracking-widest text-blue-400">Prince's Call Script</span>
+                    </div>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(selectedBrief.callScript);
+                        alert("Call script copied to clipboard!");
+                      }}
+                      className="text-[9px] font-bold uppercase tracking-wider text-slate-400 hover:text-white px-2 py-0.5 rounded border border-white/5 bg-white/[0.01]"
+                    >
+                      Copy Script
+                    </button>
+                  </div>
+                  <div className="text-xs text-slate-300 leading-relaxed font-sans whitespace-pre-wrap select-text">
+                    {selectedBrief.callScript}
+                  </div>
+                </div>
+              )}
 
               {/* Section 3: Priority Interview Questions */}
               <div className="space-y-3">
@@ -4218,7 +4285,8 @@ function EmailComposerModal({
   defaultRecipientEmail,
   defaultSubject,
   defaultBody,
-  generatedBy
+  generatedBy,
+  allLenders
 }: {
   isOpen: boolean;
   onClose: () => void;
@@ -4230,9 +4298,11 @@ function EmailComposerModal({
   defaultSubject: string;
   defaultBody: string;
   generatedBy: string;
+  allLenders: any[];
 }) {
   const [recipientName, setRecipientName] = useState("");
   const [recipientEmail, setRecipientEmail] = useState("");
+  const [lenderCompany, setLenderCompany] = useState("");
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   const [sending, setSending] = useState(false);
@@ -4244,6 +4314,7 @@ function EmailComposerModal({
     if (isOpen) {
       setRecipientName(defaultRecipientName);
       setRecipientEmail(defaultRecipientEmail);
+      setLenderCompany("");
       setSubject(defaultSubject);
       setBody(defaultBody);
       setError(null);
@@ -4258,19 +4329,19 @@ function EmailComposerModal({
     setError(null);
     try {
       const payload = {
-        recipient_name: recipientName,
-        recipient_email: recipientEmail,
+        lenderName: recipientName,
+        lenderEmail: recipientEmail,
+        companyName: lenderCompany,
+        dealId,
         subject,
         body,
-        deal_id: dealId,
-        deal_name: dealName,
-        generated_by: generatedBy
+        type: type === "loi" ? "loi" : "post_meeting_email"
       };
 
       if (type === "loi") {
-        await sendLoiWebhook(payload);
+        await sendLoiWebhook(payload as any);
       } else {
-        await sendEmailWebhook(payload);
+        await sendEmailWebhook(payload as any);
       }
       setSuccess(true);
       setTimeout(() => {
@@ -4298,23 +4369,48 @@ function EmailComposerModal({
           <h4 className="text-sm font-bold text-white uppercase tracking-wider">
             {type === "loi" ? "LOI Sent Successfully" : "Email Sent Successfully"}
           </h4>
-          <p className="text-xs text-slate-405 max-w-xs leading-relaxed">
+          <p className="text-xs text-slate-400 max-w-xs leading-relaxed">
             The webhook has been posted to Make.com and recorded in the audit trail.
           </p>
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-4 font-sans text-slate-200">
           {error && (
-            <div className="rounded-lg border border-rose-500/20 bg-rose-500/5 p-3 text-xs font-semibold text-rose-455 flex items-center gap-2">
+            <div className="rounded-lg border border-rose-500/20 bg-rose-500/5 p-3 text-xs font-semibold text-rose-400 flex items-center gap-2">
               <AlertTriangle className="h-3.5 w-3.5 shrink-0 animate-pulse" />
               <span>{error}</span>
             </div>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-500 mb-1">
+              Select Lender
+            </label>
+            <select
+              onChange={(e) => {
+                const lenderId = e.target.value;
+                const lender = allLenders.find((l) => l.id === lenderId);
+                if (lender) {
+                  setRecipientName(lender.Contact_Name || lender.Company_Name || "");
+                  setRecipientEmail(lender.Email || "");
+                  setLenderCompany(lender.Company_Name || "");
+                }
+              }}
+              className="w-full h-9 rounded-xl border border-white/[0.02] bg-[#161B22] px-3 text-xs text-white focus:border-[#C6A66B] outline-none cursor-pointer"
+            >
+              <option value="">-- Choose Lender from Database --</option>
+              {allLenders.map((lender) => (
+                <option key={lender.id} value={lender.id}>
+                  {lender.Company_Name} {lender.Contact_Name ? `(${lender.Contact_Name})` : ""}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-500 mb-1">
-                Recipient Name
+                Lender Name
               </label>
               <input
                 type="text"
@@ -4327,7 +4423,7 @@ function EmailComposerModal({
             </div>
             <div>
               <label className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-500 mb-1">
-                Recipient Email
+                Lender Email
               </label>
               <input
                 type="email"
@@ -4335,6 +4431,19 @@ function EmailComposerModal({
                 value={recipientEmail}
                 onChange={(e) => setRecipientEmail(e.target.value)}
                 placeholder="e.g. john@example.com"
+                className="w-full h-9 rounded-xl border border-white/[0.02] bg-[#161B22] px-3 text-xs text-white focus:border-[#C6A66B] outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-500 mb-1">
+                Lender Company
+              </label>
+              <input
+                type="text"
+                required
+                value={lenderCompany}
+                onChange={(e) => setLenderCompany(e.target.value)}
+                placeholder="e.g. ABL Bank Ltd"
                 className="w-full h-9 rounded-xl border border-white/[0.02] bg-[#161B22] px-3 text-xs text-white focus:border-[#C6A66B] outline-none"
               />
             </div>

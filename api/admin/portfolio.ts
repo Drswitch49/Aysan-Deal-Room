@@ -15,11 +15,37 @@ export default async function handler(req: any, res: any) {
       // 1. Authenticate Admin
       await authenticateAdmin(req);
 
-      // 2. Fetch all portfolio data
-      const [metrics, alerts, healths] = await Promise.all([
+      // 2. Fetch all portfolio data (analytics + CRUD companies)
+      const [metrics, alerts, healths, companiesRes] = await Promise.all([
         getPortfolioMetrics().catch(() => []),
         getPortfolioAlerts().catch(() => []),
         getPortfolioHealth().catch(() => []),
+        (async () => {
+          try {
+            const { airtableFetch } = await import("../../api/_utils/airtable.js");
+            const res = await airtableFetch("Portfolio_Companies", {});
+            return (res.records || []).map((r: any) => ({
+              id: r.id,
+              companyName: r.fields.Company_Name || r.fields.companyName || "",
+              industry: r.fields.Industry || "",
+              location: r.fields.Location || "",
+              status: r.fields.Status || "Active",
+              revenue: Number(r.fields.Revenue) || 0,
+              ebitda: Number(r.fields.EBITDA) || 0,
+              debt: Number(r.fields.Debt) || 0,
+              headcount: Number(r.fields.Headcount) || 0,
+              cash: Number(r.fields.Cash) || 0,
+              currentRatio: Number(r.fields.Current_Ratio) || 0,
+              dscr: Number(r.fields.DSCR) || 0,
+              operationalKpis: r.fields.Operational_KPI_Inputs || "",
+              documentActivity: r.fields.Document_Activity_Inputs || "",
+              notes: r.fields.Notes || "",
+              createdAt: r.fields.Created_At || r.createdTime || "",
+            }));
+          } catch {
+            return [];
+          }
+        })(),
       ]);
 
       const summaryBriefing = getPortfolioSummaryBriefing();
@@ -30,6 +56,7 @@ export default async function handler(req: any, res: any) {
         metrics,
         alerts,
         healths,
+        companies: companiesRes,
         summaryBriefing,
         healthIndex,
         isFallbackActive: !isAirtableConnected(),

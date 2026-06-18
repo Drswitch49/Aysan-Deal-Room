@@ -64,7 +64,9 @@ const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
 };
 
 /**
- * Check if a user has a specific permission
+ * Check if a user has a specific permission.
+ * Performs case-insensitive role lookup to handle roles from different sources
+ * (Airtable stores title-case, JWT/middleware use lowercase).
  */
 export function hasPermission(
   user: AuthenticatedUser,
@@ -74,7 +76,20 @@ export function hasPermission(
     return false;
   }
 
-  const permissions = ROLE_PERMISSIONS[user.role];
+  // Direct lookup first (title-case match)
+  let permissions = ROLE_PERMISSIONS[user.role];
+
+  // Case-insensitive fallback: find the matching role key
+  if (!permissions) {
+    const roleLower = (user.role || "").toLowerCase();
+    const matchingKey = Object.keys(ROLE_PERMISSIONS).find(
+      (key) => key.toLowerCase() === roleLower
+    ) as UserRole | undefined;
+    if (matchingKey) {
+      permissions = ROLE_PERMISSIONS[matchingKey];
+    }
+  }
+
   return permissions ? permissions.includes(permission) : false;
 }
 
@@ -181,9 +196,27 @@ export function extractUserFromHeaders(
 }
 
 /**
- * Extract user from Vercel request object
+ * Extract user from Vercel request object.
+ * Primary: reads middleware-injected x-user-* headers (cookie-based auth).
+ * Fallback: reads Authorization Bearer header (legacy/direct API).
  */
 export function extractUserFromRequest(req: any): AuthenticatedUser | null {
+  // Primary path: middleware sets these headers from the verified JWT cookie
+  const email = req.headers?.["x-user-email"];
+  const role = req.headers?.["x-user-role"];
+  const id = req.headers?.["x-user-id"];
+
+  if (email && role) {
+    return {
+      id: id || "",
+      email,
+      name: email.split("@")[0],
+      role: role as UserRole,
+      status: "Active",
+    };
+  }
+
+  // Fallback: Authorization Bearer token
   const authHeader = req.headers?.authorization;
   return extractUserFromHeaders(authHeader);
 }

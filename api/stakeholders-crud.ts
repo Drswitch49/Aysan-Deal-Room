@@ -5,9 +5,24 @@
  * PATCH /api/stakeholders-crud?id=X - Update stakeholder
  */
 import { airtableCreate, airtableUpdate, airtableFetch, airtableFetchRecord, TABLES } from "./_utils/airtable.js";
+import { authenticateAdmin } from "./admin/lenders_auth_helper.js";
+import bcrypt from "bcryptjs";
+
+// Helper to generate a secure random password
+function generatePassword(): string {
+  const chars = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789!@#$%&*";
+  let pass = "";
+  for (let i = 0; i < 8; i++) {
+    pass += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return pass;
+}
 
 export default async function handler(req: any, res: any) {
   try {
+    // Enforce Admin Authentication
+    await authenticateAdmin(req);
+
     if (req.method === "GET") {
       const { id, type } = req.query;
       if (id) {
@@ -27,6 +42,11 @@ export default async function handler(req: any, res: any) {
       if (!name || !type) {
         return res.status(400).json({ error: "Missing required fields: name, type" });
       }
+
+      const password = generatePassword();
+      const salt = bcrypt.genSaltSync(10);
+      const hash = bcrypt.hashSync(password, salt);
+
       const fields: Record<string, any> = {
         "Name": name,
         "Type": type,
@@ -38,7 +58,23 @@ export default async function handler(req: any, res: any) {
       fields["Status"] = "Active";
 
       const record = await airtableCreate(TABLES.STAKEHOLDERS, fields);
-      return res.status(201).json(record);
+
+      // Create corresponding user in Users table if email is provided
+      if (email && email.trim()) {
+        await airtableCreate("Users", {
+          Email: email.trim(),
+          PasswordHash: hash,
+          Role: "read only",
+          Status: "Active",
+          Permissions: "read",
+          CreatedAt: new Date().toISOString()
+        }).catch(err => console.warn("Failed to create user record for stakeholder:", err));
+      }
+
+      return res.status(201).json({
+        ...record,
+        tempPassword: password
+      });
     }
 
     if (req.method === "PATCH") {
@@ -61,6 +97,6 @@ export default async function handler(req: any, res: any) {
     return res.status(405).json({ error: "Method not allowed" });
   } catch (error: any) {
     console.error("[stakeholders-crud] Error:", error);
-    return res.status(500).json({ error: error.message || "Internal server error" });
+    return res.status(error.status || 500).json({ error: error.message || "Internal server error" });
   }
 }

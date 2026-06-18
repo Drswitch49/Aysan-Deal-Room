@@ -77,17 +77,44 @@ export default async function handler(req: any, res: any) {
     return res.status(400).json({ error: "toStage is required" });
   }
 
-  const canonicalTarget = normalizeStage(toStage);
-  const validStages: DealStage[] = [...DEAL_STAGES, "KILLED"];
-  if (!validStages.includes(canonicalTarget)) {
+  const FALLBACK_STAGES = [
+    "Intro",
+    "NDA Signed",
+    "Information Requested",
+    "LOI Drafted",
+    "LOI Submitted",
+    "Killed",
+    "Due Diligence",
+    "IC Decision",
+    "IM Review",
+    "Seller Call",
+    "Offer Submitted"
+  ];
+
+  const CANONICAL_TO_AIRTABLE: Record<string, string> = {
+    "INTRO": "Intro",
+    "DISCOVERY": "Seller Call",
+    "LOI": "LOI Drafted",
+    "DUE_DILIGENCE": "Due Diligence",
+    "CLOSING": "Offer Submitted",
+    "PORTFOLIO": "Offer Submitted",
+    "KILLED": "Killed"
+  };
+
+  const cleanStageInput = toStage.toUpperCase();
+  const targetName = CANONICAL_TO_AIRTABLE[cleanStageInput] || toStage;
+
+  const matchedStage = FALLBACK_STAGES.find(s => s.toLowerCase() === targetName.toLowerCase());
+  if (!matchedStage) {
     return res.status(400).json({
-      error: `Invalid stage '${toStage}'. Valid stages: ${validStages.join(", ")}`,
+      error: `Invalid stage '${toStage}'. Valid stages: ${FALLBACK_STAGES.join(", ")}`,
     });
   }
 
   const userRole = req.user.role;
-  const validRoles: UserRole[] = ["analyst", "manager", "admin"];
-  if (!validRoles.includes(userRole)) {
+  const validRoles = ["analyst", "manager", "admin", "managing partner", "partner"];
+  const cleanRole = (userRole || "").toLowerCase();
+  if (!validRoles.includes(cleanRole)) {
     return res.status(400).json({
       error: `Invalid role '${userRole}' in database permissions. Valid roles: ${validRoles.join(", ")}`,
     });
@@ -95,9 +122,9 @@ export default async function handler(req: any, res: any) {
 
   // ── Execute Transition ───────────────────────────────────────────────────
   try {
-    const result = await moveDealToStage(dealId, canonicalTarget, {
+    const result = await moveDealToStage(dealId, matchedStage, {
       changedBy: req.user.email,
-      role: userRole as UserRole,
+      role: (validRoles.includes(cleanRole) ? cleanRole : "admin") as any,
       notes: String(notes || ""),
     });
 
@@ -107,7 +134,7 @@ export default async function handler(req: any, res: any) {
       req.user.email,
       req.user.role,
       dealId,
-      `Transitioned deal ${dealId} to stage: ${canonicalTarget}. Notes: ${notes}`
+      `Transitioned deal ${dealId} to stage: ${matchedStage}. Notes: ${notes}`
     );
 
     return res.status(201).json(result);

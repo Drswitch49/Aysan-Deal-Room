@@ -5,9 +5,24 @@
  * PATCH /api/team-members-crud?id=X - Update team member
  */
 import { airtableCreate, airtableUpdate, airtableFetch, airtableFetchRecord, TABLES } from "./_utils/airtable.js";
+import { authenticateAdmin } from "./admin/lenders_auth_helper.js";
+import bcrypt from "bcryptjs";
+
+// Helper to generate a secure random password
+function generatePassword(): string {
+  const chars = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789!@#$%&*";
+  let pass = "";
+  for (let i = 0; i < 8; i++) {
+    pass += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return pass;
+}
 
 export default async function handler(req: any, res: any) {
   try {
+    // Enforce Admin Authentication
+    await authenticateAdmin(req);
+
     if (req.method === "GET") {
       const { id } = req.query;
       if (id) {
@@ -23,6 +38,11 @@ export default async function handler(req: any, res: any) {
       if (!name || !email) {
         return res.status(400).json({ error: "Missing required fields: name, email" });
       }
+
+      const password = generatePassword();
+      const salt = bcrypt.genSaltSync(10);
+      const hash = bcrypt.hashSync(password, salt);
+
       const fields: Record<string, any> = {
         "Name": name,
         "Email": email,
@@ -32,7 +52,21 @@ export default async function handler(req: any, res: any) {
       if (status) fields["Status"] = status;
 
       const record = await airtableCreate(TABLES.TEAM, fields);
-      return res.status(201).json(record);
+
+      // Create User record for auth mapping
+      await airtableCreate("Users", {
+        Email: email.trim(),
+        PasswordHash: hash,
+        Role: (role || "Analyst").toLowerCase(),
+        Status: status || "Active",
+        Permissions: role === "Admin" || role === "Managing Partner" ? "write" : "read",
+        CreatedAt: new Date().toISOString()
+      }).catch(err => console.warn("Failed to create user record for new team member:", err));
+
+      return res.status(201).json({
+        ...record,
+        tempPassword: password
+      });
     }
 
     if (req.method === "PATCH") {
@@ -53,6 +87,6 @@ export default async function handler(req: any, res: any) {
     return res.status(405).json({ error: "Method not allowed" });
   } catch (error: any) {
     console.error("[team-members-crud] Error:", error);
-    return res.status(500).json({ error: error.message || "Internal server error" });
+    return res.status(error.status || 500).json({ error: error.message || "Internal server error" });
   }
 }

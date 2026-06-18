@@ -57,15 +57,20 @@ export default async function handler(req: any, res: any) {
 
     // 3. Process Team Members
     const teamRecords = fetchedData.team.records || [];
-    const team = teamRecords.map((rec: any) => ({
-      id: rec.id,
-      initials: rec.fields["Initials"] || "",
-      name: rec.fields["Name"] || "",
-      role: rec.fields["Role"] || "",
-      accessLevel: rec.fields["Access_Level"] || "READ ACCESS",
-      avatarTheme: rec.fields["Avatar_Theme"] || "blue",
-      order: rec.fields["Order"] !== undefined ? Number(rec.fields["Order"]) : 99
-    }));
+    const team = teamRecords.map((rec: any) => {
+      const name = rec.fields["Name"] || "";
+      const initials = rec.fields["Initials"] || name.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2) || "??";
+      const role = rec.fields["Role"] || "";
+      return {
+        id: rec.id,
+        initials,
+        name,
+        role,
+        accessLevel: rec.fields["Access_Level"] || (role === "Admin" || role === "Managing Partner" ? "FULL ACCESS" : "WRITE ACCESS"),
+        avatarTheme: rec.fields["Avatar_Theme"] || (role === "Admin" ? "purple" : role === "Managing Partner" ? "amber" : "blue"),
+        order: rec.fields["Order"] !== undefined ? Number(rec.fields["Order"]) : 99
+      };
+    });
     team.sort((a: any, b: any) => a.order - b.order);
 
     // 4. Process Hiring Briefs
@@ -90,9 +95,10 @@ export default async function handler(req: any, res: any) {
     const stakeholders = stakeholderRecords.map((rec: any) => {
       const id = rec.id;
       const name = (rec.fields["Name"] || "").trim();
-      const association = (rec.fields["Association"] || "").trim();
-      const staticDescription = rec.fields["Description"] || "";
-      const accentColor = rec.fields["Accent_Color"] || "blue";
+      const association = (rec.fields["Association"] || rec.fields["Organization"] || rec.fields["Type"] || "").trim() || "External Partner";
+      const staticDescription = rec.fields["Description"] || rec.fields["Notes"] || "";
+      const type = rec.fields["Type"] || "";
+      const accentColor = rec.fields["Accent_Color"] || (type === "Broker" ? "amber" : type === "Lawyer" ? "blue" : "green");
 
       let description = staticDescription;
 

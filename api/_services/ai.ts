@@ -109,6 +109,7 @@ export interface PrecallBriefResult {
   businessProfile: string;
   openingAngle: string;
   questionsToAsk: string[];
+  callScript?: string;
 }
 
 export async function generatePrecallBriefWithAI(
@@ -127,18 +128,21 @@ export async function generatePrecallBriefWithAI(
   }
 
   const systemPrompt = `You are a senior investment associate at Aysan Capital Partners.
-Your job is to prepare a Pre-call Intelligence Brief for our deal team before they jump on a call with a target company's owner/broker.
+Your job is to prepare a Pre-call Intelligence Brief and Call Script for Prince.
+
+Create a precall brief and call script for Prince (alone) for this meeting tomorrow 18/06/26 and use the OSINT framework and prompt library to ensure the output is optimized.
 
 You MUST respond ONLY with a valid JSON object. Do not output any preamble, markdown formatting block fences (like \`\`\`json), or conversational filler. The output must be pure, parsable JSON matching this schema exactly:
 
 {
   "businessProfile": "A concise paragraph summarizing the company, sector, location, financials (Turnover, EBITDA, Asking Price, EV multiple if available), and transition risks (e.g. TUPE or key contracts). Make it specific to the deal details provided.",
-  "openingAngle": "Actionable advice on how Ayo (lead) and the team should open the call and position our approach (e.g., focus on legacy, trust, continuity, or deal structuring). Tailor it to the call type.",
+  "openingAngle": "Actionable advice on how Prince should open the call and position our approach (e.g., focus on legacy, trust, continuity, or deal structuring).",
   "questionsToAsk": [
     "Specific strategic question 1",
     "Specific strategic question 2",
     "Specific strategic question 3"
-  ]
+  ],
+  "callScript": "A complete, word-for-word call script written for Prince (alone) to conduct this meeting tomorrow 18/06/26. The script should use the OSINT framework to build rapport, gather intelligence, and direct the conversation naturally."
 }`;
 
   const userContent = `Here is the target company information:
@@ -154,6 +158,8 @@ Call Parameters:
 - Call Type: ${params.selectedCallType === "1st" ? "1st Seller Call" : params.selectedCallType === "2nd" ? "2nd Follow-up Call" : "Negotiation"}
 - Deal Team Attendees: ${params.attendees.join(", ")}
 - Enabled Intelligence Sources: ${params.dataSources.join(", ")}
+
+Create a precall brief and call script for Prince (alone) for this meeting tomorrow 18/06/26 and use the OSINT framework and prompt library to ensure the output is optimized.
 
 ${params.pastedText ? `Additional Information Memorandum (IM) Text:\n\n${params.pastedText}` : ""}`;
 
@@ -199,7 +205,8 @@ ${params.pastedText ? `Additional Information Memorandum (IM) Text:\n\n${params.
     return {
       businessProfile: parsed.businessProfile || "",
       openingAngle: parsed.openingAngle || "",
-      questionsToAsk: Array.isArray(parsed.questionsToAsk) ? parsed.questionsToAsk : []
+      questionsToAsk: Array.isArray(parsed.questionsToAsk) ? parsed.questionsToAsk : [],
+      callScript: parsed.callScript || ""
     };
   } catch (err: any) {
     console.error("[Claude Parsing Error for Brief] Raw response:", rawContent);
