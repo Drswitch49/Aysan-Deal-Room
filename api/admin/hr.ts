@@ -17,7 +17,8 @@ export default async function handler(req: any, res: any) {
       stakeholders: TABLES.STAKEHOLDERS,
       lenders: TABLES.LENDERS,
       assignments: TABLES.ASSIGNMENTS,
-      pipeline: TABLES.PIPELINE
+      pipeline: TABLES.PIPELINE,
+      users: "Users"
     };
 
     const keys = Object.keys(requiredTables) as Array<keyof typeof requiredTables>;
@@ -56,16 +57,34 @@ export default async function handler(req: any, res: any) {
     }
 
     // 3. Process Team Members
-    const teamRecords = fetchedData.team.records || [];
+    const teamRecords = fetchedData.team?.records || [];
+    const userRecords = fetchedData.users?.records || [];
+
     const team = teamRecords.map((rec: any) => {
       const name = rec.fields["Name"] || "";
       const initials = rec.fields["Initials"] || name.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2) || "??";
       const role = rec.fields["Role"] || "";
+      const email = rec.fields["Email"] || "";
+      const phone = rec.fields["Phone"] || "";
+      const loginLink = rec.fields["Login_Link"] || "";
+
+      // Match corresponding user record
+      const matchingUser = userRecords.find((u: any) => (u.fields["Email"] || "").trim().toLowerCase() === email.trim().toLowerCase());
+      const lastLogin = matchingUser?.fields["LastLogin"] || "";
+      const createdAt = matchingUser?.fields["CreatedAt"] || rec.createdTime || "";
+      const status = matchingUser?.fields["Status"] || rec.fields["Status"] || "Active";
+
       return {
         id: rec.id,
         initials,
         name,
         role,
+        email,
+        phone,
+        loginLink,
+        status,
+        createdAt,
+        lastLogin,
         accessLevel: rec.fields["Access_Level"] || (role === "Admin" || role === "Managing Partner" ? "FULL ACCESS" : "WRITE ACCESS"),
         avatarTheme: rec.fields["Avatar_Theme"] || (role === "Admin" ? "purple" : role === "Managing Partner" ? "amber" : "blue"),
         order: rec.fields["Order"] !== undefined ? Number(rec.fields["Order"]) : 99
@@ -95,10 +114,19 @@ export default async function handler(req: any, res: any) {
     const stakeholders = stakeholderRecords.map((rec: any) => {
       const id = rec.id;
       const name = (rec.fields["Name"] || "").trim();
+      const email = (rec.fields["Email"] || "").trim();
+      const phone = (rec.fields["Phone"] || "").trim();
       const association = (rec.fields["Association"] || rec.fields["Organization"] || rec.fields["Type"] || "").trim() || "External Partner";
       const staticDescription = rec.fields["Description"] || rec.fields["Notes"] || "";
       const type = rec.fields["Type"] || "";
       const accentColor = rec.fields["Accent_Color"] || (type === "Broker" ? "amber" : type === "Lawyer" ? "blue" : "green");
+      const loginLink = rec.fields["Login_Link"] || "";
+
+      // Match corresponding user record
+      const matchingUser = userRecords.find((u: any) => (u.fields["Email"] || "").trim().toLowerCase() === email.toLowerCase());
+      const lastLogin = matchingUser?.fields["LastLogin"] || "";
+      const createdAt = matchingUser?.fields["CreatedAt"] || rec.createdTime || "";
+      const status = matchingUser?.fields["Status"] || rec.fields["Status"] || "Active";
 
       let description = staticDescription;
 
@@ -158,9 +186,16 @@ export default async function handler(req: any, res: any) {
       return {
         id,
         name,
+        email,
+        phone,
         association,
+        type,
+        accentColor,
         description,
-        accentColor
+        status,
+        loginLink,
+        createdAt,
+        lastLogin
       };
     });
 

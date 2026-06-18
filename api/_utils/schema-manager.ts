@@ -276,6 +276,7 @@ export const TEAM_FIELD_SPECS: FieldSpec[] = [
   { name: "Initials", type: "singleLineText" },
   { name: "Avatar_Theme", type: "singleLineText" },
   { name: "Order", type: "number", options: { precision: 0 } },
+  { name: "Login_Link", type: "url" },
 ];
 
 export const STAKEHOLDER_FIELD_SPECS: FieldSpec[] = [
@@ -286,6 +287,7 @@ export const STAKEHOLDER_FIELD_SPECS: FieldSpec[] = [
   { name: "Type", type: "singleSelect", options: { choices: [{ name: "Advisor" }, { name: "Lawyer" }, { name: "Broker" }, { name: "Consultant" }, { name: "Investor" }, { name: "Portfolio Contact" }] } },
   { name: "Association", type: "singleLineText" },
   { name: "Description", type: "multilineText" },
-  { name: "Status", type: "singleSelect", options: { choices: [{ name: "Active" }, { name: "Archived" }] } },
+  { name: "Status", type: "singleSelect", options: { choices: [{ name: "Active" }, { name: "Inactive" }] } },
   { name: "Accent_Color", type: "singleLineText" },
+  { name: "Login_Link", type: "url" },
 ];
