@@ -85,5 +85,5 @@ export const SAFE_PIPELINE_FIELDS = [
   // Financial Intelligence Engine Fields
   "EBITDA", "DSCR", "Leverage_Ratio", "Enterprise_Value", "Deal_Score", 
   "Financial_Risk_Score", "Financial_Analysis_Status", "Financial_Insights", 
-  "Financial_Anomalies", "Financial_Completed_At"
+  "Financial_Anomalies", "Financial_Completed_At", "Archived"
 ];

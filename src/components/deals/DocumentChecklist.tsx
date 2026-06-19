@@ -1,7 +1,7 @@
-import { Filter, Files, ShieldAlert, FileText, FileSpreadsheet, FileArchive, CheckCircle2, Search, X, Calendar, User, History, Download, ExternalLink, Plus, FileWarning, Loader2, Sparkles, BrainCircuit, Upload } from "lucide-react";
+import { Filter, Files, ShieldAlert, FileText, FileSpreadsheet, FileArchive, CheckCircle2, Search, X, Calendar, User, History, Download, ExternalLink, Plus, FileWarning, Loader2, Sparkles, BrainCircuit, Upload, Trash2 } from "lucide-react";
 import { useMemo, useState, useEffect, useCallback } from "react";
 import type { DealDocument } from "../../types/deal";
-import { updateAdminDocuments, createAdminDocument, uploadAdminDocument, analyzeAdminDocument, parseAdminDocument, getJobStatus } from "../../api/admin";
+import { updateAdminDocuments, createAdminDocument, uploadAdminDocument, analyzeAdminDocument, parseAdminDocument, getJobStatus, deleteAdminDocument } from "../../api/admin";
 import { getDriveDownloadUrl, getDriveViewUrl } from "../../utils/drive";
 import { formatDate, uniqueSorted } from "../../utils/fields";
 import { isSentToLender } from "../../utils/security";
@@ -43,6 +43,29 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
   const [isBatchUpdating, setIsBatchUpdating] = useState(false);
   const [draftLink, setDraftLink] = useState("");
   const [isSavingLink, setIsSavingLink] = useState(false);
+
+  // Deletion states
+  const [docToDelete, setDocToDelete] = useState<DealDocument | null>(null);
+  const [isDeletingDoc, setIsDeletingDoc] = useState(false);
+
+  const handleDeleteDocConfirm = async () => {
+    if (!docToDelete) return;
+    setIsDeletingDoc(true);
+    try {
+      await deleteAdminDocument(docToDelete.id);
+      setDocToDelete(null);
+      // Close drawer if the deleted document was currently open
+      if (selectedDoc?.id === docToDelete.id) {
+        setSelectedDoc(null);
+      }
+      if (onRefresh) onRefresh();
+    } catch (err) {
+      console.error("Failed to delete document:", err);
+      alert(err instanceof Error ? err.message : "Failed to delete document");
+    } finally {
+      setIsDeletingDoc(false);
+    }
+  };
 
   // Create document states
   const [isAddDocOpen, setIsAddDocOpen] = useState(false);
@@ -767,6 +790,20 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
                     >
                       Download
                     </ButtonLink>
+                    {audience === "internal" && (
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setDocToDelete(document);
+                        }}
+                        className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-red-500/25 bg-red-500/5 text-red-400 hover:bg-red-500/20 hover:text-red-300 transition-all duration-200 cursor-pointer"
+                        title="Delete Document"
+                        type="button"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
                   </div>
                 </Td>
               </tr>
@@ -1443,6 +1480,38 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
                 </div>
               </div>
 
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {docToDelete && (
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-sm rounded-2xl border border-white/[0.02] bg-[#161B22] p-6 shadow-2xl relative animate-scale-in">
+            <h3 className="text-base font-bold text-white uppercase tracking-wider mb-3">
+              Delete Document
+            </h3>
+            <p className="text-xs text-slate-350 leading-relaxed mb-6">
+              Are you sure you want to permanently remove this document?
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setDocToDelete(null)}
+                disabled={isDeletingDoc}
+                className="h-10 px-4 rounded-xl border border-white/[0.02] text-slate-300 text-xs font-bold uppercase tracking-wider hover:bg-white/[0.015] cursor-pointer transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteDocConfirm}
+                disabled={isDeletingDoc}
+                className="h-10 px-5 rounded-xl bg-red-650 hover:bg-red-700 text-white text-xs font-bold uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none hover:shadow-glow-red cursor-pointer transition-all"
+              >
+                {isDeletingDoc ? "Deleting..." : "Delete Document"}
+              </button>
             </div>
           </div>
         </div>

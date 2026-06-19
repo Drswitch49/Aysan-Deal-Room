@@ -104,7 +104,8 @@ export default async function handler(req: any, res: any) {
 
     const activeDeals = dealsRes.records.filter((rec: any) => {
       const status = (rec.fields["Stage"] || rec.fields["Status"] || rec.fields["Deal_Status"] || "").toLowerCase();
-      return !isInactiveStage(status);
+      const isArchived = rec.fields["Archived"] === true || rec.fields["Archived"] === "Yes";
+      return !isInactiveStage(status) && !isArchived;
     });
 
     const filteredDeals = activeDeals.filter((rec: any) => matchOwner(rec.fields, owner));
@@ -338,7 +339,10 @@ export default async function handler(req: any, res: any) {
     dealsRes.records.forEach((rec: any) => {
       const dealFields = rec.fields;
       if (!matchOwner(dealFields, owner)) return;
-
+ 
+      const isArchived = dealFields["Archived"] === true || dealFields["Archived"] === "Yes";
+      if (isArchived) return;
+ 
       const stage = (dealFields["Stage"] || "").toLowerCase();
       const nextAction = (dealFields["Next Action"] || "").toLowerCase();
       const hasLoiDraft = !!dealFields["LOI Draft"];
@@ -366,60 +370,8 @@ export default async function handler(req: any, res: any) {
       }
     });
 
-    // 7. Build Critical Business Blockers
+    // 7. Build Critical Business Blockers (REMOVED: dashboard should provide executive visibility, not operational warnings)
     const criticalBlockers: any[] = [];
-
-    // Outstanding critical documents
-    docsRes.records.forEach((doc: any) => {
-      const isAblCritical = doc.fields["ABL_Critical"] || doc.fields["ABL Critical"] || doc.fields["abl_critical"] || doc.fields["Critical"];
-      const status = doc.fields["Status"] || doc.fields["status"];
-      if (isAblCritical && status === "Outstanding") {
-        const docRefs = doc.fields["Deal_Ref"] || doc.fields["Deal Ref"] || doc.fields["Deal_Reference"];
-        const parentDealId = Array.isArray(docRefs) ? docRefs[0] : docRefs;
-        if (!parentDealId) return;
-
-        const deal = filteredDeals.find(d => d.id === parentDealId);
-        if (!deal) return;
-
-        const docName = doc.fields["Document_Name"] || doc.fields["Document Name"] || "Document";
-        const companyName = cleanCompanyName(deal.fields["Deal Name"] || deal.fields["Company_Name"] || deal.fields["Company Name"] || "Unknown Company");
-        const dealRef = deal.fields["REF No."] || deal.fields["Deal_Ref"] || "ACP-CFS";
-        const normalizedRef = encodeURIComponent(deal.fields["Deal_Ref"] || deal.fields["REF No."] || deal.id);
-
-        criticalBlockers.push({
-          id: `blocker-doc-${doc.id}`,
-          type: "document",
-          title: "Missing Critical Document",
-          description: `${docName} is outstanding for ${companyName}`,
-          dealId: parentDealId,
-          dealRef,
-          companyName,
-          link: `/deals/${normalizedRef}?tab=documents`
-        });
-      }
-    });
-
-    // Overdue actions
-    filteredDeals.forEach((d: any) => {
-      const actionDate = d.fields["Next Action Date"];
-      const actionText = d.fields["Next Action"];
-      if (actionDate && actionDate < todayStr && actionText) {
-        const companyName = cleanCompanyName(d.fields["Deal Name"] || d.fields["Company_Name"] || d.fields["Company Name"] || "Unknown Company");
-        const dealRef = d.fields["REF No."] || d.fields["Deal_Ref"] || "ACP-CFS";
-        const normalizedRef = encodeURIComponent(d.fields["Deal_Ref"] || d.fields["REF No."] || d.id);
-
-        criticalBlockers.push({
-          id: `blocker-action-${d.id}`,
-          type: "action",
-          title: "Overdue Action Deadline",
-          description: `${cleanAirtableMentions(String(actionText).split("\n")[0])}`,
-          dealId: d.id,
-          dealRef,
-          companyName,
-          link: `/deals/${normalizedRef}?tab=overview`
-        });
-      }
-    });
 
     // 8. Build Stage Distribution
     let stageInbound = 0;

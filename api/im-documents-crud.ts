@@ -6,7 +6,7 @@
  * DELETE /api/im-documents/:id - Delete document
  */
 
-import { airtableCreate, airtableUpdate, airtableFetchRecord, airtableFetchAll } from "../src/lib/airtable/client.js";
+import { airtableCreate, airtableUpdate, airtableFetchRecord, airtableFetchAll, airtableDelete } from "../src/lib/airtable/client.js";
 import { ensureTable, ensureField } from "../src/lib/airtable/schema-manager.js";
 import { extractUserFromRequest, requirePermission } from "../src/lib/rbac.js";
 import { auditDocumentUploaded, auditDocumentRemoved } from "../src/lib/audit.js";
@@ -157,12 +157,8 @@ export default async function handler(req: any, res: any) {
         });
       }
 
-      // Note: Actual deletion from Airtable requires deleting the record
-      // For now, we'll use a soft delete by clearing fields
-      // Full deletion requires a different API endpoint
-      await airtableUpdate("IM_Review_Documents", id, {
-        File_Url: null
-      });
+      // Permanently delete document record from Airtable
+      await airtableDelete("IM_Review_Documents", id);
 
       // Log audit event
       if (user) {

@@ -258,6 +258,7 @@ export const PIPELINE_FIELD_SPECS: FieldSpec[] = [
   { name: "Source", type: "singleLineText" },
   { name: "Internal_Notes", type: "multilineText" },
   { name: "IM_Review_Documents", type: "multipleAttachments" },
+  { name: "Archived", type: "checkbox" },
 ];
 
 export async function ensurePipelineFields(pipelineTableName: string): Promise<SchemaChangeLog[]> {

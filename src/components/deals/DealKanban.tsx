@@ -190,13 +190,19 @@ function DealCard({ deal, isDragging = false, isTransitioning = false }: DealCar
         </div>
       )}
 
-      {/* Blocker count badge */}
-      {deal.isBlocked && (
-        <div className="flex items-center gap-1.5 rounded-lg border border-rose-500/15 bg-rose-500/5 px-2 py-1 text-[9px] text-rose-400 font-semibold">
-          <AlertTriangle className="h-2.5 w-2.5 text-rose-400 shrink-0" />
-          <span>{deal.blockerCount || 1} {deal.blockerCount === 1 ? 'blocker' : 'blockers'} active</span>
+      {/* Deal Readiness Progress Bar */}
+      <div className="space-y-1.5 py-0.5">
+        <div className="flex items-center justify-between text-[9px] font-bold uppercase tracking-wider text-slate-455">
+          <span>Due Diligence Progress</span>
+          <span className="text-[#C6A66B] font-extrabold">{deal.readiness || 0}%</span>
         </div>
-      )}
+        <div className="h-1 w-full bg-white/[0.03] rounded-full overflow-hidden border border-white/[0.02]">
+          <div 
+            className="h-full bg-gradient-to-r from-[#C6A66B] to-[#E3C185] rounded-full transition-all duration-300"
+            style={{ width: `${deal.readiness || 0}%` }}
+          />
+        </div>
+      </div>
 
       {/* Next Action Area */}
       {deal.nextActionTitle ? (

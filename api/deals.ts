@@ -214,54 +214,65 @@ export default async function handler(req: any, res: any) {
           nextActionColor = isOverdue ? "red" : isToday ? "yellow" : "blue";
         }
 
-        // Calculate Blockers
-        const blockers: string[] = [];
-        
-        // 1. Missing ABL Critical Document & Overdue diligence
+        // Calculate Deal Readiness (replacing blockers)
         const dealDocs = docs.filter((d: any) => {
           const refs = d.fields["Deal_Ref"] || d.fields["Deal Ref"] || d.fields["Deal_Reference"];
           if (Array.isArray(refs)) return refs.includes(rec.id);
           return refs === rec.id;
         });
-
-        dealDocs.forEach((d: any) => {
-          const isCritical = d.fields["ABL_Critical"] || d.fields["ABL Critical"] || d.fields["Critical"];
-          const docStatus = (d.fields["Status"] || d.fields["status"] || d.fields["Stage"] || "").toLowerCase();
-          if (isCritical && docStatus === "outstanding") {
-            blockers.push(`Missing Critical ABL: ${d.fields["Document_Name"] || d.fields["Document Name"] || "Document"}`);
+ 
+        const readinessChecks = [
+          {
+            key: "im",
+            complete: Array.isArray(rec.fields["IM_Review_Documents"]) && rec.fields["IM_Review_Documents"].length > 0
+          },
+          {
+            key: "financials",
+            complete: (!!revenue && !!ebitda) || dealDocs.some((d: any) => (d.fields["Category"] || "").toLowerCase().includes("financial") && (d.fields["Status"] || "").toLowerCase() !== "outstanding")
+          },
+          {
+            key: "ownership",
+            complete: !!rec.fields["Vendor_Names"] || !!rec.fields["Vendor Names"] || !!rec.fields["Vendor Details"] || !!rec.fields["vendor details"]
+          },
+          {
+            key: "website",
+            complete: !!rec.fields["Website"]
+          },
+          {
+            key: "profile",
+            complete: !!sector && !!location
+          },
+          {
+            key: "documents",
+            complete: dealDocs.length > 0 && dealDocs.some((d: any) => (d.fields["Status"] || "").toLowerCase() !== "outstanding")
           }
-          const expectedDate = d.fields["Expected_Date"] || d.fields["Expected Date"];
-          if (expectedDate && expectedDate < todayStr && docStatus === "outstanding") {
-            blockers.push(`Overdue diligence item: ${d.fields["Document_Name"] || d.fields["Document Name"] || "Document"}`);
-          }
-        });
-
-        // 2. Overdue task blocker
-        if (actionDate && actionDate < todayStr && actionText) {
-          blockers.push(`Overdue task: ${nextActionTitle}`);
+        ];
+ 
+        const completedChecks = readinessChecks.filter(c => c.complete);
+        const readiness = Math.round((completedChecks.length / readinessChecks.length) * 100);
+ 
+        const missingItems: string[] = [];
+        if (!readinessChecks.find(c => c.key === "im")?.complete) {
+          missingItems.push("Information Memorandum (IM)");
         }
-
-        // 3. SLA breach - Stalled Progression
+        if (!readinessChecks.find(c => c.key === "website")?.complete) {
+          missingItems.push("Website URL");
+        }
+        if (!readinessChecks.find(c => c.key === "ownership")?.complete) {
+          missingItems.push("Director/Ownership Information");
+        }
+ 
+        // Add outstanding checklist documents to missing list
+        const outstandingDocs = dealDocs.filter((d: any) => (d.fields["Status"] || "").toLowerCase() === "outstanding");
+        outstandingDocs.forEach((d: any) => {
+          missingItems.push(d.fields["Document_Name"] || d.fields["Document Name"] || "Diligence Document");
+        });
+ 
         const stageUpdatedAtStr = rec.fields["Stage_Updated_At"];
         let stageAgeDays = 0;
         if (stageUpdatedAtStr) {
           const stageUpdatedAt = new Date(stageUpdatedAtStr).getTime();
           stageAgeDays = Math.floor((Date.now() - stageUpdatedAt) / (1000 * 60 * 60 * 24));
-          const stage = (rec.fields["Stage"] || rec.fields["Status"] || rec.fields["Deal_Status"] || "").toUpperCase();
-          
-          let breachLimit = 999;
-          if (stage === "INTRO" || stage === "INBOUND") breachLimit = 7;
-          else if (stage === "DISCOVERY" || stage === "SELLER CALL") breachLimit = 14;
-          else if (stage === "LOI" || stage === "IM REVIEW") breachLimit = 21;
-          
-          if (stageAgeDays > breachLimit) {
-            blockers.push(`Stalled in stage for ${stageAgeDays} days`);
-          }
-        }
-
-        // 4. Missing next action details blocker
-        if (!actionDate || !actionText) {
-          blockers.push("No next action configured");
         }
 
         // Calculate background workflows
@@ -334,9 +345,12 @@ export default async function handler(req: any, res: any) {
           nextActionSub,
           nextActionColor,
           actionDate,
-          isBlocked: blockers.length > 0,
-          blockerCount: blockers.length,
-          blockers,
+          isBlocked: false,
+          blockerCount: 0,
+          blockers: [],
+          readiness,
+          missingItems,
+          archived: rec.fields["Archived"] === true || rec.fields["Archived"] === "Yes",
           isProcessing,
           processingStatusText,
           stageAgeDays
@@ -365,13 +379,19 @@ export default async function handler(req: any, res: any) {
       const filtered = filterResults(results, type, ref, targetDealId);
       return res.status(200).json(filtered);
     }
-
+ 
+    // Filter out archived deals if loading all deals (for active pipeline)
+    let outputResults = results;
+    if (!type && !ref) {
+      outputResults = results.filter((deal: any) => deal.archived !== true && deal.rawFields?.Archived !== true && deal.rawFields?.Archived !== "Yes");
+    }
+ 
     // Apply Edge CDN headers
     if (type !== "inbox") {
       res.setHeader("Cache-Control", "public, max-age=0, s-maxage=60, stale-while-revalidate=30");
     }
-
-    return res.status(200).json(results);
+ 
+    return res.status(200).json(outputResults);
   } catch (err: any) {
     console.error(`[API Deals Error] Type: ${type || "deals"}, Error: ${err.message || err}`);
     return res.status(err.status || 500).json({

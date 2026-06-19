@@ -36,6 +36,9 @@ export type PipelineDeal = {
   isProcessing?: boolean;
   processingStatusText?: string;
   stageAgeDays?: number;
+  archived?: boolean;
+  readiness?: number;
+  missingItems?: string[];
 };
 
 export type CapitalStructureRow = {

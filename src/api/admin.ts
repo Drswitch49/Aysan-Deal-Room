@@ -821,6 +821,54 @@ export async function updateAdminDeal(dealId: string, fields: Record<string, any
   return response.json();
 }
 
+export async function deleteAdminDocument(documentId: string) {
+  const response = await fetch("/api/admin/action", {
+    method: "POST",
+    headers: getAdminHeaders(),
+    body: JSON.stringify({ action: "delete-document", documentId })
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to delete document");
+  }
+
+  clearAirtableCache();
+  return response.json();
+}
+
+export async function archiveDeal(dealId: string) {
+  const response = await fetch("/api/admin/action", {
+    method: "POST",
+    headers: getAdminHeaders(),
+    body: JSON.stringify({ action: "archive-deal", dealId })
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to archive deal");
+  }
+
+  clearAirtableCache();
+  return response.json();
+}
+
+export async function restoreDeal(dealId: string) {
+  const response = await fetch("/api/admin/action", {
+    method: "POST",
+    headers: getAdminHeaders(),
+    body: JSON.stringify({ action: "restore-deal", dealId })
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to restore deal");
+  }
+
+  clearAirtableCache();
+  return response.json();
+}
+
 // ─── IM Documents ────────────────────────────────────────────────────────────
 
 export async function uploadImDocument(dealId: string, fileName: string, fileType: string, fileData: string) {

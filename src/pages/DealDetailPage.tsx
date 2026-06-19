@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import type { ComponentType } from "react";
 import { useMemo, useState, useEffect } from "react";
-import { Link, useParams, useSearchParams } from "react-router-dom";
+import { Link, useParams, useSearchParams, useNavigate } from "react-router-dom";
 import { CoverSheet } from "../components/deals/CoverSheet";
 import { DocumentChecklist } from "../components/deals/DocumentChecklist";
 import { SubmissionTimeline } from "../components/deals/SubmissionTimeline";
@@ -27,7 +27,8 @@ import {
   fetchPostcallBriefs, generatePostcallBrief, overridePostcallScores,
   transitionDealStage, triggerOsintEnrichment, triggerFinancialAnalysis,
   sendLoiWebhook, sendEmailWebhook, updateAdminDeal,
-  uploadImDocument, removeImDocument, replaceImDocument
+  uploadImDocument, removeImDocument, replaceImDocument,
+  archiveDeal, restoreDeal
 } from "../api/admin";
 import { getDealInbox } from "../api/airtable";
 import { HeaderMetrics } from "../components/ui/HeaderMetrics";
@@ -108,12 +109,46 @@ export function getStageBadgeColor(stg: string): string {
 export function DealDetailPage() {
   const { ref } = useParams();
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<TabId>("overview");
   const decodedRef = useMemo(() => (ref ? decodeURIComponent(ref) : ""), [ref]);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [latestPostcallScore, setLatestPostcallScore] = useState<string>("38/50");
-  
+
+  const [isArchiving, setIsArchiving] = useState(false);
+  const [isRestoring, setIsRestoring] = useState(false);
+
   const dealState = useDeal(decodedRef, refreshTrigger);
+
+  const handleArchiveDeal = async () => {
+    if (!dealState.data?.id) return;
+    const confirm = window.confirm("Are you sure you want to archive this deal? It will be removed from the active pipeline.");
+    if (!confirm) return;
+    setIsArchiving(true);
+    try {
+      await archiveDeal(dealState.data.id);
+      navigate("/deals");
+    } catch (err) {
+      console.error("Failed to archive deal:", err);
+      alert(err instanceof Error ? err.message : "Failed to archive deal");
+    } finally {
+      setIsArchiving(false);
+    }
+  };
+
+  const handleRestoreDeal = async () => {
+    if (!dealState.data?.id) return;
+    setIsRestoring(true);
+    try {
+      await restoreDeal(dealState.data.id);
+      setRefreshTrigger(prev => prev + 1);
+    } catch (err) {
+      console.error("Failed to restore deal:", err);
+      alert(err instanceof Error ? err.message : "Failed to restore deal");
+    } finally {
+      setIsRestoring(false);
+    }
+  };
 
   // Poll OSINT status if active
   const rawOsintStatus = dealState.data?.rawFields?.OSINT_Status as string;
@@ -287,6 +322,8 @@ export function DealDetailPage() {
   const [editFields, setEditFields] = useState<Record<string, any>>({});
   const [isEditSaving, setIsEditSaving] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
+  const [editImToDeleteIdx, setEditImToDeleteIdx] = useState<number | null>(null);
+  const [isEditImDeleting, setIsEditImDeleting] = useState(false);
 
   const openEditDeal = () => {
     const d = dealState.data;
@@ -310,6 +347,21 @@ export function DealDetailPage() {
     });
     setEditError(null);
     setIsEditDealOpen(true);
+  };
+
+  const handleDeleteEditImConfirm = async () => {
+    if (editImToDeleteIdx === null || !dealState.data) return;
+    setIsEditImDeleting(true);
+    setEditError(null);
+    try {
+      await removeImDocument(dealState.data.id, editImToDeleteIdx);
+      setRefreshTrigger(prev => prev + 1);
+      setEditImToDeleteIdx(null);
+    } catch (err: any) {
+      setEditError(err.message || "Failed to remove file");
+    } finally {
+      setIsEditImDeleting(false);
+    }
   };
 
   useEffect(() => {
@@ -594,6 +646,25 @@ export function DealDetailPage() {
             >
               Edit Deal
             </button>
+            {joinedDeal.archived ? (
+              <button
+                onClick={handleRestoreDeal}
+                disabled={isRestoring}
+                className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-3.5 text-[10px] font-extrabold uppercase tracking-wider text-emerald-400 shadow-sm transition hover:bg-emerald-500/20 hover:text-emerald-300 cursor-pointer disabled:opacity-40 disabled:pointer-events-none"
+                type="button"
+              >
+                {isRestoring ? "Restoring..." : "Restore Deal"}
+              </button>
+            ) : (
+              <button
+                onClick={handleArchiveDeal}
+                disabled={isArchiving}
+                className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-red-500/20 bg-red-500/5 px-3.5 text-[10px] font-extrabold uppercase tracking-wider text-red-400 shadow-sm transition hover:bg-red-500/20 hover:text-red-300 cursor-pointer disabled:opacity-40 disabled:pointer-events-none"
+                type="button"
+              >
+                {isArchiving ? "Archiving..." : "Archive Deal"}
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -1113,19 +1184,8 @@ export function DealDetailPage() {
                       </label>
                       <button
                         type="button"
-                        onClick={async () => {
-                          if (!window.confirm("Remove this attachment?")) return;
-                          setIsEditSaving(true);
-                          try {
-                            if (dealState.data) {
-                              await removeImDocument(dealState.data.id, idx);
-                            }
-                            setRefreshTrigger(prev => prev + 1);
-                          } catch (err: any) {
-                            setEditError(err.message || "Failed to remove file");
-                          } finally {
-                            setIsEditSaving(false);
-                          }
+                        onClick={() => {
+                          setEditImToDeleteIdx(idx);
                         }}
                         className="text-[10px] font-bold text-rose-450 hover:text-rose-400 select-none"
                       >
@@ -1181,6 +1241,38 @@ export function DealDetailPage() {
           </div>
         </form>
       </Modal>
+
+      {/* Delete Confirmation Modal for Edit Modal IM Attachment */}
+      {editImToDeleteIdx !== null && (
+        <div className="fixed inset-0 bg-slate-950/65 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-sm rounded-2xl border border-white/[0.02] bg-[#161B22] p-6 shadow-2xl relative animate-scale-in">
+            <h3 className="text-base font-bold text-white uppercase tracking-wider mb-3">
+              Delete Attachment
+            </h3>
+            <p className="text-xs text-slate-350 leading-relaxed mb-6">
+              Are you sure you want to permanently remove this attachment?
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setEditImToDeleteIdx(null)}
+                disabled={isEditImDeleting}
+                className="h-10 px-4 rounded-xl border border-white/[0.02] text-slate-300 text-xs font-bold uppercase tracking-wider hover:bg-white/[0.015] cursor-pointer transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteEditImConfirm}
+                disabled={isEditImDeleting}
+                className="h-10 px-5 rounded-xl bg-red-650 hover:bg-[#A51D24] text-white text-xs font-bold uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none hover:shadow-glow-red cursor-pointer transition-all"
+              >
+                {isEditImDeleting ? "Deleting..." : "Delete Attachment"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Email/LOI Composer Modal */}
       <EmailComposerModal
@@ -1407,10 +1499,6 @@ function OverviewTab({
   const [isKillScreenOpen, setIsKillScreenOpen] = useState(false);
   const [isFinancialsOpen, setIsFinancialsOpen] = useState(false);
 
-  // Computed Blockers
-  const blockerDocs = useMemo(() => {
-    return documents.filter(doc => doc.ablCritical && doc.status === "Outstanding");
-  }, [documents]);
 
   return (
     <div className="space-y-6 animate-fade-in-up font-sans text-slate-100">
@@ -1877,28 +1965,84 @@ function OverviewTab({
             )}
           </div>
 
-          {/* Section 4: Critical Blockers */}
-          <div className="rounded-2xl border border-white/[0.04] bg-[#161B22] p-5 space-y-3 shadow-premium-card card-sheen">
-            <h4 className="text-[9px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5 select-none font-sans">
-              <ShieldAlert className="h-3.5 w-3.5 text-rose-500" />
-              Critical Blockers
-            </h4>
+          {/* Section 4: Due Diligence Progress */}
+          <div className="rounded-2xl border border-white/[0.04] bg-[#161B22] p-5 space-y-4 shadow-premium-card card-sheen">
+            {(() => {
+              const docList = documents || [];
+              const checks = [
+                {
+                  name: "Information Memorandum (IM)",
+                  complete: Array.isArray(deal.rawFields?.["IM_Review_Documents"]) && deal.rawFields?.["IM_Review_Documents"].length > 0
+                },
+                {
+                  name: "Financials Uploaded",
+                  complete: (!!deal.revenue && !!deal.ebitda) || docList.some((d: any) => (d.category || "").toLowerCase().includes("financial") && (d.status || "").toLowerCase() !== "outstanding")
+                },
+                {
+                  name: "Director/Ownership Info",
+                  complete: !!deal.vendorNames || !!deal.rawFields?.["Vendor_Names"] || !!deal.rawFields?.["Vendor Details"] || !!deal.rawFields?.["vendor details"]
+                },
+                {
+                  name: "Website URL",
+                  complete: !!deal.rawFields?.["Website"]
+                },
+                {
+                  name: "Company Profile",
+                  complete: !!deal.sector && !!deal.location
+                },
+                {
+                  name: "Key Documents Review",
+                  complete: docList.length > 0 && docList.some((d: any) => (d.status || "").toLowerCase() !== "outstanding")
+                }
+              ];
+              const completedCount = checks.filter(c => c.complete).length;
+              const computedReadiness = Math.round((completedCount / checks.length) * 100);
 
-            {blockerDocs.length > 0 ? (
-              <div className="space-y-2">
-                {blockerDocs.map((doc, idx) => (
-                  <div key={idx} className="flex items-center justify-between gap-3 p-2.5 rounded-xl border border-rose-500/15 bg-rose-500/5 text-xs text-rose-455 font-semibold">
-                    <span className="truncate">{doc.documentName}</span>
-                    <span className="text-[8px] font-black uppercase tracking-widest bg-rose-500/10 px-1.5 py-0.5 rounded shrink-0 select-none">BLOCKER</span>
+              return (
+                <>
+                  <div className="flex items-center justify-between border-b border-white/5 pb-3">
+                    <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5 select-none font-sans">
+                      <ClipboardList className="h-4 w-4 text-[#C6A66B]" />
+                      Due Diligence Progress
+                    </h4>
+                    <span className="text-xs font-bold text-[#C6A66B]">{computedReadiness}%</span>
                   </div>
-                ))}
-              </div>
-            ) : (
-              <div className="flex items-center gap-2.5 p-2.5 rounded-xl border border-white/[0.02] bg-white/[0.01] text-xs text-slate-405 font-semibold select-none">
-                <CheckCircle2 className="h-4 w-4 text-emerald-500/60" />
-                <span>No critical blockers outstanding.</span>
-              </div>
-            )}
+
+                  {/* Premium Progress Bar */}
+                  <div className="space-y-1">
+                    <div className="h-1.5 w-full bg-white/[0.03] rounded-full overflow-hidden border border-white/[0.02]">
+                      <div 
+                        className="h-full bg-gradient-to-r from-[#C6A66B] to-[#E3C185] rounded-full transition-all duration-500" 
+                        style={{ width: `${computedReadiness}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Checklist items list */}
+                  <div className="space-y-2.5 pt-1.5 text-xs font-semibold">
+                    {checks.map((c, i) => (
+                      <div key={i} className="flex items-center justify-between gap-2.5">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          {c.complete ? (
+                            <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                          ) : (
+                            <span className="h-4 w-4 rounded-full border border-white/10 bg-white/[0.01] shrink-0 flex items-center justify-center text-[8px] font-black text-slate-500">
+                              ·
+                            </span>
+                          )}
+                          <span className={cx("truncate", c.complete ? "text-slate-300" : "text-slate-500 font-normal")}>
+                            {c.name}
+                          </span>
+                        </div>
+                        <span className={cx("text-[10px] font-bold shrink-0", c.complete ? "text-emerald-500" : "text-slate-550")}>
+                          {c.complete ? "Complete" : "Pending"}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              );
+            })()}
           </div>
 
         </div>
@@ -4154,6 +4298,9 @@ function ImAttachmentsTab({
   const [error, setError] = useState<string | null>(null);
   const [dragActive, setDragActive] = useState(false);
 
+  const [imToDeleteIdx, setImToDeleteIdx] = useState<number | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   const attachments = deal.rawFields?.IM_Review_Documents || [];
 
   const handleUploadFile = async (file: File, replaceIndex?: number) => {
@@ -4190,15 +4337,23 @@ function ImAttachmentsTab({
     }
   };
 
-  const handleDeleteFile = async (idx: number) => {
-    if (!window.confirm("Are you sure you want to delete this attachment?")) return;
+  const handleDeleteFile = (idx: number) => {
+    setImToDeleteIdx(idx);
+  };
+
+  const handleDeleteFileConfirm = async () => {
+    if (imToDeleteIdx === null) return;
+    setIsDeleting(true);
     setError(null);
     try {
-      await removeImDocument(deal.id, idx);
+      await removeImDocument(deal.id, imToDeleteIdx);
       onRefresh();
+      setImToDeleteIdx(null);
     } catch (err: any) {
       console.error(err);
       setError(err.message || "Failed to delete file.");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -4324,6 +4479,38 @@ function ImAttachmentsTab({
           </label>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {imToDeleteIdx !== null && (
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-sm rounded-2xl border border-white/[0.02] bg-[#161B22] p-6 shadow-2xl relative animate-scale-in">
+            <h3 className="text-base font-bold text-white uppercase tracking-wider mb-3">
+              Delete Attachment
+            </h3>
+            <p className="text-xs text-slate-350 leading-relaxed mb-6">
+              Are you sure you want to permanently remove this attachment?
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setImToDeleteIdx(null)}
+                disabled={isDeleting}
+                className="h-10 px-4 rounded-xl border border-white/[0.02] text-slate-300 text-xs font-bold uppercase tracking-wider hover:bg-white/[0.015] cursor-pointer transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteFileConfirm}
+                disabled={isDeleting}
+                className="h-10 px-5 rounded-xl bg-red-650 hover:bg-red-700 text-white text-xs font-bold uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none hover:shadow-glow-red cursor-pointer transition-all"
+              >
+                {isDeleting ? "Deleting..." : "Delete Attachment"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

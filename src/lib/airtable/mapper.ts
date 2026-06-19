@@ -22,6 +22,7 @@ export function mapPipelineDeal(id: string, fields: RawAirtableFields): Pipeline
     capitalStructure: buildCapitalStructure(fields),
     rawFields: fields,
     dealFiles: asUrl(firstField(fields, ["Deal Files", "Deal_Files", "deal_files", "Deal Link", "Drive_Link", "Drive Link", "Link", "link"])),
+    archived: asBoolean(firstField(fields, ["Archived", "archived", "Is_Archived", "Is Archived"])),
   };
 }
 
