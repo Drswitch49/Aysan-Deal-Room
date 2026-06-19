@@ -855,6 +855,22 @@ export async function removeImDocument(dealId: string, attachmentIndex: number) 
   return response.json();
 }
 
+export async function replaceImDocument(dealId: string, attachmentIndex: number, fileName: string, fileType: string, fileData: string) {
+  const response = await fetch("/api/admin/action", {
+    method: "POST",
+    headers: getAdminHeaders(),
+    body: JSON.stringify({ action: "replace-im-document", dealId, attachmentIndex, fileName, fileType, fileData })
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to replace IM document");
+  }
+
+  clearAirtableCache();
+  return response.json();
+}
+
 // ─── Portfolio Company CRUD ──────────────────────────────────────────────────
 
 export interface PortfolioCompanyPayload {

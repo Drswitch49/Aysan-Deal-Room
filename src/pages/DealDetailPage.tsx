@@ -3,7 +3,8 @@ import {
   Lock, UserPlus, Check, X, KeyRound, Copy, MessageSquare, TrendingUp, Sparkles, 
   Upload, Users, Globe, ExternalLink, HelpCircle, CheckSquare, Square, AlertCircle, 
   ArrowRight, BrainCircuit, RefreshCw, Star, Info, MessageSquareCode, AlertTriangle,
-  FolderClosed, ChevronRight, Clock, CheckCircle2, Plus, Loader2, ShieldAlert, Building2
+  FolderClosed, ChevronRight, Clock, CheckCircle2, Plus, Loader2, ShieldAlert, Building2,
+  Paperclip
 } from "lucide-react";
 import type { ComponentType } from "react";
 import { useMemo, useState, useEffect } from "react";
@@ -17,7 +18,7 @@ import { LoadingState } from "../components/ui/LoadingState";
 import { PageHeader } from "../components/ui/PageHeader";
 import { Modal } from "../components/ui/Modal";
 import { FormField, inputClass, selectClass, textareaClass } from "../components/ui/FormField";
-import { useDeal, useDealDocuments, useSubmissionLog } from "../hooks/useDealRoomData";
+import { useDeal, useDealDocuments } from "../hooks/useDealRoomData";
 import { useJobStatus } from "../hooks/useJobStatus";
 import { cx } from "../utils/cx";
 import { 
@@ -25,16 +26,15 @@ import {
   fetchPrecallBriefs, generatePrecallBrief, askPrecallBriefQuestion,
   fetchPostcallBriefs, generatePostcallBrief, overridePostcallScores,
   transitionDealStage, triggerOsintEnrichment, triggerFinancialAnalysis,
-  sendLoiWebhook, sendEmailWebhook, updateAdminDeal
+  sendLoiWebhook, sendEmailWebhook, updateAdminDeal,
+  uploadImDocument, removeImDocument, replaceImDocument
 } from "../api/admin";
 import { getDealInbox } from "../api/airtable";
 import { HeaderMetrics } from "../components/ui/HeaderMetrics";
-import { StageHistory } from "../components/deals/StageHistory";
-import { ActivityFeed } from "../components/deals/ActivityFeed";
 import { usePipeline } from "../context/PipelineContext";
 import { STAGE_LABELS, type DealStage } from "../lib/airtable/schema";
 
-type TabId = "overview" | "brief" | "post-meeting" | "financials" | "loi" | "documents" | "activity" | "chat";
+type TabId = "overview" | "brief" | "post-meeting" | "financials" | "loi" | "documents" | "im-attachments" | "chat";
 
 const formatGBP = (val: number) => {
   if (val === 0 || !val) return "TBC";
@@ -50,7 +50,7 @@ const tabs: Array<{ id: TabId; label: string; icon: ComponentType<{ className?: 
   { id: "financials", label: "Financials", icon: TrendingUp },
   { id: "loi", label: "LOI & structure", icon: ShieldCheck },
   { id: "documents", label: "Documents", icon: ClipboardList },
-  { id: "activity", label: "Activity Log", icon: Clock },
+  { id: "im-attachments", label: "IM & Attachments", icon: Paperclip },
   { id: "chat", label: "Lender Chat", icon: MessageSquare },
 ];
 
@@ -196,7 +196,6 @@ export function DealDetailPage() {
   };
 
   const documentState = useDealDocuments(decodedRef, refreshTrigger);
-  const submissionState = useSubmissionLog(decodedRef);
 
   const { refresh: refreshPipeline } = usePipeline();
 
@@ -535,8 +534,8 @@ export function DealDetailPage() {
 
 
 
-  const isLoading = dealState.isLoading || documentState.isLoading || submissionState.isLoading || isLoadingInbox;
-  const error = dealState.error ?? documentState.error ?? submissionState.error;
+  const isLoading = dealState.isLoading || documentState.isLoading || isLoadingInbox;
+  const error = dealState.error ?? documentState.error;
 
   if (isLoading) return <LoadingState />;
   if (error) return <ErrorState error={error} />;
@@ -675,15 +674,8 @@ export function DealDetailPage() {
           <DocumentsTab deal={joinedDeal} documentState={documentState} setRefreshTrigger={setRefreshTrigger} />
         )}
 
-        {activeTab === "activity" && (
-          <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-6 items-start animate-fade-in-up">
-            <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 shadow-inner">
-              <StageHistory dealId={joinedDeal.id} />
-            </div>
-            <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 shadow-inner">
-              <ActivityFeed dealId={joinedDeal.id} limit={30} showFilters={true} />
-            </div>
-          </div>
+        {activeTab === "im-attachments" && (
+          <ImAttachmentsTab deal={joinedDeal} onRefresh={() => setRefreshTrigger(prev => prev + 1)} />
         )}
 
 
@@ -1074,6 +1066,113 @@ export function DealDetailPage() {
           <FormField label="Internal Notes" id="edit-notes">
             <textarea id="edit-notes" value={editFields.internalNotes || ""} onChange={e => setEditFields(f => ({...f, internalNotes: e.target.value}))} rows={2} className={textareaClass} />
           </FormField>
+
+          {/* IM & Attachments Section in Edit Modal */}
+          <div className="space-y-3 pt-2 border-t border-white/[0.02]">
+            <p className="text-[9px] font-extrabold uppercase tracking-widest text-slate-500">IM & Attachments</p>
+            
+            {/* List of existing files */}
+            {dealState.data?.rawFields?.IM_Review_Documents && (dealState.data.rawFields.IM_Review_Documents as any).length > 0 && (
+              <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                {(dealState.data.rawFields.IM_Review_Documents as any[]).map((att: any, idx: number) => (
+                  <div key={att.id || idx} className="flex items-center justify-between p-2 rounded-lg bg-white/[0.015] border border-white/5 text-[11px]">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <FileText className="h-3.5 w-3.5 text-[#C6A66B] shrink-0" />
+                      <span className="text-white truncate font-medium">{att.filename || "IM_Document"}</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <label className="text-[10px] font-bold text-[#C6A66B] hover:text-white cursor-pointer select-none">
+                        Replace
+                        <input
+                          type="file"
+                          accept=".pdf,.docx,.xlsx"
+                          className="hidden"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              setIsEditSaving(true);
+                              try {
+                                const base64Data = await new Promise<string>((resolve, reject) => {
+                                  const r = new FileReader();
+                                  r.onload = () => resolve((r.result as string).split(",")[1]);
+                                  r.onerror = reject;
+                                  r.readAsDataURL(file);
+                                });
+                                if (dealState.data) {
+                                  await replaceImDocument(dealState.data.id, idx, file.name, file.type, base64Data);
+                                }
+                                setRefreshTrigger(prev => prev + 1);
+                              } catch (err: any) {
+                                setEditError(err.message || "Failed to replace file");
+                              } finally {
+                                setIsEditSaving(false);
+                              }
+                            }
+                          }}
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (!window.confirm("Remove this attachment?")) return;
+                          setIsEditSaving(true);
+                          try {
+                            if (dealState.data) {
+                              await removeImDocument(dealState.data.id, idx);
+                            }
+                            setRefreshTrigger(prev => prev + 1);
+                          } catch (err: any) {
+                            setEditError(err.message || "Failed to remove file");
+                          } finally {
+                            setIsEditSaving(false);
+                          }
+                        }}
+                        className="text-[10px] font-bold text-rose-450 hover:text-rose-400 select-none"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Add new attachment input */}
+            <div className="flex items-center gap-2">
+              <label className="flex-1 h-9 rounded-xl border border-dashed border-white/10 hover:border-white/20 bg-white/[0.005] flex items-center justify-center gap-2 text-xs text-slate-450 cursor-pointer select-none">
+                <Upload className="h-3.5 w-3.5 text-slate-500" />
+                <span>Upload New Attachment</span>
+                <input
+                  type="file"
+                  accept=".pdf,.docx,.xlsx"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      setIsEditSaving(true);
+                      try {
+                        const base64Data = await new Promise<string>((resolve, reject) => {
+                          const r = new FileReader();
+                          r.onload = () => resolve((r.result as string).split(",")[1]);
+                          r.onerror = reject;
+                          r.readAsDataURL(file);
+                        });
+                        if (dealState.data) {
+                          await uploadImDocument(dealState.data.id, file.name, file.type, base64Data);
+                        }
+                        setRefreshTrigger(prev => prev + 1);
+                      } catch (err: any) {
+                        setEditError(err.message || "Failed to upload file");
+                      } finally {
+                        setIsEditSaving(false);
+                      }
+                    }
+                  }}
+                />
+              </label>
+            </div>
+          </div>
+
           <div className="flex justify-end gap-2.5 pt-2 border-t border-white/[0.02]">
             <button type="button" onClick={() => setIsEditDealOpen(false)} className="h-9 px-4 rounded-xl border border-white/[0.02] text-slate-400 text-xs font-bold uppercase tracking-wider hover:bg-white/[0.015] transition cursor-pointer">Cancel</button>
             <button type="submit" disabled={isEditSaving} className="h-9 px-5 rounded-xl bg-gradient-to-r from-[#C6A66B] to-[#B8924F] text-slate-950 text-xs font-bold uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none hover:shadow-glow-bronze transition cursor-pointer">
@@ -1307,7 +1406,6 @@ function OverviewTab({
   const [isScorecardOpen, setIsScorecardOpen] = useState(false);
   const [isKillScreenOpen, setIsKillScreenOpen] = useState(false);
   const [isFinancialsOpen, setIsFinancialsOpen] = useState(false);
-  const [isActivityOpen, setIsActivityOpen] = useState(false);
 
   // Computed Blockers
   const blockerDocs = useMemo(() => {
@@ -1658,28 +1756,7 @@ function OverviewTab({
             </div>
           </AccordionPanel>
 
-          {/* Accordion 6: Activity History */}
-          <div id="deal-section-activity">
-            <AccordionPanel
-              title="Recent Activity Log"
-              icon={<Clock className="h-4.5 w-4.5" />}
-              isOpen={isActivityOpen}
-              onToggle={() => setIsActivityOpen(!isActivityOpen)}
-            >
-              <div className="space-y-4">
-                <ActivityFeed dealId={deal.id} limit={5} showFilters={false} />
-                <div className="text-center pt-3.5 border-t border-white/5 select-none animate-fade-in-up">
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab("activity")}
-                    className="text-[10px] font-bold text-[#C6A66B] uppercase tracking-wider hover:underline cursor-pointer"
-                  >
-                    View Full Audit Log &rarr;
-                  </button>
-                </div>
-              </div>
-            </AccordionPanel>
-          </div>
+
 
         </div>
 
@@ -4061,6 +4138,192 @@ We look forward to your positive response.
         </div>
       </div>
 
+    </div>
+  );
+}
+
+function ImAttachmentsTab({ 
+  deal, 
+  onRefresh 
+}: { 
+  deal: any; 
+  onRefresh: () => void; 
+}) {
+  const [isUploading, setIsUploading] = useState(false);
+  const [isReplacingIdx, setIsReplacingIdx] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [dragActive, setDragActive] = useState(false);
+
+  const attachments = deal.rawFields?.IM_Review_Documents || [];
+
+  const handleUploadFile = async (file: File, replaceIndex?: number) => {
+    setError(null);
+    if (replaceIndex !== undefined) {
+      setIsReplacingIdx(replaceIndex);
+    } else {
+      setIsUploading(true);
+    }
+
+    try {
+      const base64Data = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const res = reader.result as string;
+          resolve(res.split(",")[1]);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      if (replaceIndex !== undefined) {
+        await replaceImDocument(deal.id, replaceIndex, file.name, file.type, base64Data);
+      } else {
+        await uploadImDocument(deal.id, file.name, file.type, base64Data);
+      }
+      onRefresh();
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || "Failed to process file upload.");
+    } finally {
+      setIsUploading(false);
+      setIsReplacingIdx(null);
+    }
+  };
+
+  const handleDeleteFile = async (idx: number) => {
+    if (!window.confirm("Are you sure you want to delete this attachment?")) return;
+    setError(null);
+    try {
+      await removeImDocument(deal.id, idx);
+      onRefresh();
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || "Failed to delete file.");
+    }
+  };
+
+  return (
+    <div className="space-y-6 font-sans animate-fade-in-up text-[#E2E8F0]">
+      <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 space-y-4">
+        <div className="flex items-center justify-between border-b border-white/5 pb-3">
+          <div>
+            <h3 className="text-sm font-bold text-white uppercase tracking-wider">IM & Supporting Attachments</h3>
+            <p className="text-[10px] text-slate-450 mt-1">Manage Information Memorandum files, supporting documents, and teasers for this deal.</p>
+          </div>
+        </div>
+
+        {error && (
+          <div className="rounded-lg border border-rose-500/20 bg-rose-500/5 p-3 text-xs font-semibold text-rose-450 flex items-center gap-2">
+            <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        {attachments.length === 0 ? (
+          <div className="text-center py-8 text-xs text-slate-500 border border-dashed border-white/10 rounded-xl">
+            No IM or attachments uploaded yet. Use the upload area below to add documents.
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {attachments.map((att: any, idx: number) => {
+              const isReplacing = isReplacingIdx === idx;
+              return (
+                <div key={att.id || idx} className="flex items-center justify-between p-3.5 rounded-xl border border-white/5 bg-white/[0.01] hover:bg-white/[0.02] transition">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <FileText className="h-4 w-4 text-[#C6A66B] shrink-0" />
+                    <div className="min-w-0">
+                      <span className="block text-xs font-semibold text-white truncate">{att.filename || "IM_Document"}</span>
+                      {att.size && (
+                        <span className="block text-[9px] text-slate-500 mt-0.5">{(att.size / 1024).toFixed(0)} KB</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2.5">
+                    <a
+                      href={att.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex h-7 items-center justify-center rounded-lg border border-white/[0.08] px-3 text-[10px] font-bold uppercase tracking-wider text-slate-350 hover:text-white hover:bg-white/[0.03] transition"
+                    >
+                      View
+                    </a>
+
+                    <label className="relative inline-flex h-7 items-center justify-center rounded-lg border border-white/[0.08] px-3 text-[10px] font-bold uppercase tracking-wider text-[#C6A66B] hover:text-white hover:bg-[#C6A66B]/10 transition cursor-pointer">
+                      {isReplacing ? "Replacing..." : "Replace"}
+                      <input
+                        type="file"
+                        accept=".pdf,.docx,.xlsx"
+                        disabled={isReplacing}
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleUploadFile(file, idx);
+                        }}
+                      />
+                    </label>
+
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteFile(idx)}
+                      className="inline-flex h-7 items-center justify-center rounded-lg border border-rose-500/20 bg-rose-500/5 hover:bg-rose-500/10 px-3 text-[10px] font-bold uppercase tracking-wider text-rose-450 hover:text-rose-400 transition cursor-pointer"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Upload Drop Zone */}
+        <div
+          onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
+          onDragLeave={() => setDragActive(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            setDragActive(false);
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+              handleUploadFile(files[0]);
+            }
+          }}
+          className={cx(
+            "border border-dashed rounded-xl p-8 text-center transition cursor-pointer select-none relative",
+            dragActive
+              ? "border-[#C6A66B] bg-[#C6A66B]/5 text-white"
+              : "border-white/10 bg-white/[0.005] hover:border-white/20 text-slate-400"
+          )}
+        >
+          <input
+            type="file"
+            id="im-attachment-file-upload"
+            accept=".pdf,.docx,.xlsx"
+            disabled={isUploading}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) handleUploadFile(file);
+            }}
+            className="hidden"
+          />
+          <label htmlFor="im-attachment-file-upload" className="cursor-pointer space-y-3 block">
+            <div className="flex justify-center">
+              {isUploading ? (
+                <RefreshCw className="h-6 w-6 text-[#C6A66B] animate-spin" />
+              ) : (
+                <Upload className="h-6 w-6 text-slate-500" />
+              )}
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-white">
+                {isUploading ? "Uploading attachment..." : "Drag & drop file here, or click to browse"}
+              </p>
+              <p className="text-[10px] text-slate-500 mt-1.5 font-medium">Supported formats: PDF, DOCX, XLSX (max 20MB)</p>
+            </div>
+          </label>
+        </div>
+      </div>
     </div>
   );
 }

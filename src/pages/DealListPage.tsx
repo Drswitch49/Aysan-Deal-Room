@@ -1,12 +1,12 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { 
   Search, Filter, Plus, X, AlertTriangle, ChevronLeft, ChevronRight, 
   Database, RefreshCw, FolderOpen, ArrowUpRight, TrendingUp, Sparkles,
-  Kanban
+  Kanban, Upload, FileText
 } from "lucide-react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { getDealInbox, getAllDocuments } from "../api/airtable";
-import { fetchAdminLenders, createAdminDeal } from "../api/admin";
+import { fetchAdminLenders, createAdminDeal, uploadImDocument } from "../api/admin";
 import type { PipelineDeal, DealDocument } from "../types/deal";
 import { cx } from "../utils/cx";
 import { usePipeline } from "../context/PipelineContext";
@@ -60,6 +60,11 @@ export function DealListPage() {
   const [newDealEV, setNewDealEV] = useState("");
   const [newDealAskingPrice, setNewDealAskingPrice] = useState("");
   const [newDealNotes, setNewDealNotes] = useState("");
+  
+  // IM & Attachment upload states for new deal
+  const [pendingFiles, setPendingFiles] = useState<Array<{ fileName: string; fileType: string; fileData: string }>>([]);
+  const [isUploadingFiles, setIsUploadingFiles] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
 
   useEffect(() => {
     if (searchParams.get("create") === "true") {
@@ -73,7 +78,7 @@ export function DealListPage() {
   // Available unique stages for raw items (excluding Killed by default for calculations)
   const stages = useMemo(() => {
     const unique = new Set<string>();
-    deals.forEach(d => {
+    deals.forEach((d: any) => {
       if (d.status) unique.add(d.status);
     });
     return ["All", ...Array.from(unique)];
@@ -124,7 +129,7 @@ export function DealListPage() {
   // Dynamically extract unique owners & sectors from joinedDeals
   const owners = useMemo(() => {
     const list = new Set<string>();
-    joinedDeals.forEach(d => {
+    joinedDeals.forEach((d: any) => {
       if (d.ownerName) list.add(d.ownerName);
     });
     return ["All", ...Array.from(list)];
@@ -132,7 +137,7 @@ export function DealListPage() {
 
   const sectors = useMemo(() => {
     const list = new Set<string>();
-    joinedDeals.forEach(d => {
+    joinedDeals.forEach((d: any) => {
       if (d.sector) list.add(d.sector);
     });
     return ["All", ...Array.from(list)];
@@ -141,10 +146,10 @@ export function DealListPage() {
   const baseFilteredDeals = useMemo(() => {
     let result = joinedDeals;
     if (selectedOwnerFilter !== "All") {
-      result = result.filter(d => d.ownerName === selectedOwnerFilter);
+      result = result.filter((d: any) => d.ownerName === selectedOwnerFilter);
     }
     if (selectedSectorFilter !== "All") {
-      result = result.filter(d => (d.sector || "").toLowerCase() === selectedSectorFilter.toLowerCase());
+      result = result.filter((d: any) => (d.sector || "").toLowerCase() === selectedSectorFilter.toLowerCase());
     }
     return result;
   }, [joinedDeals, selectedOwnerFilter, selectedSectorFilter]);
@@ -155,17 +160,17 @@ export function DealListPage() {
 
     if (selectedStageFilter !== "All") {
       if (selectedStageFilter === "Inbound") {
-        result = result.filter(d => {
+        result = result.filter((d: any) => {
           const status = (d.status || "").toLowerCase();
           return status === "intro" || status === "inbound" || status === "information requested";
         });
       } else if (selectedStageFilter === "DD") {
-        result = result.filter(d => {
+        result = result.filter((d: any) => {
           const status = (d.status || "").toLowerCase();
           return status === "dd" || status === "due diligence" || status === "offer submitted";
         });
       } else {
-        result = result.filter(d => (d.status || "").toLowerCase() === selectedStageFilter.toLowerCase());
+        result = result.filter((d: any) => (d.status || "").toLowerCase() === selectedStageFilter.toLowerCase());
       }
     }
 
@@ -179,7 +184,7 @@ export function DealListPage() {
     // Search query filter
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase().trim();
-      result = result.filter(d => 
+      result = result.filter((d: any) => 
         (d.companyName || "").toLowerCase().includes(q) ||
         (d.dealRef || "").toLowerCase().includes(q) ||
         (d.sector || "").toLowerCase().includes(q) ||
@@ -197,7 +202,7 @@ export function DealListPage() {
     // Search query filter
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase().trim();
-      result = result.filter(d => 
+      result = result.filter((d: any) => 
         (d.companyName || "").toLowerCase().includes(q) ||
         (d.dealRef || "").toLowerCase().includes(q) ||
         (d.sector || "").toLowerCase().includes(q) ||
@@ -208,16 +213,21 @@ export function DealListPage() {
     return result;
   }, [baseFilteredDeals, searchQuery]);
 
-  // Active Deals count excluding Killed
+  const isInactiveStage = (stage: string): boolean => {
+    const s = (stage || "").toLowerCase().trim();
+    return ["killed", "dead", "rejected", "closed lost", "archived"].includes(s) || s === "";
+  };
+
+  // Active Deals count excluding Killed/Archived/Dead/etc.
   const activeJoinedDeals = useMemo(() => {
-    return baseFilteredDeals.filter(d => (d.status || "").toLowerCase() !== "killed");
+    return baseFilteredDeals.filter((d: any) => !isInactiveStage(d.status));
   }, [baseFilteredDeals]);
 
   // Overdue actions count (contextual to active filters)
   const overdueCount = useMemo(() => {
     const todayStr = new Date().toISOString().split("T")[0];
-    return baseFilteredDeals.filter(d => {
-      if ((d.status || "").toLowerCase() === "killed") return false;
+    return baseFilteredDeals.filter((d: any) => {
+      if (isInactiveStage(d.status)) return false;
       const actDate = d.rawFields?.["Next Action Date"];
       const actText = d.rawFields?.["Next Action"];
       return actDate && actText && actDate < todayStr;
@@ -232,7 +242,7 @@ export function DealListPage() {
   }, [filteredDeals, currentPage]);
 
   const imReviewDealsCount = useMemo(() => {
-    return activeJoinedDeals.filter(d => (d.status || "").toLowerCase() === "im review").length;
+    return activeJoinedDeals.filter((d: any) => (d.status || "").toLowerCase() === "im review").length;
   }, [activeJoinedDeals]);
 
   // Handle Owner Avatars formatting to match high-fidelity circles
@@ -261,7 +271,7 @@ export function DealListPage() {
     setIsSubmittingDeal(true);
     setDealSubmitError("");
     try {
-      await createAdminDeal({
+      const res = await createAdminDeal({
         dealName: newDealName.trim(),
         companyName: newDealName.trim(),
         projectName: newDealProject.trim() || undefined,
@@ -282,6 +292,19 @@ export function DealListPage() {
         internalNotes: newDealNotes.trim() || undefined,
       });
 
+      // Sequentially upload all files in pendingFiles
+      if (res.success && res.result?.id && pendingFiles.length > 0) {
+        setIsUploadingFiles(true);
+        const dealId = res.result.id;
+        for (const file of pendingFiles) {
+          try {
+            await uploadImDocument(dealId, file.fileName, file.fileType, file.fileData);
+          } catch (uploadErr) {
+            console.error("Failed to upload pending file during deal creation:", file.fileName, uploadErr);
+          }
+        }
+      }
+
       // Reset state and close modal
       setNewDealName(""); setNewDealRef(""); setNewDealStage("Intro");
       setNewDealNextAction(""); setNewDealNextActionDate("");
@@ -289,6 +312,7 @@ export function DealListPage() {
       setNewDealLocation(""); setNewDealOwner(""); setNewDealAnalyst("");
       setNewDealSource(""); setNewDealRevenue(""); setNewDealEbitda("");
       setNewDealEV(""); setNewDealAskingPrice(""); setNewDealNotes("");
+      setPendingFiles([]);
       setIsModalOpen(false);
       
       // Trigger data refresh
@@ -298,6 +322,7 @@ export function DealListPage() {
       setDealSubmitError(err.message || "Failed to create deal.");
     } finally {
       setIsSubmittingDeal(false);
+      setIsUploadingFiles(false);
     }
   };
 
@@ -359,7 +384,7 @@ export function DealListPage() {
                   : "border-white/[0.02] bg-white/[0.01] text-slate-400 hover:text-white hover:bg-white/[0.03]"
               )}
             >
-              Inbound ({baseFilteredDeals.filter(d => {
+              Inbound ({baseFilteredDeals.filter((d: any) => {
                 const status = (d.status || "").toLowerCase();
                 return status === "intro" || status === "inbound" || status === "information requested";
               }).length})
@@ -375,7 +400,7 @@ export function DealListPage() {
                   : "border-white/[0.02] bg-white/[0.01] text-slate-400 hover:text-white hover:bg-white/[0.03]"
               )}
             >
-              Seller Call ({baseFilteredDeals.filter(d => (d.status || "").toLowerCase() === "seller call").length})
+              Seller Call ({baseFilteredDeals.filter((d: any) => (d.status || "").toLowerCase() === "seller call").length})
             </button>
 
             {/* IM Review */}
@@ -388,7 +413,7 @@ export function DealListPage() {
                   : "border-white/[0.02] bg-white/[0.01] text-slate-400 hover:text-white hover:bg-white/[0.03]"
               )}
             >
-              IM Review ({baseFilteredDeals.filter(d => (d.status || "").toLowerCase() === "im review").length})
+              IM Review ({baseFilteredDeals.filter((d: any) => (d.status || "").toLowerCase() === "im review").length})
             </button>
 
             {/* DD */}
@@ -401,7 +426,7 @@ export function DealListPage() {
                   : "border-white/[0.02] bg-white/[0.01] text-slate-400 hover:text-white hover:bg-white/[0.03]"
               )}
             >
-              DD ({baseFilteredDeals.filter(d => {
+              DD ({baseFilteredDeals.filter((d: any) => {
                 const status = (d.status || "").toLowerCase();
                 return status === "dd" || status === "due diligence" || status === "offer submitted";
               }).length})
@@ -417,7 +442,7 @@ export function DealListPage() {
                   : "border-rose-500/10 bg-white/[0.01] text-rose-400 hover:text-rose-300"
               )}
             >
-              Killed ({baseFilteredDeals.filter(d => (d.status || "").toLowerCase() === "killed").length})
+              Killed ({baseFilteredDeals.filter((d: any) => (d.status || "").toLowerCase() === "killed").length})
             </button>
           </div>
         ) : (
@@ -495,7 +520,7 @@ export function DealListPage() {
               }}
               className="h-10 w-full rounded-xl border border-white/[0.02] bg-[#0F1115] px-3.5 text-xs text-white outline-none focus:border-[#C6A66B] transition cursor-pointer shadow-inner"
             >
-              {owners.map(o => (
+              {owners.map((o: string) => (
                 <option key={o} value={o} className="bg-[#0B0B0C]">{o}</option>
               ))}
             </select>
@@ -513,7 +538,7 @@ export function DealListPage() {
               }}
               className="h-10 w-full rounded-xl border border-white/[0.02] bg-[#0F1115] px-3.5 text-xs text-white outline-none focus:border-[#C6A66B] transition cursor-pointer shadow-inner"
             >
-              {sectors.map(s => (
+              {sectors.map((s: string) => (
                 <option key={s} value={s} className="bg-[#0B0B0C]">{s}</option>
               ))}
             </select>
@@ -551,7 +576,7 @@ export function DealListPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/[0.04]">
-                    {paginatedDeals.map((deal) => {
+                    {paginatedDeals.map((deal: any) => {
                       const multVal = Number(deal.multiplier);
                       const isHighMultiplier = !isNaN(multVal) && multVal > 6.0;
 
@@ -691,7 +716,7 @@ export function DealListPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    onClick={() => setCurrentPage((prev: number) => Math.max(prev - 1, 1))}
                     disabled={currentPage === 1}
                     className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/[0.08] text-slate-400 hover:text-white disabled:opacity-30 disabled:pointer-events-none hover:bg-white/[0.05] transition cursor-pointer"
                     aria-label="Previous page"
@@ -702,7 +727,7 @@ export function DealListPage() {
                     {currentPage} / {totalPages}
                   </span>
                   <button
-                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                    onClick={() => setCurrentPage((prev: number) => Math.min(prev + 1, totalPages))}
                     disabled={currentPage === totalPages}
                     className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/[0.08] text-slate-400 hover:text-white disabled:opacity-30 disabled:pointer-events-none hover:bg-white/[0.05] transition cursor-pointer"
                     aria-label="Next page"
@@ -826,12 +851,100 @@ export function DealListPage() {
             <textarea id="new-deal-notes" value={newDealNotes} onChange={(e) => setNewDealNotes(e.target.value)} placeholder="Private internal notes..." rows={2} className={textareaClass} />
           </FormField>
 
+          {/* IM & Attachments Upload Section */}
+          <div className="space-y-3 pt-2 border-t border-white/[0.02]">
+            <p className="text-[9px] font-extrabold uppercase tracking-widest text-slate-500 font-sans">IM & Attachments (Optional)</p>
+            
+            {pendingFiles.length > 0 && (
+              <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
+                {pendingFiles.map((file: any, idx: number) => (
+                  <div key={idx} className="flex items-center justify-between p-2 rounded-lg bg-white/[0.015] border border-white/5 text-[11px]">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <FileText className="h-3.5 w-3.5 text-[#C6A66B] shrink-0" />
+                      <span className="text-white truncate font-medium">{file.fileName}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setPendingFiles((prev: any) => prev.filter((_: any, i: number) => i !== idx))}
+                      className="text-[10px] font-bold text-rose-450 hover:text-rose-400 select-none cursor-pointer"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div
+              onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
+              onDragLeave={() => setDragActive(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDragActive(false);
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                  Array.from(files).forEach(file => {
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                      const base64Data = (reader.result as string).split(",")[1];
+                      setPendingFiles((prev: any[]) => [...prev, { fileName: file.name, fileType: file.type, fileData: base64Data }]);
+                    };
+                    reader.readAsDataURL(file);
+                  });
+                }
+              }}
+              className={cx(
+                "border border-dashed rounded-xl p-6 text-center transition cursor-pointer select-none relative",
+                dragActive
+                  ? "border-[#C6A66B] bg-[#C6A66B]/5 text-white"
+                  : "border-white/10 bg-white/[0.005] hover:border-white/20 text-slate-400"
+              )}
+            >
+              <input
+                type="file"
+                id="add-deal-file-upload"
+                accept=".pdf,.docx,.xlsx"
+                multiple
+                disabled={isUploadingFiles}
+                onChange={(e) => {
+                  const files = e.target.files;
+                  if (files) {
+                    Array.from(files).forEach(file => {
+                      const reader = new FileReader();
+                      reader.onload = () => {
+                        const base64Data = (reader.result as string).split(",")[1];
+                        setPendingFiles((prev: any[]) => [...prev, { fileName: file.name, fileType: file.type, fileData: base64Data }]);
+                      };
+                      reader.readAsDataURL(file);
+                    });
+                  }
+                }}
+                className="hidden"
+              />
+              <label htmlFor="add-deal-file-upload" className="cursor-pointer space-y-2 block">
+                <div className="flex justify-center">
+                  {isUploadingFiles ? (
+                    <RefreshCw className="h-5 w-5 text-[#C6A66B] animate-spin" />
+                  ) : (
+                    <Upload className="h-5 w-5 text-slate-500" />
+                  )}
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-white">
+                    {isUploadingFiles ? "Uploading attachments..." : "Drag & drop files here, or click to browse"}
+                  </p>
+                  <p className="text-[9px] text-slate-500 mt-1 font-medium">Supports PDF, DOCX, XLSX</p>
+                </div>
+              </label>
+            </div>
+          </div>
+
           <div className="flex justify-end gap-2.5 pt-2 border-t border-white/[0.02]">
-            <button type="button" onClick={() => setIsModalOpen(false)} className="h-9 px-4 rounded-xl border border-white/[0.02] text-slate-400 text-xs font-bold uppercase tracking-wider hover:bg-white/[0.015] transition cursor-pointer">
+            <button type="button" onClick={() => { setIsModalOpen(false); setPendingFiles([]); }} className="h-9 px-4 rounded-xl border border-white/[0.02] text-slate-400 text-xs font-bold uppercase tracking-wider hover:bg-white/[0.015] transition cursor-pointer">
               Cancel
             </button>
-            <button type="submit" disabled={isSubmittingDeal} className="h-9 px-5 rounded-xl bg-gradient-to-r from-[#C6A66B] to-[#B8924F] text-slate-950 text-xs font-bold uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none hover:shadow-glow-bronze transition cursor-pointer">
-              {isSubmittingDeal ? "Adding..." : "Add Deal"}
+            <button type="submit" disabled={isSubmittingDeal || isUploadingFiles} className="h-9 px-5 rounded-xl bg-gradient-to-r from-[#C6A66B] to-[#B8924F] text-slate-950 text-xs font-bold uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none hover:shadow-glow-bronze transition cursor-pointer">
+              {isSubmittingDeal ? "Adding Deal..." : isUploadingFiles ? "Uploading Files..." : "Add Deal"}
             </button>
           </div>
         </form>

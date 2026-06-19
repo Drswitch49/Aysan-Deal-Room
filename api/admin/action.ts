@@ -611,6 +611,51 @@ export default async function handler(req: any, res: any) {
         return res.status(200).json({ success: true, message: "IM document removed." });
       }
 
+      case "replace-im-document": {
+        const { dealId, attachmentIndex, fileName, fileType, fileData } = req.body;
+        if (!dealId || attachmentIndex === undefined || !fileData) {
+          return res.status(400).json({ error: "Deal ID, attachment index, and file data are required" });
+        }
+
+        const supportedTypes = ["application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/msword", "application/vnd.ms-excel"];
+        if (fileType && !supportedTypes.includes(fileType) && !fileType.includes("pdf") && !fileType.includes("doc") && !fileType.includes("xls")) {
+          return res.status(400).json({ error: "Only PDF, DOCX, and XLSX files are supported" });
+        }
+
+        const dealRecord = await airtableFetchRecord(TABLES.PIPELINE, dealId);
+        const existingAttachments = dealRecord.fields["IM_Review_Documents"] || [];
+
+        if (!Array.isArray(existingAttachments) || attachmentIndex >= existingAttachments.length) {
+          return res.status(404).json({ error: "Attachment to replace not found" });
+        }
+
+        const newAttachment = {
+          url: `data:${fileType || "application/pdf"};base64,${fileData}`,
+          filename: fileName || "IM_Document",
+        };
+
+        const updated = existingAttachments.map((a: any, i: number) => {
+          if (i === attachmentIndex) {
+            return newAttachment;
+          }
+          return { url: a.url, filename: a.filename };
+        });
+
+        await airtableUpdate(TABLES.PIPELINE, dealId, {
+          "IM_Review_Documents": updated,
+        });
+
+        await logAuditTrail(
+          "IM_REPLACED",
+          req.user.email,
+          req.user.role,
+          dealId,
+          `Replaced IM document at index ${attachmentIndex} with ${fileName || "document"} in deal ${dealId}`
+        );
+
+        return res.status(200).json({ success: true, message: "IM document replaced." });
+      }
+
       case "create-portfolio-company": {
         const { companyName, industry, revenue, ebitda, debt, headcount, status, location, notes } = req.body;
         if (!companyName) {
@@ -871,10 +916,7 @@ export default async function handler(req: any, res: any) {
           type: "loi"
         };
 
-        const webhookUrl = process.env.MAKE_WEBHOOK_URL || process.env.VITE_MAKE_WEBHOOK_URL;
-        if (!webhookUrl) {
-          return res.status(400).json({ error: "Make.com Webhook URL is not configured in environment variables." });
-        }
+        const webhookUrl = "https://hook.eu2.make.com/6ib81dgibwtyf9t1moa8ixwd7eai5wxx";
 
         let retries = 3;
         let delay = 1000;
@@ -933,10 +975,7 @@ export default async function handler(req: any, res: any) {
           type: "post_meeting_email"
         };
 
-        const webhookUrl = process.env.MAKE_WEBHOOK_URL || process.env.VITE_MAKE_WEBHOOK_URL;
-        if (!webhookUrl) {
-          return res.status(400).json({ error: "Make.com Webhook URL is not configured in environment variables." });
-        }
+        const webhookUrl = "https://hook.eu2.make.com/6ib81dgibwtyf9t1moa8ixwd7eai5wxx";
 
         let retries = 3;
         let delay = 1000;
@@ -1088,15 +1127,7 @@ export default async function handler(req: any, res: any) {
             }
 
             case "make": {
-              const webhookUrl = process.env.MAKE_WEBHOOK_URL || process.env.VITE_MAKE_WEBHOOK_URL;
-              if (!webhookUrl) {
-                return res.status(200).json({
-                  success: false,
-                  status: "Misconfigured",
-                  details: "Make.com Webhook URL is missing (MAKE_WEBHOOK_URL).",
-                  timestamp: new Date().toISOString()
-                });
-              }
+              const webhookUrl = "https://hook.eu2.make.com/6ib81dgibwtyf9t1moa8ixwd7eai5wxx";
               const fetchRes = await fetch(webhookUrl, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },

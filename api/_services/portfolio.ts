@@ -176,10 +176,15 @@ export async function runPortfolioIntelligence(): Promise<PortfolioIntelligenceR
   const documentRecords: any[] = documentResponse?.records || [];
   const transcriptRecords: any[] = transcriptResponse?.records || [];
 
-  // Filter active deals (exclude killed/dead)
+  // Filter active deals (exclude killed/dead/rejected/closed lost/archived)
+  const isInactiveStage = (stage: string): boolean => {
+    const s = (stage || "").toLowerCase().trim();
+    return ["killed", "dead", "rejected", "closed lost", "archived"].includes(s) || s === "";
+  };
+
   const activeDeals = pipelineRecords.filter((r) => {
     const status = String(r.fields["Status"] || r.fields["Stage"] || "").toLowerCase();
-    return status !== "killed" && status !== "dead";
+    return !isInactiveStage(status);
   });
 
   // Stage distribution

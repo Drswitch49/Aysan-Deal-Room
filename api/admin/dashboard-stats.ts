@@ -97,9 +97,14 @@ export default async function handler(req: any, res: any) {
     const uniqueOwners = ["All", ...Array.from(collaboratorsList)];
 
     // 4. Filter deals based on active stage & owner
+    const isInactiveStage = (stage: string): boolean => {
+      const s = (stage || "").toLowerCase().trim();
+      return ["killed", "dead", "rejected", "closed lost", "archived"].includes(s) || s === "";
+    };
+
     const activeDeals = dealsRes.records.filter((rec: any) => {
       const status = (rec.fields["Stage"] || rec.fields["Status"] || rec.fields["Deal_Status"] || "").toLowerCase();
-      return status !== "killed" && status !== "";
+      return !isInactiveStage(status);
     });
 
     const filteredDeals = activeDeals.filter((rec: any) => matchOwner(rec.fields, owner));
