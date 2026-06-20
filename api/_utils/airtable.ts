@@ -154,6 +154,46 @@ export async function filterFieldsBySchema(tableName: string, fields: Record<str
         if (cleanKey === "ndaapproved" || cleanKey === "nda") {
           val = (val === true || val === "Yes" || val === "yes" || String(val).toLowerCase() === "true") ? "Yes" : "No";
         }
+
+        // Case/Option normalization for ACP_Team table choice values
+        if (tableName.toLowerCase().includes("team") || tableName === TABLES.TEAM) {
+          if (cleanKey === "accesslevel") {
+            const vLower = String(val).toLowerCase().trim();
+            if (vLower === "full access" || vLower === "full_access") val = "Full Access";
+            else if (vLower === "write access" || vLower === "write_access" || vLower === "ops access" || vLower === "ops_access") val = "OPS Access";
+            else if (vLower === "read access" || vLower === "read_access" || vLower === "read only" || vLower === "read_only") val = "Read Access";
+            else if (vLower === "finance access" || vLower === "finance_access") val = "Finance Access";
+            else if (vLower === "assistant") val = "Assistant";
+          } else if (cleanKey === "avatartheme" || cleanKey === "avatarbg") {
+            const vLower = String(val).toLowerCase().trim();
+            if (vLower === "blue") val = "Blue";
+            else if (vLower === "green") val = "Green";
+            else if (vLower === "amber") val = "Amber";
+            else if (vLower === "purple") val = "Purple";
+            else if (vLower === "slate blue" || vLower === "slate_blue") val = "Slate Blue";
+          } else if (cleanKey === "status") {
+            const vLower = String(val).toLowerCase().trim();
+            if (vLower === "active") val = "Active";
+            else if (vLower === "inactive") val = "Inactive";
+          }
+        }
+
+        // Case/Option normalization for External_Stakeholders table choice values
+        if (tableName.toLowerCase().includes("stakeholder") || tableName === TABLES.STAKEHOLDERS) {
+          if (cleanKey === "type") {
+            const vLower = String(val).toLowerCase().trim();
+            if (vLower === "advisor") val = "Advisor";
+            else if (vLower === "lawyer") val = "Lawyer";
+            else if (vLower === "broker") val = "Broker";
+            else if (vLower === "consultant") val = "Consultant";
+            else if (vLower === "investor") val = "Investor";
+            else if (vLower === "portfolio contact" || vLower === "portfolio_contact") val = "Portfolio Contact";
+          } else if (cleanKey === "status") {
+            const vLower = String(val).toLowerCase().trim();
+            if (vLower === "active") val = "Active";
+            else if (vLower === "inactive") val = "Inactive";
+          }
+        }
       }
 
       // Convert values based on matchingField.type to accommodate attachments vs URLs
