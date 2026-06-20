@@ -39,6 +39,18 @@ export type PipelineDeal = {
   archived?: boolean;
   readiness?: number;
   missingItems?: string[];
+
+  // New Deal Overview & Lender Portal Fields
+  listingLink?: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  turnover?: string;
+  executiveSummary?: string;
+  businessDescription?: string;
+  lenderExecutiveSummary?: string;
+  dealType?: string;
+  investmentHighlights?: string;
+  acquisitionRationale?: string;
 };
 
 export type CapitalStructureRow = {
@@ -62,6 +74,7 @@ export type DealDocument = {
   internalNotes: string;
   dateSentToLender: string;
   lenderTarget: string;
+  documentAccess?: string;
 };
 
 export type SubmissionLogEntry = {

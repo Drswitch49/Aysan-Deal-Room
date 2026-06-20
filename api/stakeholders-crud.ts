@@ -19,9 +19,10 @@ export default async function handler(req: any, res: any) {
     await authenticateAdmin(req);
     const roleLower = (req.user?.role || "").toLowerCase();
 
-    // 2. Access Control: Write operations restricted to admins and partners
+    // 2. Access Control: Write operations restricted to admins, owners, and HR
     if (req.method !== "GET") {
-      if (roleLower !== "admin" && roleLower !== "managing partner" && roleLower !== "partner") {
+      const allowedWriteRoles = ["admin", "managing partner", "partner", "hr", "super admin", "owner"];
+      if (!allowedWriteRoles.includes(roleLower)) {
         return res.status(403).json({ error: "Access denied: Insufficient permissions to manage external stakeholders." });
       }
     }

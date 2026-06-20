@@ -19,7 +19,15 @@ const SAFE_FIELDS = [
   "Sub_Debt_Provider", "Sub Debt Provider", "Subordinated Debt Provider",
   "Equity_Provider", "Equity Provider",
   "Seller_Note_Provider", "Seller Note Provider",
-  "Deal Files", "Deal_Files", "deal_files", "Deal Link", "Drive_Link", "Drive Link"
+  "Deal Files", "Deal_Files", "deal_files", "Deal Link", "Drive_Link", "Drive Link",
+  "Lender_Executive_Summary", "Lender Executive Summary", "lender_executive_summary", "lender executive summary",
+  "Business_Description", "Business Description", "business_description", "business description",
+  "Investment_Highlights", "Investment Highlights", "investment_highlights", "investment highlights",
+  "Acquisition_Rationale", "Acquisition Rationale", "acquisition_rationale", "acquisition rationale",
+  "Deal_Type", "Deal Type", "deal_type", "deal type",
+  "Turnover", "turnover", "Revenue", "revenue",
+  "EBITDA", "ebitda", "EBITDA_GBP", "EBITDA GBP",
+  "Asking_Price_GBP", "Asking Price", "asking_price_gbp", "asking price", "Asking_Price"
 ];
 
 // Helper to authenticate lender via headers

@@ -47,36 +47,55 @@ export async function middleware(request: Request) {
       const { payload } = await jwtVerify(sessionCookie, secretKey);
       const role = (payload.role as string || "").toLowerCase();
 
-      // 1. Admin/Analyst/Partner-only endpoints
+      // 0. HR / Stakeholder registry management endpoints
       if (
-        pathname.startsWith("/api/admin/") ||
-        pathname.startsWith("/api/deals") ||
-        pathname.startsWith("/api/lenders")
+        pathname.startsWith("/api/team-members-crud") ||
+        pathname.startsWith("/api/stakeholders-crud") ||
+        pathname.startsWith("/api/admin/hr")
       ) {
-        const adminRoles = ["admin", "analyst", "managing partner", "partner"];
+        const hrRoles = ["admin", "managing partner", "partner", "hr", "super admin", "owner"];
+        if (!hrRoles.includes(role)) {
+          return new Response(
+            JSON.stringify({ error: "Forbidden: Access restricted to HR and administrative staff" }),
+            { status: 403, headers: { "Content-Type": "application/json" } }
+          );
+        }
+      }
+
+      // 1. Deals & Documents endpoints (Stakeholders can read, HR cannot access at all)
+      else if (
+        pathname.startsWith("/api/deals") ||
+        pathname.startsWith("/api/documents/")
+      ) {
+        const dealRoles = ["admin", "analyst", "managing partner", "partner", "stakeholder", "read only", "super admin", "owner"];
+        if (!dealRoles.includes(role)) {
+          return new Response(
+            JSON.stringify({ error: "Forbidden: Access restricted to active deals" }),
+            { status: 403, headers: { "Content-Type": "application/json" } }
+          );
+        }
+      }
+
+      // 2. Lenders & Admin endpoints (excluding HR-specific paths)
+      else if (
+        pathname.startsWith("/api/lenders") ||
+        pathname.startsWith("/api/admin/")
+      ) {
+        const adminRoles = ["admin", "analyst", "managing partner", "partner", "super admin", "owner"];
         if (!adminRoles.includes(role)) {
           return new Response(
-            JSON.stringify({ error: "Forbidden: Access restricted to admins and analysts" }),
+            JSON.stringify({ error: "Forbidden: Access restricted to administrative staff" }),
             { status: 403, headers: { "Content-Type": "application/json" } }
           );
         }
       }
 
-      // 2. Lender-accessible endpoints
-      if (pathname.startsWith("/api/lender/")) {
-        if (role !== "admin" && role !== "analyst" && role !== "lender") {
+      // 3. Lender-specific sandbox endpoints
+      else if (pathname.startsWith("/api/lender/")) {
+        const lenderRoles = ["admin", "analyst", "managing partner", "partner", "lender", "super admin", "owner"];
+        if (!lenderRoles.includes(role)) {
           return new Response(
-            JSON.stringify({ error: "Forbidden: Access restricted" }),
-            { status: 403, headers: { "Content-Type": "application/json" } }
-          );
-        }
-      }
-
-      // 3. Document operations
-      if (pathname.startsWith("/api/documents/")) {
-        if (role !== "admin" && role !== "analyst" && role !== "lender") {
-          return new Response(
-            JSON.stringify({ error: "Forbidden: Access restricted" }),
+            JSON.stringify({ error: "Forbidden: Access restricted to lender sandbox" }),
             { status: 403, headers: { "Content-Type": "application/json" } }
           );
         }

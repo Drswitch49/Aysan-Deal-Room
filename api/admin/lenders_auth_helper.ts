@@ -31,7 +31,8 @@ export async function authenticateAdmin(req: any) {
 
   const role = userFields.Role;
   const roleLower = (role || "").toLowerCase();
-  if (roleLower !== "admin" && roleLower !== "analyst" && roleLower !== "managing partner" && roleLower !== "partner") {
+  const allowedRoles = ["admin", "analyst", "managing partner", "partner", "hr", "stakeholder", "read only", "super admin", "owner"];
+  if (!allowedRoles.includes(roleLower)) {
     throw new Error("Unauthorized: Invalid role permissions");
   }
 

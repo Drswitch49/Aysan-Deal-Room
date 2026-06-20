@@ -18,6 +18,7 @@ export default async function handler(req: any, res: any) {
     // 1. Authenticate user
     await authenticateAdmin(req);
     const roleLower = (req.user?.role || "").toLowerCase();
+    const isOwner = ["managing partner", "partner", "super admin", "owner"].includes(roleLower);
 
     // 2. Access Control: Write operations restricted to admins
     if (req.method !== "GET") {
@@ -38,14 +39,22 @@ export default async function handler(req: any, res: any) {
 
     if (req.method === "POST") {
       const { action, memberId, name, email, phone, role, status, accessLevel } = req.body || {};
+      const targetId = memberId;
+      const isSuperAdminRole = (r: string) => ["managing partner", "partner", "super admin", "owner"].includes((r || "").toLowerCase());
 
       // --- Action 1: Reset Password ---
       if (action === "reset-password") {
-        if (!memberId) {
+        if (!targetId) {
           return res.status(400).json({ error: "Member ID is required for password reset" });
         }
-        const member = await airtableFetchRecord(TABLES.TEAM, memberId);
+        const member = await airtableFetchRecord(TABLES.TEAM, targetId);
         const memberEmail = member.fields["Email"];
+        const targetRole = member.fields["Role"] || "";
+        
+        if (isSuperAdminRole(targetRole) && !isOwner) {
+          return res.status(403).json({ error: "Forbidden: Non-owners cannot reset passwords for Owner / Partner accounts." });
+        }
+
         if (!memberEmail) {
           return res.status(400).json({ error: "Cannot reset password: user has no registered email" });
         }
@@ -68,7 +77,7 @@ export default async function handler(req: any, res: any) {
             PasswordHash: hash,
             Role: (member.fields["Role"] || "Analyst").toLowerCase(),
             Status: member.fields["Status"] || "Active",
-            Permissions: member.fields["Role"] === "Admin" || member.fields["Role"] === "Managing Partner" ? "admin" : "read",
+            Permissions: isSuperAdminRole(member.fields["Role"]) || member.fields["Role"] === "Admin" ? "admin" : "read",
             CreatedAt: new Date().toISOString()
           });
         }
@@ -78,18 +87,28 @@ export default async function handler(req: any, res: any) {
 
       // --- Action 2: Generate Login Link ---
       if (action === "generate-login-link") {
-        if (!memberId) {
+        if (!targetId) {
           return res.status(400).json({ error: "Member ID is required to generate login link" });
         }
+        const member = await airtableFetchRecord(TABLES.TEAM, targetId);
+        const targetRole = member.fields["Role"] || "";
+        if (isSuperAdminRole(targetRole) && !isOwner) {
+          return res.status(403).json({ error: "Forbidden: Non-owners cannot generate login links for Owner / Partner accounts." });
+        }
+
         const origin = req.headers.origin || "http://localhost:5173";
         const loginLink = `${origin}/login`;
-        await airtableUpdate(TABLES.TEAM, memberId, { "Login_Link": loginLink });
+        await airtableUpdate(TABLES.TEAM, targetId, { "Login_Link": loginLink });
         return res.status(200).json({ success: true, loginLink });
       }
 
       // --- Standard Create Member ---
       if (!name || !email) {
         return res.status(400).json({ error: "Missing required fields: name, email" });
+      }
+
+      if (isSuperAdminRole(role) && !isOwner) {
+        return res.status(403).json({ error: "Forbidden: Non-owners cannot create accounts with Owner / Partner privileges." });
       }
 
       // Ensure schema is updated
@@ -107,11 +126,11 @@ export default async function handler(req: any, res: any) {
         "Email": email,
         "Status": status || "Active",
         "Role": role || "Analyst",
-        "Access_Level": accessLevel || (role === "Admin" || role === "Managing Partner" ? "FULL ACCESS" : "WRITE ACCESS"),
+        "Access_Level": accessLevel || (isSuperAdminRole(role) || role === "Admin" ? "FULL ACCESS" : "WRITE ACCESS"),
         "Initials": name.split(/\s+/).length >= 2
           ? (name.split(/\s+/)[0][0] + name.split(/\s+/)[name.split(/\s+/).length - 1][0]).toUpperCase()
           : name.substring(0, 2).toUpperCase(),
-        "Avatar_Theme": role === "Admin" ? "purple" : role === "Managing Partner" ? "amber" : "blue",
+        "Avatar_Theme": role === "Admin" ? "purple" : isSuperAdminRole(role) ? "amber" : "blue",
         "Order": 99,
         "Login_Link": loginLink
       };
@@ -125,7 +144,7 @@ export default async function handler(req: any, res: any) {
         PasswordHash: hash,
         Role: (role || "Analyst").toLowerCase(),
         Status: status || "Active",
-        Permissions: role === "Admin" || role === "Managing Partner" ? "admin" : "read",
+        Permissions: isSuperAdminRole(role) || role === "Admin" ? "admin" : "read",
         CreatedAt: new Date().toISOString()
       }).catch(err => console.warn("Failed to create user record for new team member:", err));
 
@@ -140,8 +159,19 @@ export default async function handler(req: any, res: any) {
       const { id } = req.query;
       if (!id) return res.status(400).json({ error: "Team member ID is required" });
       const body = req.body || {};
+      const isSuperAdminRole = (r: string) => ["managing partner", "partner", "super admin", "owner"].includes((r || "").toLowerCase());
 
       const currentRecord = await airtableFetchRecord(TABLES.TEAM, id);
+      const targetRole = currentRecord.fields["Role"] || "";
+
+      if (isSuperAdminRole(targetRole) && !isOwner) {
+        return res.status(403).json({ error: "Forbidden: Non-owners cannot modify Owner / Partner accounts." });
+      }
+
+      if (body.role !== undefined && isSuperAdminRole(body.role) && !isOwner) {
+        return res.status(403).json({ error: "Forbidden: Non-owners cannot assign Owner / Partner roles." });
+      }
+
       const oldEmail = currentRecord.fields["Email"];
 
       const fields: Record<string, any> = {};
@@ -150,8 +180,8 @@ export default async function handler(req: any, res: any) {
       if (body.phone !== undefined) fields["Phone"] = body.phone;
       if (body.role !== undefined) {
         fields["Role"] = body.role;
-        fields["Access_Level"] = body.role === "Admin" || body.role === "Managing Partner" ? "FULL ACCESS" : "WRITE ACCESS";
-        fields["Avatar_Theme"] = body.role === "Admin" ? "purple" : body.role === "Managing Partner" ? "amber" : "blue";
+        fields["Access_Level"] = isSuperAdminRole(body.role) || body.role === "Admin" ? "FULL ACCESS" : "WRITE ACCESS";
+        fields["Avatar_Theme"] = body.role === "Admin" ? "purple" : isSuperAdminRole(body.role) ? "amber" : "blue";
       }
       if (body.status !== undefined) fields["Status"] = body.status;
       if (body.loginLink !== undefined) fields["Login_Link"] = body.loginLink;
@@ -170,7 +200,7 @@ export default async function handler(req: any, res: any) {
           if (body.email !== undefined) userUpdate["Email"] = body.email.trim();
           if (body.role !== undefined) {
             userUpdate["Role"] = body.role.toLowerCase();
-            userUpdate["Permissions"] = body.role === "Admin" || body.role === "Managing Partner" ? "admin" : "read";
+            userUpdate["Permissions"] = isSuperAdminRole(body.role) || body.role === "Admin" ? "admin" : "read";
           }
           if (body.status !== undefined) userUpdate["Status"] = body.status;
           await airtableUpdate("Users", usersData.records[0].id, userUpdate);
@@ -183,8 +213,14 @@ export default async function handler(req: any, res: any) {
     if (req.method === "DELETE") {
       const { id } = req.query;
       if (!id) return res.status(400).json({ error: "Team member ID is required" });
+      const isSuperAdminRole = (r: string) => ["managing partner", "partner", "super admin", "owner"].includes((r || "").toLowerCase());
 
       const member = await airtableFetchRecord(TABLES.TEAM, id);
+      const targetRole = member.fields["Role"] || "";
+      if (isSuperAdminRole(targetRole) && !isOwner) {
+        return res.status(403).json({ error: "Forbidden: Non-owners cannot deactivate Owner / Partner accounts." });
+      }
+
       const email = member.fields["Email"];
 
       // Soft delete: update Status in ACP_Team to Inactive

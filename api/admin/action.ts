@@ -272,9 +272,9 @@ export default async function handler(req: any, res: any) {
       }
 
       case "delete-lender": {
-        // Enforce Admin Only
-        if (req.user.role !== "admin") {
-          return res.status(403).json({ error: "Access denied: Requires Admin role" });
+        const isOwner = ["managing partner", "partner", "super admin", "owner"].includes((req.user?.role || "").toLowerCase());
+        if (req.user.role !== "admin" && !isOwner) {
+          return res.status(403).json({ error: "Access denied: Requires Admin or Owner role" });
         }
 
         const { lenderRecordId } = req.body;
@@ -314,6 +314,13 @@ export default async function handler(req: any, res: any) {
         if (!updates || !Array.isArray(updates)) {
           return res.status(400).json({ error: "Updates list is required and must be an array" });
         }
+
+        // Auto-provision Documents table
+        const schemaLogs = await ensureTable(TABLE_SPECS.DOCUMENTS).catch(console.warn);
+        if (schemaLogs && schemaLogs.length > 0) {
+          await persistSchemaLogs(schemaLogs).catch(console.warn);
+        }
+
         const results = await Promise.all(
           updates.map(async (update: { id: string; fields: Record<string, any> }) => {
             const { id, fields } = update;
@@ -337,17 +344,25 @@ export default async function handler(req: any, res: any) {
       }
 
       case "create-document": {
-        const { documentName, category, status, driveLink, dealId, ablCritical } = req.body;
+        const { documentName, category, status, driveLink, dealId, ablCritical, documentAccess } = req.body;
         if (!documentName || !category || !dealId) {
           return res.status(400).json({ error: "Document Name, Category, and Deal ID are required" });
         }
+        
+        // Auto-provision Documents table
+        const schemaLogs = await ensureTable(TABLE_SPECS.DOCUMENTS).catch(console.warn);
+        if (schemaLogs && schemaLogs.length > 0) {
+          await persistSchemaLogs(schemaLogs).catch(console.warn);
+        }
+
         const fields: Record<string, any> = {
           "Document_Name": documentName,
           "Category": category,
           "Status": status || "Outstanding",
           "Drive_Link": driveLink || "",
           "Deal_Ref": [dealId],
-          "ABL_Critical": !!ablCritical
+          "ABL_Critical": !!ablCritical,
+          "Document_Access": documentAccess || "Internal"
         };
         const result = await airtableCreate(TABLES.DOCUMENTS, fields);
 
@@ -537,6 +552,10 @@ export default async function handler(req: any, res: any) {
       }
 
       case "delete-document": {
+        const userRole = (req.user?.role || "").toLowerCase();
+        if (userRole === "analyst") {
+          return res.status(403).json({ error: "Forbidden: Analysts cannot delete documents." });
+        }
         const { documentId } = req.body;
         if (!documentId) {
           return res.status(400).json({ error: "Document ID is required" });
@@ -555,6 +574,10 @@ export default async function handler(req: any, res: any) {
       }
 
       case "archive-deal": {
+        const userRole = (req.user?.role || "").toLowerCase();
+        if (userRole === "analyst") {
+          return res.status(403).json({ error: "Forbidden: Analysts cannot archive deals." });
+        }
         const { dealId } = req.body;
         if (!dealId) {
           return res.status(400).json({ error: "Deal ID is required" });
@@ -575,6 +598,10 @@ export default async function handler(req: any, res: any) {
       }
 
       case "restore-deal": {
+        const userRole = (req.user?.role || "").toLowerCase();
+        if (userRole === "analyst") {
+          return res.status(403).json({ error: "Forbidden: Analysts cannot restore deals." });
+        }
         const { dealId } = req.body;
         if (!dealId) {
           return res.status(400).json({ error: "Deal ID is required" });

@@ -47,6 +47,11 @@ export default async function handler(req: any, res: any) {
 
   const { type, ref } = req.query || {};
 
+  const userRole = (req.headers["x-user-role"] || "").toLowerCase();
+  if (userRole === "hr") {
+    return res.status(403).json({ error: "Forbidden: HR users are restricted from accessing Deals." });
+  }
+
   try {
     // 1. Admin authentication check for sensitive Deal Inbox access
     if (type === "inbox") {
@@ -353,7 +358,17 @@ export default async function handler(req: any, res: any) {
           archived: rec.fields["Archived"] === true || rec.fields["Archived"] === "Yes",
           isProcessing,
           processingStatusText,
-          stageAgeDays
+          stageAgeDays,
+          listingLink: deal.listingLink || rec.fields["Listing_Link"] || "",
+          contactEmail: deal.contactEmail || rec.fields["Contact_Email"] || "",
+          contactPhone: deal.contactPhone || rec.fields["Contact_Phone"] || "",
+          turnover: deal.turnover || revenue || rec.fields["Turnover"] || "",
+          executiveSummary: deal.executiveSummary || rec.fields["Executive_Summary"] || "",
+          businessDescription: deal.businessDescription || rec.fields["Business_Description"] || "",
+          lenderExecutiveSummary: deal.lenderExecutiveSummary || rec.fields["Lender_Executive_Summary"] || "",
+          dealType: deal.dealType || rec.fields["Deal_Type"] || "",
+          investmentHighlights: deal.investmentHighlights || rec.fields["Investment_Highlights"] || "",
+          acquisitionRationale: deal.acquisitionRationale || rec.fields["Acquisition_Rationale"] || ""
         };
       });
     } else {
@@ -366,6 +381,17 @@ export default async function handler(req: any, res: any) {
       } else {
         results = response.records.map((rec: any) => mapper(rec.id, rec.fields));
       }
+
+      // Enforce document visibility filtering for external Stakeholders
+      if (type === "documents") {
+        const userRole = (req.headers["x-user-role"] || "").toLowerCase();
+        if (userRole === "stakeholder" || userRole === "read only") {
+          results = results.filter((doc: any) => {
+            const access = String(doc.documentAccess || doc.rawFields?.Document_Access || "").trim().toLowerCase();
+            return access === "lender" || access === "public";
+          });
+        }
+      }
     }
 
     // 4. Update in-memory cache
@@ -374,9 +400,31 @@ export default async function handler(req: any, res: any) {
       data: results
     };
 
+    // Helper to verify stakeholder deal assignment
+    const isDealAssignedToStakeholder = (deal: any, email: string) => {
+      if (!deal) return false;
+      const contactEmail = String(deal.contactEmail || deal.rawFields?.Contact_Email || deal.rawFields?.["Contact Email"] || "").toLowerCase().trim();
+      const brokerEmail = String(deal.rawFields?.["Broker Email"] || deal.rawFields?.Broker_Email || "").toLowerCase().trim();
+      if (contactEmail === email || brokerEmail === email) return true;
+
+      const brokerName = String(deal.broker || deal.rawFields?.Broker || deal.rawFields?.["Broker Name"] || "").toLowerCase().trim();
+      const emailUsername = email.split("@")[0];
+      if (brokerName.includes(emailUsername)) return true;
+
+      const stakeholdersField = String(deal.rawFields?.Stakeholders || deal.rawFields?.stakeholders || "").toLowerCase();
+      if (stakeholdersField.includes(email)) return true;
+
+      return false;
+    };
+
+    const userEmail = String(req.headers["x-user-email"] || "").toLowerCase().trim();
+
     // Filter results if deal reference was queried
     if (ref) {
       const filtered = filterResults(results, type, ref, targetDealId);
+      if (!type && (userRole === "stakeholder" || userRole === "read only") && !isDealAssignedToStakeholder(filtered, userEmail)) {
+        return res.status(403).json({ error: "Forbidden: You do not have access to this deal." });
+      }
       return res.status(200).json(filtered);
     }
  
@@ -384,6 +432,10 @@ export default async function handler(req: any, res: any) {
     let outputResults = results;
     if (!type && !ref) {
       outputResults = results.filter((deal: any) => deal.archived !== true && deal.rawFields?.Archived !== true && deal.rawFields?.Archived !== "Yes");
+    }
+
+    if (!type && (userRole === "stakeholder" || userRole === "read only")) {
+      outputResults = outputResults.filter((deal: any) => isDealAssignedToStakeholder(deal, userEmail));
     }
  
     // Apply Edge CDN headers

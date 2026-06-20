@@ -239,6 +239,25 @@ export const TABLE_SPECS: Record<string, TableSpec> = {
       { name: "Created_At", type: "dateTime", options: { timeZone: "utc", dateFormat: { name: "iso" }, timeFormat: { name: "24hour" } } },
     ],
   },
+
+  DOCUMENTS: {
+    name: "Documents",
+    fields: [
+      { name: "Deal_Ref", type: "singleLineText" },
+      { name: "Document_Name", type: "singleLineText" },
+      { name: "Category", type: "singleLineText" },
+      { name: "ABL_Critical", type: "checkbox" },
+      { name: "Status", type: "singleSelect", options: { choices: [{ name: "Received" }, { name: "Sent to Lender" }, { name: "Outstanding" }] } },
+      { name: "Source", type: "singleLineText" },
+      { name: "Date_Received", type: "dateTime", options: { timeZone: "utc", dateFormat: { name: "iso" }, timeFormat: { name: "24hour" } } },
+      { name: "Drive_Link", type: "url" },
+      { name: "Expected_Date", type: "singleLineText" },
+      { name: "Internal_Notes", type: "multilineText" },
+      { name: "Date_Sent_To_Lender", type: "dateTime", options: { timeZone: "utc", dateFormat: { name: "iso" }, timeFormat: { name: "24hour" } } },
+      { name: "Lender_Target", type: "singleLineText" },
+      { name: "Document_Access", type: "singleSelect", options: { choices: [{ name: "Internal" }, { name: "Lender" }, { name: "Public" }] } },
+    ],
+  },
 };
 
 // ─── Pipeline Field Specs (ensure these exist on Active_Pipeline) ────────────
@@ -259,6 +278,15 @@ export const PIPELINE_FIELD_SPECS: FieldSpec[] = [
   { name: "Internal_Notes", type: "multilineText" },
   { name: "IM_Review_Documents", type: "multipleAttachments" },
   { name: "Archived", type: "checkbox" },
+  { name: "Listing_Link", type: "url" },
+  { name: "Contact_Email", type: "email" },
+  { name: "Contact_Phone", type: "phoneNumber" },
+  { name: "Executive_Summary", type: "multilineText" },
+  { name: "Business_Description", type: "multilineText" },
+  { name: "Lender_Executive_Summary", type: "multilineText" },
+  { name: "Investment_Highlights", type: "multilineText" },
+  { name: "Acquisition_Rationale", type: "multilineText" },
+  { name: "Deal_Type", type: "singleLineText" },
 ];
 
 export async function ensurePipelineFields(pipelineTableName: string): Promise<SchemaChangeLog[]> {

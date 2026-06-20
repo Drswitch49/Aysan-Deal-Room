@@ -113,7 +113,7 @@ export function HrStakeholdersPage() {
   const [modalError, setModalError] = useState<{ title: string; message: string } | null>(null);
 
   // Credentials display modal state
-  const [createdCredentials, setCreatedCredentials] = useState<{ name: string; email: string; pass: string; type: string } | null>(null);
+  const [createdCredentials, setCreatedCredentials] = useState<{ name: string; email: string; pass: string; type: string; role?: string; accessLevel?: string } | null>(null);
 
   // Add Team Member modal states
   const [isAddTeamMemberOpen, setIsAddTeamMemberOpen] = useState(false);
@@ -143,7 +143,9 @@ export function HrStakeholdersPage() {
         name: teamForm.name,
         email: teamForm.email,
         pass: data.tempPassword || "",
-        type: "Team Member"
+        type: "Team Member",
+        role: teamForm.role,
+        accessLevel: ["managing partner", "partner", "super admin", "owner", "admin"].includes((teamForm.role || "").toLowerCase()) ? "FULL ACCESS" : "WRITE ACCESS"
       });
       setTeamForm({ name: "", email: "", phone: "", role: "Analyst", status: "Active" });
       setIsAddTeamMemberOpen(false);
@@ -167,7 +169,9 @@ export function HrStakeholdersPage() {
         name: stakeholderForm.name,
         email: stakeholderForm.email || "N/A",
         pass: data.tempPassword || "",
-        type: "External Stakeholder"
+        type: "External Stakeholder",
+        role: "Stakeholder",
+        accessLevel: "READ ONLY"
       });
       setStakeholderForm({ name: "", type: "Advisor", email: "", phone: "", organization: "", notes: "" });
       setIsAddStakeholderOpen(false);

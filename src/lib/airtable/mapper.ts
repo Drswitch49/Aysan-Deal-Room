@@ -23,6 +23,16 @@ export function mapPipelineDeal(id: string, fields: RawAirtableFields): Pipeline
     rawFields: fields,
     dealFiles: asUrl(firstField(fields, ["Deal Files", "Deal_Files", "deal_files", "Deal Link", "Drive_Link", "Drive Link", "Link", "link"])),
     archived: asBoolean(firstField(fields, ["Archived", "archived", "Is_Archived", "Is Archived"])),
+    listingLink: asUrl(firstField(fields, ["Listing_Link", "Listing Link", "listing_link", "listing link"])),
+    contactEmail: asText(firstField(fields, ["Contact_Email", "Contact Email", "contact_email", "contact email"])),
+    contactPhone: asText(firstField(fields, ["Contact_Phone", "Contact Phone", "contact_phone", "contact phone", "Phone", "phone"])),
+    turnover: asText(firstField(fields, ["Turnover", "turnover", "Revenue", "revenue"])),
+    executiveSummary: asText(firstField(fields, ["Executive_Summary", "Executive Summary", "executive_summary", "executive summary"])),
+    businessDescription: asText(firstField(fields, ["Business_Description", "Business Description", "business_description", "business description"])),
+    lenderExecutiveSummary: asText(firstField(fields, ["Lender_Executive_Summary", "Lender Executive Summary", "lender_executive_summary", "lender executive summary"])),
+    dealType: asText(firstField(fields, ["Deal_Type", "Deal Type", "deal_type", "deal type"])),
+    investmentHighlights: asText(firstField(fields, ["Investment_Highlights", "Investment Highlights", "investment_highlights", "investment highlights"])),
+    acquisitionRationale: asText(firstField(fields, ["Acquisition_Rationale", "Acquisition Rationale", "acquisition_rationale", "acquisition rationale"])),
   };
 }
 
@@ -41,6 +51,7 @@ export function mapDocument(id: string, fields: RawAirtableFields): DealDocument
     internalNotes: asText(firstField(fields, ["Internal_Notes", "Internal Notes", "Notes", "notes"])),
     dateSentToLender: asText(firstField(fields, ["Date_Sent_To_Lender", "Date Sent To Lender", "date_sent_to_lender", "date sent to lender"])),
     lenderTarget: asText(firstField(fields, ["Lender_Target", "Lender Target", "lender_target", "lender target"])),
+    documentAccess: asText(firstField(fields, ["Document_Access", "Document Access", "document_access", "document access"])),
   };
 }
 

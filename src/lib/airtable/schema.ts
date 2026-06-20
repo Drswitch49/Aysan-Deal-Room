@@ -64,7 +64,7 @@ export const SAFE_DOCUMENT_FIELDS = [
   "drive link", "Drive Link", "Drive_Link", "drive_link", "Link", "link",
   "Expected_Date", "Expected Date", "expected_date", "expected date",
   "Date_Sent_To_Lender", "Date Sent To Lender", "date_sent_to_lender", "date sent to lender",
-  "Lender_Target", "Lender Target"
+  "Lender_Target", "Lender Target", "Document_Access", "Document Access", "document_access"
 ];
 
 export const SAFE_PIPELINE_FIELDS = [
@@ -85,5 +85,10 @@ export const SAFE_PIPELINE_FIELDS = [
   // Financial Intelligence Engine Fields
   "EBITDA", "DSCR", "Leverage_Ratio", "Enterprise_Value", "Deal_Score", 
   "Financial_Risk_Score", "Financial_Analysis_Status", "Financial_Insights", 
-  "Financial_Anomalies", "Financial_Completed_At", "Archived"
+  "Financial_Anomalies", "Financial_Completed_At", "Archived",
+  // Deal Overview & Lender Portal Fields
+  "EBITDA_GBP", "Asking_Price_GBP", "Asking_price_gbp", "Listing_Link", 
+  "Contact_Email", "Contact_Phone", "Turnover", "Executive_Summary", 
+  "Business_Description", "Lender_Executive_Summary", "Investment_Highlights", 
+  "Acquisition_Rationale", "Deal_Type"
 ];

@@ -92,7 +92,10 @@ export default async function handler(req: any, res: any) {
       const status = String(doc.fields.Status || doc.fields.status || doc.fields.Stage || "").trim().toLowerCase();
       const isApproved = status === "sent to lender";
 
-      return belongsToAssignedDeal && isApproved;
+      const access = String(doc.fields.Document_Access || doc.fields.document_access || doc.fields["Document Access"] || "").trim().toLowerCase();
+      const isAccessAllowed = access === "lender" || access === "public";
+
+      return belongsToAssignedDeal && isApproved && isAccessAllowed;
     });
 
     // 5. Redact fields and inject populated / fallback Drive_Link field

@@ -63,6 +63,10 @@ export default async function handler(req: any, res: any) {
   try {
     // 1. Authenticate Admin
     await authenticateAdmin(req);
+    const userRole = (req.user?.role || "").toLowerCase();
+    if (userRole === "hr") {
+      return res.status(403).json({ error: "Forbidden: HR is restricted from accessing Dashboard Stats" });
+    }
   } catch (err: any) {
     return res.status(err.status || 401).json({ error: "Unauthorized" });
   }
@@ -526,6 +530,49 @@ export default async function handler(req: any, res: any) {
       avgVelocityDays: filteredDeals.length > 0 ? Math.round(totalAgeDays / filteredDeals.length) : 0
     };
 
+    let userStats = null;
+    const isOwner = ["managing partner", "partner", "super admin", "owner"].includes((req.user?.role || "").toLowerCase());
+    if (isOwner) {
+      try {
+        const usersRes = await airtableFetchAll("Users").catch(() => ({ records: [] }));
+        const stats = {
+          admins: { total: 0, active: 0, inactive: 0 },
+          analysts: { total: 0, active: 0, inactive: 0 },
+          hr: { total: 0, active: 0, inactive: 0 },
+          stakeholders: { total: 0, active: 0, inactive: 0 }
+        };
+
+        usersRes.records.forEach((u: any) => {
+          const uRole = (u.fields["Role"] || "").toLowerCase().trim();
+          const uStatus = (u.fields["Status"] || "").toLowerCase().trim();
+          const isActive = uStatus === "active";
+
+          let category: keyof typeof stats | null = null;
+          if (["managing partner", "partner", "super admin", "owner", "admin"].includes(uRole)) {
+            category = "admins";
+          } else if (uRole === "analyst") {
+            category = "analysts";
+          } else if (uRole === "hr") {
+            category = "hr";
+          } else if (["stakeholder", "read only"].includes(uRole)) {
+            category = "stakeholders";
+          }
+
+          if (category) {
+            stats[category].total++;
+            if (isActive) {
+              stats[category].active++;
+            } else {
+              stats[category].inactive++;
+            }
+          }
+        });
+        userStats = stats;
+      } catch (uErr) {
+        console.warn("Failed to fetch Users table for Owner telemetry:", uErr);
+      }
+    }
+
     // 11. Compile the consolidated payload
     return res.status(200).json({
       success: true,
@@ -538,6 +585,7 @@ export default async function handler(req: any, res: any) {
       recentMovements,
       criticalBlockers,
       actionsDueToday: actionsList,
+      userStats,
       loiTracker: {
         drafting: loiDrafting,
         sent: loiSent,

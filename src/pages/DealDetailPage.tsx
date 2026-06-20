@@ -1388,6 +1388,72 @@ function renderRichText(text: string) {
   );
 }
 
+function SimpleMarkdown({ content }: { content: string }) {
+  if (!content) return <p className="text-xs text-slate-400 italic">No summary provided.</p>;
+  
+  const blocks = content.split(/\n\n+/);
+  return (
+    <div className="space-y-4 select-text">
+      {blocks.map((block, bIdx) => {
+        const trimmedBlock = block.trim();
+        if (!trimmedBlock) return null;
+
+        if (trimmedBlock.startsWith("#")) {
+          const match = trimmedBlock.match(/^(#{1,6})\s+(.*)$/);
+          if (match) {
+            const level = match[1].length;
+            const text = match[2];
+            const sizeClass = 
+              level === 1 ? "text-lg font-black text-white" :
+              level === 2 ? "text-sm font-bold text-white mt-4 border-b border-white/5 pb-1" :
+              "text-xs font-bold text-slate-205 mt-3";
+            return <div key={bIdx} className={sizeClass}>{text}</div>;
+          }
+        }
+
+        const lines = trimmedBlock.split("\n");
+        const isList = lines.every(line => {
+          const t = line.trim();
+          return t.startsWith("* ") || t.startsWith("- ") || t.startsWith("• ") || /^\d+\.\s+/.test(t);
+        });
+
+        if (isList) {
+          return (
+            <ul key={bIdx} className="space-y-1.5 list-none pl-1">
+              {lines.map((line, lIdx) => {
+                const t = line.trim();
+                const cleanText = t.replace(/^[-*•]\s+/, "").replace(/^\d+\.\s+/, "");
+                return (
+                  <li key={lIdx} className="flex items-start gap-2 text-xs text-slate-300 leading-relaxed">
+                    <span className="text-[#C6A66B] mt-1 shrink-0 text-[10px]">•</span>
+                    <span>{parseInlineMarkdown(cleanText)}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          );
+        }
+
+        return (
+          <p key={bIdx} className="text-xs text-slate-305 leading-relaxed font-normal">
+            {parseInlineMarkdown(trimmedBlock)}
+          </p>
+        );
+      })}
+    </div>
+  );
+}
+
+function parseInlineMarkdown(text: string) {
+  const parts = text.split("**");
+  return parts.map((part, i) => {
+    if (i % 2 === 1) {
+      return <strong key={i} className="text-white font-extrabold">{part}</strong>;
+    }
+    return part;
+  });
+}
+
 // ---------------------------------------------------------------------
 // High-Fidelity Tab Layout Components
 // ---------------------------------------------------------------------
@@ -1499,13 +1565,77 @@ function OverviewTab({
   const [isKillScreenOpen, setIsKillScreenOpen] = useState(false);
   const [isFinancialsOpen, setIsFinancialsOpen] = useState(false);
 
+  const formatGBPVal = (val: any) => {
+    if (val === undefined || val === null || val === "") return "TBC";
+    const str = String(val).trim();
+    if (str.includes("£") || str.toLowerCase().includes("m") || str.toLowerCase().includes("k")) {
+      return str;
+    }
+    const parsed = Number(str.replace(/[^0-9.]/g, ""));
+    if (isNaN(parsed) || parsed === 0) return "TBC";
+    return formatGBP(parsed);
+  };
 
   return (
     <div className="space-y-6 animate-fade-in-up font-sans text-slate-100">
+      {/* Transaction Snapshot Metric Row */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="rounded-2xl border border-white/[0.04] bg-[#161B22] p-5 shadow-premium-card card-sheen relative overflow-hidden flex flex-col justify-between">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Location</span>
+          <span className="text-lg font-black text-white mt-2">{deal.location || "TBC"}</span>
+        </div>
+        <div className="rounded-2xl border border-white/[0.04] bg-[#161B22] p-5 shadow-premium-card card-sheen relative overflow-hidden flex flex-col justify-between">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Turnover</span>
+          <span className="text-lg font-black text-[#C6A66B] mt-2">{formatGBPVal(deal.turnover || deal.revenue)}</span>
+        </div>
+        <div className="rounded-2xl border border-white/[0.04] bg-[#161B22] p-5 shadow-premium-card card-sheen relative overflow-hidden flex flex-col justify-between">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">EBITDA</span>
+          <span className="text-lg font-black text-white mt-2">{formatGBPVal(deal.ebitda)}</span>
+        </div>
+        <div className="rounded-2xl border border-white/[0.04] bg-[#161B22] p-5 shadow-premium-card card-sheen relative overflow-hidden flex flex-col justify-between">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Asking Price</span>
+          <span className="text-lg font-black text-white mt-2">{formatGBPVal(deal.evAsk)}</span>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-[1.8fr_1.2fr] gap-8 items-start">
         
         {/* LEFT COLUMN: Executive Summary & Collapsible Accordions */}
         <div className="space-y-6">
+
+          {/* Card: Business Description */}
+          <div className="rounded-2xl border border-white/[0.04] bg-[#161B22] p-6 shadow-premium-card card-sheen relative overflow-hidden">
+            <div className="relative z-10 space-y-4">
+              <div className="flex items-center gap-2.5 pb-3 border-b border-white/5">
+                <div className="h-8 w-8 rounded-lg bg-[#C6A66B]/10 border border-[#C6A66B]/20 flex items-center justify-center">
+                  <Building2 className="h-4.5 w-4.5 text-[#C6A66B]" />
+                </div>
+                <div>
+                  <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-350">Business Description</h4>
+                  <span className="text-xs font-semibold text-slate-500">{deal.sector || "Sector Fit"}</span>
+                </div>
+              </div>
+              <p className="text-xs leading-relaxed text-slate-305 font-normal select-text">
+                {deal.businessDescription || "No business description provided."}
+              </p>
+            </div>
+          </div>
+
+          {/* Card: Executive Summary */}
+          <div className="rounded-2xl border border-white/[0.04] bg-[#161B22] p-6 shadow-premium-card card-sheen relative overflow-hidden">
+            <div className="relative z-10 space-y-4">
+              <div className="flex items-center gap-2.5 pb-3 border-b border-white/5">
+                <div className="h-8 w-8 rounded-lg bg-[#C6A66B]/10 border border-[#C6A66B]/20 flex items-center justify-center">
+                  <FileText className="h-4.5 w-4.5 text-[#C6A66B]" />
+                </div>
+                <div>
+                  <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-350">Executive Summary</h4>
+                  <span className="text-xs font-semibold text-slate-500 font-sans">Transaction Highlights</span>
+                </div>
+              </div>
+              <SimpleMarkdown content={deal.executiveSummary || ""} />
+            </div>
+          </div>
           
           {/* Card 1: Claude AI Verdict & Key Risks (Visible by default) */}
           <div className="rounded-2xl border border-white/[0.04] bg-[#161B22] p-6 shadow-premium-card card-sheen relative overflow-hidden">
@@ -1850,6 +1980,63 @@ function OverviewTab({
 
         {/* RIGHT COLUMN: Operational Guidance Sidebar */}
         <div className="space-y-6 lg:sticky lg:top-24">
+
+          {/* Sourcing & Contact Information Card */}
+          <div className="rounded-2xl border border-white/[0.04] bg-[#161B22] p-5 space-y-4 shadow-premium-card card-sheen relative overflow-hidden">
+            <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 select-none block font-sans">Sourcing & Contact</span>
+            <div className="space-y-3">
+              {deal.contactEmail ? (
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-[8px] text-slate-500 uppercase tracking-wider">Contact Email</span>
+                  <a 
+                    href={`mailto:${deal.contactEmail}`}
+                    className="text-xs font-bold text-[#C6A66B] hover:text-[#B8924F] hover:underline transition flex items-center gap-1.5"
+                  >
+                    {deal.contactEmail}
+                  </a>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-[8px] text-slate-500 uppercase tracking-wider">Contact Email</span>
+                  <span className="text-xs font-medium text-slate-400 italic">No email provided</span>
+                </div>
+              )}
+
+              {deal.contactPhone ? (
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-[8px] text-slate-500 uppercase tracking-wider">Contact Phone</span>
+                  <a 
+                    href={`tel:${deal.contactPhone}`}
+                    className="text-xs font-bold text-slate-200 hover:text-white hover:underline transition flex items-center gap-1.5"
+                  >
+                    {deal.contactPhone}
+                  </a>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-[8px] text-slate-500 uppercase tracking-wider">Contact Phone</span>
+                  <span className="text-xs font-medium text-slate-400 italic">No phone provided</span>
+                </div>
+              )}
+
+              {deal.listingLink ? (
+                <div className="pt-2 border-t border-white/5">
+                  <a 
+                    href={deal.listingLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-450 hover:underline"
+                  >
+                    View Original Listing <ExternalLink className="h-3.5 w-3.5" />
+                  </a>
+                </div>
+              ) : (
+                <div className="pt-2 border-t border-white/5">
+                  <span className="text-xs text-slate-500 italic">No listing link available</span>
+                </div>
+              )}
+            </div>
+          </div>
           
           {/* Section 0: Deal Owner Profile */}
           <div className="rounded-2xl border border-white/[0.04] bg-[#161B22] p-5 space-y-3 shadow-premium-card card-sheen">

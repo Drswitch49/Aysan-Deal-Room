@@ -30,7 +30,8 @@ export default async function handler(req: any, res: any) {
 
     // 1. Live Validation for Admin / Analyst (via Users table)
     const roleLower = (role || "").toLowerCase();
-    if (roleLower === "admin" || roleLower === "analyst" || roleLower === "managing partner" || roleLower === "partner") {
+    const systemRoles = ["admin", "analyst", "managing partner", "partner", "hr", "stakeholder", "read only", "super admin", "owner"];
+    if (systemRoles.includes(roleLower)) {
       let userStatus = "";
       let userRole = "";
       let userPermissions = "";
