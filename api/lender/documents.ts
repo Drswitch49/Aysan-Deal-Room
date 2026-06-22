@@ -26,10 +26,10 @@ export default async function handler(req: any, res: any) {
     const lenderIdText = lender.normalizedFields.Lender_ID;
 
     // 2. Fetch lender assignments using dynamic fields
-    const { lenderIdCol, lenderIdLookupCol, statusCol } = await getAssignmentFields();
-    let filterFormula = `OR({${lenderIdCol}} = '${lenderRecordId}', {${lenderIdCol}} = '${escapeFormulaString(lenderIdText)}')`;
+    const { lenderIdCol, lenderIdLookupCol, dealRefCol, statusCol } = await getAssignmentFields();
+    let filterFormula = `OR(FIND('${lenderRecordId}', {${lenderIdCol}}) > 0, FIND('${escapeFormulaString(lenderIdText)}', {${lenderIdCol}}) > 0)`;
     if (lenderIdLookupCol) {
-      filterFormula = `OR(${filterFormula}, {${lenderIdLookupCol}} = '${escapeFormulaString(lenderIdText)}')`;
+      filterFormula = `OR(${filterFormula}, FIND('${escapeFormulaString(lenderIdText)}', {${lenderIdLookupCol}}) > 0)`;
     }
     if (statusCol) {
       filterFormula = `AND(${filterFormula}, {${statusCol}} = 'Active')`;
@@ -73,7 +73,7 @@ export default async function handler(req: any, res: any) {
     }
 
     for (const record of assignmentsData.records) {
-      const dealRefVal = record.fields.Deal_Ref;
+      const dealRefVal = record.fields[dealRefCol] || record.fields.Deal_Ref || record.fields["Deal Ref"];
       if (dealRefVal && lenderNdaApproved) {
         if (Array.isArray(dealRefVal)) {
           dealRefVal.forEach(id => ndaApprovedDeals.add(id));
