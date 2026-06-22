@@ -126,7 +126,7 @@ const onPrecallBriefRequested = inngest.createFunction(
       success: true,
       briefId,
       dealId,
-      questionsCount: briefContent.questionsToAsk.length,
+      questionsCount: briefContent.priorityQuestions.length,
     };
   }
 );
