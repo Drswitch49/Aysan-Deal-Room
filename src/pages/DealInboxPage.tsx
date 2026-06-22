@@ -130,8 +130,14 @@ export function DealInboxPage() {
   );
 
   const formatFinancial = (val: any) => {
-    const num = Number(val);
-    if (isNaN(num)) return "TBC";
+    if (val === null || val === undefined || val === "") return "TBC";
+    
+    if (typeof val === 'string' && /[kKmMbB]/.test(val) && !/^\d+$/.test(val)) return val;
+
+    const cleanStr = String(val).replace(/[^0-9.-]/g, '');
+    const num = Number(cleanStr);
+    
+    if (isNaN(num) || cleanStr === "") return "TBC";
     if (num >= 1000000) return `£${(num / 1000000).toFixed(1)}m`;
     if (num >= 1000) return `£${(num / 1000).toFixed(0)}k`;
     return `£${num}`;
@@ -403,6 +409,18 @@ export function DealInboxPage() {
                     <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">Sector</div>
                     <div className="text-sm font-bold text-white truncate" title={selectedDeal.fields["Sector"] || selectedDeal.fields["Industry"] || "General"}>
                       {selectedDeal.fields["Sector"] || selectedDeal.fields["Industry"] || "General"}
+                    </div>
+                  </div>
+                  <div className="rounded-xl bg-white/[0.02] border border-white/[0.02] p-4 col-span-2 sm:col-span-1">
+                    <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">DSCR Proxy</div>
+                    <div className="text-sm font-bold text-white">
+                      {selectedDeal.fields["DSCR proxy"] || selectedDeal.fields["DSCR Proxy"] || selectedDeal.fields["DSCR_Proxy"] || "N/A"}
+                    </div>
+                  </div>
+                  <div className="rounded-xl bg-white/[0.02] border border-white/[0.02] p-4 col-span-2">
+                    <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">One Line Reason</div>
+                    <div className="text-sm font-bold text-white whitespace-pre-wrap">
+                      {selectedDeal.fields["One line reason"] || selectedDeal.fields["One_Line_Reason"] || "N/A"}
                     </div>
                   </div>
                 </div>
