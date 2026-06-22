@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import {
   Building2, LogOut, Menu, X,
   LayoutDashboard, Kanban, Users, Settings, KeyRound, Activity,
-  ChevronLeft, ChevronRight, Inbox
+  ChevronLeft, ChevronRight, Inbox, MessageSquare
 } from "lucide-react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import { cx } from "../../utils/cx";
@@ -19,7 +19,7 @@ const NAV_SECTIONS = [
     group: "Operations",
     items: [
       { to: "/", icon: <LayoutDashboard className="h-4 w-4" />, label: "Dashboard", end: true },
-      { to: "/admin/messages", icon: <Inbox className="h-4 w-4" />, label: "Messages" },
+      { to: "/admin/messages", icon: <MessageSquare className="h-4 w-4" />, label: "Messages" },
       { to: "/admin/inbox", icon: <Inbox className="h-4 w-4" />, label: "Deal Inbox" },
       { to: "/deals", icon: <Kanban className="h-4 w-4" />, label: "Active Deals", end: true },
       { to: "/admin/portco", icon: <Activity className="h-4 w-4" />, label: "Portfolio Monitor" },
