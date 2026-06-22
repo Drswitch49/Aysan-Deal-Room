@@ -64,7 +64,13 @@ export default async function handler(req: any, res: any) {
     });
 
     const ndaApprovedDeals = new Set<string>();
-    const lenderNdaApproved = lender.normalizedFields.NDA_Approved === "Yes" || lender.normalizedFields.NDA_Approved === "yes" || lender.normalizedFields.NDA_Approved === true;
+    let lenderNdaApproved = false;
+    const ndaField = lender.normalizedFields.NDA_Approved;
+    if (Array.isArray(ndaField)) {
+       lenderNdaApproved = ndaField.some(v => v === "Yes" || v === "yes" || v === true || String(v).toLowerCase() === "true");
+    } else {
+       lenderNdaApproved = ndaField === "Yes" || ndaField === "yes" || ndaField === true || String(ndaField).toLowerCase() === "true";
+    }
 
     for (const record of assignmentsData.records) {
       const dealRefVal = record.fields.Deal_Ref;
@@ -93,7 +99,7 @@ export default async function handler(req: any, res: any) {
       const isApproved = status === "sent to lender";
 
       const access = String(doc.fields.Document_Access || doc.fields.document_access || doc.fields["Document Access"] || "").trim().toLowerCase();
-      const isAccessAllowed = access === "lender" || access === "public";
+      const isAccessAllowed = access === "lender" || access === "public" || (!access && isApproved);
 
       return belongsToAssignedDeal && isApproved && isAccessAllowed;
     });

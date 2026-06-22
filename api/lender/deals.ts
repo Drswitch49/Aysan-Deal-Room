@@ -125,7 +125,13 @@ export default async function handler(req: any, res: any) {
     // 3. Resolve all assigned deal IDs and Refs + build NDA map
     const dealIds = new Set<string>();
     const dealRefs = new Set<string>();
-    const lenderNdaApproved = lender.normalizedFields.NDA_Approved === "Yes" || lender.normalizedFields.NDA_Approved === "yes" || lender.normalizedFields.NDA_Approved === true;
+    let lenderNdaApproved = false;
+    const ndaField = lender.normalizedFields.NDA_Approved;
+    if (Array.isArray(ndaField)) {
+       lenderNdaApproved = ndaField.some(v => v === "Yes" || v === "yes" || v === true || String(v).toLowerCase() === "true");
+    } else {
+       lenderNdaApproved = ndaField === "Yes" || ndaField === "yes" || ndaField === true || String(ndaField).toLowerCase() === "true";
+    }
 
     for (const record of assignmentsData.records) {
       const dealRefVal = record.fields.Deal_Ref;
@@ -149,10 +155,38 @@ export default async function handler(req: any, res: any) {
       return dealIds.has(record.id) || dealRefs.has(String(refNo));
     });
 
+    // Auto-map lookup fields (arrays) to scalar values for our standard fields
+    assignedDeals.forEach((deal: any) => {
+      const f = deal.fields;
+      const mapLookup = (target: string, source: string) => {
+         if (!f[target] && f[source]) {
+            f[target] = Array.isArray(f[source]) ? f[source][0] : f[source];
+         }
+      };
+
+      mapLookup("Company Name", "Company Name (from Deal_Inbox)");
+      mapLookup("Company_Name", "Company Name (from Deal_Inbox)");
+      mapLookup("Location", "Location (from Deal_Inbox)");
+      mapLookup("Sector", "Sector (from Deal_Inbox)");
+      mapLookup("EV", "Asking_Price_GBP (from Deal_Inbox)");
+      mapLookup("EV", "Turnover (from Deal_Inbox)");
+      mapLookup("DSCR_Proxy", "DSCR_Proxy (from Deal_Inbox)");
+      mapLookup("DSCR_SCORE", "DSCR_Score (from Deal_Inbox)");
+      mapLookup("Broker", "BROKER (from Deal_Inbox)");
+      mapLookup("Broker", "Broker (from Deal_Inbox)");
+      mapLookup("Deal Files", "Deal Files (from Deal_Inbox)");
+    });
+
     // Try to resolve empty fields by matching with Deal_Inbox
     const inboxFormulas: string[] = [];
     assignedDeals.forEach((deal: any) => {
       const dealName = String(deal.fields["Deal Name"] || "");
+      const refNo = String(deal.fields["REF No."] || "");
+      
+      if (refNo) {
+        inboxFormulas.push(`{REF. NO} = '${escapeFormulaString(refNo)}'`);
+      }
+
       const segments = dealName.split(/[|—–-]/).map(s => s.trim()).filter(Boolean);
       segments.forEach(seg => {
         const cleanSeg = seg.toLowerCase();
@@ -183,14 +217,16 @@ export default async function handler(req: any, res: any) {
     // Merge Deal_Inbox fields into assignedDeals
     assignedDeals.forEach((deal: any) => {
       const dealName = String(deal.fields["Deal Name"] || "");
+      const refNo = String(deal.fields["REF No."] || "");
       
       const match = inboxRecords.find(inboxRec => {
         const inboxName = String(inboxRec.fields["Deal Name"] || "").toLowerCase();
         const inboxRef = String(inboxRec.fields["REF. NO"] || "").toLowerCase();
         
-        return (inboxRef && dealName.toLowerCase().includes(inboxRef)) ||
+        return (inboxRef && refNo.toLowerCase() === inboxRef) ||
+               (inboxRef && dealName.toLowerCase().includes(inboxRef)) ||
                (inboxName && dealName.toLowerCase().includes(inboxName)) ||
-               (inboxName && inboxName.split(" ").every(word => word.length < 3 || dealName.toLowerCase().includes(word)));
+               (inboxName && dealName && inboxName.split(" ").every(word => word.length < 3 || dealName.toLowerCase().includes(word)));
       });
 
       if (match) {
