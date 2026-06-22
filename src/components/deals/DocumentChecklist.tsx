@@ -707,7 +707,7 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
               <Th>Category</Th>
               <Th>Priority</Th>
               <Th>Status</Th>
-              <Th>Date Received</Th>
+              {audience === "internal" && <Th>Date Received</Th>}
               <Th className="text-right">Actions</Th>
             </tr>
           </thead>
@@ -716,10 +716,13 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
               <tr 
                 key={document.id} 
                 className={cx(
-                  "transition-all duration-205 hover:bg-white/[0.02] cursor-pointer",
+                  "transition-all duration-205 hover:bg-white/[0.02]",
+                  audience === "internal" ? "cursor-pointer" : "",
                   selectedDoc?.id === document.id ? "bg-white/[0.04]" : ""
                 )}
-                onClick={() => setSelectedDoc(document)}
+                onClick={() => {
+                  if (audience === "internal") setSelectedDoc(document);
+                }}
               >
                 {audience === "internal" && (
                   <Td className="w-10" onClick={(e) => e.stopPropagation()}>
@@ -769,18 +772,22 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
                 <Td>
                   <StatusBadge status={document.status} />
                 </Td>
-                <Td className="font-semibold text-slate-350">
-                  {formatDate(document.dateReceived) || "Not received"}
-                </Td>
+                {audience === "internal" && (
+                  <Td className="font-semibold text-slate-350">
+                    {formatDate(document.dateReceived) || "Not received"}
+                  </Td>
+                )}
                 <Td className="text-right" onClick={(e) => e.stopPropagation()}>
                   <div className="flex justify-end gap-2">
-                    <ButtonLink 
-                      href={document.driveLink} 
-                      icon="view"
-                      onClick={(e) => handleViewClick(e, document)}
-                    >
-                      View
-                    </ButtonLink>
+                    {audience === "internal" && (
+                      <ButtonLink 
+                        href={document.driveLink} 
+                        icon="view"
+                        onClick={(e) => handleViewClick(e, document)}
+                      >
+                        View
+                      </ButtonLink>
+                    )}
                     <ButtonLink 
                       href={getDriveDownloadUrl(document.driveLink)} 
                       icon="download" 
