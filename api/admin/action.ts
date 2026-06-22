@@ -48,6 +48,34 @@ async function generateUniqueSlug(companyName: string): Promise<string> {
   return slug;
 }
 
+async function uploadToTempStorage(fileData: string, fileName: string, fileType: string): Promise<string> {
+  let cleanBase64 = fileData;
+  if (fileData.includes(";base64,")) {
+    cleanBase64 = fileData.split(";base64,")[1];
+  }
+  const buffer = Buffer.from(cleanBase64, "base64");
+  const formData = new FormData();
+  const fileBlob = new Blob([buffer], { type: fileType || "application/octet-stream" });
+  formData.append("file", fileBlob, fileName || "document.pdf");
+
+  const uploadResponse = await fetch("https://tmpfiles.org/api/v1/upload", {
+    method: "POST",
+    body: formData
+  });
+
+  if (!uploadResponse.ok) {
+    const text = await uploadResponse.text();
+    throw new Error(`Temporary file hosting upload failed: ${uploadResponse.statusText} - ${text}`);
+  }
+
+  const uploadResult = await uploadResponse.json();
+  if (uploadResult.status !== "success" || !uploadResult.data?.url) {
+    throw new Error(`Temporary file hosting responded with error: ${JSON.stringify(uploadResult)}`);
+  }
+
+  return uploadResult.data.url.replace("https://tmpfiles.org/", "https://tmpfiles.org/dl/");
+}
+
 export default async function handler(req: any, res: any) {
   if (req.method !== "POST") {
     return res.status(455).json({ error: "Method not allowed" });
@@ -639,9 +667,11 @@ export default async function handler(req: any, res: any) {
         const dealRecord = await airtableFetchRecord(TABLES.PIPELINE, dealId);
         const existingAttachments = dealRecord.fields["IM_Review_Documents"] || [];
 
-        // Add new attachment — Airtable accepts base64 data URLs
+        // Upload to temp hosting to get a public URL for Airtable
+        const publicUrl = await uploadToTempStorage(fileData, fileName, fileType);
+
         const newAttachment = {
-          url: `data:${fileType || "application/pdf"};base64,${fileData}`,
+          url: publicUrl,
           filename: fileName || "IM_Document",
         };
 
@@ -713,8 +743,11 @@ export default async function handler(req: any, res: any) {
           return res.status(404).json({ error: "Attachment to replace not found" });
         }
 
+        // Upload to temp hosting to get a public URL for Airtable
+        const publicUrl = await uploadToTempStorage(fileData, fileName, fileType);
+
         const newAttachment = {
-          url: `data:${fileType || "application/pdf"};base64,${fileData}`,
+          url: publicUrl,
           filename: fileName || "IM_Document",
         };
 
