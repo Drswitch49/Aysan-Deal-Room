@@ -1689,7 +1689,15 @@ function OverviewTab({
                           ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-450" 
                           : "bg-amber-500/10 border-amber-500/20 text-amber-500"
                       )}>
-                        {deal.rawFields?.Claude_Verdict ? JSON.parse(deal.rawFields.Claude_Verdict).investmentVerdict.split(":")[0] : verdict}
+                        {(() => {
+                          if (!deal.rawFields?.Claude_Verdict) return verdict;
+                          try {
+                            const parsed = JSON.parse(deal.rawFields.Claude_Verdict);
+                            return parsed.investmentVerdict ? parsed.investmentVerdict.split(":")[0] : verdict;
+                          } catch (e) {
+                            return verdict;
+                          }
+                        })()}
                       </span>
                     </div>
                   </div>
