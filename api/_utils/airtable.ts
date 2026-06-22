@@ -13,6 +13,7 @@ export const TABLES = {
   TEAM: process.env.AIRTABLE_TEAM_TABLE || "ACP_Team",
   HIRING: process.env.AIRTABLE_HIRING_TABLE || "Hiring_Briefs",
   STAKEHOLDERS: process.env.AIRTABLE_STAKEHOLDER_TABLE || "External_Stakeholders",
+  DEAL_INBOX: "Deal_Inbox",
   TRANSCRIPT_ANALYSES: "Transcript_Analyses",
   PRECALL_BRIEFS: "Precall_Briefs",
   POSTCALL_BRIEFS: "Postcall_Briefs",

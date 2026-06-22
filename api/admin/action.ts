@@ -127,6 +127,26 @@ export default async function handler(req: any, res: any) {
         return res.status(200).json({ success: true, verdict });
       }
 
+      case "update-inbox-status": {
+        const { inboxRecordId, status } = req.body;
+        if (!inboxRecordId) return res.status(400).json({ error: "inboxRecordId is required" });
+        if (!status) return res.status(400).json({ error: "status is required" });
+
+        const updated = await airtableUpdate(TABLES.DEAL_INBOX, inboxRecordId, {
+          "Status": status
+        });
+
+        await logAuditTrail(
+          "UPDATE_INBOX_STATUS",
+          req.user.email,
+          req.user.role,
+          inboxRecordId,
+          `Updated Deal Inbox status to: ${status}`
+        );
+
+        return res.status(200).json({ success: true, result: updated });
+      }
+
       case "promote-deal": {
         const { inboxRecordId } = req.body;
         if (!inboxRecordId) return res.status(400).json({ error: "inboxRecordId is required" });

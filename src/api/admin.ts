@@ -74,6 +74,22 @@ export async function promoteDealFromInbox(inboxRecordId: string) {
   return response.json();
 }
 
+export async function updateInboxStatus(inboxRecordId: string, status: string) {
+  const response = await fetch("/api/admin/action", {
+    method: "POST",
+    headers: getAdminHeaders(),
+    body: JSON.stringify({ action: "update-inbox-status", inboxRecordId, status })
+  });
+
+  if (!response.ok) {
+    const err = await response.json();
+    throw new Error(err.error || "Failed to update inbox status");
+  }
+
+  clearAirtableCache();
+  return response.json();
+}
+
 export async function removeDealAssignment(assignmentId: string) {
   const response = await fetch("/api/admin/action", {
     method: "POST",
