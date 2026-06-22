@@ -451,7 +451,6 @@ export default async function handler(req: any, res: any) {
           "Deal Name": resolvedName,
           "Stage": stage || "Inbound",
           "ACP REF NO": finalRef,
-          "REF No.": finalRef,
           "Deal_Ref": finalRef,
           "Next Action": nextAction || "Schedule initial discovery call",
           "Next Action Date": nextActionDate || todayStr,
