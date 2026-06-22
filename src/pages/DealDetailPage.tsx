@@ -230,6 +230,33 @@ export function DealDetailPage() {
     }
   };
 
+  const [isGeneratingVerdict, setIsGeneratingVerdict] = useState(false);
+  
+  const handleGenerateVerdict = async () => {
+    if (!dealState.data?.id) return;
+    setIsGeneratingVerdict(true);
+    try {
+      const res = await fetch("/api/admin/action", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${sessionStorage.getItem("admin_token") || ""}`
+        },
+        body: JSON.stringify({
+          action: "generate-verdict",
+          dealId: dealState.data.id
+        })
+      });
+      if (!res.ok) throw new Error("Failed to generate verdict");
+      setRefreshTrigger(prev => prev + 1);
+    } catch (err) {
+      console.error(err);
+      alert("Error generating verdict.");
+    } finally {
+      setIsGeneratingVerdict(false);
+    }
+  };
+
   const documentState = useDealDocuments(decodedRef, refreshTrigger);
 
   const { refresh: refreshPipeline } = usePipeline();
@@ -713,6 +740,8 @@ export function DealDetailPage() {
             setTransitionError={setTransitionError}
             overallDisplayScore={latestPostcallScore}
             openComposer={openComposer}
+            isGeneratingVerdict={isGeneratingVerdict}
+            handleGenerateVerdict={handleGenerateVerdict}
           />
         )}
 
@@ -1475,7 +1504,9 @@ function OverviewTab({
   setTransitionNotes,
   setTransitionError,
   overallDisplayScore,
-  openComposer
+  openComposer,
+  isGeneratingVerdict,
+  handleGenerateVerdict
 }: { 
   deal: any; 
   assignedLenders: any[]; 
@@ -1495,6 +1526,8 @@ function OverviewTab({
   setTransitionError: (err: string | null) => void;
   overallDisplayScore: string;
   openComposer: (opts: any) => void;
+  isGeneratingVerdict?: boolean;
+  handleGenerateVerdict?: () => Promise<void>;
 }) {
 
   const ebitdaVal = Number(deal.ebitda) || 0;
@@ -1656,41 +1689,117 @@ function OverviewTab({
                           ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-450" 
                           : "bg-amber-500/10 border-amber-500/20 text-amber-500"
                       )}>
-                        {verdict}
+                        {deal.rawFields?.Claude_Verdict ? JSON.parse(deal.rawFields.Claude_Verdict).investmentVerdict.split(":")[0] : verdict}
                       </span>
                     </div>
                   </div>
                 </div>
                 
-                <div className="text-right select-none">
-                  <span className="block text-[8px] font-bold text-slate-500 uppercase tracking-wider">Acquisition Score</span>
-                  <span className="text-lg font-black text-[#C6A66B] font-mono tracking-tight mt-0.5 block">
-                    {overallDisplayScore}
-                  </span>
+                <div className="flex items-center gap-4 text-right select-none">
+                  {handleGenerateVerdict && (
+                    <button
+                      onClick={handleGenerateVerdict}
+                      disabled={isGeneratingVerdict}
+                      className="px-3 py-1.5 rounded-lg border border-[#C6A66B]/30 bg-[#C6A66B]/10 hover:bg-[#C6A66B]/20 text-[#C6A66B] text-[9px] font-black uppercase tracking-widest transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                    >
+                      {isGeneratingVerdict ? (
+                        <>
+                          <RefreshCw className="h-3 w-3 animate-spin" />
+                          Generating...
+                        </>
+                      ) : (
+                        <>
+                          <BrainCircuit className="h-3 w-3" />
+                          Generate Verdict
+                        </>
+                      )}
+                    </button>
+                  )}
+                  <div>
+                    <span className="block text-[8px] font-bold text-slate-500 uppercase tracking-wider">Acquisition Score</span>
+                    <span className="text-lg font-black text-[#C6A66B] font-mono tracking-tight mt-0.5 block">
+                      {overallDisplayScore}
+                    </span>
+                  </div>
                 </div>
               </div>
 
-              <p className="text-xs leading-relaxed text-slate-300 font-normal">
-                The deal presents a compelling low-multiple entry in a defensive sector. While the {realMarginVal}% EBITDA margin sits below the institutional 15% threshold, the regional dominance in {deal.location || "Kent"} provides a stable moat for post-acquisition optimization and contract growth.
-              </p>
+              {(() => {
+                let parsedVerdict: any = null;
+                try {
+                  if (deal.rawFields?.Claude_Verdict) {
+                    parsedVerdict = JSON.parse(deal.rawFields.Claude_Verdict);
+                  }
+                } catch (e) {
+                  // silent
+                }
 
-              <div className="space-y-3 pt-2.5 border-t border-white/[0.02]">
-                <span className="block text-[9px] font-extrabold uppercase tracking-widest text-slate-400">Key Risks & Viability Concerns</span>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="flex items-start gap-2.5 text-xs text-slate-400 font-normal">
-                    <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
-                    <span>
-                      <strong className="text-slate-200">Margin Threshold:</strong> Sub-12% margins increase sensitivity to wage inflation and operational cost spikes.
-                    </span>
-                  </div>
-                  <div className="flex items-start gap-2.5 text-xs text-slate-400 font-normal">
-                    <Lock className="h-4 w-4 text-[#C6A66B] shrink-0 mt-0.5" />
-                    <span>
-                      <strong className="text-slate-200">Key Person Risk:</strong> High dependency on founder-level relationships. Vendor loan structures must align owner transition incentives.
-                    </span>
-                  </div>
-                </div>
-              </div>
+                if (!parsedVerdict) {
+                  return (
+                    <>
+                      <p className="text-xs leading-relaxed text-slate-300 font-normal">
+                        No structured AI investment verdict generated yet. Click "Generate Verdict" to run the Claude AI analysis based on the latest deal data and IM documents.
+                      </p>
+                      <div className="space-y-3 pt-2.5 border-t border-white/[0.02]">
+                        <span className="block text-[9px] font-extrabold uppercase tracking-widest text-slate-400">Key Risks & Viability Concerns</span>
+                        <div className="flex items-start gap-2.5 text-xs text-slate-400 font-normal">
+                          <span>No risks extracted.</span>
+                        </div>
+                      </div>
+                    </>
+                  );
+                }
+
+                return (
+                  <>
+                    <p className="text-xs leading-relaxed text-slate-300 font-normal">
+                      {parsedVerdict.investmentVerdict}
+                    </p>
+                    
+                    <div className="space-y-2 mt-4">
+                      <span className="block text-[9px] font-extrabold uppercase tracking-widest text-slate-400">Investment Thesis</span>
+                      <p className="text-xs leading-relaxed text-slate-350">{parsedVerdict.investmentThesis}</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-white/[0.02]">
+                      <div className="space-y-3">
+                        <span className="block text-[9px] font-extrabold uppercase tracking-widest text-emerald-400">Key Strengths</span>
+                        <div className="space-y-2">
+                          {(parsedVerdict.strengths || []).map((s: string, idx: number) => (
+                            <div key={idx} className="flex items-start gap-2 text-xs text-slate-300">
+                              <span className="text-emerald-500 mt-0.5 shrink-0 text-[10px]">•</span>
+                              <span className="leading-relaxed">{s}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="space-y-3">
+                        <span className="block text-[9px] font-extrabold uppercase tracking-widest text-rose-400">Key Risks & Viability Concerns</span>
+                        <div className="space-y-2">
+                          {(parsedVerdict.risks || []).map((r: string, idx: number) => (
+                            <div key={idx} className="flex items-start gap-2 text-xs text-slate-300">
+                              <AlertTriangle className="h-3 w-3 text-rose-500 shrink-0 mt-0.5" />
+                              <span className="leading-relaxed">{r}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-3 pt-4 border-t border-white/[0.02]">
+                      <span className="block text-[9px] font-extrabold uppercase tracking-widest text-blue-400">Questions Requiring Validation</span>
+                      <div className="grid grid-cols-1 gap-2">
+                        {(parsedVerdict.questionsRequiringValidation || []).map((q: string, idx: number) => (
+                          <div key={idx} className="flex items-start gap-2 text-xs text-slate-300">
+                            <span className="text-blue-500 mt-0.5 font-mono text-[10px]">{idx + 1}.</span>
+                            <span className="leading-relaxed">{q}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
             </div>
           </div>
 
@@ -2651,49 +2760,52 @@ function PreCallBriefTab({ deal, openComposer }: { deal: any; openComposer: (opt
                 </button>
               </div>
 
-              {/* Section 1: Business Profile Card */}
+              {/* Section 1: Meeting Objective */}
               <div className="rounded-xl border border-white/[0.03] bg-white/[0.005] p-5 space-y-3 shadow-inner">
                 <div className="flex items-center gap-2 border-b border-white/5 pb-2">
                   <Building2 className="h-4 w-4 text-slate-400" />
-                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-350">Business Analysis & Operational Outline</span>
+                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-350">Meeting Objective</span>
                 </div>
-                {renderRichText(selectedBrief.businessProfile)}
+                {renderRichText(selectedBrief.meetingObjective || "")}
               </div>
 
-              {/* Section 2: Strategic Opening Angle Callout */}
-              <div className="rounded-xl border border-[#C6A66B]/15 bg-gradient-to-r from-[#C6A66B]/5 to-transparent p-5 space-y-3 border-l-2 border-l-[#C6A66B] shadow-inner">
-                <div className="flex items-center gap-2 pb-1">
-                  <Sparkles className="h-4 w-4 text-[#C6A66B]" />
-                  <span className="text-[9px] font-black uppercase tracking-widest text-[#C6A66B]">Recommended Call Strategy & Angle</span>
+              {/* Section 2: Company Snapshot */}
+              <div className="rounded-xl border border-white/[0.03] bg-white/[0.005] p-5 space-y-3 shadow-inner">
+                <div className="flex items-center gap-2 border-b border-white/5 pb-2">
+                  <Building2 className="h-4 w-4 text-slate-400" />
+                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-350">Company Snapshot</span>
                 </div>
-                {renderRichText(selectedBrief.openingAngle)}
+                {renderRichText(selectedBrief.companySnapshot || "")}
               </div>
 
-              {/* Section 2b: Prince's Call Script */}
-              {selectedBrief.callScript && (
-                <div className="rounded-xl border border-blue-500/15 bg-gradient-to-r from-blue-500/5 to-transparent p-5 space-y-3 border-l-2 border-l-blue-500 shadow-inner">
-                  <div className="flex items-center justify-between pb-1">
-                    <div className="flex items-center gap-2">
-                      <Sparkles className="h-4 w-4 text-blue-400" />
-                      <span className="text-[9px] font-black uppercase tracking-widest text-blue-400">Prince's Call Script</span>
+              {/* Section 3: Investment Thesis */}
+              <div className="rounded-xl border border-white/[0.03] bg-white/[0.005] p-5 space-y-3 shadow-inner">
+                <div className="flex items-center gap-2 border-b border-white/5 pb-2">
+                  <Sparkles className="h-4 w-4 text-slate-400" />
+                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-350">Investment Thesis</span>
+                </div>
+                {renderRichText(selectedBrief.investmentThesis || "")}
+              </div>
+
+              {/* Section 4: Key Risks */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 pb-1 border-b border-white/5">
+                  <ClipboardList className="h-4 w-4 text-rose-400" />
+                  <span className="text-[9px] font-black uppercase tracking-widest text-rose-400">Key Risks</span>
+                </div>
+                <div className="grid grid-cols-1 gap-2.5">
+                  {selectedBrief.keyRisks?.map((q: string, idx: number) => (
+                    <div key={idx} className="flex items-start gap-3.5 p-4 rounded-xl border border-rose-500/10 bg-rose-500/5 hover:bg-rose-500/10 transition duration-200">
+                      <span className="flex h-5.5 w-5.5 shrink-0 items-center justify-center rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 font-mono text-[10px] font-black select-none">
+                        {idx + 1}
+                      </span>
+                      <p className="text-xs text-rose-200 leading-relaxed font-semibold select-text mt-0.5">{q}</p>
                     </div>
-                    <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(selectedBrief.callScript);
-                        alert("Call script copied to clipboard!");
-                      }}
-                      className="text-[9px] font-bold uppercase tracking-wider text-slate-400 hover:text-white px-2 py-0.5 rounded border border-white/5 bg-white/[0.01]"
-                    >
-                      Copy Script
-                    </button>
-                  </div>
-                  <div className="text-xs text-slate-300 leading-relaxed font-sans whitespace-pre-wrap select-text">
-                    {selectedBrief.callScript}
-                  </div>
+                  ))}
                 </div>
-              )}
+              </div>
 
-              {/* Section 3: Priority Interview Questions */}
+              {/* Section 5: Priority Questions */}
               <div className="space-y-3">
                 <div className="flex items-center gap-2 pb-1 border-b border-white/5">
                   <ClipboardList className="h-4 w-4 text-slate-400" />
@@ -2701,12 +2813,70 @@ function PreCallBriefTab({ deal, openComposer }: { deal: any; openComposer: (opt
                 </div>
                 
                 <div className="grid grid-cols-1 gap-2.5">
-                  {selectedBrief.questionsToAsk?.map((q: string, idx: number) => (
+                  {selectedBrief.priorityQuestions?.map((q: string, idx: number) => (
                     <div key={idx} className="flex items-start gap-3.5 p-4 rounded-xl border border-white/[0.02] bg-white/[0.005] hover:bg-white/[0.01] transition duration-200">
                       <span className="flex h-5.5 w-5.5 shrink-0 items-center justify-center rounded-lg bg-[#C6A66B]/10 border border-[#C6A66B]/20 text-[#C6A66B] font-mono text-[10px] font-black select-none">
                         {idx + 1}
                       </span>
                       <p className="text-xs text-slate-300 leading-relaxed font-semibold select-text mt-0.5">{q}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Section 6: Negotiation Angles */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 pb-1 border-b border-white/5">
+                  <Sparkles className="h-4 w-4 text-[#C6A66B]" />
+                  <span className="text-[9px] font-black uppercase tracking-widest text-[#C6A66B]">Negotiation Angles</span>
+                </div>
+                <div className="grid grid-cols-1 gap-2.5">
+                  {selectedBrief.negotiationAngles?.map((q: string, idx: number) => (
+                    <div key={idx} className="flex items-start gap-3.5 p-4 rounded-xl border border-[#C6A66B]/10 bg-[#C6A66B]/5 hover:bg-[#C6A66B]/10 transition duration-200">
+                      <p className="text-xs text-[#C6A66B] leading-relaxed font-semibold select-text mt-0.5">{q}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Section 7: Recommended Call Flow */}
+              <div className="rounded-xl border border-blue-500/15 bg-gradient-to-r from-blue-500/5 to-transparent p-5 space-y-3 border-l-2 border-l-blue-500 shadow-inner">
+                <div className="flex items-center justify-between pb-1">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-blue-400" />
+                    <span className="text-[9px] font-black uppercase tracking-widest text-blue-400">Recommended Call Flow</span>
+                  </div>
+                </div>
+                <div className="text-xs text-slate-300 leading-relaxed font-sans whitespace-pre-wrap select-text">
+                  {selectedBrief.recommendedCallFlow}
+                </div>
+              </div>
+
+              {/* Section 8: Information Gaps */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 pb-1 border-b border-white/5">
+                  <ClipboardList className="h-4 w-4 text-slate-400" />
+                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-355">Information Gaps</span>
+                </div>
+                <div className="grid grid-cols-1 gap-2.5">
+                  {selectedBrief.informationGaps?.map((q: string, idx: number) => (
+                    <div key={idx} className="flex items-start gap-3.5 p-3 rounded-xl border border-white/[0.02] bg-white/[0.005] transition duration-200">
+                      <p className="text-xs text-slate-400 leading-relaxed font-semibold select-text">{q}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Section 9: Follow up Actions */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 pb-1 border-b border-white/5">
+                  <ClipboardList className="h-4 w-4 text-[#C6A66B]" />
+                  <span className="text-[9px] font-black uppercase tracking-widest text-[#C6A66B]">Suggested Follow-Up Actions</span>
+                </div>
+                <div className="grid grid-cols-1 gap-2.5">
+                  {selectedBrief.suggestedFollowUpActions?.map((q: string, idx: number) => (
+                    <div key={idx} className="flex items-start gap-3.5 p-3 rounded-xl border border-white/[0.02] bg-white/[0.005] transition duration-200">
+                      <p className="text-xs text-slate-300 leading-relaxed font-semibold select-text">{q}</p>
                     </div>
                   ))}
                 </div>

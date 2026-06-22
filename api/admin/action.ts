@@ -91,6 +91,85 @@ export default async function handler(req: any, res: any) {
     }
 
     switch (action) {
+      case "generate-verdict": {
+        const { dealId } = req.body;
+        if (!dealId) return res.status(400).json({ error: "dealId is required" });
+        const dealRecord = await airtableFetchRecord(TABLES.PIPELINE, dealId);
+        if (!dealRecord) return res.status(404).json({ error: "Deal not found" });
+
+        const dealData = {
+          companyName: dealRecord.fields.Company_Name || dealRecord.fields["Company Name"],
+          dealRef: dealRecord.fields.Deal_Ref || dealRecord.fields["Deal Reference"],
+          sector: dealRecord.fields.Industry || dealRecord.fields.Sector,
+          location: dealRecord.fields.Location,
+          revenue: dealRecord.fields.Turnover,
+          ebitda: dealRecord.fields.EBITDA_GBP || dealRecord.fields.EBITDA,
+          askingPrice: dealRecord.fields.Asking_Price_GBP || dealRecord.fields["Asking Price"],
+          rawFields: dealRecord.fields,
+        };
+
+        const { generateInvestmentVerdictWithAI } = await import("../_services/ai.js");
+        const verdict = await generateInvestmentVerdictWithAI(dealData);
+        const jsonString = JSON.stringify(verdict, null, 2);
+
+        await airtableUpdate(TABLES.PIPELINE, dealId, {
+          "Claude_Verdict": jsonString
+        });
+
+        await logAuditTrail(
+          "GENERATE_AI_VERDICT",
+          req.user.email,
+          req.user.role,
+          dealId,
+          `Generated AI Investment Verdict for deal: ${dealData.companyName || dealId}`
+        );
+
+        return res.status(200).json({ success: true, verdict });
+      }
+
+      case "promote-deal": {
+        const { inboxRecordId } = req.body;
+        if (!inboxRecordId) return res.status(400).json({ error: "inboxRecordId is required" });
+        
+        const inboxRecord = await airtableFetchRecord("Deal_Inbox", inboxRecordId);
+        if (!inboxRecord) return res.status(404).json({ error: "Inbox record not found" });
+
+        // Map fields from Deal_Inbox to Active_Pipeline
+        const f = inboxRecord.fields;
+        const pipelineFields = {
+          "Company_Name": f["Company_Name"] || f["Company Name"],
+          "Project_Name": f["Project_Name"] || f["Project Name"] || f["Company_Name"],
+          "Industry": f["Industry"] || f["Sector"],
+          "Turnover": f["Turnover"] || f["Revenue"],
+          "EBITDA_GBP": f["EBITDA_GBP"] || f["EBITDA"],
+          "Asking_Price_GBP": f["Asking_Price_GBP"] || f["Asking Price"],
+          "Location": f["Location"],
+          "Deal_Type": f["Deal_Type"] || f["Deal Type"],
+          "Owner": req.user.email,
+          "Status": "Initial Review",
+          "Executive_Summary": f["Summary"] || f["Description"],
+          "Contact_Email": f["Contact_Email"] || f["Email"],
+          "Contact_Phone": f["Contact_Phone"] || f["Phone"],
+        };
+
+        const createdPipelineRecord = await airtableCreate(TABLES.PIPELINE, pipelineFields);
+        
+        // Link them by updating Deal_Inbox Status
+        await airtableUpdate("Deal_Inbox", inboxRecordId, {
+          "Status": "Active",
+          "Active_Deal_Link": [createdPipelineRecord.id]
+        });
+
+        await logAuditTrail(
+          "PROMOTE_DEAL",
+          req.user.email,
+          req.user.role,
+          inboxRecordId,
+          `Promoted deal from Inbox to Active Pipeline. New Pipeline ID: ${createdPipelineRecord.id}`
+        );
+
+        return res.status(200).json({ success: true, newDealId: createdPipelineRecord.id });
+      }
       case "assign-deal": {
         const { lenderRecordId, dealRef } = req.body;
         if (!lenderRecordId || !dealRef) {

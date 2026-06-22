@@ -58,6 +58,22 @@ export async function assignDealToLender(lenderRecordId: string, dealRef: string
   return response.json();
 }
 
+export async function promoteDealFromInbox(inboxRecordId: string) {
+  const response = await fetch("/api/admin/action", {
+    method: "POST",
+    headers: getAdminHeaders(),
+    body: JSON.stringify({ action: "promote-deal", inboxRecordId })
+  });
+
+  if (!response.ok) {
+    const err = await response.json();
+    throw new Error(err.error || "Failed to promote deal");
+  }
+
+  clearAirtableCache();
+  return response.json();
+}
+
 export async function removeDealAssignment(assignmentId: string) {
   const response = await fetch("/api/admin/action", {
     method: "POST",

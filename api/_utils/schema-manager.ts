@@ -287,6 +287,7 @@ export const PIPELINE_FIELD_SPECS: FieldSpec[] = [
   { name: "Investment_Highlights", type: "multilineText" },
   { name: "Acquisition_Rationale", type: "multilineText" },
   { name: "Deal_Type", type: "singleLineText" },
+  { name: "Claude_Verdict", type: "multilineText" },
 ];
 
 export async function ensurePipelineFields(pipelineTableName: string): Promise<SchemaChangeLog[]> {

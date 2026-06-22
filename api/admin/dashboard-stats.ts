@@ -75,7 +75,7 @@ export default async function handler(req: any, res: any) {
   const todayStr = new Date().toISOString().split("T")[0];
   try {
     // 2. Fetch all required tables in parallel (omitting Precall/Postcall briefs to speed up fetch)
-    const [dealsRes, docsRes, historyRes, assignmentsRes, lendersRes] = await Promise.all([
+    const [dealsRes, docsRes, historyRes, assignmentsRes, lendersRes, inboxRes] = await Promise.all([
       airtableFetchAll(TABLES.PIPELINE).catch(() => ({ records: [] })),
       airtableFetchAll(TABLES.DOCUMENTS).catch(() => ({ records: [] })),
       airtableFetchAll(TABLES.STAGE_HISTORY, {
@@ -83,7 +83,8 @@ export default async function handler(req: any, res: any) {
         maxRecords: 30
       }).catch(() => ({ records: [] })),
       airtableFetchAll(TABLES.ASSIGNMENTS).catch(() => ({ records: [] })),
-      airtableFetchAll(TABLES.LENDERS).catch(() => ({ records: [] }))
+      airtableFetchAll(TABLES.LENDERS).catch(() => ({ records: [] })),
+      airtableFetchAll(TABLES.DEAL_INBOX).catch(() => ({ records: [] }))
     ]);
 
     // 3. Extract unique list of collaborators for filtering dropdown
@@ -578,6 +579,7 @@ export default async function handler(req: any, res: any) {
       success: true,
       owner,
       uniqueOwners,
+      inboxDealsCount: inboxRes.records.length,
       activePipelineCount: filteredDeals.length,
       pendingActionsCount: filteredDeals.filter(d => d.fields["Next Action Date"]).length,
       ddDealsCount,

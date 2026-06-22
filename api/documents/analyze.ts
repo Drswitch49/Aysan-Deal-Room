@@ -147,6 +147,10 @@ export default async function handler(req: any, res: any) {
 
   try {
     await authenticateAdmin(req);
+    const roleLower = (req.user?.role || "").toLowerCase();
+    if (roleLower === "stakeholder" || roleLower === "read only") {
+      return res.status(403).json({ error: "Access denied: External stakeholders cannot trigger document intelligence operations." });
+    }
 
     const { documentId } = req.body || {};
     if (!documentId) {

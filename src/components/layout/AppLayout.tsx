@@ -19,8 +19,9 @@ const NAV_SECTIONS = [
     group: "Operations",
     items: [
       { to: "/", icon: <LayoutDashboard className="h-4 w-4" />, label: "Dashboard", end: true },
-      { to: "/admin/messages", icon: <Inbox className="h-4 w-4" />, label: "Inbox" },
-      { to: "/deals", icon: <Kanban className="h-4 w-4" />, label: "Deal Pipeline", end: true },
+      { to: "/admin/messages", icon: <Inbox className="h-4 w-4" />, label: "Messages" },
+      { to: "/admin/inbox", icon: <Inbox className="h-4 w-4" />, label: "Deal Inbox" },
+      { to: "/deals", icon: <Kanban className="h-4 w-4" />, label: "Active Deals", end: true },
       { to: "/admin/portco", icon: <Activity className="h-4 w-4" />, label: "Portfolio Monitor" },
     ],
   },
@@ -277,7 +278,8 @@ export function AppLayout() {
 // ─── Breadcrumb helper ──────────────────────────────────────────────────────
 function getBreadcrumb(pathname: string): string {
   if (pathname === "/" || pathname === "") return "Command Centre";
-  if (pathname === "/deals") return "Deal Pipeline";
+  if (pathname === "/admin/inbox") return "Deal Inbox";
+  if (pathname === "/deals") return "Active Deals";
   if (pathname.startsWith("/deals/")) return "Deal Detail";
   if (pathname === "/admin/lenders") return "Lender Intelligence";
   if (pathname === "/admin/hr") return "HR & Stakeholders";

@@ -55,10 +55,15 @@ export default async function handler(req: any, res: any) {
         const name = fields.Name || "";
         const dealIdFromField = Array.isArray(fields["Active_Pipeline"]) ? fields["Active_Pipeline"][0] : dealId;
         
-        let businessProfile = "";
-        let openingAngle = "";
-        let questionsToAsk: string[] = [];
-        let callScript = "";
+        let meetingObjective = "";
+        let companySnapshot = "";
+        let investmentThesis = "";
+        let keyRisks: string[] = [];
+        let priorityQuestions: string[] = [];
+        let negotiationAngles: string[] = [];
+        let recommendedCallFlow = "";
+        let informationGaps: string[] = [];
+        let suggestedFollowUpActions: string[] = [];
         let attendees: string[] = ["Ayo (lead)", "Prince"];
         let selectedCallType = "1st";
         let dataSources = { companiesHouse: true, linkedIn: true, notionSops: true, airtable: true };
@@ -77,27 +82,37 @@ export default async function handler(req: any, res: any) {
         }
 
         if (parsed && typeof parsed === "object") {
-          businessProfile = parsed.businessProfile || "";
-          openingAngle = parsed.openingAngle || "";
-          questionsToAsk = Array.isArray(parsed.questionsToAsk) ? parsed.questionsToAsk : [];
-          callScript = parsed.callScript || "";
+          meetingObjective = parsed.meetingObjective || "";
+          companySnapshot = parsed.companySnapshot || "";
+          investmentThesis = parsed.investmentThesis || "";
+          keyRisks = Array.isArray(parsed.keyRisks) ? parsed.keyRisks : [];
+          priorityQuestions = Array.isArray(parsed.priorityQuestions) ? parsed.priorityQuestions : [];
+          negotiationAngles = Array.isArray(parsed.negotiationAngles) ? parsed.negotiationAngles : [];
+          recommendedCallFlow = parsed.recommendedCallFlow || "";
+          informationGaps = Array.isArray(parsed.informationGaps) ? parsed.informationGaps : [];
+          suggestedFollowUpActions = Array.isArray(parsed.suggestedFollowUpActions) ? parsed.suggestedFollowUpActions : [];
           attendees = Array.isArray(parsed.attendees) ? parsed.attendees : attendees;
           selectedCallType = parsed.selectedCallType || selectedCallType;
           dataSources = parsed.dataSources || dataSources;
           aiAnswers = Array.isArray(parsed.aiAnswers) ? parsed.aiAnswers : [];
         } else {
           // Plain text fallback
-          businessProfile = rawBriefData;
+          companySnapshot = rawBriefData;
         }
 
         return {
           id: rec.id,
           name,
           dealId: dealIdFromField,
-          businessProfile,
-          openingAngle,
-          questionsToAsk,
-          callScript,
+          meetingObjective,
+          companySnapshot,
+          investmentThesis,
+          keyRisks,
+          priorityQuestions,
+          negotiationAngles,
+          recommendedCallFlow,
+          informationGaps,
+          suggestedFollowUpActions,
           attendees,
           selectedCallType,
           dataSources,
@@ -160,7 +175,7 @@ export default async function handler(req: any, res: any) {
         try {
           briefPayload = JSON.parse(briefFields["Brief Data"] || "{}");
         } catch (e) {
-          briefPayload = { businessProfile: briefFields["Brief Data"] || "" };
+          briefPayload = { companySnapshot: briefFields["Brief Data"] || "" };
         }
 
         // Call Claude Q&A service

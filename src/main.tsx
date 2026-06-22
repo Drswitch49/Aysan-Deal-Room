@@ -17,6 +17,7 @@ const PortCoMonitorPage = lazy(() => import("./pages/PortCoMonitorPage").then(m 
 const HrStakeholdersPage = lazy(() => import("./pages/HrStakeholdersPage").then(m => ({ default: m.HrStakeholdersPage })));
 const SettingsPage = lazy(() => import("./pages/SettingsPage").then(m => ({ default: m.SettingsPage })));
 const AdminMessagesPage = lazy(() => import("./pages/AdminMessagesPage").then(m => ({ default: m.AdminMessagesPage })));
+const DealInboxPage = lazy(() => import("./pages/DealInboxPage").then(m => ({ default: m.DealInboxPage })));
 const NotFoundPage = lazy(() => import("./pages/NotFoundPage").then(m => ({ default: m.NotFoundPage })));
 
 const PageLoading = () => (
@@ -88,6 +89,7 @@ const router = createBrowserRouter([
       { path: "admin/hr", element: withSuspense(HrStakeholdersPage) },
       { path: "admin/settings", element: withSuspense(SettingsPage) },
       { path: "admin/messages", element: withSuspense(AdminMessagesPage) },
+      { path: "admin/inbox", element: withSuspense(DealInboxPage) },
       { path: "*", element: withSuspense(NotFoundPage) },
     ],
   },

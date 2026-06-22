@@ -888,7 +888,9 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
               <div className="space-y-3.5">
                 <h4 className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-slate-455">Document Information</h4>
                 
-                <DetailRow icon={<Calendar className="h-4 w-4 text-acp-bronze" />} label="Date Received" value={formatDate(selectedDoc.dateReceived) || "Not logged"} />
+                {audience === "internal" && (
+                  <DetailRow icon={<Calendar className="h-4 w-4 text-acp-bronze" />} label="Date Received" value={formatDate(selectedDoc.dateReceived) || "Not logged"} />
+                )}
                 {selectedDoc.expectedDate && (
                   <DetailRow icon={<Calendar className="h-4 w-4 text-acp-bronze" />} label="Expected Date" value={formatDate(selectedDoc.expectedDate)} />
                 )}
@@ -974,15 +976,17 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
             </div>
 
             {/* Drawer Actions */}
-            <div className="p-6 border-t border-white/5 bg-white/[0.01] grid grid-cols-2 gap-3.5">
-              <ButtonLink
-                href={selectedDoc.driveLink}
-                icon="view"
-                className="h-11 w-full"
-                onClick={(e) => handleViewClick(e, selectedDoc)}
-              >
-                View File
-              </ButtonLink>
+            <div className={cx("p-6 border-t border-white/5 bg-white/[0.01] grid gap-3.5", audience === "internal" ? "grid-cols-2" : "grid-cols-1")}>
+              {audience === "internal" && (
+                <ButtonLink
+                  href={selectedDoc.driveLink}
+                  icon="view"
+                  className="h-11 w-full"
+                  onClick={(e) => handleViewClick(e, selectedDoc)}
+                >
+                  View File
+                </ButtonLink>
+              )}
               <ButtonLink
                 href={getDriveDownloadUrl(selectedDoc.driveLink)}
                 icon="download"
@@ -1178,7 +1182,7 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
       )}
 
       {/* Dynamic File Preview Overlay Modal */}
-      {previewDoc && (
+      {audience === "internal" && previewDoc && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div className="w-full max-w-5xl rounded-2xl border border-white/[0.02] bg-[#161B22] p-6 shadow-2xl relative flex flex-col h-[85vh] animate-scale-in">
             {/* Header */}

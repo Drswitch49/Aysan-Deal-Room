@@ -147,11 +147,16 @@ export default async function handler(req: any, res: any) {
       }
     }
 
-    // 4. Fetch all deals from Active_Pipeline and filter
-    const pipelineData = await airtableFetch(TABLES.PIPELINE);
+    // 4. Fetch all deals from Active_Pipeline and Deal_Inbox, then filter
+    const [pipelineData, inboxDataAll] = await Promise.all([
+      airtableFetch(TABLES.PIPELINE).catch(() => ({ records: [] })),
+      airtableFetch("Deal_Inbox").catch(() => ({ records: [] }))
+    ]);
     
-    const assignedDeals = pipelineData.records.filter((record: any) => {
-      const refNo = record.fields["REF No."] || record.fields.Deal_Ref || record.fields.dealRef || record.fields["Deal Name"];
+    const allAvailableDeals = [...(pipelineData.records || []), ...(inboxDataAll.records || [])];
+
+    const assignedDeals = allAvailableDeals.filter((record: any) => {
+      const refNo = record.fields["REF No."] || record.fields["REF. NO"] || record.fields.Deal_Ref || record.fields.dealRef || record.fields["Deal Name"];
       return dealIds.has(record.id) || dealRefs.has(String(refNo));
     });
 
