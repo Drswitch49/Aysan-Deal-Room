@@ -320,7 +320,7 @@ export function DealInboxPage() {
       {/* Deal Detail Modal */}
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Deal Inbox Detail" maxWidth="max-w-4xl">
         {selectedDeal && (
-          <div className="space-y-6 max-h-[80vh] overflow-y-auto pr-2 custom-scrollbar">
+          <div className="space-y-6">
             {/* Header / Actions Row */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white/[0.01] p-4 rounded-xl border border-white/[0.03]">
               <div>

@@ -59,10 +59,10 @@ export function Modal({
 
       {/* Modal Panel */}
       <div
-        className={`relative z-10 w-full ${maxWidth} rounded-2xl border border-white/[0.1] bg-[#161B22] p-6 shadow-2xl animate-scale-in`}
+        className={`relative z-10 w-full ${maxWidth} max-h-full flex flex-col rounded-2xl border border-white/[0.1] bg-[#161B22] shadow-2xl animate-scale-in overflow-hidden`}
       >
         {/* Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-white/[0.02]">
+        <div className="flex items-center justify-between p-6 pb-4 border-b border-white/[0.02] shrink-0">
           <h3
             id={titleId}
             className="text-sm font-bold text-white tracking-tight"
@@ -80,7 +80,9 @@ export function Modal({
         </div>
 
         {/* Body */}
-        <div className="mt-5">{children}</div>
+        <div className="p-6 pt-5 overflow-y-auto custom-scrollbar">
+          {children}
+        </div>
       </div>
     </div>
   );
