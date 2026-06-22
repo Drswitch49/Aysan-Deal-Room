@@ -105,9 +105,14 @@ export function DealInboxPage() {
   const filteredItems = inboxItems.filter((d: any) => {
     const fields = d.fields || {};
     // Category Filter
-    if (activeFilter === "AI Reviewed Deals" && !fields["AI_Verdict"]) return false;
-    if (activeFilter === "Review Required" && (fields["Status"] || "").toLowerCase() !== "review required") return false;
-    if (activeFilter === "Passed" && (fields["Status"] || "").toLowerCase() !== "passed") return false;
+    if (activeFilter !== "All Deals") {
+      const verdict = fields["AI_Verdict"]?.trim();
+      if (activeFilter === "Other") {
+        if (verdict) return false;
+      } else {
+        if (verdict !== activeFilter) return false;
+      }
+    }
 
     // Search Query
     if (!searchQuery.trim()) return true;
@@ -137,7 +142,14 @@ export function DealInboxPage() {
     return raw.replace(/^[A-Z0-9]+\s*[—\-:]\s*/i, "").trim();
   };
 
-  const filters = ["All Deals", "AI Reviewed Deals", "Review Required", "Passed"];
+  const dynamicCategories = Array.from(
+    new Set(
+      inboxItems
+        .map((item) => item.fields?.["AI_Verdict"]?.trim())
+        .filter(Boolean)
+    )
+  ).sort();
+  const filters = ["All Deals", ...dynamicCategories, "Other"];
 
   return (
     <div className="space-y-8 text-[#E2E8F0] font-sans animate-fade-in-up">
