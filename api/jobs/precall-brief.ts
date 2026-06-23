@@ -243,6 +243,7 @@ ${pastedText ? `\nIM Text:\n${pastedText.substring(0, 3_000)}` : ""}`;
       ...briefContent,
       dealData,
       selectedPersonas: selectedPersonas || ["ayo", "prince"],
+      selectedScenario: selectedScenario || "primary",
       selectedCallType: selectedCallType || "1st",
       dataSources: dataSources || {},
       aiAnswers: jobPayload.aiAnswers || [],

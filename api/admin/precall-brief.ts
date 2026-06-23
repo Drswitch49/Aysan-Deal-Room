@@ -64,7 +64,8 @@ export default async function handler(req: any, res: any) {
         let recommendedCallFlow = "";
         let informationGaps: string[] = [];
         let suggestedFollowUpActions: string[] = [];
-        let attendees: string[] = ["Ayo (lead)", "Prince"];
+        let selectedPersonas: string[] = ["ayo", "prince"];
+        let selectedScenario = "primary";
         let selectedCallType = "1st";
         let dataSources = { companiesHouse: true, linkedIn: true, notionSops: true, airtable: true };
         let aiAnswers: Array<{ q: string; a: string }> = [];
@@ -91,7 +92,8 @@ export default async function handler(req: any, res: any) {
           recommendedCallFlow = parsed.recommendedCallFlow || "";
           informationGaps = Array.isArray(parsed.informationGaps) ? parsed.informationGaps : [];
           suggestedFollowUpActions = Array.isArray(parsed.suggestedFollowUpActions) ? parsed.suggestedFollowUpActions : [];
-          attendees = Array.isArray(parsed.attendees) ? parsed.attendees : attendees;
+          selectedPersonas = Array.isArray(parsed.selectedPersonas) ? parsed.selectedPersonas : selectedPersonas;
+          selectedScenario = parsed.selectedScenario || selectedScenario;
           selectedCallType = parsed.selectedCallType || selectedCallType;
           dataSources = parsed.dataSources || dataSources;
           aiAnswers = Array.isArray(parsed.aiAnswers) ? parsed.aiAnswers : [];
@@ -113,7 +115,8 @@ export default async function handler(req: any, res: any) {
           recommendedCallFlow,
           informationGaps,
           suggestedFollowUpActions,
-          attendees,
+          selectedPersonas,
+          selectedScenario,
           selectedCallType,
           dataSources,
           aiAnswers,
@@ -195,7 +198,7 @@ export default async function handler(req: any, res: any) {
       }
 
       // action: "generate" — queue async job
-      const { attendees, selectedCallType, dataSources, pastedText } = req.body || {};
+      const { selectedPersonas, selectedScenario, selectedCallType, dataSources, pastedText } = req.body || {};
 
       const dateStr = new Date().toLocaleDateString("en-GB");
       const callTypeLabel =
@@ -206,7 +209,8 @@ export default async function handler(req: any, res: any) {
       const jobPayload = {
         dealData,
         selectedCallType: selectedCallType || "1st",
-        attendees: attendees || ["Ayo (lead)", "Prince"],
+        selectedPersonas: selectedPersonas || ["ayo", "prince"],
+        selectedScenario: selectedScenario || "primary",
         dataSources: Object.keys(dataSources || {}).filter((k) => dataSources[k]),
         pastedText: pastedText || "",
         aiAnswers: [],
@@ -228,7 +232,8 @@ export default async function handler(req: any, res: any) {
           briefId: recordId,
           dealId,
           callType: selectedCallType || "1st",
-          attendees: attendees || ["Ayo (lead)", "Prince"],
+          selectedPersonas: selectedPersonas || ["ayo", "prince"],
+          selectedScenario: selectedScenario || "primary",
           dataSources: dataSources || {},
           pastedText: pastedText || "",
         });
@@ -251,7 +256,8 @@ export default async function handler(req: any, res: any) {
 
       const briefContent = await generatePrecallBriefWithAI(dealData, {
         selectedCallType: selectedCallType || "1st",
-        attendees: attendees || ["Ayo (lead)", "Prince"],
+        selectedPersonas: selectedPersonas || ["ayo", "prince"],
+        selectedScenario: selectedScenario || "primary",
         dataSources: Object.keys(dataSources || {}).filter((k) => dataSources[k]),
         pastedText,
       });
@@ -259,7 +265,8 @@ export default async function handler(req: any, res: any) {
       const finalPayload = {
         ...briefContent,
         dealData,
-        attendees: attendees || ["Ayo (lead)", "Prince"],
+        selectedPersonas: selectedPersonas || ["ayo", "prince"],
+        selectedScenario: selectedScenario || "primary",
         selectedCallType: selectedCallType || "1st",
         dataSources: dataSources || {},
         aiAnswers: [],
@@ -277,7 +284,8 @@ export default async function handler(req: any, res: any) {
         name: briefName,
         dealId,
         ...briefContent,
-        attendees: finalPayload.attendees,
+        selectedPersonas: finalPayload.selectedPersonas,
+        selectedScenario: finalPayload.selectedScenario,
         selectedCallType: finalPayload.selectedCallType,
         dataSources: finalPayload.dataSources,
         aiAnswers: [],
