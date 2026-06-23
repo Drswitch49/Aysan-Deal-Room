@@ -398,7 +398,8 @@ export async function fetchPrecallBriefs(dealId: string) {
 
 export async function generatePrecallBrief(data: {
   dealId: string;
-  attendees: string[];
+  selectedPersonas: string[];
+  selectedScenario: string;
   selectedCallType: string;
   dataSources: Record<string, boolean>;
   pastedText?: string;

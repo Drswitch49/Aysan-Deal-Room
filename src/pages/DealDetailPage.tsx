@@ -4,7 +4,8 @@ import {
   Upload, Users, Globe, ExternalLink, HelpCircle, CheckSquare, Square, AlertCircle, 
   ArrowRight, BrainCircuit, RefreshCw, Star, Info, MessageSquareCode, AlertTriangle,
   FolderClosed, ChevronRight, Clock, CheckCircle2, Plus, Loader2, ShieldAlert, Building2,
-  Paperclip
+  Paperclip, User, LineChart, XCircle, ListTodo, Target, Crosshair, PieChart,
+  Columns, UserCheck, BookOpen, UserX, Lightbulb
 } from "lucide-react";
 import type { ComponentType } from "react";
 import { useMemo, useState, useEffect } from "react";
@@ -21,6 +22,8 @@ import { FormField, inputClass, selectClass, textareaClass } from "../components
 import { useDeal, useDealDocuments } from "../hooks/useDealRoomData";
 import { useJobStatus } from "../hooks/useJobStatus";
 import { cx } from "../utils/cx";
+import { ACP_PERSONAS } from "../lib/acp/personas";
+import { ACP_SCENARIOS } from "../lib/acp/scenarios";
 import { 
   fetchAdminLenders, createLender, assignDealToLender,
   fetchPrecallBriefs, generatePrecallBrief, askPrecallBriefQuestion,
@@ -2368,7 +2371,8 @@ function PreCallBriefTab({ deal, openComposer }: { deal: any; openComposer: (opt
   const [error, setError] = useState<string | null>(null);
 
   // Configuration inputs for new brief
-  const [attendees, setAttendees] = useState<string[]>(["Ayo (lead)", "Prince"]);
+  const [selectedPersonas, setSelectedPersonas] = useState<string[]>(["ayo", "prince"]);
+  const [selectedScenario, setSelectedScenario] = useState<string>("primary");
   const [selectedCallType, setSelectedCallType] = useState<"1st" | "2nd" | "neg">("1st");
   const [dataSources, setDataSources] = useState<Record<string, boolean>>({
     companiesHouse: true,
@@ -2477,7 +2481,8 @@ function PreCallBriefTab({ deal, openComposer }: { deal: any; openComposer: (opt
     try {
       const result = await generatePrecallBrief({
         dealId: deal.id,
-        attendees,
+        selectedPersonas,
+        selectedScenario,
         selectedCallType,
         dataSources,
         pastedText: uploadedFileName ? `Dropped file: ${uploadedFileName}. ` + pastedText : pastedText
@@ -2568,13 +2573,6 @@ function PreCallBriefTab({ deal, openComposer }: { deal: any; openComposer: (opt
 
   const toggleSource = (key: string) => {
     setDataSources((prev) => ({ ...prev, [key]: !prev[key] }));
-  };
-
-  const addAttendee = () => {
-    const name = prompt("Enter attendee name:");
-    if (name && name.trim()) {
-      setAttendees((prev) => [...prev, name.trim()]);
-    }
   };
 
   if (isLoading) {
@@ -2673,24 +2671,35 @@ function PreCallBriefTab({ deal, openComposer }: { deal: any; openComposer: (opt
                 BRIEF PARAMETERS
               </h3>
 
-              {/* Attendees */}
-              <div className="space-y-2">
-                <span className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-500">ATTENDEES</span>
+              {/* Meeting Participants */}
+              <div className="space-y-2 mt-4 pt-4 border-t border-white/5">
+                <span className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-500">PARTICIPANTS</span>
                 <div className="flex flex-wrap gap-1.5 items-center">
-                  {selectedBrief.attendees?.map((att: string, idx: number) => (
-                    <span 
-                      key={idx} 
-                      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-[10px] font-semibold ${
-                        att.includes("lead") 
-                          ? "bg-[#10B981] text-slate-950" 
-                          : "bg-white/[0.015] border border-white/[0.02] text-slate-300"
-                      }`}
-                    >
-                      {att}
-                    </span>
-                  ))}
+                  {selectedBrief.selectedPersonas?.map((personaId: string, idx: number) => {
+                    const persona = ACP_PERSONAS[personaId];
+                    return (
+                      <span 
+                        key={idx} 
+                        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-[10px] font-semibold bg-white/[0.015] border border-white/[0.02] text-slate-300`}
+                      >
+                        {persona?.name || personaId}
+                      </span>
+                    );
+                  })}
                 </div>
               </div>
+
+              {/* Coverage Scenario */}
+              {selectedBrief.selectedScenario && (
+                <div className="space-y-2 mt-4 pt-4 border-t border-white/5">
+                  <span className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-500">COVERAGE SCENARIO</span>
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-[10px] font-semibold bg-[#C6A66B]/20 text-[#C6A66B] border border-[#C6A66B]/20">
+                      {ACP_SCENARIOS[selectedBrief.selectedScenario]?.name || selectedBrief.selectedScenario}
+                    </span>
+                  </div>
+                </div>
+              )}
 
               {/* Call Type */}
               <div className="space-y-2">
@@ -2699,6 +2708,8 @@ function PreCallBriefTab({ deal, openComposer }: { deal: any; openComposer: (opt
                   {selectedBrief.selectedCallType === "1st" ? "1st Seller Call" : selectedBrief.selectedCallType === "2nd" ? "2nd Call" : "Negotiation"}
                 </span>
               </div>
+
+
 
               {/* Data Sources */}
               <div className="space-y-2">
@@ -2771,127 +2782,277 @@ function PreCallBriefTab({ deal, openComposer }: { deal: any; openComposer: (opt
                 </button>
               </div>
 
-              {/* Section 1: Meeting Objective */}
-              <div className="rounded-xl border border-white/[0.03] bg-white/[0.005] p-5 space-y-3 shadow-inner">
-                <div className="flex items-center gap-2 border-b border-white/5 pb-2">
-                  <Building2 className="h-4 w-4 text-slate-400" />
-                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-350">Meeting Objective</span>
+              {/* 1. Executive Deal Snapshot */}
+              {selectedBrief.executiveDealSnapshot && (
+                <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-5 space-y-3 shadow-inner">
+                  <div className="flex items-center gap-2 border-b border-blue-500/10 pb-2">
+                    <Building2 className="h-4 w-4 text-blue-400" />
+                    <span className="text-[9px] font-black uppercase tracking-widest text-blue-400">1. Executive Deal Snapshot</span>
+                  </div>
+                  {renderRichText(selectedBrief.executiveDealSnapshot)}
                 </div>
-                {renderRichText(selectedBrief.meetingObjective || "")}
-              </div>
+              )}
 
-              {/* Section 2: Company Snapshot */}
-              <div className="rounded-xl border border-white/[0.03] bg-white/[0.005] p-5 space-y-3 shadow-inner">
-                <div className="flex items-center gap-2 border-b border-white/5 pb-2">
-                  <Building2 className="h-4 w-4 text-slate-400" />
-                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-350">Company Snapshot</span>
+              {/* 2. Call Objectives */}
+              {selectedBrief.callObjectives && (
+                <div className="rounded-xl border border-white/[0.03] bg-white/[0.005] p-5 space-y-3 shadow-inner">
+                  <div className="flex items-center gap-2 border-b border-white/5 pb-2">
+                    <Target className="h-4 w-4 text-emerald-400" />
+                    <span className="text-[9px] font-black uppercase tracking-widest text-emerald-400">2. Call Objectives</span>
+                  </div>
+                  {renderRichText(selectedBrief.callObjectives)}
                 </div>
-                {renderRichText(selectedBrief.companySnapshot || "")}
-              </div>
+              )}
 
-              {/* Section 3: Investment Thesis */}
-              <div className="rounded-xl border border-white/[0.03] bg-white/[0.005] p-5 space-y-3 shadow-inner">
-                <div className="flex items-center gap-2 border-b border-white/5 pb-2">
-                  <Sparkles className="h-4 w-4 text-slate-400" />
-                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-350">Investment Thesis</span>
-                </div>
-                {renderRichText(selectedBrief.investmentThesis || "")}
-              </div>
-
-              {/* Section 4: Key Risks */}
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 pb-1 border-b border-white/5">
-                  <ClipboardList className="h-4 w-4 text-rose-400" />
-                  <span className="text-[9px] font-black uppercase tracking-widest text-rose-400">Key Risks</span>
-                </div>
-                <div className="grid grid-cols-1 gap-2.5">
-                  {selectedBrief.keyRisks?.map((q: string, idx: number) => (
-                    <div key={idx} className="flex items-start gap-3.5 p-4 rounded-xl border border-rose-500/10 bg-rose-500/5 hover:bg-rose-500/10 transition duration-200">
-                      <span className="flex h-5.5 w-5.5 shrink-0 items-center justify-center rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 font-mono text-[10px] font-black select-none">
-                        {idx + 1}
-                      </span>
-                      <p className="text-xs text-rose-200 leading-relaxed font-semibold select-text mt-0.5">{q}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Section 5: Priority Questions */}
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 pb-1 border-b border-white/5">
-                  <ClipboardList className="h-4 w-4 text-slate-400" />
-                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-355">Priority Discovery Questions for Ayo to Ask</span>
-                </div>
-                
-                <div className="grid grid-cols-1 gap-2.5">
-                  {selectedBrief.priorityQuestions?.map((q: string, idx: number) => (
-                    <div key={idx} className="flex items-start gap-3.5 p-4 rounded-xl border border-white/[0.02] bg-white/[0.005] hover:bg-white/[0.01] transition duration-200">
-                      <span className="flex h-5.5 w-5.5 shrink-0 items-center justify-center rounded-lg bg-[#C6A66B]/10 border border-[#C6A66B]/20 text-[#C6A66B] font-mono text-[10px] font-black select-none">
-                        {idx + 1}
-                      </span>
-                      <p className="text-xs text-slate-300 leading-relaxed font-semibold select-text mt-0.5">{q}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Section 6: Negotiation Angles */}
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 pb-1 border-b border-white/5">
-                  <Sparkles className="h-4 w-4 text-[#C6A66B]" />
-                  <span className="text-[9px] font-black uppercase tracking-widest text-[#C6A66B]">Negotiation Angles</span>
-                </div>
-                <div className="grid grid-cols-1 gap-2.5">
-                  {selectedBrief.negotiationAngles?.map((q: string, idx: number) => (
-                    <div key={idx} className="flex items-start gap-3.5 p-4 rounded-xl border border-[#C6A66B]/10 bg-[#C6A66B]/5 hover:bg-[#C6A66B]/10 transition duration-200">
-                      <p className="text-xs text-[#C6A66B] leading-relaxed font-semibold select-text mt-0.5">{q}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Section 7: Recommended Call Flow */}
-              <div className="rounded-xl border border-blue-500/15 bg-gradient-to-r from-blue-500/5 to-transparent p-5 space-y-3 border-l-2 border-l-blue-500 shadow-inner">
-                <div className="flex items-center justify-between pb-1">
-                  <div className="flex items-center gap-2">
-                    <Sparkles className="h-4 w-4 text-blue-400" />
-                    <span className="text-[9px] font-black uppercase tracking-widest text-blue-400">Recommended Call Flow</span>
+              {/* 3. Critical Unknowns */}
+              {selectedBrief.criticalUnknowns?.length > 0 && (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 pb-1 border-b border-white/5">
+                    <HelpCircle className="h-4 w-4 text-amber-400" />
+                    <span className="text-[9px] font-black uppercase tracking-widest text-amber-400">3. Critical Unknowns</span>
+                  </div>
+                  <div className="grid grid-cols-1 gap-2.5">
+                    {selectedBrief.criticalUnknowns.map((item: string, idx: number) => (
+                      <div key={idx} className="flex items-start gap-3.5 p-3 rounded-xl border border-amber-500/20 bg-amber-500/5">
+                        <span className="h-4 w-4 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center text-[10px] font-black shrink-0 mt-0.5">?</span>
+                        <p className="text-xs text-amber-200/90 font-semibold">{item}</p>
+                      </div>
+                    ))}
                   </div>
                 </div>
-                <div className="text-xs text-slate-300 leading-relaxed font-sans whitespace-pre-wrap select-text">
-                  {selectedBrief.recommendedCallFlow}
-                </div>
-              </div>
+              )}
 
-              {/* Section 8: Information Gaps */}
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 pb-1 border-b border-white/5">
-                  <ClipboardList className="h-4 w-4 text-slate-400" />
-                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-355">Information Gaps</span>
+              {/* 4. Deal Killers */}
+              {selectedBrief.dealKillers?.length > 0 && (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 pb-1 border-b border-rose-500/20">
+                    <XCircle className="h-4 w-4 text-rose-500" />
+                    <span className="text-[9px] font-black uppercase tracking-widest text-rose-500">4. Deal Killers (Red Lines)</span>
+                  </div>
+                  <div className="grid grid-cols-1 gap-2.5">
+                    {selectedBrief.dealKillers.map((line: string, idx: number) => (
+                      <div key={idx} className="flex items-start gap-3.5 p-3 rounded-xl border border-rose-500/20 bg-rose-500/5">
+                        <X className="h-3 w-3 text-rose-500 shrink-0 mt-0.5" />
+                        <p className="text-xs text-rose-200 font-semibold">{line}</p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <div className="grid grid-cols-1 gap-2.5">
-                  {selectedBrief.informationGaps?.map((q: string, idx: number) => (
-                    <div key={idx} className="flex items-start gap-3.5 p-3 rounded-xl border border-white/[0.02] bg-white/[0.005] transition duration-200">
-                      <p className="text-xs text-slate-400 leading-relaxed font-semibold select-text">{q}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              )}
 
-              {/* Section 9: Follow up Actions */}
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 pb-1 border-b border-white/5">
-                  <ClipboardList className="h-4 w-4 text-[#C6A66B]" />
-                  <span className="text-[9px] font-black uppercase tracking-widest text-[#C6A66B]">Suggested Follow-Up Actions</span>
+              {/* 5. OSINT Intelligence */}
+              {selectedBrief.osintIntelligence && (
+                <div className="rounded-xl border border-white/[0.03] bg-white/[0.005] p-5 space-y-3 shadow-inner">
+                  <div className="flex items-center gap-2 border-b border-white/5 pb-2">
+                    <Globe className="h-4 w-4 text-slate-400" />
+                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-350">5. OSINT Intelligence</span>
+                  </div>
+                  {renderRichText(selectedBrief.osintIntelligence)}
                 </div>
-                <div className="grid grid-cols-1 gap-2.5">
-                  {selectedBrief.suggestedFollowUpActions?.map((q: string, idx: number) => (
-                    <div key={idx} className="flex items-start gap-3.5 p-3 rounded-xl border border-white/[0.02] bg-white/[0.005] transition duration-200">
-                      <p className="text-xs text-slate-300 leading-relaxed font-semibold select-text">{q}</p>
-                    </div>
-                  ))}
+              )}
+
+              {/* 6. Financial Intelligence */}
+              {selectedBrief.financialIntelligence && (
+                <div className="rounded-xl border border-white/[0.03] bg-white/[0.005] p-5 space-y-3 shadow-inner">
+                  <div className="flex items-center gap-2 border-b border-white/5 pb-2">
+                    <LineChart className="h-4 w-4 text-[#C6A66B]" />
+                    <span className="text-[9px] font-black uppercase tracking-widest text-[#C6A66B]">6. Financial Intelligence</span>
+                  </div>
+                  {renderRichText(selectedBrief.financialIntelligence)}
                 </div>
-              </div>
+              )}
+
+              {/* 7. Seller Intelligence */}
+              {selectedBrief.sellerIntelligence && (
+                <div className="rounded-xl border border-white/[0.03] bg-white/[0.005] p-5 space-y-3 shadow-inner">
+                  <div className="flex items-center gap-2 border-b border-white/5 pb-2">
+                    <User className="h-4 w-4 text-slate-400" />
+                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-350">7. Seller Intelligence</span>
+                  </div>
+                  {renderRichText(selectedBrief.sellerIntelligence)}
+                </div>
+              )}
+
+              {/* 8. Team Deployment Plan */}
+              {selectedBrief.teamDeploymentPlan?.length > 0 && (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 pb-1 border-b border-white/5">
+                    <Users className="h-4 w-4 text-[#C6A66B]" />
+                    <span className="text-[9px] font-black uppercase tracking-widest text-[#C6A66B]">8. Team Deployment Plan</span>
+                  </div>
+                  <div className="grid grid-cols-1 gap-3">
+                    {selectedBrief.teamDeploymentPlan.map((plan: any, idx: number) => (
+                      <div key={idx} className="p-4 rounded-xl border border-[#C6A66B]/10 bg-gradient-to-r from-[#C6A66B]/5 to-transparent space-y-3">
+                        <div className="flex justify-between items-center border-b border-[#C6A66B]/10 pb-2">
+                          <h5 className="text-xs font-bold text-[#C6A66B] uppercase tracking-wider">{plan.name}</h5>
+                          <span className="px-2 py-0.5 rounded text-[9px] bg-[#C6A66B]/20 text-[#C6A66B] font-semibold">{plan.roleOnCall}</span>
+                        </div>
+                        <div className="space-y-2">
+                          {plan.primaryResponsibilities?.length > 0 && (
+                            <div>
+                              <span className="text-[9px] font-bold uppercase text-slate-400 block mb-1">Primary Responsibilities</span>
+                              <ul className="list-disc pl-4 text-xs text-slate-300 leading-relaxed space-y-0.5">
+                                {plan.primaryResponsibilities.map((r: string, i: number) => <li key={i}>{r}</li>)}
+                              </ul>
+                            </div>
+                          )}
+                          {plan.questionsToOwn?.length > 0 && (
+                            <div>
+                              <span className="text-[9px] font-bold uppercase text-slate-400 block mb-1">Topics to Own</span>
+                              <ul className="list-disc pl-4 text-xs text-slate-300 leading-relaxed space-y-0.5">
+                                {plan.questionsToOwn.map((r: string, i: number) => <li key={i}>{r}</li>)}
+                              </ul>
+                            </div>
+                          )}
+                          {plan.areasToAvoid?.length > 0 && (
+                            <div>
+                              <span className="text-[9px] font-bold uppercase text-rose-400 block mb-1">Areas to Avoid</span>
+                              <ul className="list-disc pl-4 text-xs text-rose-300 leading-relaxed space-y-0.5">
+                                {plan.areasToAvoid.map((r: string, i: number) => <li key={i}>{r}</li>)}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* 9. Participant Responsibilities */}
+              {selectedBrief.participantResponsibilities && (
+                <div className="rounded-xl border border-white/[0.03] bg-white/[0.005] p-5 space-y-3 shadow-inner">
+                  <div className="flex items-center gap-2 border-b border-white/5 pb-2">
+                    <ClipboardList className="h-4 w-4 text-slate-400" />
+                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-350">9. Participant Responsibilities</span>
+                  </div>
+                  {renderRichText(selectedBrief.participantResponsibilities)}
+                </div>
+              )}
+
+              {/* 10. Call Phase Ownership */}
+              {selectedBrief.callPhaseOwnership?.length > 0 && (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 pb-1 border-b border-white/5">
+                    <Columns className="h-4 w-4 text-blue-400" />
+                    <span className="text-[9px] font-black uppercase tracking-widest text-blue-400">10. Call Phase Ownership</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {selectedBrief.callPhaseOwnership.map((phaseItem: any, idx: number) => (
+                      <div key={idx} className="flex flex-col p-3 rounded-xl border border-blue-500/10 bg-blue-500/5">
+                        <span className="text-[9px] uppercase tracking-wider text-slate-400 font-bold mb-1">{phaseItem.phase}</span>
+                        <span className="text-xs text-blue-300 font-semibold">{phaseItem.owner}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* 11. Participant Question Bank */}
+              {selectedBrief.participantQuestionBank?.length > 0 && (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 pb-1 border-b border-white/5">
+                    <MessageSquare className="h-4 w-4 text-emerald-400" />
+                    <span className="text-[9px] font-black uppercase tracking-widest text-emerald-400">11. Participant Question Bank</span>
+                  </div>
+                  <div className="grid grid-cols-1 gap-4">
+                    {selectedBrief.participantQuestionBank.map((qb: any, idx: number) => (
+                      <div key={idx} className="rounded-xl border border-emerald-500/10 bg-emerald-500/5 overflow-hidden">
+                        <div className="bg-emerald-500/10 px-4 py-2 border-b border-emerald-500/10">
+                          <h5 className="text-xs font-bold text-emerald-400 uppercase tracking-wider">{qb.participantName}'s Questions</h5>
+                        </div>
+                        <div className="p-4 space-y-3">
+                          {qb.primaryQuestions?.length > 0 && (
+                            <div>
+                              <span className="text-[9px] font-bold uppercase text-slate-400 block mb-1">Primary Questions</span>
+                              <ul className="list-disc pl-4 text-xs text-slate-300 leading-relaxed space-y-1">
+                                {qb.primaryQuestions.map((q: string, i: number) => <li key={i}>{q}</li>)}
+                              </ul>
+                            </div>
+                          )}
+                          {qb.escalationQuestions?.length > 0 && (
+                            <div>
+                              <span className="text-[9px] font-bold uppercase text-rose-400 block mb-1 mt-2">Escalation Questions</span>
+                              <ul className="list-disc pl-4 text-xs text-rose-300 leading-relaxed space-y-1">
+                                {qb.escalationQuestions.map((q: string, i: number) => <li key={i}>{q}</li>)}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* 12. Internal Watchouts */}
+              {selectedBrief.internalWatchouts?.length > 0 && (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 pb-1 border-b border-white/5">
+                    <ShieldAlert className="h-4 w-4 text-amber-400" />
+                    <span className="text-[9px] font-black uppercase tracking-widest text-amber-400">12. Internal Watchouts</span>
+                  </div>
+                  <div className="grid grid-cols-1 gap-2.5">
+                    {selectedBrief.internalWatchouts.map((watchout: string, idx: number) => (
+                      <div key={idx} className="flex items-start gap-3.5 p-3 rounded-xl border border-amber-500/10 bg-amber-500/5">
+                        <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+                        <p className="text-xs text-amber-200/90 font-semibold">{watchout}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* 13. Partner-Down Coverage */}
+              {selectedBrief.partnerDownCoverage && (
+                <div className="rounded-xl border border-white/[0.03] bg-white/[0.005] p-5 space-y-3 shadow-inner">
+                  <div className="flex items-center gap-2 border-b border-white/5 pb-2">
+                    <UserX className="h-4 w-4 text-slate-400" />
+                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-350">13. Partner-Down Coverage</span>
+                  </div>
+                  {renderRichText(selectedBrief.partnerDownCoverage)}
+                </div>
+              )}
+
+              {/* 14. Call Strategy */}
+              {selectedBrief.callStrategy && (
+                <div className="rounded-xl border border-white/[0.03] bg-white/[0.005] p-5 space-y-3 shadow-inner">
+                  <div className="flex items-center gap-2 border-b border-white/5 pb-2">
+                    <Lightbulb className="h-4 w-4 text-[#C6A66B]" />
+                    <span className="text-[9px] font-black uppercase tracking-widest text-[#C6A66B]">14. Call Strategy</span>
+                  </div>
+                  {renderRichText(selectedBrief.callStrategy)}
+                </div>
+              )}
+
+              {/* 15. The Call Script */}
+              {selectedBrief.callScript && (
+                <div className="rounded-xl border border-[#C6A66B]/20 bg-gradient-to-r from-[#C6A66B]/5 to-transparent p-5 space-y-3 border-l-2 border-l-[#C6A66B] shadow-inner">
+                  <div className="flex items-center gap-2 pb-1 border-b border-[#C6A66B]/10">
+                    <BookOpen className="h-4 w-4 text-[#C6A66B]" />
+                    <span className="text-[9px] font-black uppercase tracking-widest text-[#C6A66B]">15. The Call Script</span>
+                  </div>
+                  {renderRichText(selectedBrief.callScript)}
+                </div>
+              )}
+
+              {/* 16. Post Call Actions */}
+              {selectedBrief.recommendedNextActions?.length > 0 && (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 pb-1 border-b border-white/5">
+                    <ListTodo className="h-4 w-4 text-[#C6A66B]" />
+                    <span className="text-[9px] font-black uppercase tracking-widest text-[#C6A66B]">16. Recommended Next Actions</span>
+                  </div>
+                  <div className="grid grid-cols-1 gap-2.5">
+                    {selectedBrief.recommendedNextActions.map((action: string, idx: number) => (
+                      <div key={idx} className="flex items-center gap-3.5 p-3 rounded-xl border border-[#C6A66B]/10 bg-[#C6A66B]/5">
+                        <ArrowRight className="h-3 w-3 text-[#C6A66B] shrink-0" />
+                        <p className="text-xs text-[#C6A66B] font-semibold">{action}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Custom QA answers block */}
               {selectedBrief.aiAnswers && selectedBrief.aiAnswers.length > 0 && (
@@ -2951,29 +3112,56 @@ function PreCallBriefTab({ deal, openComposer }: { deal: any; openComposer: (opt
                 PRE-CALL CONFIGURATION
               </h3>
 
-              {/* Attendees */}
+              {/* Meeting Participants */}
               <div className="space-y-2">
-                <span className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-500">ATTENDEES</span>
-                <div className="flex flex-wrap gap-1.5 items-center">
-                  {attendees.map((att, idx) => (
-                    <span 
-                      key={idx} 
-                      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-[10px] font-semibold ${
-                        att.includes("lead") 
+                <span className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-500">MEETING PARTICIPANTS</span>
+                <div className="flex flex-wrap gap-2 items-center">
+                  {Object.values(ACP_PERSONAS).map((persona) => {
+                    const isSelected = selectedPersonas.includes(persona.id);
+                    return (
+                      <button
+                        key={persona.id}
+                        type="button"
+                        onClick={() => {
+                          if (isSelected) {
+                            setSelectedPersonas(prev => prev.filter(p => p !== persona.id));
+                          } else {
+                            setSelectedPersonas(prev => [...prev, persona.id]);
+                          }
+                        }}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-semibold transition-colors cursor-pointer ${
+                          isSelected 
+                            ? "bg-[#10B981] text-slate-950" 
+                            : "bg-white/[0.015] border border-white/[0.02] text-slate-400 hover:text-slate-200"
+                        }`}
+                      >
+                        {isSelected && <Check className="h-3 w-3" />}
+                        {persona.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Coverage Scenario */}
+              <div className="space-y-2">
+                <span className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-500">COVERAGE SCENARIO</span>
+                <div className="flex flex-wrap gap-2 items-center">
+                  {Object.values(ACP_SCENARIOS).map((scenario) => (
+                    <button
+                      key={scenario.id}
+                      type="button"
+                      onClick={() => setSelectedScenario(scenario.id)}
+                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-semibold transition-colors cursor-pointer ${
+                        selectedScenario === scenario.id 
                           ? "bg-[#10B981] text-slate-950" 
-                          : "bg-white/[0.015] border border-white/[0.02] text-slate-300"
+                          : "bg-white/[0.015] border border-white/[0.02] text-slate-400 hover:text-slate-200"
                       }`}
                     >
-                      {att}
-                    </span>
+                      {selectedScenario === scenario.id && <Check className="h-3 w-3" />}
+                      {scenario.name}
+                    </button>
                   ))}
-                  <button 
-                    type="button" 
-                    onClick={addAttendee}
-                    className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-white/[0.015] hover:bg-white/[0.02] border border-white/[0.02] text-slate-400 hover:text-white cursor-pointer transition"
-                  >
-                    +
-                  </button>
                 </div>
               </div>
 
