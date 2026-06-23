@@ -247,7 +247,7 @@ ${params.pastedText ? `\nIM Text:\n${params.pastedText.substring(0, 3000)}` : ""
     },
     body: JSON.stringify({
       model: "claude-sonnet-4-6",
-      max_tokens: 3500,
+      max_tokens: 8000,
       system: systemPrompt,
       messages: [
         {
