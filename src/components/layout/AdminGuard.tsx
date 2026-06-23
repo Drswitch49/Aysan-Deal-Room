@@ -1,17 +1,18 @@
-import { FormEvent, useState, useEffect } from "react";
+import { FormEvent, useState } from "react";
 import { LockKeyhole, ShieldCheck, Key, ArrowLeft, CheckCircle2, Mail, Loader2 } from "lucide-react";
+import { useAuth } from "../../context/AuthContext";
 
 type AdminGuardProps = {
   children: React.ReactNode;
 };
 
 export function AdminGuard({ children }: AdminGuardProps) {
+  const { isAuthenticated, isLoading, checkSession } = useAuth();
+  
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [isAuthorized, setIsAuthorized] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
-  const [isCheckingSession, setIsCheckingSession] = useState(true);
 
   // Recovery States
   const [isResetting, setIsResetting] = useState(false);
@@ -21,26 +22,6 @@ export function AdminGuard({ children }: AdminGuardProps) {
   const [resetError, setResetError] = useState("");
   const [resetSuccess, setResetSuccess] = useState(false);
   const [isResetSubmitting, setIsResetSubmitting] = useState(false);
-
-  useEffect(() => {
-    // Check session on mount
-    async function checkSession() {
-      try {
-        const response = await fetch("/api/auth/session");
-        if (response.ok) {
-          const data = await response.json();
-          if (data.authenticated && (data.user.role === "admin" || data.user.role === "analyst")) {
-            setIsAuthorized(true);
-          }
-        }
-      } catch (err) {
-        console.error("Failed to fetch session status:", err);
-      } finally {
-        setIsCheckingSession(false);
-      }
-    }
-    checkSession();
-  }, []);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -59,11 +40,11 @@ export function AdminGuard({ children }: AdminGuardProps) {
       
       if (response.ok) {
         const data = await response.json();
-        if (data.user.role === "admin" || data.user.role === "analyst") {
-          setIsAuthorized(true);
+        if (["admin", "analyst", "hr", "stakeholder", "managing partner", "partner"].includes((data.user.role || "").toLowerCase())) {
+          await checkSession();
           setError("");
         } else {
-          setError("Forbidden: Access restricted to admins and analysts.");
+          setError("Forbidden: Access restricted to authorized platform users.");
         }
       } else {
         const errData = await response.json();
@@ -129,7 +110,7 @@ export function AdminGuard({ children }: AdminGuardProps) {
 
       if (loginRes.ok) {
         setTimeout(() => {
-          setIsAuthorized(true);
+          checkSession();
           setIsResetting(false);
           setMasterPasscode("");
           setNewPasscode("");
@@ -146,7 +127,7 @@ export function AdminGuard({ children }: AdminGuardProps) {
     }
   }
 
-  if (isCheckingSession) {
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-[#0F1115] flex items-center justify-center relative overflow-hidden">
         <div className="absolute -left-20 -top-20 h-80 w-80 rounded-full bg-acp-bronze/5 blur-[100px] pointer-events-none" />
@@ -159,7 +140,7 @@ export function AdminGuard({ children }: AdminGuardProps) {
     );
   }
 
-  if (isAuthorized) {
+  if (isAuthenticated) {
     return <>{children}</>;
   }
 

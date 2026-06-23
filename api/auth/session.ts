@@ -3,6 +3,7 @@ import { airtableFetchRecord, TABLES, normalizeLenderFields, airtableFetch, esca
 import { logAuditTrail } from "../_utils/audit.js";
 
 interface CachedUser {
+  name: string;
   status: string;
   role: string;
   permissions: string;
@@ -32,12 +33,14 @@ export default async function handler(req: any, res: any) {
     const roleLower = (role || "").toLowerCase();
     const systemRoles = ["admin", "analyst", "managing partner", "partner", "hr", "stakeholder", "read only", "super admin", "owner"];
     if (systemRoles.includes(roleLower)) {
+      let userName = "";
       let userStatus = "";
       let userRole = "";
       let userPermissions = "";
 
       const cached = userSessionCache.get(email);
       if (cached && Date.now() - cached.timestamp < 5000) {
+        userName = cached.name;
         userStatus = cached.status;
         userRole = cached.role;
         userPermissions = cached.permissions;
@@ -60,11 +63,13 @@ export default async function handler(req: any, res: any) {
         }
 
         const userRec = usersRes.records[0];
+        userName = userRec.fields.Name || userRec.fields["Full Name"] || userRec.fields["First Name"] || "User";
         userStatus = userRec.fields.Status || "";
         userRole = userRec.fields.Role || "";
         userPermissions = userRec.fields.Permissions || "";
 
         userSessionCache.set(email, {
+          name: userName,
           status: userStatus,
           role: userRole,
           permissions: userPermissions,
@@ -141,6 +146,7 @@ export default async function handler(req: any, res: any) {
     return res.status(200).json({
       authenticated: true,
       user: {
+        name: systemRoles.includes(roleLower) ? userSessionCache.get(email)?.name : lenderFields?.Contact_Name || lenderFields?.Company_Name || email,
         email,
         role,
         permissions,

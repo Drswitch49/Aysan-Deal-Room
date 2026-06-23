@@ -106,7 +106,8 @@ export function DealInboxPage() {
     const fields = d.fields || {};
     // Category Filter
     if (activeFilter !== "All Deals") {
-      const verdict = fields["AI_Verdict"]?.trim();
+      const rawVerdict = fields["AI Verdict"] || fields["AI_Verdict"];
+      const verdict = rawVerdict?.trim();
       if (activeFilter === "Other") {
         if (verdict) return false;
       } else {
@@ -151,7 +152,7 @@ export function DealInboxPage() {
   const dynamicCategories = Array.from(
     new Set(
       inboxItems
-        .map((item) => item.fields?.["AI_Verdict"]?.trim())
+        .map((item) => (item.fields?.["AI Verdict"] || item.fields?.["AI_Verdict"])?.trim())
         .filter(Boolean)
     )
   ).sort();
@@ -274,13 +275,13 @@ export function DealInboxPage() {
                         </span>
                       </td>
                       <td className="px-4 py-4 font-sans text-xs font-medium text-white">
-                        {formatFinancial(fields["Turnover"] || fields["Revenue"])}
+                        {formatFinancial(fields["Turnover"] || fields["Revenue"] || fields["Sales"])}
                       </td>
                       <td className="px-4 py-4 font-sans text-xs font-medium text-white">
                         {formatFinancial(fields["EBITDA_GBP"] || fields["EBITDA"])}
                       </td>
                       <td className="px-4 py-4 font-sans text-xs font-medium text-white">
-                        {formatFinancial(fields["Asking_Price_GBP"] || fields["EV Ask"] || fields["Enterprise_Value"])}
+                        {formatFinancial(fields["Asking_Price_GBP"] || fields["Asking Price"] || fields["EV Ask"] || fields["Enterprise_Value"])}
                       </td>
                       <td className="px-4 py-4 font-sans text-xs font-medium text-slate-400">
                         {fields["Date_Received"] || fields["Created Date"] || fields["Date Added"] || "N/A"}
@@ -395,7 +396,7 @@ export function DealInboxPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="rounded-xl bg-white/[0.02] border border-white/[0.02] p-4">
                     <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">Turnover</div>
-                    <div className="text-sm font-bold text-white">{formatFinancial(selectedDeal.fields["Turnover"] || selectedDeal.fields["Revenue"])}</div>
+                    <div className="text-sm font-bold text-white">{formatFinancial(selectedDeal.fields["Turnover"] || selectedDeal.fields["Revenue"] || selectedDeal.fields["Sales"])}</div>
                   </div>
                   <div className="rounded-xl bg-white/[0.02] border border-white/[0.02] p-4">
                     <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">EBITDA</div>
@@ -403,7 +404,7 @@ export function DealInboxPage() {
                   </div>
                   <div className="rounded-xl bg-white/[0.02] border border-white/[0.02] p-4">
                     <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">Asking Price</div>
-                    <div className="text-sm font-bold text-white">{formatFinancial(selectedDeal.fields["Asking_Price_GBP"] || selectedDeal.fields["EV Ask"] || selectedDeal.fields["Enterprise_Value"])}</div>
+                    <div className="text-sm font-bold text-white">{formatFinancial(selectedDeal.fields["Asking_Price_GBP"] || selectedDeal.fields["Asking Price"] || selectedDeal.fields["EV Ask"] || selectedDeal.fields["Enterprise_Value"])}</div>
                   </div>
                   <div className="rounded-xl bg-white/[0.02] border border-white/[0.02] p-4">
                     <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">Sector</div>
@@ -419,7 +420,7 @@ export function DealInboxPage() {
                   </div>
                   <div className="rounded-xl bg-white/[0.02] border border-white/[0.02] p-4 col-span-2">
                     <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">One Line Reason</div>
-                    <div className="text-sm font-bold text-white whitespace-pre-wrap">
+                    <div className="text-sm font-bold text-white whitespace-pre-wrap break-words">
                       {selectedDeal.fields["One line reason"] || selectedDeal.fields["One_Line_Reason"] || "N/A"}
                     </div>
                   </div>
@@ -438,13 +439,13 @@ export function DealInboxPage() {
                     <Briefcase className="w-4 h-4 text-slate-500 flex-shrink-0" />
                     <span className="text-slate-300">Broker: {selectedDeal.fields["BROKER"] || "N/A"}</span>
                   </div>
-                  <div className="flex items-center gap-3 text-xs">
-                    <Mail className="w-4 h-4 text-slate-500 flex-shrink-0" />
-                    <span className="text-slate-300">{selectedDeal.fields["Contact E-mail"] || selectedDeal.fields["Contact Email"] || "No Email Provided"}</span>
+                  <div className="flex items-start gap-3 text-xs">
+                    <Mail className="w-4 h-4 text-slate-500 flex-shrink-0 mt-0.5" />
+                    <span className="text-slate-300 break-all">{selectedDeal.fields["Contact E-mail"] || selectedDeal.fields["Contact Email"] || "No Email Provided"}</span>
                   </div>
-                  <div className="flex items-center gap-3 text-xs">
-                    <Phone className="w-4 h-4 text-slate-500 flex-shrink-0" />
-                    <span className="text-slate-300">{selectedDeal.fields["Contact Call Line "] || selectedDeal.fields["Contact Phone"] || "No Phone Provided"}</span>
+                  <div className="flex items-start gap-3 text-xs">
+                    <Phone className="w-4 h-4 text-slate-500 flex-shrink-0 mt-0.5" />
+                    <span className="text-slate-300 break-words">{selectedDeal.fields["Contact Call Line "] || selectedDeal.fields["Contact Phone"] || "No Phone Provided"}</span>
                   </div>
                   {(selectedDeal.fields["Listing Link"] || selectedDeal.fields["Source"]) && (
                     <div className="flex items-center gap-3 text-xs mt-4 pt-4 border-t border-white/[0.05]">
@@ -468,7 +469,7 @@ export function DealInboxPage() {
               {selectedDeal.fields["Executive Summary"] && (
                 <div>
                   <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2">Executive Summary</h4>
-                  <div className="bg-white/[0.01] rounded-xl border border-white/[0.02] p-5 text-xs text-slate-300 leading-relaxed whitespace-pre-wrap">
+                  <div className="bg-white/[0.01] rounded-xl border border-white/[0.02] p-5 text-xs text-slate-300 leading-relaxed whitespace-pre-wrap break-words">
                     {selectedDeal.fields["Executive Summary"]}
                   </div>
                 </div>
@@ -476,7 +477,7 @@ export function DealInboxPage() {
               {selectedDeal.fields["Business Description"] && (
                 <div>
                   <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2">Business Description</h4>
-                  <div className="bg-white/[0.01] rounded-xl border border-white/[0.02] p-5 text-xs text-slate-300 leading-relaxed whitespace-pre-wrap">
+                  <div className="bg-white/[0.01] rounded-xl border border-white/[0.02] p-5 text-xs text-slate-300 leading-relaxed whitespace-pre-wrap break-words">
                     {selectedDeal.fields["Business Description"]}
                   </div>
                 </div>

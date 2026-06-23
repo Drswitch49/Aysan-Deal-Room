@@ -10,7 +10,7 @@ import {
   getAssignmentFields,
   normalizeLenderFields
 } from "../_utils/airtable.js";
-import { authenticateAdmin } from "./lenders.js";
+import { requireRole, ANY_INTERNAL, ALL_ADMINS } from "../auth/rbac.js";
 import { logAuditTrail } from "../_utils/audit.js";
 import { ensureTable, ensurePipelineFields, persistSchemaLogs, TABLE_SPECS, TEAM_FIELD_SPECS, STAKEHOLDER_FIELD_SPECS } from "../_utils/schema-manager.js";
 import bcrypt from "bcryptjs";
@@ -82,8 +82,9 @@ export default async function handler(req: any, res: any) {
   }
 
   try {
-    // 1. Authenticate Admin
-    await authenticateAdmin(req);
+    // 1. Authenticate Admin via RBAC
+    const user = await requireRole(req, res, ANY_INTERNAL);
+    if (!user) return;
 
     const { action } = req.body || {};
     if (!action) {
@@ -94,17 +95,25 @@ export default async function handler(req: any, res: any) {
       case "generate-verdict": {
         const { dealId } = req.body;
         if (!dealId) return res.status(400).json({ error: "dealId is required" });
-        const dealRecord = await airtableFetchRecord(TABLES.PIPELINE, dealId);
-        if (!dealRecord) return res.status(404).json({ error: "Deal not found" });
+        
+        let targetTable = TABLES.PIPELINE;
+        let dealRecord = await airtableFetchRecord(targetTable, dealId).catch(() => null);
+        
+        if (!dealRecord) {
+          targetTable = TABLES.DEAL_INBOX;
+          dealRecord = await airtableFetchRecord(targetTable, dealId).catch(() => null);
+        }
+        
+        if (!dealRecord) return res.status(404).json({ error: "Deal not found in either Pipeline or Inbox" });
 
         const dealData = {
-          companyName: dealRecord.fields.Company_Name || dealRecord.fields["Company Name"],
-          dealRef: dealRecord.fields.Deal_Ref || dealRecord.fields["Deal Reference"],
+          companyName: dealRecord.fields.Company_Name || dealRecord.fields["Company Name"] || dealRecord.fields["Deal Name"],
+          dealRef: dealRecord.fields.Deal_Ref || dealRecord.fields["Deal Reference"] || dealRecord.fields["REF. NO"],
           sector: dealRecord.fields.Industry || dealRecord.fields.Sector,
           location: dealRecord.fields.Location,
           revenue: dealRecord.fields.Turnover,
           ebitda: dealRecord.fields.EBITDA_GBP || dealRecord.fields.EBITDA,
-          askingPrice: dealRecord.fields.Asking_Price_GBP || dealRecord.fields["Asking Price"],
+          askingPrice: dealRecord.fields.Asking_Price_GBP || dealRecord.fields["Asking Price"] || dealRecord.fields["EV Ask"] || dealRecord.fields["Enterprise_Value"],
           rawFields: dealRecord.fields,
         };
 
@@ -112,9 +121,16 @@ export default async function handler(req: any, res: any) {
         const verdict = await generateInvestmentVerdictWithAI(dealData);
         const jsonString = JSON.stringify(verdict, null, 2);
 
-        await airtableUpdate(TABLES.PIPELINE, dealId, {
-          "Claude_Verdict": jsonString
-        });
+        // Map correct field name for AI verdict
+        const updatePayload: Record<string, any> = {};
+        if (targetTable === TABLES.DEAL_INBOX) {
+          updatePayload["AI_Verdict"] = verdict.investmentVerdict.split(":")[0];
+          updatePayload["Claude_Verdict"] = jsonString;
+        } else {
+          updatePayload["Claude_Verdict"] = jsonString;
+        }
+
+        await airtableUpdate(targetTable, dealId, updatePayload);
 
         await logAuditTrail(
           "GENERATE_AI_VERDICT",
@@ -993,12 +1009,14 @@ export default async function handler(req: any, res: any) {
         const result = await airtableCreate(TABLES.TEAM, teamFields);
 
         // Create Users record with generated password
+        let generatedPassword = "";
         if (email) {
           try {
-            const tempPassword = generatePassword();
+            generatedPassword = generatePassword();
             const salt = bcrypt.genSaltSync(10);
-            const hash = bcrypt.hashSync(tempPassword, salt);
+            const hash = bcrypt.hashSync(generatedPassword, salt);
             await airtableCreate("Users", {
+              Name: name,
               Email: email,
               PasswordHash: hash,
               Role: role.toLowerCase().replace(/\s+/g, "_"),
@@ -1019,7 +1037,7 @@ export default async function handler(req: any, res: any) {
           `Created team member: ${name} (Role: ${role}, Email: ${email || "—"})`
         );
 
-        return res.status(200).json({ success: true, result });
+        return res.status(200).json({ success: true, result, tempPassword: generatedPassword });
       }
 
       case "update-team-member": {
@@ -1075,6 +1093,27 @@ export default async function handler(req: any, res: any) {
 
         const result = await airtableCreate(TABLES.STAKEHOLDERS, fields);
 
+        // Create Users record with generated password for stakeholder
+        let generatedPassword = "";
+        if (email) {
+          try {
+            generatedPassword = generatePassword();
+            const salt = bcrypt.genSaltSync(10);
+            const hash = bcrypt.hashSync(generatedPassword, salt);
+            await airtableCreate("Users", {
+              Name: name,
+              Email: email,
+              PasswordHash: hash,
+              Role: "stakeholder",
+              Status: status === "Inactive" ? "Inactive" : "Active",
+              Permissions: "read",
+              CreatedAt: new Date().toISOString(),
+            });
+          } catch (err: any) {
+            console.warn("[Stakeholders] Failed to create Users record:", err.message);
+          }
+        }
+
         await logAuditTrail(
           "STAKEHOLDER_CREATED",
           req.user.email,
@@ -1083,7 +1122,7 @@ export default async function handler(req: any, res: any) {
           `Created stakeholder: ${name} (Type: ${type || "—"}, Company: ${company || "—"})`
         );
 
-        return res.status(200).json({ success: true, result });
+        return res.status(200).json({ success: true, result, tempPassword: generatedPassword });
       }
 
       case "update-stakeholder": {

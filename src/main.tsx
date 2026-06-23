@@ -103,10 +103,14 @@ const router = createBrowserRouter([
   },
 ]);
 
+import { AuthProvider } from "./context/AuthContext";
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <PipelineProvider>
-      <RouterProvider router={router} />
-    </PipelineProvider>
+    <AuthProvider>
+      <PipelineProvider>
+        <RouterProvider router={router} />
+      </PipelineProvider>
+    </AuthProvider>
   </StrictMode>,
 );

@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import {
   Building2, LogOut, Menu, X,
   LayoutDashboard, Kanban, Users, Settings, KeyRound, Activity,
-  ChevronLeft, ChevronRight, Inbox, MessageSquare
+  ChevronLeft, ChevronRight, Inbox, MessageSquare, MessageCircle
 } from "lucide-react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import { cx } from "../../utils/cx";
@@ -12,6 +12,7 @@ import { fetchRecentAdminChat } from "../../api/chat";
 import { ChatNotificationWatcher } from "../ui/ChatNotificationWatcher";
 import { Modal } from "../ui/Modal";
 import { FormField, inputClass } from "../ui/FormField";
+import { useAuth } from "../../context/AuthContext";
 
 // ─── Navigation items data ──────────────────────────────────────────────────
 const NAV_SECTIONS = [
@@ -19,7 +20,7 @@ const NAV_SECTIONS = [
     group: "Operations",
     items: [
       { to: "/", icon: <LayoutDashboard className="h-4 w-4" />, label: "Dashboard", end: true },
-      { to: "/admin/messages", icon: <MessageSquare className="h-4 w-4" />, label: "Messages" },
+      { to: "/admin/messages", icon: <MessageCircle className="h-4 w-4" />, label: "Messages" },
       { to: "/admin/inbox", icon: <Inbox className="h-4 w-4" />, label: "Deal Inbox" },
       { to: "/deals", icon: <Kanban className="h-4 w-4" />, label: "Active Deals", end: true },
       { to: "/admin/portco", icon: <Activity className="h-4 w-4" />, label: "Portfolio Monitor" },
@@ -36,6 +37,7 @@ const NAV_SECTIONS = [
 ];
 
 export function AppLayout() {
+  const { user } = useAuth();
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
@@ -171,6 +173,7 @@ export function AppLayout() {
             isCollapsed={isCollapsed}
           />
           <UserFooter
+            user={user}
             onLogout={handleLogout}
             onChangePassword={() => setIsChangePasswordOpen(true)}
             isCollapsed={isCollapsed}
@@ -209,7 +212,7 @@ export function AppLayout() {
                 className="flex-1 overflow-y-auto"
                 onNavigate={() => setIsMobileMenuOpen(false)}
               />
-              <UserFooter onLogout={handleLogout} onChangePassword={() => setIsChangePasswordOpen(true)} />
+              <UserFooter user={user} onLogout={handleLogout} onChangePassword={() => setIsChangePasswordOpen(true)} />
             </div>
           </aside>
         </div>
@@ -458,21 +461,31 @@ function SideNavItem({
 
 // ─── User Footer ──────────────────────────────────────────────────────────────
 function UserFooter({
+  user,
   onLogout,
   onChangePassword,
   isCollapsed = false,
 }: {
+  user: any;
   onLogout: () => void;
   onChangePassword: () => void;
   isCollapsed?: boolean;
 }) {
+  const name = user?.name || user?.email || "User";
+  const initials = name
+    .split(" ")
+    .map((n: string) => n[0])
+    .join("")
+    .substring(0, 2)
+    .toUpperCase();
+
   if (isCollapsed) {
     return (
       <div className="mt-auto pt-4 border-t border-white/[0.03] flex flex-col items-center gap-3 relative group/footer">
         {/* User initials bubble acting as trigger */}
         <div className="relative cursor-pointer">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#D4AF37] to-[#AA771C] text-[#101317] font-black text-xs shadow-md border border-[#C6A66B]/20">
-            AO
+            {initials}
           </div>
           <span className="absolute bottom-0 right-0 h-2 w-2 rounded-full bg-emerald-500 border border-[#101317]" />
         </div>
@@ -480,8 +493,8 @@ function UserFooter({
         {/* Hover popover controls */}
         <div className="absolute bottom-10 left-full ml-3 opacity-0 scale-95 pointer-events-none group-hover/footer:opacity-100 group-hover/footer:scale-100 group-hover/footer:pointer-events-auto transition-all duration-150 origin-bottom-left z-50 bg-[#161B22]/95 border border-white/[0.08] p-3.5 rounded-xl shadow-[0_6px_24px_rgba(0,0,0,0.7)] backdrop-blur-md min-w-[170px] space-y-3">
           <div className="border-b border-white/5 pb-2">
-            <p className="text-xs font-bold text-white tracking-wide leading-none">Ayo Oyesanya</p>
-            <p className="text-[9px] font-extrabold uppercase tracking-wider text-[#C6A66B]/80 leading-none mt-1">Managing Partner</p>
+            <p className="text-xs font-bold text-white tracking-wide leading-none">{name}</p>
+            <p className="text-[9px] font-extrabold uppercase tracking-wider text-[#C6A66B]/80 leading-none mt-1">{user?.role || "User"}</p>
           </div>
           <div className="flex flex-col gap-1.5 pt-0.5">
             <button
@@ -511,14 +524,14 @@ function UserFooter({
       <div className="flex items-center justify-between gap-2.5 rounded-xl border border-white/[0.02] bg-white/[0.005] p-2 hover:bg-white/[0.015] hover:border-white/[0.04] transition-all duration-300">
         <div className="flex items-center gap-2.5 min-w-0">
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#D4AF37] to-[#AA771C] text-[#101317] font-black shadow-[0_0_12px_rgba(198,166,107,0.25)] text-[10px]">
-            AO
+            {initials}
           </div>
           <div className="min-w-0">
             <p className="truncate text-xs font-semibold text-white tracking-wide leading-none mb-0.5">
-              Ayo Oyesanya
+              {name}
             </p>
             <p className="truncate text-[9px] font-bold uppercase tracking-wider text-[#C6A66B]/80 leading-none">
-              Managing Partner
+              {user?.role || "User"}
             </p>
           </div>
         </div>
