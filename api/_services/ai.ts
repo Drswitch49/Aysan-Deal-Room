@@ -225,7 +225,14 @@ STYLE RULES (MANDATORY):
 - Apply the COVERAGE SCENARIO explicit Lead and Second Seat roles. Do not assign phases to absent people.
 - STRICTLY ENFORCE ALL HARD GUARDRAILS. 
 - Assign ownership for every section based strictly on the selected personas and their partner-down rules.
-- Never fabricate facts; clearly label assumptions.`;
+- Never fabricate facts; clearly label assumptions.
+
+BREVITY AND LIMITS (CRITICAL):
+- You MUST be extremely concise. Keep your total JSON output under 15,000 characters.
+- Keep the 'callScript' under 200 words.
+- In 'teamDeploymentPlan' and 'participantQuestionBank', limit bullet points to a maximum of 2 short items per person.
+- Limit 'participantResponsibilities' to a brief 2-3 sentence overview.
+- If many participants are selected, compress their data into tight summaries rather than writing essays.`;
 
   const userContent = `Company: ${dealData.companyName || dealData.dealRef}
 Sector: ${dealData.sector} | Location: ${dealData.location}
