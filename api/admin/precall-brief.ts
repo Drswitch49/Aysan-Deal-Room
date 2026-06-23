@@ -55,15 +55,22 @@ export default async function handler(req: any, res: any) {
         const name = fields.Name || "";
         const dealIdFromField = Array.isArray(fields["Active_Pipeline"]) ? fields["Active_Pipeline"][0] : dealId;
         
-        let meetingObjective = "";
-        let companySnapshot = "";
-        let investmentThesis = "";
-        let keyRisks: string[] = [];
-        let priorityQuestions: string[] = [];
-        let negotiationAngles: string[] = [];
-        let recommendedCallFlow = "";
-        let informationGaps: string[] = [];
-        let suggestedFollowUpActions: string[] = [];
+        let executiveDealSnapshot = "";
+        let callObjectives = "";
+        let criticalUnknowns: string[] = [];
+        let dealKillers: string[] = [];
+        let osintIntelligence = "";
+        let financialIntelligence = "";
+        let sellerIntelligence = "";
+        let teamDeploymentPlan: any[] = [];
+        let participantResponsibilities = "";
+        let callPhaseOwnership: any[] = [];
+        let participantQuestionBank: any[] = [];
+        let internalWatchouts: string[] = [];
+        let partnerDownCoverage = "";
+        let callStrategy = "";
+        let callScript = "";
+        let recommendedNextActions: string[] = [];
         let selectedPersonas: string[] = ["ayo", "prince"];
         let selectedScenario = "primary";
         let selectedCallType = "1st";
@@ -83,15 +90,22 @@ export default async function handler(req: any, res: any) {
         }
 
         if (parsed && typeof parsed === "object") {
-          meetingObjective = parsed.meetingObjective || "";
-          companySnapshot = parsed.companySnapshot || "";
-          investmentThesis = parsed.investmentThesis || "";
-          keyRisks = Array.isArray(parsed.keyRisks) ? parsed.keyRisks : [];
-          priorityQuestions = Array.isArray(parsed.priorityQuestions) ? parsed.priorityQuestions : [];
-          negotiationAngles = Array.isArray(parsed.negotiationAngles) ? parsed.negotiationAngles : [];
-          recommendedCallFlow = parsed.recommendedCallFlow || "";
-          informationGaps = Array.isArray(parsed.informationGaps) ? parsed.informationGaps : [];
-          suggestedFollowUpActions = Array.isArray(parsed.suggestedFollowUpActions) ? parsed.suggestedFollowUpActions : [];
+          executiveDealSnapshot = parsed.executiveDealSnapshot || "";
+          callObjectives = parsed.callObjectives || "";
+          criticalUnknowns = Array.isArray(parsed.criticalUnknowns) ? parsed.criticalUnknowns : [];
+          dealKillers = Array.isArray(parsed.dealKillers) ? parsed.dealKillers : [];
+          osintIntelligence = parsed.osintIntelligence || "";
+          financialIntelligence = parsed.financialIntelligence || "";
+          sellerIntelligence = parsed.sellerIntelligence || "";
+          teamDeploymentPlan = Array.isArray(parsed.teamDeploymentPlan) ? parsed.teamDeploymentPlan : [];
+          participantResponsibilities = parsed.participantResponsibilities || "";
+          callPhaseOwnership = Array.isArray(parsed.callPhaseOwnership) ? parsed.callPhaseOwnership : [];
+          participantQuestionBank = Array.isArray(parsed.participantQuestionBank) ? parsed.participantQuestionBank : [];
+          internalWatchouts = Array.isArray(parsed.internalWatchouts) ? parsed.internalWatchouts : [];
+          partnerDownCoverage = parsed.partnerDownCoverage || "";
+          callStrategy = parsed.callStrategy || "";
+          callScript = parsed.callScript || "";
+          recommendedNextActions = Array.isArray(parsed.recommendedNextActions) ? parsed.recommendedNextActions : [];
           selectedPersonas = Array.isArray(parsed.selectedPersonas) ? parsed.selectedPersonas : selectedPersonas;
           selectedScenario = parsed.selectedScenario || selectedScenario;
           selectedCallType = parsed.selectedCallType || selectedCallType;
@@ -99,22 +113,29 @@ export default async function handler(req: any, res: any) {
           aiAnswers = Array.isArray(parsed.aiAnswers) ? parsed.aiAnswers : [];
         } else {
           // Plain text fallback
-          companySnapshot = rawBriefData;
+          executiveDealSnapshot = rawBriefData;
         }
 
         return {
           id: rec.id,
           name,
           dealId: dealIdFromField,
-          meetingObjective,
-          companySnapshot,
-          investmentThesis,
-          keyRisks,
-          priorityQuestions,
-          negotiationAngles,
-          recommendedCallFlow,
-          informationGaps,
-          suggestedFollowUpActions,
+          executiveDealSnapshot,
+          callObjectives,
+          criticalUnknowns,
+          dealKillers,
+          osintIntelligence,
+          financialIntelligence,
+          sellerIntelligence,
+          teamDeploymentPlan,
+          participantResponsibilities,
+          callPhaseOwnership,
+          participantQuestionBank,
+          internalWatchouts,
+          partnerDownCoverage,
+          callStrategy,
+          callScript,
+          recommendedNextActions,
           selectedPersonas,
           selectedScenario,
           selectedCallType,
