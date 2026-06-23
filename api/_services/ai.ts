@@ -105,69 +105,138 @@ Note: The "dealScore" must be a number between 0 and 100 representing your quali
   }
 }
 
-export interface PrecallBriefResult {
-  meetingObjective: string;
-  companySnapshot: string;
-  investmentThesis: string;
-  keyRisks: string[];
-  priorityQuestions: string[];
-  negotiationAngles: string[];
-  recommendedCallFlow: string;
-  informationGaps: string[];
-  suggestedFollowUpActions: string[];
-}
+import { ACP_PERSONAS } from "../../src/lib/acp/personas.js";
+import { ACP_SCENARIOS, ACP_HARD_GUARDRAILS } from "../../src/lib/acp/scenarios.js";
 
 export async function generatePrecallBriefWithAI(
-  deal: any,
+  dealData: any,
   params: {
     selectedCallType: string;
-    attendees: string[];
+    selectedPersonas: string[];
+    selectedScenario: string;
     dataSources: string[];
     pastedText?: string;
   }
-): Promise<PrecallBriefResult> {
+): Promise<any> {
   const apiKey = process.env.ANTHROPIC_API_KEY || process.env.VITE_ANTHROPIC_API_KEY;
 
   if (!apiKey) {
     throw new Error("ANTHROPIC_API_KEY environment variable is not configured.");
   }
 
-  const systemPrompt = `You are a senior investment associate at Aysan Capital Partners.
-Your job is to prepare a high-yield Pre-call Intelligence Brief for Ayo (Lead) and Prince.
+  const callTypeLabel =
+    params.selectedCallType === "1st"
+      ? "1st Seller Call"
+      : params.selectedCallType === "2nd"
+        ? "2nd Follow-up Call"
+        : "Negotiation";
 
-Create a highly actionable, structured precall brief explicitly preparing Ayo and Prince for the meeting. Use the OSINT framework and prompt library to ensure the output is optimized. Avoid long AI-generated essays. Prioritize high-yield intelligence.
+  const activePersonas = (params.selectedPersonas || []).map((id: string) => ACP_PERSONAS[id]).filter(Boolean);
+  const personaContext = activePersonas.length > 0 
+    ? `\n\nPARTICIPANT PERSONAS AND RULES:\n` + activePersonas.map((p: any) => `
+Name: ${p.name}
+Role: ${p.role}
+Authority Level: ${p.authorityLevel}
+Working Style: ${p.workingStyle}
+Strengths: ${p.strengths?.join(", ")}
+Weaknesses: ${p.weaknesses?.join(", ")}
+Responsibilities: ${p.responsibilities?.join(", ")}
+Best Deployed On: ${p.bestDeployedOn?.join(", ")}
+How AI Writes For Them: ${p.howAIWritesForThem}
+Call Ownership Areas: ${p.callOwnership?.join(", ")}
+Partner-Down Rules: ${p.partnerDownRules?.join(" ")}
+Escalation Rules: ${p.escalationRules?.join(" ")}
+`).join("\n---\n")
+    : "\n\nNo specific personas selected. Default ACP rules apply.";
 
-You MUST respond ONLY with a valid JSON object. Do not output any preamble, markdown formatting block fences (like \`\`\`json), or conversational filler. The output must be pure, parsable JSON matching this schema exactly:
+  const activeScenario = params.selectedScenario ? ACP_SCENARIOS[params.selectedScenario] : null;
+  const scenarioContext = activeScenario
+    ? `\n\nCOVERAGE SCENARIO & CONTINGENCY PROTOCOL:\n` +
+      `Scenario: ${activeScenario.name}\n` +
+      `Description: ${activeScenario.description}\n` +
+      `Lead: ${ACP_PERSONAS[activeScenario.lead]?.name || activeScenario.lead}\n` +
+      `Second Seat: ${activeScenario.secondSeat ? (ACP_PERSONAS[activeScenario.secondSeat]?.name || activeScenario.secondSeat) : "None"}\n` +
+      (activeScenario.openingScript ? `\nMandatory Opening Script (Inject into Call Script):\n"""${activeScenario.openingScript}"""\n` : "") +
+      `\nMandatory Holding Script (Inject into Call Script / Objection Handlers if seller pushes for numbers/commitments):\n"""${activeScenario.holdingScript}"""\n` +
+      `\nHARD GUARDRAILS (UNCHANGED IN EVERY SCENARIO):\n${activeScenario.hardGuardrails.map((g: string) => "- " + g).join("\n")}\n`
+    : "";
 
+  const systemPrompt = `You are the ACP (Aysan Capital Partners) pre-call intelligence and vendor-call strategist.
+Your job is to prepare ACP partners for a founder/vendor call on a live acquisition opportunity.
+The output must be an institutional-quality acquisition briefing (Private Equity IC Preparation style) — not a generic AI report.
+
+INPUTS AVAILABLE
+Broker/CIM, Financial statements, Companies House data, OSINT, Email trails, Prior ACP discussions, Deal scorecards, Acquisition thesis, Geography and sector fit.
+${personaContext}
+${scenarioContext}
+
+CRITICAL: You MUST respond ONLY with valid JSON. Do not include markdown wrappers or any text outside the JSON object.
+Use this exact JSON schema:
 {
-  "meetingObjective": "A clear, single-sentence objective for Ayo and Prince to achieve on this call.",
-  "companySnapshot": "A concise summary of the company, sector, location, and financials (Turnover, EBITDA, Asking Price, EV multiple).",
-  "investmentThesis": "The core thesis on why this deal makes sense for Aysan Capital Partners.",
-  "keyRisks": ["Specific risk 1 (e.g. key person dependency)", "Specific risk 2"],
-  "priorityQuestions": ["High priority strategic question 1", "High priority strategic question 2"],
-  "negotiationAngles": ["Actionable leverage point 1 for Prince/Ayo", "Actionable leverage point 2"],
-  "recommendedCallFlow": "A suggested step-by-step flow or script outline for the conversation.",
-  "informationGaps": ["Critical missing data point 1", "Critical missing data point 2"],
-  "suggestedFollowUpActions": ["Next step 1", "Next step 2"]
-}`;
+  "executiveDealSnapshot": "[Write the Executive Deal Snapshot here]",
+  "callObjectives": "[Write the Call Objectives here]",
+  "criticalUnknowns": ["[Write Unknown 1]", "[Write Unknown 2]"],
+  "dealKillers": ["[Write Killer 1]"],
+  "osintIntelligence": "[Write OSINT Intelligence here]",
+  "financialIntelligence": "[Write Financial Intelligence here]",
+  "sellerIntelligence": "[Write Seller Intelligence here]",
+  "teamDeploymentPlan": [
+    {
+      "name": "[Participant Name]",
+      "roleOnCall": "[Role]",
+      "primaryResponsibilities": ["[Resp 1]", "[Resp 2]"],
+      "questionsToOwn": ["[Topic 1]", "[Topic 2]"],
+      "riskAreasToInvestigate": ["[Risk 1]"],
+      "areasToAvoid": ["[Avoid 1]"],
+      "successCriteria": "[Criteria]"
+    }
+  ],
+  "participantResponsibilities": "[Write Participant Responsibilities detailed overview here]",
+  "callPhaseOwnership": [
+    { "phase": "Opening", "owner": "[Name]" },
+    { "phase": "Relationship Building", "owner": "[Name]" },
+    { "phase": "Operational Discovery", "owner": "[Name]" },
+    { "phase": "Financial Discovery", "owner": "[Name]" },
+    { "phase": "Risk Discovery", "owner": "[Name]" },
+    { "phase": "Seller Motivation", "owner": "[Name]" },
+    { "phase": "Transition Planning", "owner": "[Name]" },
+    { "phase": "Closing", "owner": "[Name]" }
+  ],
+  "participantQuestionBank": [
+    {
+      "participantName": "[Name]",
+      "primaryQuestions": ["[Q1]"],
+      "followUpQuestions": ["[Q2]"],
+      "escalationQuestions": ["[Q3]"]
+    }
+  ],
+  "internalWatchouts": ["[Watchout 1]"],
+  "partnerDownCoverage": "[Explain how partner-down rules were applied based on COVERAGE SCENARIO]",
+  "callStrategy": "[Write Call Strategy here]",
+  "callScript": "[Write Call Script here. Inject Opening Script if provided in scenario. Inject Holding Script for objections]",
+  "recommendedNextActions": ["[Action 1]", "[Action 2]"]
+}
 
-  const userContent = `Here is the target company information:
-- Company Name: ${deal.companyName || deal.dealRef}
-- Sector: ${deal.sector}
-- Location: ${deal.location}
-- Asking Price (EV): ${deal.evAsk ? `£${deal.evAsk}` : "TBC"}
-- Revenue/Turnover: ${deal.revenue ? `£${deal.revenue}` : "TBC"}
-- EBITDA: ${deal.ebitda ? `£${deal.ebitda}` : "TBC"}
-- EV Multiple: ${deal.multiplier || "TBC"}
+STYLE RULES (MANDATORY):
+- Sound like an ACP partner wrote it.
+- Be commercially sharp.
+- Use plain spoken founder language, not consultant jargon.
+- Apply the specific persona strengths, weaknesses, and partner-down logic dynamically based on who is attending.
+- Apply the COVERAGE SCENARIO explicit Lead and Second Seat roles. Do not assign phases to absent people.
+- STRICTLY ENFORCE ALL HARD GUARDRAILS. 
+- Assign ownership for every section based strictly on the selected personas and their partner-down rules.
+- Never fabricate facts; clearly label assumptions.`;
 
-Call Parameters:
-- Call Type: ${params.selectedCallType === "1st" ? "1st Seller Call" : params.selectedCallType === "2nd" ? "2nd Follow-up Call" : "Negotiation"}
-- Deal Team Attendees: Ayo (lead) and Prince. ${params.attendees.filter(a => a !== "Ayo (lead)" && a !== "Prince").join(", ")}
-- Enabled Intelligence Sources: ${params.dataSources.join(", ")}
-
-Create a precall brief specifically addressing Ayo and Prince. Focus on high-yield intelligence and actionable next steps.
-
-${params.pastedText ? `Additional Information Memorandum (IM) Text:\n\n${params.pastedText}` : ""}`;
+  const userContent = \`Company: \${dealData.companyName || dealData.dealRef}
+Sector: \${dealData.sector} | Location: \${dealData.location}
+EV: \${dealData.evAsk ? \`£\${dealData.evAsk}\` : "TBC"}
+Revenue: \${dealData.revenue ? \`£\${dealData.revenue}\` : "TBC"}
+EBITDA: \${dealData.ebitda ? \`£\${dealData.ebitda}\` : "TBC"}
+EV Multiple: \${dealData.multiplier || "TBC"}
+Call Type: \${callTypeLabel}
+Selected Participants: \${activePersonas.map((p: any) => p.name).join(", ") || "None"}
+Sources: \${(params.dataSources || []).join(", ")}
+\${params.pastedText ? \`\\nIM Text:\\n\${params.pastedText.substring(0, 3000)}\` : ""}\`;
 
   const response = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
@@ -178,7 +247,7 @@ ${params.pastedText ? `Additional Information Memorandum (IM) Text:\n\n${params.
     },
     body: JSON.stringify({
       model: "claude-sonnet-4-6",
-      max_tokens: 4000,
+      max_tokens: 3500,
       system: systemPrompt,
       messages: [
         {
@@ -191,7 +260,7 @@ ${params.pastedText ? `Additional Information Memorandum (IM) Text:\n\n${params.
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`Anthropic Claude API call failed: ${response.status} - ${errorText}`);
+    throw new Error(\`Anthropic Claude API call failed: \${response.status} - \${errorText}\`);
   }
 
   const payload = await response.json();
@@ -203,31 +272,38 @@ ${params.pastedText ? `Additional Information Memorandum (IM) Text:\n\n${params.
 
   try {
     let cleanJsonStr = rawContent.trim();
-    if (cleanJsonStr.startsWith("```")) {
-      cleanJsonStr = cleanJsonStr.replace(/^```json\s*/i, "").replace(/```$/, "").trim();
+    if (cleanJsonStr.startsWith("\`\`\`")) {
+      cleanJsonStr = cleanJsonStr.replace(/^\`\`\`json\\s*/i, "").replace(/\`\`\`$/, "").trim();
     }
 
     const parsed: any = JSON.parse(cleanJsonStr);
     return {
-      meetingObjective: parsed.meetingObjective || "",
-      companySnapshot: parsed.companySnapshot || "",
-      investmentThesis: parsed.investmentThesis || "",
-      keyRisks: Array.isArray(parsed.keyRisks) ? parsed.keyRisks : [],
-      priorityQuestions: Array.isArray(parsed.priorityQuestions) ? parsed.priorityQuestions : [],
-      negotiationAngles: Array.isArray(parsed.negotiationAngles) ? parsed.negotiationAngles : [],
-      recommendedCallFlow: parsed.recommendedCallFlow || "",
-      informationGaps: Array.isArray(parsed.informationGaps) ? parsed.informationGaps : [],
-      suggestedFollowUpActions: Array.isArray(parsed.suggestedFollowUpActions) ? parsed.suggestedFollowUpActions : []
-    } as unknown as PrecallBriefResult;
+      executiveDealSnapshot: parsed.executiveDealSnapshot || "",
+      callObjectives: parsed.callObjectives || "",
+      criticalUnknowns: Array.isArray(parsed.criticalUnknowns) ? parsed.criticalUnknowns : [],
+      dealKillers: Array.isArray(parsed.dealKillers) ? parsed.dealKillers : [],
+      osintIntelligence: parsed.osintIntelligence || "",
+      financialIntelligence: parsed.financialIntelligence || "",
+      sellerIntelligence: parsed.sellerIntelligence || "",
+      teamDeploymentPlan: Array.isArray(parsed.teamDeploymentPlan) ? parsed.teamDeploymentPlan : [],
+      participantResponsibilities: parsed.participantResponsibilities || "",
+      callPhaseOwnership: Array.isArray(parsed.callPhaseOwnership) ? parsed.callPhaseOwnership : [],
+      participantQuestionBank: Array.isArray(parsed.participantQuestionBank) ? parsed.participantQuestionBank : [],
+      internalWatchouts: Array.isArray(parsed.internalWatchouts) ? parsed.internalWatchouts : [],
+      partnerDownCoverage: parsed.partnerDownCoverage || "",
+      callStrategy: parsed.callStrategy || "",
+      callScript: parsed.callScript || "",
+      recommendedNextActions: Array.isArray(parsed.recommendedNextActions) ? parsed.recommendedNextActions : [],
+    };
   } catch (err: any) {
     console.error("[Claude Parsing Error for Brief] Raw response:", rawContent);
-    throw new Error(`Failed to parse brief AI response into structured JSON: ${err.message}`);
+    throw new Error(\`Failed to parse brief AI response into structured JSON: \${err.message}\`);
   }
 }
 
 export async function answerPrecallQuestionWithAI(
   deal: any,
-  brief: PrecallBriefResult,
+  brief: any,
   question: string,
   history: Array<{ q: string; a: string }>
 ): Promise<string> {

@@ -196,7 +196,7 @@ ${pastedText ? `\nIM Text:\n${pastedText.substring(0, 3_000)}` : ""}`;
         },
         signal: controller.signal,
         body: JSON.stringify({
-          model: "claude-3-5-sonnet-latest",
+          model: "claude-sonnet-4-6",
           max_tokens: 3500,
           system: systemPrompt,
           messages: [{ role: "user", content: userContent }],
