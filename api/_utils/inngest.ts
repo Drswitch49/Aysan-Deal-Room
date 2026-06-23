@@ -95,7 +95,8 @@ type Events = {
       briefId: string;
       dealId: string;
       callType: string;
-      attendees?: string[];
+      selectedPersonas?: string[];
+      selectedScenario?: string;
       dataSources?: Record<string, boolean>;
       pastedText?: string;
     };

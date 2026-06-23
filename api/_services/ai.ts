@@ -227,16 +227,16 @@ STYLE RULES (MANDATORY):
 - Assign ownership for every section based strictly on the selected personas and their partner-down rules.
 - Never fabricate facts; clearly label assumptions.`;
 
-  const userContent = \`Company: \${dealData.companyName || dealData.dealRef}
-Sector: \${dealData.sector} | Location: \${dealData.location}
-EV: \${dealData.evAsk ? \`£\${dealData.evAsk}\` : "TBC"}
-Revenue: \${dealData.revenue ? \`£\${dealData.revenue}\` : "TBC"}
-EBITDA: \${dealData.ebitda ? \`£\${dealData.ebitda}\` : "TBC"}
-EV Multiple: \${dealData.multiplier || "TBC"}
-Call Type: \${callTypeLabel}
-Selected Participants: \${activePersonas.map((p: any) => p.name).join(", ") || "None"}
-Sources: \${(params.dataSources || []).join(", ")}
-\${params.pastedText ? \`\\nIM Text:\\n\${params.pastedText.substring(0, 3000)}\` : ""}\`;
+  const userContent = `Company: ${dealData.companyName || dealData.dealRef}
+Sector: ${dealData.sector} | Location: ${dealData.location}
+EV: ${dealData.evAsk ? `£${dealData.evAsk}` : "TBC"}
+Revenue: ${dealData.revenue ? `£${dealData.revenue}` : "TBC"}
+EBITDA: ${dealData.ebitda ? `£${dealData.ebitda}` : "TBC"}
+EV Multiple: ${dealData.multiplier || "TBC"}
+Call Type: ${callTypeLabel}
+Selected Participants: ${activePersonas.map((p: any) => p.name).join(", ") || "None"}
+Sources: ${(params.dataSources || []).join(", ")}
+${params.pastedText ? `\nIM Text:\n${params.pastedText.substring(0, 3000)}` : ""}`;
 
   const response = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
@@ -260,7 +260,7 @@ Sources: \${(params.dataSources || []).join(", ")}
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(\`Anthropic Claude API call failed: \${response.status} - \${errorText}\`);
+    throw new Error(`Anthropic Claude API call failed: ${response.status} - ${errorText}`);
   }
 
   const payload = await response.json();
@@ -272,8 +272,8 @@ Sources: \${(params.dataSources || []).join(", ")}
 
   try {
     let cleanJsonStr = rawContent.trim();
-    if (cleanJsonStr.startsWith("\`\`\`")) {
-      cleanJsonStr = cleanJsonStr.replace(/^\`\`\`json\\s*/i, "").replace(/\`\`\`$/, "").trim();
+    if (cleanJsonStr.startsWith("```")) {
+      cleanJsonStr = cleanJsonStr.replace(/^```json\s*/i, "").replace(/```$/, "").trim();
     }
 
     const parsed: any = JSON.parse(cleanJsonStr);
@@ -297,7 +297,7 @@ Sources: \${(params.dataSources || []).join(", ")}
     };
   } catch (err: any) {
     console.error("[Claude Parsing Error for Brief] Raw response:", rawContent);
-    throw new Error(\`Failed to parse brief AI response into structured JSON: \${err.message}\`);
+    throw new Error(`Failed to parse brief AI response into structured JSON: ${err.message}`);
   }
 }
 

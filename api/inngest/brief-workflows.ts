@@ -74,7 +74,8 @@ const onPrecallBriefRequested = inngest.createFunction(
       const {
         dealData,
         selectedCallType,
-        attendees,
+        selectedPersonas,
+        selectedScenario,
         dataSources,
         pastedText,
       } = jobPayload;
@@ -91,7 +92,8 @@ const onPrecallBriefRequested = inngest.createFunction(
 
         return await generatePrecallBriefWithAI(dealData, {
           selectedCallType: selectedCallType || "1st",
-          attendees: attendees || ["Ayo (lead)", "Prince"],
+          selectedPersonas: selectedPersonas || ["ayo", "prince"],
+          selectedScenario: selectedScenario || "primary",
           dataSources: enabledSources,
           pastedText,
         });
@@ -106,7 +108,8 @@ const onPrecallBriefRequested = inngest.createFunction(
       const updatedPayload = {
         ...briefContent,
         dealData: jobPayload.dealData,
-        attendees: jobPayload.attendees || ["Ayo (lead)", "Prince"],
+        selectedPersonas: jobPayload.selectedPersonas || ["ayo", "prince"],
+        selectedScenario: jobPayload.selectedScenario || "primary",
         selectedCallType: jobPayload.selectedCallType || "1st",
         dataSources: jobPayload.dataSources || {},
         aiAnswers: jobPayload.aiAnswers || [],
