@@ -117,48 +117,48 @@ ${scenarioContext}
 CRITICAL: You MUST respond ONLY with valid JSON. Do not include markdown wrappers or any text outside the JSON object.
 Use this exact JSON schema:
 {
-  "executiveDealSnapshot": "1. Executive Deal Snapshot",
-  "callObjectives": "2. Call Objectives",
-  "criticalUnknowns": ["Unknown 1", "Unknown 2"],
-  "dealKillers": ["Killer 1"],
-  "osintIntelligence": "5. OSINT Intelligence",
-  "financialIntelligence": "6. Financial Intelligence",
-  "sellerIntelligence": "7. Seller Intelligence",
+  "executiveDealSnapshot": "[Write the Executive Deal Snapshot here]",
+  "callObjectives": "[Write the Call Objectives here]",
+  "criticalUnknowns": ["[Write Unknown 1]", "[Write Unknown 2]"],
+  "dealKillers": ["[Write Killer 1]"],
+  "osintIntelligence": "[Write OSINT Intelligence here]",
+  "financialIntelligence": "[Write Financial Intelligence here]",
+  "sellerIntelligence": "[Write Seller Intelligence here]",
   "teamDeploymentPlan": [
     {
-      "name": "Participant Name",
-      "roleOnCall": "Role",
-      "primaryResponsibilities": ["Resp 1", "Resp 2"],
-      "questionsToOwn": ["Topic 1", "Topic 2"],
-      "riskAreasToInvestigate": ["Risk 1"],
-      "areasToAvoid": ["Avoid 1"],
-      "successCriteria": "Criteria"
+      "name": "[Participant Name]",
+      "roleOnCall": "[Role]",
+      "primaryResponsibilities": ["[Resp 1]", "[Resp 2]"],
+      "questionsToOwn": ["[Topic 1]", "[Topic 2]"],
+      "riskAreasToInvestigate": ["[Risk 1]"],
+      "areasToAvoid": ["[Avoid 1]"],
+      "successCriteria": "[Criteria]"
     }
   ],
-  "participantResponsibilities": "9. Participant Responsibilities - detailed overview",
+  "participantResponsibilities": "[Write Participant Responsibilities detailed overview here]",
   "callPhaseOwnership": [
-    { "phase": "Opening", "owner": "Name" },
-    { "phase": "Relationship Building", "owner": "Name" },
-    { "phase": "Operational Discovery", "owner": "Name" },
-    { "phase": "Financial Discovery", "owner": "Name" },
-    { "phase": "Risk Discovery", "owner": "Name" },
-    { "phase": "Seller Motivation", "owner": "Name" },
-    { "phase": "Transition Planning", "owner": "Name" },
-    { "phase": "Closing", "owner": "Name" }
+    { "phase": "Opening", "owner": "[Name]" },
+    { "phase": "Relationship Building", "owner": "[Name]" },
+    { "phase": "Operational Discovery", "owner": "[Name]" },
+    { "phase": "Financial Discovery", "owner": "[Name]" },
+    { "phase": "Risk Discovery", "owner": "[Name]" },
+    { "phase": "Seller Motivation", "owner": "[Name]" },
+    { "phase": "Transition Planning", "owner": "[Name]" },
+    { "phase": "Closing", "owner": "[Name]" }
   ],
   "participantQuestionBank": [
     {
-      "participantName": "Name",
-      "primaryQuestions": ["Q1"],
-      "followUpQuestions": ["Q2"],
-      "escalationQuestions": ["Q3"]
+      "participantName": "[Name]",
+      "primaryQuestions": ["[Q1]"],
+      "followUpQuestions": ["[Q2]"],
+      "escalationQuestions": ["[Q3]"]
     }
   ],
-  "internalWatchouts": ["Watchout 1"],
-  "partnerDownCoverage": "13. Partner-Down Coverage (How rules were applied if someone is absent, explain why based on COVERAGE SCENARIO)",
-  "callStrategy": "14. Call Strategy",
-  "callScript": "15. Call Script (Inject Opening Script if provided in scenario. Inject Holding Script for objections)",
-  "recommendedNextActions": ["Action 1", "Action 2"]
+  "internalWatchouts": ["[Watchout 1]"],
+  "partnerDownCoverage": "[Explain how partner-down rules were applied based on COVERAGE SCENARIO]",
+  "callStrategy": "[Write Call Strategy here]",
+  "callScript": "[Write Call Script here. Inject Opening Script if provided in scenario. Inject Holding Script for objections]",
+  "recommendedNextActions": ["[Action 1]", "[Action 2]"]
 }
 
 STYLE RULES (MANDATORY):
