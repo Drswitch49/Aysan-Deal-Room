@@ -46,7 +46,7 @@ export function useDealListRows(refreshTrigger?: number) {
 export function useDeal(ref: string | undefined, refreshTrigger?: number) {
   return useAsyncData<PipelineDeal | null>(() => {
     if (!ref) return Promise.resolve(null);
-    return getDealByRef(ref);
+    return getDealByRef(ref, refreshTrigger !== undefined && refreshTrigger > 0);
   }, [ref, refreshTrigger]);
 }
 

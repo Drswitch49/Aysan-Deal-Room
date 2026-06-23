@@ -107,6 +107,13 @@ export default async function handler(req: any, res: any) {
         
         if (!dealRecord) return res.status(404).json({ error: "Deal not found in either Pipeline or Inbox" });
 
+        if (targetTable === TABLES.PIPELINE) {
+          const schemeLogs = await ensurePipelineFields(targetTable);
+          if (schemeLogs && schemeLogs.length > 0) {
+            await persistSchemaLogs(schemeLogs).catch(console.warn);
+          }
+        }
+
         const dealData = {
           companyName: dealRecord.fields.Company_Name || dealRecord.fields["Company Name"] || dealRecord.fields["Deal Name"],
           dealRef: dealRecord.fields.Deal_Ref || dealRecord.fields["Deal Reference"] || dealRecord.fields["REF. NO"],

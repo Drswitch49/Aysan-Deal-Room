@@ -128,8 +128,9 @@ export default async function handler(req: any, res: any) {
     }
 
     // 2. Serve from in-memory cache if valid
+    const skipCache = req.query?.forceRefresh === "true";
     const cached = cache[cacheKey];
-    if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+    if (!skipCache && cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
       // If client requested a specific deal reference, filter on the fly
       if (ref) {
         const filtered = filterResults(cached.data, type, ref, targetDealId);

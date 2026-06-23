@@ -20,8 +20,9 @@ export async function getDeals(): Promise<PipelineDeal[]> {
   return response.json();
 }
 
-export async function getDealByRef(ref: string): Promise<PipelineDeal | null> {
-  const response = await fetch(`/api/deals?ref=${encodeURIComponent(ref)}`);
+export async function getDealByRef(ref: string, forceRefresh: boolean = false): Promise<PipelineDeal | null> {
+  const url = forceRefresh ? `/api/deals?ref=${encodeURIComponent(ref)}&forceRefresh=true` : `/api/deals?ref=${encodeURIComponent(ref)}`;
+  const response = await fetch(url);
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
     throw new Error(err.error || `Failed to load deal details for ref: ${ref}`);
