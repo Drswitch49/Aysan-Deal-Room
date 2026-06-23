@@ -247,11 +247,14 @@ export function DealDetailPage() {
           dealId: dealState.data.id
         })
       });
-      if (!res.ok) throw new Error("Failed to generate verdict");
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error || "Failed to generate verdict");
+      }
       setRefreshTrigger(prev => prev + 1);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert("Error generating verdict.");
+      alert(`Error generating verdict: ${err.message}`);
     } finally {
       setIsGeneratingVerdict(false);
     }

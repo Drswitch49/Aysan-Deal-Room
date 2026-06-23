@@ -13,6 +13,7 @@ import {
 import { requireRole, ANY_INTERNAL, ALL_ADMINS } from "../auth/rbac.js";
 import { logAuditTrail } from "../_utils/audit.js";
 import { ensureTable, ensurePipelineFields, persistSchemaLogs, TABLE_SPECS, TEAM_FIELD_SPECS, STAKEHOLDER_FIELD_SPECS } from "../_utils/schema-manager.js";
+import { generateInvestmentVerdictWithAI } from "../_services/ai.js";
 import bcrypt from "bcryptjs";
 
 // Global in-memory map to track failed passcode update attempts for security rate-limiting
@@ -117,7 +118,6 @@ export default async function handler(req: any, res: any) {
           rawFields: dealRecord.fields,
         };
 
-        const { generateInvestmentVerdictWithAI } = await import("../_services/ai.js");
         const verdict = await generateInvestmentVerdictWithAI(dealData);
         const jsonString = JSON.stringify(verdict, null, 2);
 

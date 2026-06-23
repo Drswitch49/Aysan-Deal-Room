@@ -56,7 +56,7 @@ Note: The "dealScore" must be a number between 0 and 100 representing your quali
       "content-type": "application/json"
     },
     body: JSON.stringify({
-      model: "claude-3-5-sonnet-20241022",
+      model: "claude-sonnet-4-6",
       max_tokens: 4000,
       system: systemPrompt,
       messages: [
@@ -177,7 +177,7 @@ ${params.pastedText ? `Additional Information Memorandum (IM) Text:\n\n${params.
       "content-type": "application/json"
     },
     body: JSON.stringify({
-      model: "claude-3-5-sonnet-20241022",
+      model: "claude-sonnet-4-6",
       max_tokens: 4000,
       system: systemPrompt,
       messages: [
@@ -276,7 +276,7 @@ User Question: ${question}`
       "content-type": "application/json"
     },
     body: JSON.stringify({
-      model: "claude-3-5-sonnet-20241022",
+      model: "claude-sonnet-4-6",
       max_tokens: 1000,
       system: systemPrompt,
       messages: messages
@@ -364,7 +364,7 @@ ${Array.isArray(deal.rawFields?.IM_Review_Documents) ? "Has IM attached." : "No 
       "content-type": "application/json"
     },
     body: JSON.stringify({
-      model: "claude-3-5-sonnet-20241022",
+      model: "claude-sonnet-4-6",
       max_tokens: 2000,
       system: systemPrompt,
       messages: [
@@ -477,7 +477,7 @@ Perform your analysis and return the JSON object.`;
       "content-type": "application/json"
     },
     body: JSON.stringify({
-      model: "claude-3-5-sonnet-20241022",
+      model: "claude-sonnet-4-6",
       max_tokens: 4000,
       system: systemPrompt,
       messages: [
@@ -573,7 +573,7 @@ ${metrics.map(m => `- ${m.companyName} (${m.reportingPeriod}): Rev: £${m.revenu
       "content-type": "application/json"
     },
     body: JSON.stringify({
-      model: "claude-3-5-sonnet-20241022",
+      model: "claude-sonnet-4-6",
       max_tokens: 2000,
       system: systemPrompt,
       messages: [
