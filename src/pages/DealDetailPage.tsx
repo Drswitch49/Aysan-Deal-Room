@@ -118,6 +118,8 @@ export function DealDetailPage() {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [latestPostcallScore, setLatestPostcallScore] = useState<string>("Pending");
 
+  const dealState = useDeal(decodedRef, refreshTrigger);
+
   useEffect(() => {
     if (dealState.data?.rawFields?.["Postcall_Score"]) {
       setLatestPostcallScore(`${dealState.data.rawFields["Postcall_Score"]}/50`);
@@ -125,8 +127,6 @@ export function DealDetailPage() {
   }, [dealState.data]);
 
   const [isDeleting, setIsDeleting] = useState(false);
-
-  const dealState = useDeal(decodedRef, refreshTrigger);
 
   const handleDeleteDeal = async () => {
     if (!dealState.data?.id) return;
