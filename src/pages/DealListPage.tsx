@@ -753,7 +753,7 @@ export function DealListPage() {
         title="Add New Deal to Pipeline"
         maxWidth="max-w-2xl"
       >
-        <form onSubmit={handleCreateDeal} className="space-y-5 font-sans max-h-[75vh] overflow-y-auto pr-1">
+        <form onSubmit={handleCreateDeal} className="space-y-5 font-sans">
           {dealSubmitError && (
             <div className="rounded-lg border border-rose-500/20 bg-rose-500/5 p-3 text-xs font-semibold text-rose-400 flex items-center gap-2">
               <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
