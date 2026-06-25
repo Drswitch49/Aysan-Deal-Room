@@ -265,7 +265,7 @@ function KanbanColumn({ stage, deals, transitioningDealId, isDropTarget = false 
   const label = STAGE_LABELS[stage];
 
   return (
-    <div className="flex flex-col min-w-[280px] w-[280px] flex-shrink-0">
+    <div className="flex flex-col min-w-[280px] w-[280px] flex-shrink-0 h-full">
       {/* Column header */}
       <div className={cx(
         "flex items-center justify-between mb-3 px-3 py-2 rounded-xl border",
@@ -289,7 +289,7 @@ function KanbanColumn({ stage, deals, transitioningDealId, isDropTarget = false 
       <div
         ref={setNodeRef}
         className={cx(
-          "flex-1 min-h-[120px] rounded-xl border-2 border-dashed p-2 space-y-2.5 transition-all duration-150",
+          "flex-1 min-h-0 overflow-y-auto custom-scrollbar rounded-xl border-2 border-dashed p-2 space-y-2.5 transition-all duration-150",
           isOver
             ? cx("border-opacity-60", colors.border, colors.bg)
             : isDropTarget
@@ -434,7 +434,7 @@ export function DealKanban({ deals, onStageChanged }: DealKanbanProps) {
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-white/10">
+        <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-white/10 h-[calc(100vh-270px)] min-h-[500px]">
           {CANONICAL_STAGES.map((stage) => (
             <KanbanColumn
               key={stage}
