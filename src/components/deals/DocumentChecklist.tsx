@@ -529,13 +529,32 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
   const releasedCount = visibleDocuments.filter((doc) => isSentToLender(doc.status)).length;
   const progress = visibleDocuments.length > 0 ? (releasedCount / visibleDocuments.length) * 100 : 0;
 
-  if (visibleDocuments.length === 0) {
-    return <EmptyState title="No approved documents" message="No approved documents are available for this deal." />;
-  }
+  const isEmpty = visibleDocuments.length === 0;
 
   return (
     <div className="space-y-6 relative">
-      {audience === "internal" ? (
+      {isEmpty && (
+        <EmptyState 
+          title={audience === "internal" ? "No documents yet" : "No approved documents"}
+          message={audience === "internal" ? "There are no documents uploaded for this deal yet." : "No approved documents are available for this deal."}
+          action={
+            audience === "internal" ? (
+              <button
+                type="button"
+                onClick={() => setIsAddDocOpen(true)}
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-acp-bronze to-acp-bronze-dark px-4 text-xs font-bold uppercase tracking-wider text-white shadow-md hover:shadow-glow-bronze cursor-pointer transition-all duration-300"
+              >
+                <Plus className="h-4 w-4" />
+                Add Document
+              </button>
+            ) : undefined
+          }
+        />
+      )}
+
+      {!isEmpty && (
+        <>
+          {audience === "internal" ? (
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] backdrop-blur-md p-5 shadow-premium-card card-sheen flex items-center justify-between gap-4">
             <div className="flex items-center gap-3.5">
@@ -820,6 +839,8 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
       ) : (
         <EmptyState title="No matching documents" message="Adjust the document filters to see more rows." />
       )}
+        </>
+      )}
 
       {/* Right-Hand slide out drawer backdrop */}
       {selectedDoc && (
@@ -857,8 +878,8 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
               </button>
             </div>
 
-            {/* Drawer Content */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+            {/* Drawer Body - Scrollable */}
+            <div className="flex-1 overflow-y-auto min-h-0 p-6 space-y-6">
               {/* Core metrics */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="p-3 border border-white/[0.02] bg-white/[0.02] rounded-xl">

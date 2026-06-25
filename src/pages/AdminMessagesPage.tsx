@@ -226,7 +226,7 @@ export function AdminMessagesPage() {
             </div>
 
             {/* Chats list */}
-            <div className="flex-1 overflow-y-auto space-y-3 pr-1 custom-scrollbar">
+            <div className="flex-1 min-h-0 overflow-y-auto space-y-3 pr-1 custom-scrollbar">
               {filteredConversations.length === 0 ? (
                 <div className="text-center py-16 text-slate-550 text-xs leading-relaxed font-sans">
                   {searchQuery ? "No conversations match your search." : "No conversations yet."}

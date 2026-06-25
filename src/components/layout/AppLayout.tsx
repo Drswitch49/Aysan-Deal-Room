@@ -169,7 +169,7 @@ export function AppLayout() {
           )}
           <NavContent
             unreadMessages={unreadMessages}
-            className="mt-6 flex-1 overflow-y-auto"
+            className="mt-6 flex-1 min-h-0 overflow-y-auto"
             isCollapsed={isCollapsed}
           />
           <UserFooter
@@ -209,7 +209,7 @@ export function AppLayout() {
 
               <NavContent
                 unreadMessages={unreadMessages}
-                className="flex-1 overflow-y-auto"
+                className="flex-1 min-h-0 overflow-y-auto"
                 onNavigate={() => setIsMobileMenuOpen(false)}
               />
               <UserFooter user={user} onLogout={handleLogout} onChangePassword={() => setIsChangePasswordOpen(true)} />
