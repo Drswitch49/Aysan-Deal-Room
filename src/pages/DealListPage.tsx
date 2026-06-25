@@ -939,7 +939,7 @@ export function DealListPage() {
             </div>
           </div>
 
-          <div className="flex justify-end gap-2.5 pt-2 border-t border-white/[0.02]">
+          <div className="sticky bottom-[-24px] bg-[#161B22] flex justify-end gap-2.5 pt-4 pb-4 border-t border-white/[0.05] mt-6 -mx-6 px-6 z-10">
             <button type="button" onClick={() => { setIsModalOpen(false); setPendingFiles([]); }} className="h-9 px-4 rounded-xl border border-white/[0.02] text-slate-400 text-xs font-bold uppercase tracking-wider hover:bg-white/[0.015] transition cursor-pointer">
               Cancel
             </button>
