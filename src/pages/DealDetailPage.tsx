@@ -31,7 +31,7 @@ import {
   transitionDealStage, triggerOsintEnrichment, triggerFinancialAnalysis,
   sendLoiWebhook, sendEmailWebhook, updateAdminDeal,
   uploadImDocument, removeImDocument, replaceImDocument,
-  archiveDeal, restoreDeal
+  deleteDeal
 } from "../api/admin";
 import { getDealInbox } from "../api/airtable";
 import { HeaderMetrics } from "../components/ui/HeaderMetrics";
@@ -116,40 +116,35 @@ export function DealDetailPage() {
   const [activeTab, setActiveTab] = useState<TabId>("overview");
   const decodedRef = useMemo(() => (ref ? decodeURIComponent(ref) : ""), [ref]);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [latestPostcallScore, setLatestPostcallScore] = useState<string>("38/50");
+  const [latestPostcallScore, setLatestPostcallScore] = useState<string>("Pending");
 
-  const [isArchiving, setIsArchiving] = useState(false);
-  const [isRestoring, setIsRestoring] = useState(false);
+  useEffect(() => {
+    if (dealState.data?.rawFields?.["Postcall_Score"]) {
+      setLatestPostcallScore(`${dealState.data.rawFields["Postcall_Score"]}/50`);
+    }
+  }, [dealState.data]);
+
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const dealState = useDeal(decodedRef, refreshTrigger);
 
-  const handleArchiveDeal = async () => {
+  const handleDeleteDeal = async () => {
     if (!dealState.data?.id) return;
-    const confirm = window.confirm("Are you sure you want to archive this deal? It will be removed from the active pipeline.");
-    if (!confirm) return;
-    setIsArchiving(true);
+    const dealName = dealState.data.companyName || dealState.data.dealRef || "this deal";
+    const confirmStr = window.prompt(`Are you sure you want to PERMANENTLY delete ${dealName}? It will be removed from Airtable. Type "DELETE" to confirm.`);
+    if (confirmStr !== "DELETE") {
+      if (confirmStr !== null) alert("Deletion cancelled. You didn't type 'DELETE'.");
+      return;
+    }
+    setIsDeleting(true);
     try {
-      await archiveDeal(dealState.data.id);
+      await deleteDeal(dealState.data.id);
       navigate("/deals");
     } catch (err) {
-      console.error("Failed to archive deal:", err);
-      alert(err instanceof Error ? err.message : "Failed to archive deal");
+      console.error("Failed to delete deal:", err);
+      alert(err instanceof Error ? err.message : "Failed to delete deal");
     } finally {
-      setIsArchiving(false);
-    }
-  };
-
-  const handleRestoreDeal = async () => {
-    if (!dealState.data?.id) return;
-    setIsRestoring(true);
-    try {
-      await restoreDeal(dealState.data.id);
-      setRefreshTrigger(prev => prev + 1);
-    } catch (err) {
-      console.error("Failed to restore deal:", err);
-      alert(err instanceof Error ? err.message : "Failed to restore deal");
-    } finally {
-      setIsRestoring(false);
+      setIsDeleting(false);
     }
   };
 
@@ -608,10 +603,10 @@ export function DealDetailPage() {
 
     return {
       ...d,
-      revenue: fields["Turnover"] || d.rawFields["Turnover"] || 1600000,
-      ebitda: fields["EBITDA_GBP"] || d.rawFields["EBITDA_GBP"] || 190000,
-      evAsk: fields["Asking_Price_GBP"] || d.rawFields["Asking_Price_GBP"] || d.rawFields["EV"] || 450000,
-      multiplier: fields["EV Multiple"] || d.rawFields["EV Multiple"] || d.rawFields["EV"] || 2.7,
+      revenue: fields["Turnover"] || d.rawFields["Turnover"] || 0,
+      ebitda: fields["EBITDA_GBP"] || d.rawFields["EBITDA_GBP"] || 0,
+      evAsk: fields["Asking_Price_GBP"] || d.rawFields["Asking_Price_GBP"] || d.rawFields["EV"] || 0,
+      multiplier: fields["EV Multiple"] || d.rawFields["EV Multiple"] || d.rawFields["EV"] || undefined,
       sector: fields["Sector"] || d.sector || "General",
       location: fields["Location"] || d.location || "UK",
     };
@@ -679,25 +674,14 @@ export function DealDetailPage() {
             >
               Edit Deal
             </button>
-            {joinedDeal.archived ? (
-              <button
-                onClick={handleRestoreDeal}
-                disabled={isRestoring}
-                className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-3.5 text-[10px] font-extrabold uppercase tracking-wider text-emerald-400 shadow-sm transition hover:bg-emerald-500/20 hover:text-emerald-300 cursor-pointer disabled:opacity-40 disabled:pointer-events-none"
-                type="button"
-              >
-                {isRestoring ? "Restoring..." : "Restore Deal"}
-              </button>
-            ) : (
-              <button
-                onClick={handleArchiveDeal}
-                disabled={isArchiving}
-                className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-red-500/20 bg-red-500/5 px-3.5 text-[10px] font-extrabold uppercase tracking-wider text-red-400 shadow-sm transition hover:bg-red-500/20 hover:text-red-300 cursor-pointer disabled:opacity-40 disabled:pointer-events-none"
-                type="button"
-              >
-                {isArchiving ? "Archiving..." : "Archive Deal"}
-              </button>
-            )}
+            <button
+              onClick={handleDeleteDeal}
+              disabled={isDeleting}
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-red-500/20 bg-red-500/5 px-3.5 text-[10px] font-extrabold uppercase tracking-wider text-red-400 shadow-sm transition hover:bg-red-500/20 hover:text-red-300 cursor-pointer disabled:opacity-40 disabled:pointer-events-none"
+              type="button"
+            >
+              {isDeleting ? "Deleting..." : "Delete Deal"}
+            </button>
           </div>
         </div>
       </div>

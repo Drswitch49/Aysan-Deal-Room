@@ -722,52 +722,26 @@ export default async function handler(req: any, res: any) {
         return res.status(200).json({ success: true, message: "Document successfully deleted." });
       }
 
-      case "archive-deal": {
+      case "delete-deal": {
         const userRole = (req.user?.role || "").toLowerCase();
         if (userRole === "analyst") {
-          return res.status(403).json({ error: "Forbidden: Analysts cannot archive deals." });
+          return res.status(403).json({ error: "Forbidden: Analysts cannot delete deals." });
         }
         const { dealId } = req.body;
         if (!dealId) {
           return res.status(400).json({ error: "Deal ID is required" });
         }
-        await airtableUpdate(TABLES.PIPELINE, dealId, {
-          "Archived": true
-        });
+        await airtableDelete(TABLES.PIPELINE, dealId);
 
         await logAuditTrail(
-          "ARCHIVE_DEAL",
+          "DELETE_DEAL",
           req.user.email,
           req.user.role,
           dealId,
-          `Archived deal record: ${dealId}`
+          `Deleted deal record: ${dealId}`
         );
 
-        return res.status(200).json({ success: true, message: "Deal successfully archived." });
-      }
-
-      case "restore-deal": {
-        const userRole = (req.user?.role || "").toLowerCase();
-        if (userRole === "analyst") {
-          return res.status(403).json({ error: "Forbidden: Analysts cannot restore deals." });
-        }
-        const { dealId } = req.body;
-        if (!dealId) {
-          return res.status(400).json({ error: "Deal ID is required" });
-        }
-        await airtableUpdate(TABLES.PIPELINE, dealId, {
-          "Archived": false
-        });
-
-        await logAuditTrail(
-          "RESTORE_DEAL",
-          req.user.email,
-          req.user.role,
-          dealId,
-          `Restored deal record: ${dealId}`
-        );
-
-        return res.status(200).json({ success: true, message: "Deal successfully restored." });
+        return res.status(200).json({ success: true, message: "Deal successfully deleted." });
       }
 
       case "upload-im-document": {

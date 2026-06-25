@@ -870,32 +870,16 @@ export async function deleteAdminDocument(documentId: string) {
   return response.json();
 }
 
-export async function archiveDeal(dealId: string) {
+export async function deleteDeal(dealId: string) {
   const response = await fetch("/api/admin/action", {
     method: "POST",
     headers: getAdminHeaders(),
-    body: JSON.stringify({ action: "archive-deal", dealId })
+    body: JSON.stringify({ action: "delete-deal", dealId })
   });
 
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
-    throw new Error(err.error || "Failed to archive deal");
-  }
-
-  clearAirtableCache();
-  return response.json();
-}
-
-export async function restoreDeal(dealId: string) {
-  const response = await fetch("/api/admin/action", {
-    method: "POST",
-    headers: getAdminHeaders(),
-    body: JSON.stringify({ action: "restore-deal", dealId })
-  });
-
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.error || "Failed to restore deal");
+    throw new Error(err.error || "Failed to delete deal");
   }
 
   clearAirtableCache();
