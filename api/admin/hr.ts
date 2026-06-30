@@ -137,10 +137,8 @@ export default async function handler(req: any, res: any) {
         const cleanName = name.toLowerCase();
         const cleanAssoc = association.toLowerCase();
 
-        return (lContact && cleanName.includes(lContact)) ||
-               (lContact && lContact.includes(cleanName)) ||
-               (lCompany && cleanAssoc.includes(lCompany)) ||
-               (lCompany && lCompany.includes(cleanAssoc));
+        return (!!cleanName && !!lContact && (cleanName.includes(lContact) || lContact.includes(cleanName))) ||
+               (!!cleanAssoc && !!lCompany && (cleanAssoc.includes(lCompany) || lCompany.includes(cleanAssoc)));
       });
 
       const isBroker = association.toLowerCase().includes("broker") || 
@@ -177,8 +175,8 @@ export default async function handler(req: any, res: any) {
           const dealStage = (deal.fields["Stage"] || "").toUpperCase();
           if (dealStage === "KILLED") return false;
 
-          return dealBroker.includes(cleanName) || cleanName.includes(dealBroker) ||
-                 dealBroker.includes(cleanAssoc) || cleanAssoc.includes(dealBroker);
+          return (!!cleanName && (dealBroker.includes(cleanName) || cleanName.includes(dealBroker))) ||
+                 (!!cleanAssoc && (dealBroker.includes(cleanAssoc) || cleanAssoc.includes(dealBroker)));
         });
         description = `Broker · referral pipeline · ${brokerDeals.length} active referrals`;
       }

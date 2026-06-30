@@ -211,8 +211,8 @@ export function HrStakeholdersPage() {
       .catch(console.error);
   }, []);
 
-  const canManageTeam = currentUser && ["admin", "managing partner"].includes((currentUser.role || "").toLowerCase());
-  const canManageStakeholders = currentUser && ["admin", "managing partner", "partner"].includes((currentUser.role || "").toLowerCase());
+  const canManageTeam = currentUser && ["admin", "managing partner", "partner", "hr", "super admin", "owner"].includes((currentUser.role || "").toLowerCase());
+  const canManageStakeholders = currentUser && ["admin", "managing partner", "partner", "hr", "super admin", "owner"].includes((currentUser.role || "").toLowerCase());
 
   // Configuration drawer triggers
   const openConfigDrawerForTeam = (member: TeamMember) => {
