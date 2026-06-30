@@ -31,9 +31,27 @@ export async function authenticateAdmin(req: any) {
 
   const role = userFields.Role;
   const roleLower = (role || "").toLowerCase();
-  const allowedRoles = ["admin", "analyst", "managing partner", "partner", "hr", "stakeholder", "read only", "super admin", "owner"];
+  const allowedRoles = [
+    "admin", "analyst", "associate", "managing partner", "partner", "hr", "read only", "super admin", "owner",
+    "stakeholder", "advisor", "lawyer", "broker", "consultant", "investor", "portfolio contact"
+  ];
   if (!allowedRoles.includes(roleLower)) {
-    throw new Error("Unauthorized: Invalid role permissions");
+    // If it's the super admin email, bypass this check, otherwise throw
+    if ((userFields.Email || "").trim().toLowerCase() !== "admin@aysancapital.com") {
+      throw new Error("Unauthorized: Invalid role permissions");
+    }
+  }
+
+  // Super Admin Override
+  const userEmail = (userFields.Email || "").trim().toLowerCase();
+  if (userEmail === "admin@aysancapital.com") {
+    req.user = {
+      id: userRecord.id,
+      email: userFields.Email,
+      role: "super admin",
+      permissions: "admin"
+    };
+    return;
   }
 
   // Attach live database permissions & identity to request (normalized to lowercase)

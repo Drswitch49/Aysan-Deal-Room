@@ -128,7 +128,7 @@ export default async function handler(req: any, res: any) {
         "Email": email,
         "Status": status || "Active",
         "Role": role || "Analyst",
-        "Access_Level": accessLevel || (isSuperAdminRole(role) || role === "Admin" ? "FULL ACCESS" : "WRITE ACCESS"),
+        "Access_Level": accessLevel || (isSuperAdminRole(role) || role === "Admin" ? "FULL ACCESS" : role === "Read Only" ? "READ ONLY" : "WRITE ACCESS"),
         "Initials": name.split(/\s+/).length >= 2
           ? (name.split(/\s+/)[0][0] + name.split(/\s+/)[name.split(/\s+/).length - 1][0]).toUpperCase()
           : name.substring(0, 2).toUpperCase(),
@@ -147,7 +147,7 @@ export default async function handler(req: any, res: any) {
         PasswordHash: hash,
         Role: (role || "Analyst").toLowerCase(),
         Status: status || "Active",
-        Permissions: isSuperAdminRole(role) || role === "Admin" ? "admin" : "read",
+        Permissions: isSuperAdminRole(role) || role === "Admin" ? "admin" : role === "Read Only" ? "read" : "write",
         CreatedAt: new Date().toISOString()
       }).catch(err => console.warn("Failed to create user record for new team member:", err));
 
@@ -183,7 +183,7 @@ export default async function handler(req: any, res: any) {
       if (body.phone !== undefined) fields["Phone"] = body.phone;
       if (body.role !== undefined) {
         fields["Role"] = body.role;
-        fields["Access_Level"] = isSuperAdminRole(body.role) || body.role === "Admin" ? "FULL ACCESS" : "WRITE ACCESS";
+        fields["Access_Level"] = isSuperAdminRole(body.role) || body.role === "Admin" ? "FULL ACCESS" : body.role === "Read Only" ? "READ ONLY" : "WRITE ACCESS";
         fields["Avatar_Theme"] = body.role === "Admin" ? "purple" : isSuperAdminRole(body.role) ? "amber" : "blue";
       }
       if (body.status !== undefined) fields["Status"] = body.status;
@@ -204,7 +204,7 @@ export default async function handler(req: any, res: any) {
           if (body.email !== undefined) userUpdate["Email"] = body.email.trim();
           if (body.role !== undefined) {
             userUpdate["Role"] = body.role.toLowerCase();
-            userUpdate["Permissions"] = isSuperAdminRole(body.role) || body.role === "Admin" ? "admin" : "read";
+            userUpdate["Permissions"] = isSuperAdminRole(body.role) || body.role === "Admin" ? "admin" : body.role === "Read Only" ? "read" : "write";
           }
           if (body.status !== undefined) userUpdate["Status"] = body.status;
           await airtableUpdate("Users", usersData.records[0].id, userUpdate);

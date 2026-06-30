@@ -129,7 +129,7 @@ export default async function handler(req: any, res: any) {
           Name: name,
           Email: email.trim(),
           PasswordHash: hash,
-          Role: "stakeholder",
+          Role: (type || "stakeholder").toLowerCase(),
           Status: status || "Active",
           Permissions: "read",
           CreatedAt: new Date().toISOString()
@@ -180,6 +180,7 @@ export default async function handler(req: any, res: any) {
           const userUpdate: Record<string, any> = {};
           if (body.name !== undefined) userUpdate["Name"] = body.name;
           if (body.email !== undefined) userUpdate["Email"] = body.email.trim();
+          if (body.type !== undefined) userUpdate["Role"] = body.type.toLowerCase();
           if (body.status !== undefined) userUpdate["Status"] = body.status;
           await airtableUpdate("Users", usersData.records[0].id, userUpdate);
         }
