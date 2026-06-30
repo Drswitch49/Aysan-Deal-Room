@@ -113,7 +113,7 @@ export default async function handler(req: any, res: any) {
         "Type": type,
         "Association": association || organization || type || "External Partner",
         "Description": notes || "",
-        "Accent_Color": accentColor || (type === "Broker" ? "amber" : type === "Lawyer" ? "blue" : "green"),
+        "Accent_Color": accentColor ? accentColor.charAt(0).toUpperCase() + accentColor.slice(1).toLowerCase() : (type === "Broker" ? "Amber" : type === "Lawyer" ? "Blue" : "Green"),
         "Status": status || "Active",
         "Login_Link": loginLink
       };
