@@ -213,6 +213,7 @@ export function HrStakeholdersPage() {
 
   const canManageTeam = currentUser && ["admin", "managing partner", "partner", "hr", "super admin", "owner"].includes((currentUser.role || "").toLowerCase());
   const canManageStakeholders = currentUser && ["admin", "managing partner", "partner", "hr", "super admin", "owner"].includes((currentUser.role || "").toLowerCase());
+  const isSuperAdmin = currentUser?.role?.toLowerCase() === "super admin";
 
   // Configuration drawer triggers
   const openConfigDrawerForTeam = (member: TeamMember) => {
@@ -910,7 +911,7 @@ export function HrStakeholdersPage() {
                         onClick={() => setIsDeleteConfirmOpen(true)}
                         className="inline-flex h-8.5 items-center gap-1.5 rounded-xl border border-rose-500/20 bg-rose-500/5 px-3.5 text-[10px] font-extrabold uppercase tracking-wider text-rose-500 hover:bg-rose-500/10 transition cursor-pointer"
                       >
-                        <Trash className="h-3 w-3" /> Soft Delete
+                        <Trash className="h-3 w-3" /> {isSuperAdmin ? "Permanent Delete" : "Soft Delete"}
                       </button>
                     )}
                   </div>
@@ -1014,19 +1015,21 @@ export function HrStakeholdersPage() {
         </div>
       </Modal>
 
-      {/* Confirm Soft Delete */}
-      <Modal isOpen={isDeleteConfirmOpen} onClose={() => setIsDeleteConfirmOpen(false)} title="Confirm Soft Delete">
+      {/* Confirm Soft/Permanent Delete */}
+      <Modal isOpen={isDeleteConfirmOpen} onClose={() => setIsDeleteConfirmOpen(false)} title={isSuperAdmin ? "Confirm Permanent Delete" : "Confirm Soft Delete"}>
         <div className="space-y-4 font-sans text-xs text-slate-350">
           <p className="leading-relaxed">
             Are you sure you want to deactivate <span className="font-bold text-white">{drawerUser?.name}</span>?
           </p>
           <p className="leading-relaxed text-rose-500/90 font-semibold bg-rose-500/5 p-3 rounded-lg border border-rose-500/15">
-            This performs a soft delete. The profile and corresponding auth Users account status will be marked as "Inactive", blocking access while preserving their historical logs.
+            {isSuperAdmin 
+              ? 'This performs a permanent hard delete. The profile and corresponding auth Users account will be completely removed from the database and cannot be recovered.'
+              : 'This performs a soft delete. The profile and corresponding auth Users account status will be marked as "Inactive", blocking access while preserving their historical logs.'}
           </p>
           <div className="flex justify-end gap-2.5 pt-2 select-none">
             <button type="button" onClick={() => setIsDeleteConfirmOpen(false)} className="h-9 px-4 rounded-xl border border-white/[0.02] text-slate-450 hover:text-white transition cursor-pointer">Cancel</button>
             <button type="button" onClick={handleDeleteUser} className="h-9 px-5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold transition cursor-pointer">
-              Confirm Soft Delete
+              {isSuperAdmin ? "Confirm Permanent Delete" : "Confirm Soft Delete"}
             </button>
           </div>
         </div>

@@ -1700,7 +1700,7 @@ export default async function handler(req: any, res: any) {
             "Role": role,
             "Company": company,
             "Status_Text": statusText || "",
-            "Accent_Color": accentColor || "amber"
+            "Accent_Color": accentColor ? accentColor.charAt(0).toUpperCase() + accentColor.slice(1).toLowerCase() : "Amber"
           };
           const result = await airtableCreate(TABLES.HIRING, fields);
 
