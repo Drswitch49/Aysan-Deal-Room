@@ -113,7 +113,7 @@ export default async function handler(req: any, res: any) {
         "Type": type,
         "Association": association || organization || type || "External Partner",
         "Description": notes || "",
-        "Accent_Color": accentColor ? accentColor.charAt(0).toUpperCase() + accentColor.slice(1).toLowerCase() : (type === "Broker" ? "Amber" : type === "Lawyer" ? "Blue" : "Green"),
+        "Accent_Color": type === "Broker" ? "Amber" : type === "Lawyer" ? "Blue" : "Purple",
         "Status": status || "Active",
         "Login_Link": loginLink
       };
@@ -155,7 +155,7 @@ export default async function handler(req: any, res: any) {
       if (body.name !== undefined) fields["Name"] = body.name;
       if (body.type !== undefined) {
         fields["Type"] = body.type;
-        fields["Accent_Color"] = body.type === "Broker" ? "amber" : body.type === "Lawyer" ? "blue" : "green";
+        fields["Accent_Color"] = body.type === "Broker" ? "Amber" : body.type === "Lawyer" ? "Blue" : "Purple";
       }
       if (body.email !== undefined) fields["Email"] = body.email;
       if (body.phone !== undefined) fields["Phone"] = body.phone;
