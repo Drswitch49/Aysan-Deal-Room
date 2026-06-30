@@ -1,4 +1,4 @@
-import { airtableCreate, airtableUpdate, airtableFetch, airtableFetchRecord, TABLES, escapeFormulaString } from "./_utils/airtable.js";
+import { airtableCreate, airtableUpdate, airtableDelete, airtableFetch, airtableFetchRecord, TABLES, escapeFormulaString } from "./_utils/airtable.js";
 import { authenticateAdmin } from "./admin/lenders_auth_helper.js";
 import { ensureTable, STAKEHOLDER_FIELD_SPECS } from "./_utils/schema-manager.js";
 import bcrypt from "bcryptjs";
@@ -195,6 +195,20 @@ export default async function handler(req: any, res: any) {
 
       const stakeholder = await airtableFetchRecord(TABLES.STAKEHOLDERS, id);
       const email = stakeholder.fields["Email"];
+
+      if (req.user?.role === "super admin") {
+        await airtableDelete(TABLES.STAKEHOLDERS, id);
+        if (email) {
+          const usersData = await airtableFetch("Users", {
+            filterByFormula: `{Email} = '${escapeFormulaString(email)}'`,
+            maxRecords: 1
+          });
+          if (usersData.records && usersData.records.length > 0) {
+            await airtableDelete("Users", usersData.records[0].id);
+          }
+        }
+        return res.status(200).json({ success: true, message: "Stakeholder permanently deleted." });
+      }
 
       // Soft delete: update Status in External_Stakeholders to Inactive
       await airtableUpdate(TABLES.STAKEHOLDERS, id, { Status: "Inactive" });
