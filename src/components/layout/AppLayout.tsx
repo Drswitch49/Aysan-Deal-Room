@@ -168,6 +168,7 @@ export function AppLayout() {
             </div>
           )}
           <NavContent
+            user={user}
             unreadMessages={unreadMessages}
             className="mt-6 flex-1 min-h-0 overflow-y-auto"
             isCollapsed={isCollapsed}
@@ -208,6 +209,7 @@ export function AppLayout() {
               </div>
 
               <NavContent
+                user={user}
                 unreadMessages={unreadMessages}
                 className="flex-1 min-h-0 overflow-y-auto"
                 onNavigate={() => setIsMobileMenuOpen(false)}
@@ -327,19 +329,37 @@ function BrandBlock({ compact = false, isCollapsed = false }: { compact?: boolea
 
 // ─── Shared Nav Content (used in both desktop and mobile) ───────────────────
 function NavContent({
+  user,
   unreadMessages,
   className = "",
   onNavigate,
   isCollapsed = false,
 }: {
+  user: any;
   unreadMessages: number;
   className?: string;
   onNavigate?: () => void;
   isCollapsed?: boolean;
 }) {
+  const role = (user?.role || "").toLowerCase();
+  
+  const filteredNav = NAV_SECTIONS.map(section => {
+    let items = section.items;
+
+    if (role === "hr") {
+      items = items.filter(item => item.to === "/admin/hr");
+    } else if (role === "stakeholder") {
+      items = items.filter(item => item.to === "/" || item.to === "/deals");
+    } else if (role === "analyst") {
+      items = items.filter(item => item.to !== "/admin/settings" && item.to !== "/admin/hr");
+    }
+
+    return { ...section, items };
+  }).filter(section => section.items.length > 0);
+
   return (
     <nav className={cx("space-y-5 pr-1 select-none", className)}>
-      {NAV_SECTIONS.map((section) => (
+      {filteredNav.map((section) => (
         <div key={section.group} className="space-y-1">
           {!isCollapsed ? (
             <div className="flex items-center px-3.5 mb-2">

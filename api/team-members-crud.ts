@@ -73,6 +73,7 @@ export default async function handler(req: any, res: any) {
         } else {
           // If User profile doesn't exist, create it
           await airtableCreate("Users", {
+            Name: member.fields["Name"] || "Team Member",
             Email: memberEmail.trim(),
             PasswordHash: hash,
             Role: (member.fields["Role"] || "Analyst").toLowerCase(),
@@ -140,6 +141,7 @@ export default async function handler(req: any, res: any) {
 
       // Create User record in Users table
       await airtableCreate("Users", {
+        Name: name,
         Email: email.trim(),
         PasswordHash: hash,
         Role: (role || "Analyst").toLowerCase(),
@@ -197,6 +199,7 @@ export default async function handler(req: any, res: any) {
 
         if (usersData.records && usersData.records.length > 0) {
           const userUpdate: Record<string, any> = {};
+          if (body.name !== undefined) userUpdate["Name"] = body.name;
           if (body.email !== undefined) userUpdate["Email"] = body.email.trim();
           if (body.role !== undefined) {
             userUpdate["Role"] = body.role.toLowerCase();

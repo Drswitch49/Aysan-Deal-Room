@@ -959,6 +959,7 @@ export function HrStakeholdersPage() {
                   <option value="Analyst">Analyst</option>
                   <option value="Admin">Admin</option>
                   <option value="Read Only">Read Only</option>
+                  <option value="HR">HR</option>
                 </select>
               </FormField>
             ) : (
@@ -1107,6 +1108,7 @@ export function HrStakeholdersPage() {
                 <option value="Analyst">Analyst</option>
                 <option value="Admin">Admin</option>
                 <option value="Read Only">Read Only</option>
+                <option value="HR">HR</option>
               </select>
             </FormField>
             <FormField label="Status" id="tm-status">

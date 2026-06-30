@@ -69,9 +69,10 @@ export default async function handler(req: any, res: any) {
         } else {
           // Create User if not exists
           await airtableCreate("Users", {
+            Name: stakeholder.fields["Name"] || "Stakeholder",
             Email: stakeholderEmail.trim(),
             PasswordHash: hash,
-            Role: "read only",
+            Role: "stakeholder",
             Status: stakeholder.fields["Status"] || "Active",
             Permissions: "read",
             CreatedAt: new Date().toISOString()
@@ -125,9 +126,10 @@ export default async function handler(req: any, res: any) {
       // Create corresponding user in Users table if email is provided
       if (email && email.trim()) {
         await airtableCreate("Users", {
+          Name: name,
           Email: email.trim(),
           PasswordHash: hash,
-          Role: "read only",
+          Role: "stakeholder",
           Status: status || "Active",
           Permissions: "read",
           CreatedAt: new Date().toISOString()
@@ -176,6 +178,7 @@ export default async function handler(req: any, res: any) {
 
         if (usersData.records && usersData.records.length > 0) {
           const userUpdate: Record<string, any> = {};
+          if (body.name !== undefined) userUpdate["Name"] = body.name;
           if (body.email !== undefined) userUpdate["Email"] = body.email.trim();
           if (body.status !== undefined) userUpdate["Status"] = body.status;
           await airtableUpdate("Users", usersData.records[0].id, userUpdate);

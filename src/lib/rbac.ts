@@ -60,6 +60,13 @@ const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
   "Read Only": [
     "view_deals",
     "view_audit_logs"
+  ],
+  "HR": [
+    "manage_team",
+    "manage_stakeholders"
+  ],
+  "Stakeholder": [
+    "view_deals"
   ]
 };
 

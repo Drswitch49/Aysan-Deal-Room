@@ -74,6 +74,20 @@ export async function middleware(request: Request) {
             { status: 403, headers: { "Content-Type": "application/json" } }
           );
         }
+
+        if (role === "stakeholder" && request.method !== "GET") {
+          return new Response(
+            JSON.stringify({ error: "Forbidden: Stakeholders have read-only access" }),
+            { status: 403, headers: { "Content-Type": "application/json" } }
+          );
+        }
+
+        if (role === "analyst" && request.method === "DELETE") {
+          return new Response(
+            JSON.stringify({ error: "Forbidden: Analysts cannot delete deals or documents" }),
+            { status: 403, headers: { "Content-Type": "application/json" } }
+          );
+        }
       }
 
       // 2. Lenders & Admin endpoints (excluding HR-specific paths)
@@ -85,6 +99,13 @@ export async function middleware(request: Request) {
         if (!adminRoles.includes(role)) {
           return new Response(
             JSON.stringify({ error: "Forbidden: Access restricted to administrative staff" }),
+            { status: 403, headers: { "Content-Type": "application/json" } }
+          );
+        }
+
+        if (role === "analyst" && pathname.startsWith("/api/admin/settings")) {
+          return new Response(
+            JSON.stringify({ error: "Forbidden: Analysts cannot access settings" }),
             { status: 403, headers: { "Content-Type": "application/json" } }
           );
         }
