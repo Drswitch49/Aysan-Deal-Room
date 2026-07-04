@@ -179,7 +179,22 @@ export default async function handler(req: any, res: any) {
 
         // Map fields from Deal_Inbox to Active_Pipeline
         const f = inboxRecord.fields;
+        
+        const existingDeals = await airtableFetch(TABLES.PIPELINE);
+        let maxNum = 0;
+        existingDeals.records?.forEach((r: any) => {
+          const ref = r.fields["REF No."] || r.fields["ACP REF NO"] || r.fields["Deal_Ref"] || "";
+          const match = String(ref).match(/ACP-CFS-(\d+)/i);
+          if (match) {
+            const num = parseInt(match[1], 10);
+            if (num > maxNum) maxNum = num;
+          }
+        });
+        const finalRef = `ACP-CFS-${String(maxNum + 1).padStart(3, "0")}`;
+        const todayStr = new Date().toISOString().split("T")[0];
+
         const pipelineFields = {
+          "Deal Name": f["Company_Name"] || f["Company Name"] || "Unknown Deal",
           "Company_Name": f["Company_Name"] || f["Company Name"],
           "Project_Name": f["Project_Name"] || f["Project Name"] || f["Company_Name"],
           "Industry": f["Industry"] || f["Sector"],
@@ -189,7 +204,15 @@ export default async function handler(req: any, res: any) {
           "Location": f["Location"],
           "Deal_Type": f["Deal_Type"] || f["Deal Type"],
           "Owner": req.user.email,
-          "Status": "Initial Review",
+          "Stage": "Inbound",
+          "Workflow_Stage": "INTRO",
+          "ACP REF NO": finalRef,
+          "Deal_Ref": finalRef,
+          "Next Action": "Schedule initial discovery call",
+          "Next Action Date": todayStr,
+          "OSINT_Status": "Not Started",
+          "Created_At": new Date().toISOString(),
+          "Stage_Updated_At": new Date().toISOString(),
           "Executive_Summary": f["Summary"] || f["Description"],
           "Contact_Email": f["Contact_Email"] || f["Email"],
           "Contact_Phone": f["Contact_Phone"] || f["Phone"],

@@ -1,4 +1,5 @@
 import type { DealDocument, PipelineDeal, SubmissionLogEntry } from "../types/deal";
+import { asUrl } from "../utils/fields";
 
 // Retrieve lender credentials from sessionStorage
 const getLenderHeaders = (portalSlug: string): Record<string, string> => {
@@ -61,7 +62,7 @@ export async function fetchLenderDeals(portalSlug: string): Promise<PipelineDeal
     evAsk: rec.fields.Asking_Price_GBP || rec.fields["Asking Price"] || rec.fields.Asking_Price || rec.fields.evAsk || "",
     capitalStructure: buildCapitalStructure(rec.fields),
     rawFields: rec.fields,
-    dealFiles: rec.fields["Deal Files"] || rec.fields.dealFiles || "",
+    dealFiles: asUrl(rec.fields["Deal Files"] || rec.fields.dealFiles),
     ndaApproved: rec.ndaApproved
   }));
 }
@@ -88,7 +89,7 @@ export async function fetchLenderDocuments(portalSlug: string): Promise<DealDocu
     status: rec.fields.Status || "",
     source: rec.fields.Source || "",
     dateReceived: rec.fields.Date_Received || rec.fields["Date Received"] || "",
-    driveLink: Array.isArray(rec.fields.Drive_Link) ? rec.fields.Drive_Link[0] : (rec.fields.Drive_Link || rec.fields["drive link"] || ""),
+    driveLink: asUrl(rec.fields.Drive_Link || rec.fields["drive link"]),
     expectedDate: rec.fields.Expected_Date || "",
     internalNotes: "", // Purposely redacted on client
     dateSentToLender: rec.fields.Date_Sent_To_Lender || "",
