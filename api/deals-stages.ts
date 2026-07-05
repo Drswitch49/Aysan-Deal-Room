@@ -59,7 +59,7 @@ export default async function handler(req: any, res: any) {
         return res.status(404).json({ error: "Deal not found" });
       }
 
-      const currentStage = deal.fields.Stage || "Inbound";
+      const currentStage = deal.fields.Stage || "Intro";
 
       // Update deal stage
       const updatedDeal = await airtableUpdate("Deals", id, {

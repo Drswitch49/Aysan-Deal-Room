@@ -204,7 +204,7 @@ export default async function handler(req: any, res: any) {
           "Location": f["Location"],
           "Deal_Type": f["Deal_Type"] || f["Deal Type"],
           "Owner": req.user.email,
-          "Stage": "Inbound",
+          "Stage": "Intro",
           "Workflow_Stage": "INTRO",
           "ACP REF NO": finalRef,
           "Deal_Ref": finalRef,
@@ -622,7 +622,7 @@ export default async function handler(req: any, res: any) {
 
         const fields: Record<string, any> = {
           "Deal Name": resolvedName,
-          "Stage": stage || "Inbound",
+          "Stage": stage || "Intro",
           "ACP REF NO": finalRef,
           "Deal_Ref": finalRef,
           "Next Action": nextAction || "Schedule initial discovery call",
@@ -630,7 +630,7 @@ export default async function handler(req: any, res: any) {
           "OSINT_Status": "Not Started",
           "Created_At": new Date().toISOString(),
           "Stage_Updated_At": new Date().toISOString(),
-          "Workflow_Stage": normalizeWorkflowStage(stage || "Inbound")
+          "Workflow_Stage": normalizeWorkflowStage(stage || "Intro")
         };
 
         // Institutional fields
@@ -656,7 +656,7 @@ export default async function handler(req: any, res: any) {
           req.user.email,
           req.user.role,
           finalRef,
-          `Created deal: ${resolvedName} (Stage: ${stage || "Inbound"}, Ref: ${finalRef}, Industry: ${industry || "—"}, EV: ${enterpriseValue || "—"})`
+          `Created deal: ${resolvedName} (Stage: ${stage || "Intro"}, Ref: ${finalRef}, Industry: ${industry || "—"}, EV: ${enterpriseValue || "—"})`
         );
 
         return res.status(200).json({ success: true, result });
