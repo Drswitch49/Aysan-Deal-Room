@@ -26,7 +26,7 @@ export function PipelineProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let active = true;
     setLoading(true);
-    getDeals()
+    getDeals(refreshTrigger > 0)
       .then(data => {
         if (active) {
           setDeals(data);

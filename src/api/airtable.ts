@@ -11,8 +11,9 @@ export function clearAirtableCache() {
   // Caching is now handled server-side at the CDN Edge and in-memory levels.
 }
 
-export async function getDeals(): Promise<PipelineDeal[]> {
-  const response = await fetch("/api/deals");
+export async function getDeals(forceRefresh: boolean = false): Promise<PipelineDeal[]> {
+  const url = forceRefresh ? "/api/deals?forceRefresh=true" : "/api/deals";
+  const response = await fetch(url);
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
     throw new Error(err.error || "Failed to load active pipeline deals");

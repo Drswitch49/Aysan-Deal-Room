@@ -58,7 +58,7 @@ export function DealInboxPage() {
       setPromotingId(id);
       const res = await promoteDealFromInbox(id);
       if (res.success) {
-        setInboxItems((prev) => prev.filter((item) => item.id !== id));
+        setInboxItems((prev) => prev.map((item) => item.id === id ? { ...item, fields: { ...item.fields, Status: "Active" } } : item));
         refreshPipeline();
         setIsModalOpen(false);
       } else {
