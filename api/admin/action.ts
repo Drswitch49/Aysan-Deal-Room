@@ -194,9 +194,9 @@ export default async function handler(req: any, res: any) {
         const todayStr = new Date().toISOString().split("T")[0];
 
         const pipelineFields = {
-          "Deal Name": f["Company_Name"] || f["Company Name"] || "Unknown Deal",
-          "Company_Name": f["Company_Name"] || f["Company Name"],
-          "Project_Name": f["Project_Name"] || f["Project Name"] || f["Company_Name"],
+          "Deal Name": f["Deal Name"] || f["Company Name"] || f["Company_Name"] || "Unknown Deal",
+          "Company_Name": f["Company_Name"] || f["Company Name"] || f["Deal Name"],
+          "Project_Name": f["Project_Name"] || f["Project Name"] || f["Company_Name"] || f["Deal Name"],
           "Industry": f["Industry"] || f["Sector"],
           "Turnover": f["Turnover"] || f["Revenue"],
           "EBITDA_GBP": f["EBITDA_GBP"] || f["EBITDA"],
