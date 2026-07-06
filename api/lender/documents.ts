@@ -63,7 +63,9 @@ export default async function handler(req: any, res: any) {
       }
     });
 
-    const ndaApprovedDeals = new Set<string>();
+    const ndaApprovedDealIds = new Set<string>();
+    const ndaApprovedDealRefs = new Set<string>();
+    
     let lenderNdaApproved = false;
     const ndaField = lender.normalizedFields.NDA_Approved;
     if (Array.isArray(ndaField)) {
@@ -75,14 +77,24 @@ export default async function handler(req: any, res: any) {
     for (const record of assignmentsData.records) {
       const dealRefVal = record.fields[dealRefCol] || record.fields.Deal_Ref || record.fields["Deal Ref"];
       if (dealRefVal && lenderNdaApproved) {
-        if (Array.isArray(dealRefVal)) {
-          dealRefVal.forEach(id => ndaApprovedDeals.add(id));
-        } else {
-          const matchedId = refToRecordMap.get(String(dealRefVal).toLowerCase()) || dealRefVal;
-          ndaApprovedDeals.add(matchedId);
-        }
+        const addRef = (val: string) => {
+          const str = String(val);
+          if (str.startsWith("rec")) ndaApprovedDealIds.add(str);
+          else ndaApprovedDealRefs.add(str.toLowerCase());
+        };
+        if (Array.isArray(dealRefVal)) dealRefVal.forEach(addRef);
+        else addRef(dealRefVal);
       }
     }
+
+    // Populate missing cross-references
+    pipelineRecords.forEach((rec: any) => {
+      const refNo = String(rec.fields["REF No."] || rec.fields.Deal_Ref || rec.fields.dealRef || rec.fields["Deal Name"] || rec.fields.REF_No || "").toLowerCase();
+      if (ndaApprovedDealIds.has(rec.id) || (refNo && ndaApprovedDealRefs.has(refNo))) {
+        ndaApprovedDealIds.add(rec.id);
+        if (refNo) ndaApprovedDealRefs.add(refNo);
+      }
+    });
 
     // 3. Fetch documents
     const documentsData = await airtableFetch(TABLES.DOCUMENTS);
@@ -92,11 +104,11 @@ export default async function handler(req: any, res: any) {
     const approvedDocs = documentsData.records.filter((doc: any) => {
       const docDealRefs = doc.fields.Deal_Ref || [];
       const belongsToAssignedDeal = Array.isArray(docDealRefs) 
-        ? docDealRefs.some(id => ndaApprovedDeals.has(id))
-        : ndaApprovedDeals.has(String(docDealRefs));
+        ? docDealRefs.some(val => ndaApprovedDealIds.has(val) || ndaApprovedDealRefs.has(String(val).toLowerCase()))
+        : (ndaApprovedDealIds.has(String(docDealRefs)) || ndaApprovedDealRefs.has(String(docDealRefs).toLowerCase()));
 
       const status = String(doc.fields.Status || doc.fields.status || doc.fields.Stage || "").trim().toLowerCase();
-      const isApproved = ["sent to lender", "approved", "approved for lender", "complete"].some(s => status.includes(s));
+      const isApproved = ["sent to lender", "approved", "approved for lender", "complete", "nda signed"].some(s => status.includes(s));
 
       const access = String(doc.fields.Document_Access || doc.fields.document_access || doc.fields["Document Access"] || "").trim().toLowerCase();
       const isAccessExplicitlyAllowed = ["lender", "public", "external"].includes(access);
