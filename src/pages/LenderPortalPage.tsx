@@ -181,12 +181,22 @@ export function LenderPortalPage() {
   // Filter documents and timeline for active deal
   const activeDocs = useMemo(() => {
     if (!selectedDeal) return [];
-    return documents.filter(doc => doc.dealRef.toLowerCase() === selectedDeal.id.toLowerCase());
+    const sid = selectedDeal.id.toLowerCase();
+    const sref = (selectedDeal.dealRef || "").toLowerCase();
+    return documents.filter(doc => {
+      const dref = String(doc.dealRef || "").toLowerCase();
+      return dref === sid || (sref && dref === sref);
+    });
   }, [selectedDeal, documents]);
 
   const activeLogs = useMemo(() => {
     if (!selectedDeal) return [];
-    return logs.filter(log => log.dealRef.toLowerCase() === selectedDeal.id.toLowerCase());
+    const sid = selectedDeal.id.toLowerCase();
+    const sref = (selectedDeal.dealRef || "").toLowerCase();
+    return logs.filter(log => {
+      const lref = String(log.dealRef || "").toLowerCase();
+      return lref === sid || (sref && lref === sref);
+    });
   }, [selectedDeal, logs]);
 
   // Safe helper properties with optional chaining & fallbacks to prevent crashes
