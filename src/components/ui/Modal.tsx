@@ -59,7 +59,7 @@ export function Modal({
 
       {/* Modal Panel */}
       <div
-        className={`relative z-10 w-full ${maxWidth} flex flex-col rounded-2xl border border-white/[0.1] bg-[#161B22] shadow-2xl animate-scale-in max-h-full overflow-hidden`}
+        className={`relative z-10 w-full ${maxWidth} flex flex-col rounded-2xl border border-white/[0.1] bg-[#161B22] shadow-2xl animate-scale-in max-h-[90vh] overflow-hidden`}
       >
         {/* Header */}
         <div className="flex items-center justify-between p-6 pb-4 border-b border-white/[0.02] shrink-0">

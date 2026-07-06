@@ -36,12 +36,12 @@ export function DealInboxPage() {
   const [editingDeal, setEditingDeal] = useState<any | null>(null);
   
   const [formData, setFormData] = useState({
-    refNo: "", dealName: "", companyName: "", sector: "", location: "", broker: "", status: "Pending"
+    refNo: "", dealName: "", companyName: "", sector: "", location: "", broker: "", status: "Pending", imReviewDoc: ""
   });
   const [submittingDeal, setSubmittingDeal] = useState(false);
 
   const openAddModal = () => {
-    setFormData({ refNo: "", dealName: "", companyName: "", sector: "", location: "", broker: "", status: "Pending" });
+    setFormData({ refNo: "", dealName: "", companyName: "", sector: "", location: "", broker: "", status: "Pending", imReviewDoc: "" });
     setIsAddModalOpen(true);
   };
   
@@ -50,6 +50,7 @@ export function DealInboxPage() {
     setEditingDeal(deal);
     setFormData({
       refNo: deal.fields["REF. NO"] || "",
+      imReviewDoc: (Array.isArray(deal.fields["IM_Review_Documents"]) && deal.fields["IM_Review_Documents"][0]?.url) || deal.fields["IM_Review_Documents"] || "",
       dealName: deal.fields["Deal Name"] || "",
       companyName: deal.fields["Company Name"] || deal.fields["Company_Name"] || "",
       sector: deal.fields["Sector"] || "",
@@ -71,7 +72,8 @@ export function DealInboxPage() {
         "Sector": formData.sector,
         "Location": formData.location,
         "BROKER": formData.broker,
-        "Status": formData.status
+        "Status": formData.status,
+        "IM_Review_Documents": formData.imReviewDoc ? [{ url: formData.imReviewDoc }] : []
       };
       if (isAddModalOpen) {
         await createInboxDeal(payload);
@@ -564,6 +566,11 @@ export function DealInboxPage() {
             </FormField>
           </div>
           
+          
+          <FormField label="IM Review Document URL" id="modal-im-review">
+            <input id="modal-im-review" type="url" value={formData.imReviewDoc || ""} onChange={e => setFormData({...formData, imReviewDoc: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder:text-white/20 focus:outline-none focus:border-acp-bronze/50 transition-colors" placeholder="e.g. https://drive.google.com/..." />
+          </FormField>
+
           <FormField label="Deal Name" id="modal-name">
             <input id="modal-name" type="text" value={formData.dealName} onChange={e => setFormData({...formData, dealName: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder:text-white/20 focus:outline-none focus:border-acp-bronze/50 transition-colors" required placeholder="e.g. ACP-CFS-018 - Acme Corp" />
           </FormField>
