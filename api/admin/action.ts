@@ -293,7 +293,7 @@ export default async function handler(req: any, res: any) {
         const { ndaApproved } = req.body;
         if (ndaApproved !== undefined) {
           await airtableUpdate(TABLES.LENDERS, lenderRecordId, {
-            "NDA_Approved": ndaApproved ? "Yes" : "No"
+            "NDA_Approved": ndaApproved ? true : false
           });
         }
 
@@ -338,7 +338,7 @@ export default async function handler(req: any, res: any) {
           return res.status(400).json({ error: "Lender ID is required" });
         }
         const fields = {
-          "NDA_Approved": ndaApproved ? "Yes" : "No"
+          "NDA_Approved": ndaApproved ? true : false
         };
         const updated = await airtableUpdate(TABLES.LENDERS, lenderId, fields);
 
