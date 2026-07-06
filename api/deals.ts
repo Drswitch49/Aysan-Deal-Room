@@ -112,7 +112,7 @@ export default async function handler(req: any, res: any) {
         if (d.id.toLowerCase() === String(ref).toLowerCase()) return true;
         // 4. Extract prefix match (e.g. ACP-CFS-002)
         const getPrefix = (str: string) => {
-          const parts = str.split(/[|—–-]/);
+          const parts = str.split(/[|—–]/);
           return parts[0] ? parts[0].trim().toLowerCase() : "";
         };
         const prefixD = getPrefix(dRef);
