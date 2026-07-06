@@ -52,8 +52,8 @@ async function handleResponse(response: Response, tableName: string) {
     
     // Check if it's a missing table error
     if (
-      response.status === 404 ||
       errorCode === "TABLE_NOT_FOUND" ||
+      errorCode === "MODEL_ID_NOT_FOUND" ||
       errorCode.includes("table_not_found") ||
       errorText.toLowerCase().includes("could not find table") ||
       errorText.toLowerCase().includes("model was not found")
