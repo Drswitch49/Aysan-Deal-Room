@@ -96,12 +96,15 @@ export default async function handler(req: any, res: any) {
         : ndaApprovedDeals.has(String(docDealRefs));
 
       const status = String(doc.fields.Status || doc.fields.status || doc.fields.Stage || "").trim().toLowerCase();
-      const isApproved = status === "sent to lender";
+      const isApproved = ["sent to lender", "approved", "approved for lender", "complete"].some(s => status.includes(s));
 
       const access = String(doc.fields.Document_Access || doc.fields.document_access || doc.fields["Document Access"] || "").trim().toLowerCase();
-      const isAccessAllowed = access === "lender" || access === "public" || (!access && isApproved);
+      const isAccessExplicitlyAllowed = ["lender", "public", "external"].includes(access);
+      const isAccessExplicitlyDenied = ["internal", "admin", "restricted"].includes(access);
 
-      return belongsToAssignedDeal && isApproved && isAccessAllowed;
+      const shouldShow = isAccessExplicitlyAllowed || (isApproved && !isAccessExplicitlyDenied);
+
+      return belongsToAssignedDeal && shouldShow;
     });
 
     // 5. Redact fields and inject populated / fallback Drive_Link field
