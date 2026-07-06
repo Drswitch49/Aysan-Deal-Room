@@ -114,7 +114,9 @@ export default async function handler(req: any, res: any) {
       const isAccessExplicitlyAllowed = ["lender", "public", "external"].includes(access);
       const isAccessExplicitlyDenied = ["internal", "admin", "restricted"].includes(access);
 
-      const shouldShow = isAccessExplicitlyAllowed || (isApproved && !isAccessExplicitlyDenied);
+      const isExplicitlySentToLender = ["sent to lender", "approved for lender"].some(s => status.includes(s));
+
+      const shouldShow = isAccessExplicitlyAllowed || isExplicitlySentToLender || (isApproved && !isAccessExplicitlyDenied);
 
       return belongsToAssignedDeal && shouldShow;
     });
