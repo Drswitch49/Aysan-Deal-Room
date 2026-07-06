@@ -41,7 +41,7 @@ export async function fetchLenderDeals(portalSlug: string): Promise<PipelineDeal
   return rawDeals.map((rec: any) => ({
     id: rec.id,
     dealRef: rec.fields["REF No."] || rec.fields.Deal_Ref || rec.fields.dealRef || rec.fields["Deal Name"] || "",
-    companyName: rec.fields["Company Name"] || rec.fields.Company_Name || rec.fields.companyName || "",
+    companyName: "Undisclosed Company", // Explicitly masked for Lender Portal privacy
     status: rec.fields.Status || rec.fields.Deal_Status || rec.fields.Stage || "",
     location: rec.fields.Location || rec.fields["Company Location"] || "",
     sector: rec.fields.Sector || rec.fields.Industry || "",

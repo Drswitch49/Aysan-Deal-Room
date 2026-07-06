@@ -192,7 +192,7 @@ export default async function handler(req: any, res: any) {
         inboxFormulas.push(`{REF. NO} = '${escapeFormulaString(refNo)}'`);
       }
 
-      const segments = dealName.split(/[|—–-]/).map(s => s.trim()).filter(Boolean);
+      const segments = dealName.split(/\s*[|—–]\s*|\s+-\s+/).map(s => s.trim()).filter(Boolean);
       segments.forEach(seg => {
         const cleanSeg = seg.toLowerCase();
         if (seg.length >= 3 && 
@@ -255,7 +255,7 @@ export default async function handler(req: any, res: any) {
         if (!f.EV && im.Turnover) f.EV = im.Turnover;
       } else {
         const f = deal.fields;
-        const segments = dealName.split(/[|—–-]/).map(s => s.trim()).filter(Boolean);
+        const segments = dealName.split(/\s*[|—–]\s*|\s+-\s+/).map(s => s.trim()).filter(Boolean);
         if (segments.length >= 2) {
           const filtered = segments.filter(s => {
             const l = s.toLowerCase();

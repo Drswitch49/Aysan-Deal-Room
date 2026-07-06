@@ -4,10 +4,11 @@ import {
   Search, AlertTriangle, ChevronLeft, ChevronRight, Inbox, Plus, RefreshCw,
   Building2, MapPin, Briefcase, Mail, Phone, ExternalLink, Sparkles
 } from "lucide-react";
-import { getDealInbox } from "../api/airtable";
+import { getDealInbox, createInboxDeal, updateInboxDeal } from "../api/airtable";
 import { promoteDealFromInbox, updateInboxStatus } from "../api/admin";
 import { LoadingState } from "../components/ui/LoadingState";
 import { Modal } from "../components/ui/Modal";
+import { FormField } from "../components/ui/FormField";
 import { cx } from "../utils/cx";
 import { usePipeline } from "../context/PipelineContext";
 
@@ -29,11 +30,70 @@ export function DealInboxPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
+
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingDeal, setEditingDeal] = useState<any | null>(null);
+  
+  const [formData, setFormData] = useState({
+    refNo: "", dealName: "", companyName: "", sector: "", location: "", broker: "", status: "Pending"
+  });
+  const [submittingDeal, setSubmittingDeal] = useState(false);
+
+  const openAddModal = () => {
+    setFormData({ refNo: "", dealName: "", companyName: "", sector: "", location: "", broker: "", status: "Pending" });
+    setIsAddModalOpen(true);
+  };
+  
+  const openEditModal = (deal: any, e: any) => {
+    e.stopPropagation();
+    setEditingDeal(deal);
+    setFormData({
+      refNo: deal.fields["REF. NO"] || "",
+      dealName: deal.fields["Deal Name"] || "",
+      companyName: deal.fields["Company Name"] || deal.fields["Company_Name"] || "",
+      sector: deal.fields["Sector"] || "",
+      location: deal.fields["Location"] || "",
+      broker: deal.fields["Broker"] || deal.fields["BROKER"] || "",
+      status: deal.fields["Status"] || "Pending"
+    });
+    setIsEditModalOpen(true);
+  };
+
+  const handleSaveDeal = async (e: any) => {
+    e.preventDefault();
+    setSubmittingDeal(true);
+    try {
+      const payload = {
+        "REF. NO": formData.refNo,
+        "Deal Name": formData.dealName,
+        "Company Name": formData.companyName,
+        "Sector": formData.sector,
+        "Location": formData.location,
+        "BROKER": formData.broker,
+        "Status": formData.status
+      };
+      if (isAddModalOpen) {
+        await createInboxDeal(payload);
+      } else if (isEditModalOpen && editingDeal) {
+        await updateInboxDeal(editingDeal.id, payload);
+      }
+      setIsAddModalOpen(false);
+      setIsEditModalOpen(false);
+      fetchInbox();
+    } catch (err: any) {
+      alert(err.message || "Error saving deal");
+    } finally {
+      setSubmittingDeal(false);
+    }
+  };
+
   // Dynamic status options from inbox items
   const statusOptions = Array.from(new Set(inboxItems.map(item => item.fields?.Status).filter(Boolean)));
   if (!statusOptions.includes("Active")) statusOptions.push("Active");
   if (!statusOptions.includes("Passed")) statusOptions.push("Passed");
   if (!statusOptions.includes("Review Required")) statusOptions.push("Review Required");
+  if (!statusOptions.includes("In Review")) statusOptions.push("In Review");
 
   useEffect(() => {
     fetchInbox();
@@ -487,6 +547,53 @@ export function DealInboxPage() {
           </div>
         )}
       </Modal>
+
+      {/* ADD / EDIT MODAL */}
+      <Modal 
+        isOpen={isAddModalOpen || isEditModalOpen} 
+        onClose={() => { setIsAddModalOpen(false); setIsEditModalOpen(false); }} 
+        title={isAddModalOpen ? "Add New Deal to Inbox" : "Edit Deal"}
+      >
+        <form onSubmit={handleSaveDeal} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <FormField label="Reference No. (Optional)" id="modal-ref">
+              <input id="modal-ref" type="text" value={formData.refNo} onChange={e => setFormData({...formData, refNo: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder:text-white/20 focus:outline-none focus:border-acp-bronze/50 transition-colors" placeholder="e.g. ACP-CFS-018" />
+            </FormField>
+            <FormField label="Company Name" id="modal-company">
+              <input id="modal-company" type="text" value={formData.companyName} onChange={e => setFormData({...formData, companyName: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder:text-white/20 focus:outline-none focus:border-acp-bronze/50 transition-colors" required placeholder="e.g. Acme Corp" />
+            </FormField>
+          </div>
+          
+          <FormField label="Deal Name" id="modal-name">
+            <input id="modal-name" type="text" value={formData.dealName} onChange={e => setFormData({...formData, dealName: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder:text-white/20 focus:outline-none focus:border-acp-bronze/50 transition-colors" required placeholder="e.g. ACP-CFS-018 - Acme Corp" />
+          </FormField>
+
+          <div className="grid grid-cols-2 gap-4">
+            <FormField label="Sector" id="modal-sector">
+              <input id="modal-sector" type="text" value={formData.sector} onChange={e => setFormData({...formData, sector: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder:text-white/20 focus:outline-none focus:border-acp-bronze/50 transition-colors" placeholder="e.g. Technology" />
+            </FormField>
+            <FormField label="Location" id="modal-location">
+              <input id="modal-location" type="text" value={formData.location} onChange={e => setFormData({...formData, location: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder:text-white/20 focus:outline-none focus:border-acp-bronze/50 transition-colors" placeholder="e.g. London, UK" />
+            </FormField>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <FormField label="Broker" id="modal-broker">
+              <input id="modal-broker" type="text" value={formData.broker} onChange={e => setFormData({...formData, broker: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder:text-white/20 focus:outline-none focus:border-acp-bronze/50 transition-colors" placeholder="e.g. John Doe" />
+            </FormField>
+            <FormField label="Status" id="modal-status">
+              <select id="modal-status" value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-acp-bronze/50 transition-colors">
+                {statusOptions.map((opt: string) => <option key={opt} value={opt}>{opt}</option>)}
+              </select>
+            </FormField>
+          </div>
+
+          <button type="submit" disabled={submittingDeal} className="w-full mt-4 flex items-center justify-center h-10 bg-acp-bronze hover:bg-acp-bronze-dark text-white rounded-xl text-xs font-bold uppercase tracking-wider transition disabled:opacity-50 cursor-pointer">
+            {submittingDeal ? "Saving..." : "Save Deal"}
+          </button>
+        </form>
+      </Modal>
+
     </div>
   );
 }

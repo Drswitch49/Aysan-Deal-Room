@@ -2,6 +2,7 @@ import { airtableFetchAll } from "../src/lib/airtable/client.js";
 import { TABLES } from "../src/lib/airtable/schema.js";
 import { mapPipelineDeal, mapDocument, mapSubmissionLogEntry } from "../src/lib/airtable/mapper.js";
 import { authenticateAdmin } from "./admin/lenders.js";
+import { airtableCreate, airtableUpdate } from "./_utils/airtable.js";
 
 // Helper to strip raw Airtable mention markup from text
 function cleanAirtableMentions(text: string | undefined | null): string {
@@ -41,8 +42,8 @@ const cache: Record<string, CacheEntry> = {};
 const CACHE_TTL_MS = 60000; // 60 seconds
 
 export default async function handler(req: any, res: any) {
-  if (req.method !== "GET") {
-    return res.status(455).json({ error: "Method not allowed" });
+  if (!["GET", "POST", "PATCH"].includes(req.method)) {
+    return res.status(405).json({ error: "Method not allowed" });
   }
 
   const { type, ref } = req.query || {};
@@ -53,9 +54,24 @@ export default async function handler(req: any, res: any) {
   }
 
   try {
-    // 1. Admin authentication check for sensitive Deal Inbox access
-    if (type === "inbox") {
+    // 1. Admin authentication check for sensitive Deal Inbox access or modification
+    if (type === "inbox" || req.method === "POST" || req.method === "PATCH") {
       await authenticateAdmin(req);
+    }
+
+    if (req.method === "POST" || req.method === "PATCH") {
+      const body = req.body || {};
+      const targetTable = type === "inbox" ? TABLES.DEAL_INBOX : TABLES.PIPELINE;
+      
+      if (req.method === "POST") {
+        const result = await airtableCreate(targetTable, body.fields);
+        return res.status(200).json({ success: true, record: result });
+      } else if (req.method === "PATCH") {
+        const { id } = req.query;
+        if (!id) return res.status(400).json({ error: "Record ID required for PATCH" });
+        const result = await airtableUpdate(targetTable, id, body.fields);
+        return res.status(200).json({ success: true, record: result });
+      }
     }
 
     // Determine target table and mapping logic
@@ -112,7 +128,7 @@ export default async function handler(req: any, res: any) {
         if (d.id.toLowerCase() === String(ref).toLowerCase()) return true;
         // 4. Extract prefix match (e.g. ACP-CFS-002)
         const getPrefix = (str: string) => {
-          const parts = str.split(/[|—–]/);
+          const parts = str.split(/\s*[|—–]\s*|\s+-\s+/);
           return parts[0] ? parts[0].trim().toLowerCase() : "";
         };
         const prefixD = getPrefix(dRef);

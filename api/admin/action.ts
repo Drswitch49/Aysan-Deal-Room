@@ -33,7 +33,7 @@ async function generateUniqueSlug(companyName: string): Promise<string> {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "");
-  
+
   const randomSuffix = Math.random().toString(36).substring(2, 8);
   const slug = `${normalized || "lender"}-${randomSuffix}`;
 
@@ -96,15 +96,15 @@ export default async function handler(req: any, res: any) {
       case "generate-verdict": {
         const { dealId } = req.body;
         if (!dealId) return res.status(400).json({ error: "dealId is required" });
-        
+
         let targetTable = TABLES.PIPELINE;
         let dealRecord = await airtableFetchRecord(targetTable, dealId).catch(() => null);
-        
+
         if (!dealRecord) {
           targetTable = TABLES.DEAL_INBOX;
           dealRecord = await airtableFetchRecord(targetTable, dealId).catch(() => null);
         }
-        
+
         if (!dealRecord) return res.status(404).json({ error: "Deal not found in either Pipeline or Inbox" });
 
         if (targetTable === TABLES.PIPELINE) {
@@ -173,13 +173,13 @@ export default async function handler(req: any, res: any) {
       case "promote-deal": {
         const { inboxRecordId } = req.body;
         if (!inboxRecordId) return res.status(400).json({ error: "inboxRecordId is required" });
-        
+
         const inboxRecord = await airtableFetchRecord("Deal_Inbox", inboxRecordId);
         if (!inboxRecord) return res.status(404).json({ error: "Inbox record not found" });
 
         // Map fields from Deal_Inbox to Active_Pipeline
         const f = inboxRecord.fields;
-        
+
         const existingDeals = await airtableFetch(TABLES.PIPELINE);
         let maxNum = 0;
         existingDeals.records?.forEach((r: any) => {
@@ -219,7 +219,7 @@ export default async function handler(req: any, res: any) {
         };
 
         const createdPipelineRecord = await airtableCreate(TABLES.PIPELINE, pipelineFields);
-        
+
         // Link them by updating Deal_Inbox Status
         await airtableUpdate("Deal_Inbox", inboxRecordId, {
           "Status": "Active",
@@ -288,12 +288,12 @@ export default async function handler(req: any, res: any) {
         if (statusCol) {
           assignmentFields[statusCol] = "Active";
         }
-        
+
         // Set Lender's NDA status if passed
         const { ndaApproved } = req.body;
         if (ndaApproved !== undefined) {
           await airtableUpdate(TABLES.LENDERS, lenderRecordId, {
-            "NDA_Approved": ndaApproved ? true : false
+            "NDA_Approved": ndaApproved ? "Yes" : "No"
           });
         }
 
@@ -338,7 +338,7 @@ export default async function handler(req: any, res: any) {
           return res.status(400).json({ error: "Lender ID is required" });
         }
         const fields = {
-          "NDA_Approved": ndaApproved ? true : false
+          "NDA_Approved": ndaApproved ? "Yes" : "No"
         };
         const updated = await airtableUpdate(TABLES.LENDERS, lenderId, fields);
 
@@ -463,9 +463,9 @@ export default async function handler(req: any, res: any) {
         });
         if (assignmentsRes.records && assignmentsRes.records.length > 0) {
           await Promise.all(
-              assignmentsRes.records.map((rec: any) => 
-                airtableDelete(TABLES.ASSIGNMENTS, rec.id)
-              )
+            assignmentsRes.records.map((rec: any) =>
+              airtableDelete(TABLES.ASSIGNMENTS, rec.id)
+            )
           );
         }
         await airtableDelete(TABLES.LENDERS, lenderRecordId);
@@ -521,7 +521,7 @@ export default async function handler(req: any, res: any) {
         if (!documentName || !category || !dealId) {
           return res.status(400).json({ error: "Document Name, Category, and Deal ID are required" });
         }
-        
+
         // Auto-provision Documents table
         const schemaLogs = await ensureTable(TABLE_SPECS.DOCUMENTS).catch(console.warn);
         if (schemaLogs && schemaLogs.length > 0) {
@@ -571,7 +571,7 @@ export default async function handler(req: any, res: any) {
 
         // Fetch all existing deals for duplicate checks and auto-ref generation
         const existingDeals = await airtableFetch(TABLES.PIPELINE);
-        
+
         // 1. Duplicate detection
         const normalizeName = (name: string) => {
           return name
@@ -607,7 +607,7 @@ export default async function handler(req: any, res: any) {
         }
 
         const todayStr = new Date().toISOString().split("T")[0];
-        
+
         const normalizeWorkflowStage = (stg: string): string => {
           const s = String(stg).toLowerCase().trim();
           if (s === "intro" || s === "inbound") return "INTRO";
@@ -1181,7 +1181,7 @@ export default async function handler(req: any, res: any) {
         let delay = 1000;
         let lastError = null;
         let success = false;
-        
+
         for (let i = 0; i < retries; i++) {
           try {
             const postRes = await fetch(webhookUrl, {
@@ -1240,7 +1240,7 @@ export default async function handler(req: any, res: any) {
         let delay = 1000;
         let lastError = null;
         let success = false;
-        
+
         for (let i = 0; i < retries; i++) {
           try {
             const postRes = await fetch(webhookUrl, {
@@ -1534,7 +1534,7 @@ export default async function handler(req: any, res: any) {
       case "get-recent-messages": {
         try {
           const chatData = await airtableFetch(TABLES.CHAT);
-          
+
           // Fetch deals and lenders to build robust lookup maps
           const [dealsRes, lendersRes] = await Promise.all([
             airtableFetch(TABLES.PIPELINE).catch(() => ({ records: [] })),
@@ -1690,7 +1690,7 @@ export default async function handler(req: any, res: any) {
           };
 
           const createdRecord = await airtableCreate(TABLES.CHAT, newFields);
-          
+
           const mappedMessage = {
             id: createdRecord.id,
             dealId: Array.isArray(createdRecord.fields.Deal_Ref) ? createdRecord.fields.Deal_Ref[0] : (createdRecord.fields.Deal_Ref || resolvedDealId),
@@ -1789,20 +1789,20 @@ export default async function handler(req: any, res: any) {
           if (!dealRecord) {
             return res.status(404).json({ error: "Deal not found" });
           }
-          
+
           const companyName = dealRecord.fields.Company_Name || dealRecord.fields["Company Name"] || dealRecord.fields.Deal_Ref || dealRecord.fields["Deal Name"] || "";
           const website = dealRecord.fields.Website || dealRecord.fields.Company_Website || "";
-          
+
           const { emitEvent } = await import("../_events/emit.js");
           const emitRes = await emitEvent("osint/scrape_requested", {
             dealId,
             companyName: String(companyName),
             website: website ? String(website) : undefined,
           });
-          
+
           if (!emitRes) {
             console.log(`[OSINT Local Fallback] Inngest not available. Running OSINT synchronously in background for ${companyName}...`);
-            
+
             // Run in the background asynchronously so the client request finishes immediately
             (async () => {
               const PIPELINE_TABLE = TABLES.PIPELINE || "Active_Pipeline";
@@ -1907,7 +1907,7 @@ export default async function handler(req: any, res: any) {
 
             return res.status(200).json({ success: true, message: "OSINT enrichment triggered (local fallback)." });
           }
-          
+
           return res.status(200).json({ success: true, message: "OSINT enrichment triggered." });
         } catch (err: any) {
           return res.status(500).json({ error: `Failed to trigger OSINT: ${err.message}` });
@@ -1924,14 +1924,14 @@ export default async function handler(req: any, res: any) {
           if (!dealRecord) {
             return res.status(404).json({ error: "Deal not found" });
           }
-          
+
           const { emitEvent } = await import("../_events/emit.js");
           await emitEvent("financial/analysis_requested", {
             dealId,
             documentId: documentId || undefined,
             manuallyTriggered: true,
           });
-          
+
           return res.status(200).json({ success: true, message: "Financial analysis triggered." });
         } catch (err: any) {
           return res.status(500).json({ error: `Failed to trigger financial analysis: ${err.message}` });

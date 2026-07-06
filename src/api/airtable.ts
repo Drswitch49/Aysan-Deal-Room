@@ -102,3 +102,29 @@ export async function getDealInbox(): Promise<any[]> {
   const data = await response.json();
   return data;
 }
+
+export async function createInboxDeal(fields: Record<string, any>) {
+  const response = await fetch("/api/deals?type=inbox", {
+    method: "POST",
+    headers: { ...getAdminHeaders(), "Content-Type": "application/json" },
+    body: JSON.stringify({ fields })
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to create deal");
+  }
+  return response.json();
+}
+
+export async function updateInboxDeal(id: string, fields: Record<string, any>) {
+  const response = await fetch(`/api/deals?type=inbox&id=${id}`, {
+    method: "PATCH",
+    headers: { ...getAdminHeaders(), "Content-Type": "application/json" },
+    body: JSON.stringify({ fields })
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to update deal");
+  }
+  return response.json();
+}
