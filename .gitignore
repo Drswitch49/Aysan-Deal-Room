@@ -16,3 +16,7 @@ scratch/
 .linkedin-session
 scripts/playwright-auth.session.json
 *.tsbuildinfo
+
+# Local portable helpers
+git-local.cmd
+git-local.ps1

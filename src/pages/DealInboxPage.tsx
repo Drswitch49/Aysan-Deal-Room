@@ -238,14 +238,14 @@ export function DealInboxPage() {
   // Filter
   const filteredItems = inboxItems.filter((d: any) => {
     const fields = d.fields || {};
-    // Category Filter
+    // Category Filter (based on status/stage)
     if (activeFilter !== "All Deals") {
-      const rawVerdict = fields["AI Verdict"] || fields["AI_Verdict"];
-      const verdict = rawVerdict?.trim();
+      const rawStatus = fields["Status"];
+      const status = rawStatus?.trim();
       if (activeFilter === "Other") {
-        if (verdict) return false;
+        if (status) return false;
       } else {
-        if (verdict !== activeFilter) return false;
+        if (status !== activeFilter) return false;
       }
     }
 
@@ -286,7 +286,7 @@ export function DealInboxPage() {
   const dynamicCategories = Array.from(
     new Set(
       inboxItems
-        .map((item) => (item.fields?.["AI Verdict"] || item.fields?.["AI_Verdict"])?.trim())
+        .map((item) => item.fields?.["Status"]?.trim())
         .filter(Boolean)
     )
   ).sort();
