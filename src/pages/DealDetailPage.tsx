@@ -5,7 +5,7 @@ import {
   ArrowRight, BrainCircuit, RefreshCw, Star, Info, MessageSquareCode, AlertTriangle,
   FolderClosed, ChevronRight, Clock, CheckCircle2, Plus, Loader2, ShieldAlert, Building2,
   Paperclip, User, LineChart, XCircle, ListTodo, Target, Crosshair, PieChart,
-  Columns, UserCheck, BookOpen, UserX, Lightbulb
+  Columns, UserCheck, BookOpen, UserX, Lightbulb, Trash2, FileSpreadsheet
 } from "lucide-react";
 import type { ComponentType } from "react";
 import { useMemo, useState, useEffect } from "react";
