@@ -270,6 +270,28 @@ export const TABLE_SPECS: Record<string, TableSpec> = {
       { name: "Document_Access", type: "singleSelect", options: { choices: [{ name: "Internal" }, { name: "Lender" }, { name: "Public" }] } },
     ],
   },
+
+  SHAREHOLDERS: {
+    name: "Shareholders",
+    fields: [
+      { name: "Name", type: "singleLineText" },
+      { name: "Email", type: "email" },
+      { name: "Phone", type: "phoneNumber" },
+      { name: "Status", type: "singleSelect", options: { choices: [{ name: "Active" }, { name: "Inactive" }] } },
+      { name: "Notes", type: "multilineText" },
+      { name: "Login_Link", type: "url" },
+      { name: "Last_Login", type: "dateTime", options: { timeZone: "utc", dateFormat: { name: "iso" }, timeFormat: { name: "24hour" } } },
+    ],
+  },
+
+  SHAREHOLDER_DEAL_ASSIGNMENTS: {
+    name: "Shareholder_Deal_Assignments",
+    fields: [
+      { name: "Shareholder_ID", type: "singleLineText" },
+      { name: "Deal_Ref", type: "singleLineText" },
+      { name: "Assigned_At", type: "dateTime", options: { timeZone: "utc", dateFormat: { name: "iso" }, timeFormat: { name: "24hour" } } },
+    ],
+  },
 };
 
 // ─── Pipeline Field Specs (ensure these exist on Active_Pipeline) ────────────
