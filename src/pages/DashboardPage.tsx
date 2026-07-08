@@ -198,13 +198,20 @@ export function DashboardPage() {
           )}
 
           {/* Row 1 — Operational Telemetry (KPI Strip) */}
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-6">
             <StatCard
               label="Deal Inbox"
               value={stats.inboxDealsCount ?? 0}
               subLabel="Awaiting triage & promotion"
               tone="default"
               to="/admin/inbox"
+            />
+            <StatCard
+              label="Reviewed Deals"
+              value={stats.reviewedDealsCount ?? 0}
+              subLabel="Total processed deals"
+              tone="default"
+              to="/deals"
             />
             <StatCard
               label="Active Pipeline"

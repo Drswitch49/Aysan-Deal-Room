@@ -580,6 +580,7 @@ export default async function handler(req: any, res: any) {
       owner,
       uniqueOwners,
       inboxDealsCount: inboxRes.records.length,
+      reviewedDealsCount: dealsRes.records.length,
       activePipelineCount: filteredDeals.length,
       pendingActionsCount: filteredDeals.filter(d => d.fields["Next Action Date"]).length,
       ddDealsCount,

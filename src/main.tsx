@@ -18,6 +18,11 @@ const HrStakeholdersPage = lazy(() => import("./pages/HrStakeholdersPage").then(
 const SettingsPage = lazy(() => import("./pages/SettingsPage").then(m => ({ default: m.SettingsPage })));
 const AdminMessagesPage = lazy(() => import("./pages/AdminMessagesPage").then(m => ({ default: m.AdminMessagesPage })));
 const DealInboxPage = lazy(() => import("./pages/DealInboxPage").then(m => ({ default: m.DealInboxPage })));
+const CreateDealPage = lazy(() => import("./pages/CreateDealPage").then(m => ({ default: m.CreateDealPage })));
+const EditDealPage = lazy(() => import("./pages/EditDealPage").then(m => ({ default: m.EditDealPage })));
+const PortfolioManagementPage = lazy(() => import("./pages/PortfolioManagementPage").then(m => ({ default: m.PortfolioManagementPage })));
+const TeamManagementPage = lazy(() => import("./pages/TeamManagementPage").then(m => ({ default: m.TeamManagementPage })));
+const StakeholderManagementPage = lazy(() => import("./pages/StakeholderManagementPage").then(m => ({ default: m.StakeholderManagementPage })));
 const NotFoundPage = lazy(() => import("./pages/NotFoundPage").then(m => ({ default: m.NotFoundPage })));
 
 const PageLoading = () => (
@@ -71,6 +76,8 @@ function CurrentDealRedirect() {
   return <Navigate to={redirectPath} replace />;
 }
 
+const ShareholderPortalPage = lazy(() => import("./pages/ShareholderPortalPage").then(m => ({ default: m.ShareholderPortalPage })));
+
 const router = createBrowserRouter([
   {
     path: "/",
@@ -90,8 +97,17 @@ const router = createBrowserRouter([
       { path: "admin/settings", element: withSuspense(SettingsPage) },
       { path: "admin/messages", element: withSuspense(AdminMessagesPage) },
       { path: "admin/inbox", element: withSuspense(DealInboxPage) },
+      { path: "deals/create", element: withSuspense(CreateDealPage) },
+      { path: "deals/:id/edit", element: withSuspense(EditDealPage) },
+      { path: "admin/portfolio", element: withSuspense(PortfolioManagementPage) },
+      { path: "admin/team", element: withSuspense(TeamManagementPage) },
+      { path: "admin/stakeholders", element: withSuspense(StakeholderManagementPage) },
       { path: "*", element: withSuspense(NotFoundPage) },
     ],
+  },
+  {
+    path: "shareholders/portal",
+    element: withSuspense(ShareholderPortalPage),
   },
   {
     path: "portal/:portalSlug",

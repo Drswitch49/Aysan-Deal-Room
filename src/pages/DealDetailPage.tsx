@@ -14,6 +14,7 @@ import { CoverSheet } from "../components/deals/CoverSheet";
 import { DocumentChecklist } from "../components/deals/DocumentChecklist";
 import { SubmissionTimeline } from "../components/deals/SubmissionTimeline";
 import { DealChat } from "../components/deals/DealChat";
+import { ManualNotesTab } from "../components/deals/ManualNotesTab";
 import { ErrorState } from "../components/ui/ErrorState";
 import { LoadingState } from "../components/ui/LoadingState";
 import { PageHeader } from "../components/ui/PageHeader";
@@ -38,7 +39,7 @@ import { HeaderMetrics } from "../components/ui/HeaderMetrics";
 import { usePipeline } from "../context/PipelineContext";
 import { STAGE_LABELS, type DealStage } from "../lib/airtable/schema";
 
-type TabId = "overview" | "brief" | "post-meeting" | "financials" | "loi" | "documents" | "im-attachments" | "chat";
+type TabId = "overview" | "brief" | "post-meeting" | "financials" | "loi" | "documents" | "im-attachments" | "chat" | "notes";
 
 const formatGBP = (val: number) => {
   if (val === 0 || !val) return "TBC";
@@ -56,6 +57,7 @@ const tabs: Array<{ id: TabId; label: string; icon: ComponentType<{ className?: 
   { id: "documents", label: "Documents", icon: ClipboardList },
   { id: "im-attachments", label: "IM & Attachments", icon: Paperclip },
   { id: "chat", label: "Lender Chat", icon: MessageSquare },
+  { id: "notes", label: "Manual Notes", icon: BookOpen },
 ];
 
 const LEGACY_STAGE_MAP: Record<string, DealStage> = {
@@ -834,6 +836,10 @@ export function DealDetailPage() {
               )}
             </div>
           </div>
+        )}
+
+        {activeTab === "notes" && (
+          <ManualNotesTab dealRef={decodedRef} />
         )}
       </div>
 
@@ -2208,6 +2214,21 @@ function OverviewTab({
               >
                 <Send className="h-3.5 w-3.5" />
                 Send LOI
+              </button>
+
+              <button
+                onClick={() => openComposer({
+                  type: "email",
+                  recipientName: deal.rawFields?.["Broker Name"] || deal.rawFields?.["Contact Name"] || "",
+                  recipientEmail: deal.rawFields?.["Broker Email"] || deal.rawFields?.["Contact Email"] || deal.rawFields?.["Contact_Email"] || "",
+                  subject: `Regarding ${deal.companyName || deal.dealRef || "Project"}`,
+                  body: `Hi ${deal.rawFields?.["Broker Name"] || deal.rawFields?.["Contact Name"] || ""},\n\nFollowing up on our review of ${deal.companyName || "the company"}.\n\nKind regards,\n${ownerName}`,
+                  generatedBy: "admin"
+                })}
+                className="w-full h-10 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs transition flex items-center justify-center gap-2 border border-white/10"
+              >
+                <MessageSquare className="h-3.5 w-3.5" />
+                Draft Broker Email
               </button>
 
               <div className="pt-2.5 border-t border-white/5">

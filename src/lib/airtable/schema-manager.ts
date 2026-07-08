@@ -346,6 +346,33 @@ export async function ensureSchema(): Promise<void> {
     await ensureField("IM_Review_Documents", "Uploaded_At", "createdTime");
     await ensureField("IM_Review_Documents", "File_Size", "number");
 
+    // Deal_Notes table fields
+    await ensureField("Deal_Notes", "Deal_Ref", "singleLineText");
+    await ensureField("Deal_Notes", "Author", "singleLineText");
+    await ensureField("Deal_Notes", "Note_Content", "multilineText");
+    await ensureField("Deal_Notes", "Created_At", "createdTime");
+    await ensureField("Deal_Notes", "Updated_At", "lastModifiedTime");
+
+    // Shareholders table fields
+    await ensureField("Shareholders", "Name", "singleLineText");
+    await ensureField("Shareholders", "Email", "email");
+    await ensureField("Shareholders", "Phone", "phoneNumber");
+    await ensureField("Shareholders", "Status", "singleSelect", {
+      choices: [
+        { name: "Active" },
+        { name: "Inactive" }
+      ]
+    });
+    await ensureField("Shareholders", "Assigned_Deals", "multilineText");
+    await ensureField("Shareholders", "Notes", "multilineText");
+    await ensureField("Shareholders", "Created_At", "createdTime");
+    await ensureField("Shareholders", "Updated_At", "lastModifiedTime");
+
+    // Shareholder_Deal_Assignments table fields
+    await ensureField("Shareholder_Deal_Assignments", "Shareholder_ID", "singleLineText");
+    await ensureField("Shareholder_Deal_Assignments", "Deal_Ref", "singleLineText");
+    await ensureField("Shareholder_Deal_Assignments", "Assigned_At", "createdTime");
+
     console.log("[Schema] Schema validation complete");
   } catch (error) {
     console.error("[Schema] Error ensuring schema:", error);

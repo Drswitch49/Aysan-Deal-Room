@@ -34,6 +34,14 @@ const NAV_SECTIONS = [
       { to: "/admin/settings", icon: <Settings className="h-4 w-4" />, label: "Settings" },
     ],
   },
+  {
+    group: "System Administration",
+    items: [
+      { to: "/admin/team", icon: <Users className="h-4 w-4" />, label: "Team Management" },
+      { to: "/admin/stakeholders", icon: <Building2 className="h-4 w-4" />, label: "Stakeholders" },
+      { to: "/admin/portfolio", icon: <Activity className="h-4 w-4" />, label: "Portfolio Companies" },
+    ],
+  },
 ];
 
 export function AppLayout() {

@@ -170,6 +170,16 @@ export default async function handler(req: any, res: any) {
         return res.status(200).json({ success: true, result: updated });
       }
 
+      case "upload-temp-file": {
+        const { fileData, fileName, fileType } = req.body;
+        if (!fileData) {
+          return res.status(400).json({ error: "fileData is required" });
+        }
+        
+        const publicUrl = await uploadToTempStorage(fileData, fileName || "upload", fileType || "application/octet-stream");
+        return res.status(200).json({ success: true, url: publicUrl });
+      }
+
       case "promote-deal": {
         const { inboxRecordId } = req.body;
         if (!inboxRecordId) return res.status(400).json({ error: "inboxRecordId is required" });
@@ -213,9 +223,12 @@ export default async function handler(req: any, res: any) {
           "OSINT_Status": "Not Started",
           "Created_At": new Date().toISOString(),
           "Stage_Updated_At": new Date().toISOString(),
-          "Executive_Summary": f["Summary"] || f["Description"],
+          "Executive_Summary": f["Summary"] || f["Description"] || f["Executive_Summary"],
           "Contact_Email": f["Contact_Email"] || f["Email"],
           "Contact_Phone": f["Contact_Phone"] || f["Phone"],
+          "Broker": f["Broker"] || f["BROKER"],
+          "Source": f["Source"] || f["SOURCE"] || "Inbound",
+          "Business_Description": f["Business_Description"] || f["BUSINESS_DESCRIPTION"],
         };
 
         const createdPipelineRecord = await airtableCreate(TABLES.PIPELINE, pipelineFields);

@@ -18,7 +18,9 @@ export default async function handler(req: any, res: any) {
       lenders: TABLES.LENDERS,
       assignments: TABLES.ASSIGNMENTS,
       pipeline: TABLES.PIPELINE,
-      users: "Users"
+      users: "Users",
+      shareholders: TABLES.SHAREHOLDERS,
+      shareholderAssignments: TABLES.SHAREHOLDER_DEAL_ASSIGNMENTS
     };
 
     const keys = Object.keys(requiredTables) as Array<keyof typeof requiredTables>;
@@ -182,22 +184,53 @@ export default async function handler(req: any, res: any) {
       }
 
       return {
-        id,
-        name,
-        email,
-        phone,
-        association,
-        type,
-        accentColor,
-        description,
-        status,
-        loginLink,
-        createdAt,
-        lastLogin
+        id, name, email, phone, association, type: rec.fields["Type"] || "External",
+        accentColor, description: staticDescription, status, loginLink, createdAt, lastLogin
       };
     });
 
-    return res.status(200).json({ team, hires, stakeholders });
+    // 7. Process Shareholders (new table)
+    const shareholderRecords = fetchedData.shareholders.records || [];
+    const shareholderAssignmentsRecords = fetchedData.shareholderAssignments.records || [];
+    const shareholdersList = shareholderRecords.map((rec: any) => {
+      const email = (rec.fields["Email"] || "").trim();
+      const loginLink = rec.fields["Login_Link"] || "";
+      const matchingUser = userRecords.find((u: any) => (u.fields["Email"] || "").trim().toLowerCase() === email.trim().toLowerCase() && u.fields["Role"] === "Shareholder");
+
+      const assignments = shareholderAssignmentsRecords
+        .filter((a: any) => a.fields["Shareholder_ID"] === rec.id)
+        .map((a: any) => {
+          const dealRec = pipeline.find((d: any) => d.fields["REF. NO"] === a.fields["Deal_Ref"] || d.fields["Deal_Ref"] === a.fields["Deal_Ref"]);
+          return {
+            assignmentId: a.id,
+            dealRef: a.fields["Deal_Ref"],
+            companyName: dealRec ? (dealRec.fields["Company_Name"] || dealRec.fields["Company Name"] || "Unknown Deal") : "Unknown Deal",
+            assignedAt: a.fields["Assigned_At"] || a.createdTime
+          };
+        });
+
+      return {
+        id: rec.id,
+        name: rec.fields["Name"] || "",
+        email,
+        phone: rec.fields["Phone"] || "",
+        status: rec.fields["Status"] || "Active",
+        notes: rec.fields["Notes"] || "",
+        loginLink,
+        createdAt: rec.createdTime,
+        lastLogin: matchingUser?.fields["LastLogin"] || "",
+        assignments
+      };
+    });
+
+    return res.status(200).json({
+      success: true,
+      team,
+      hires,
+      stakeholders,
+      shareholders: shareholdersList
+    });
+
   } catch (err: any) {
     return res.status(err.status || 500).json({ error: err.message, type: err.type });
   }

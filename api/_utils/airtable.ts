@@ -19,7 +19,10 @@ export const TABLES = {
   POSTCALL_BRIEFS: "Postcall_Briefs",
   PORTFOLIO_METRICS: "Portfolio_Metrics",
   PORTFOLIO_ALERTS: "Portfolio_Alerts",
-  PORTFOLIO_HEALTH: "Portfolio_Health"
+  PORTFOLIO_HEALTH: "Portfolio_Health",
+  SHAREHOLDERS: "Shareholders",
+  SHAREHOLDER_DEAL_ASSIGNMENTS: "Shareholder_Deal_Assignments",
+  IM_REVIEW_DOCUMENTS: "IM_Review_Documents"
 };
 
 export class AirtableError extends Error {

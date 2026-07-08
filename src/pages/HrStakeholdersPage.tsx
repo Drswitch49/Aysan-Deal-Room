@@ -53,10 +53,24 @@ const themeMap: Record<string, { bg: string; text: string }> = {
   slate: { bg: "bg-slate-600/20 border-slate-500/30 text-slate-400", text: "text-slate-400" },
 };
 
+type Shareholder = {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  status: string;
+  notes: string;
+  loginLink: string;
+  createdAt: string;
+  lastLogin: string;
+  assignments: any[];
+};
+
 export function HrStakeholdersPage() {
   const [team, setTeam] = useState<TeamMember[]>([]);
   const [hires, setHires] = useState<HiringBrief[]>([]);
   const [stakeholders, setStakeholders] = useState<ExternalStakeholder[]>([]);
+  const [shareholders, setShareholders] = useState<Shareholder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [missingTables, setMissingTables] = useState<string[]>([]);
@@ -77,7 +91,7 @@ export function HrStakeholdersPage() {
     loginLink: string;
     createdAt: string;
     lastLogin: string;
-    type: "team" | "stakeholder";
+    type: "team" | "stakeholder" | "shareholder";
     association?: string;
     notes?: string;
     stakeholderType?: string;
@@ -123,9 +137,14 @@ export function HrStakeholdersPage() {
 
   // Add Stakeholder modal states
   const [isAddStakeholderOpen, setIsAddStakeholderOpen] = useState(false);
+  const [isAddShareholderOpen, setIsAddShareholderOpen] = useState(false);
   const [stakeholderForm, setStakeholderForm] = useState({ name: "", type: "Advisor" as string, email: "", phone: "", organization: "", notes: "" });
   const [isStakeholderSaving, setIsStakeholderSaving] = useState(false);
   const [stakeholderFormError, setStakeholderFormError] = useState("");
+
+  const [shareholderForm, setShareholderForm] = useState({ name: "", email: "", phone: "", notes: "" });
+  const [isShareholderSaving, setIsShareholderSaving] = useState(false);
+  const [shareholderFormError, setShareholderFormError] = useState("");
 
   const handleAddTeamMember = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -179,12 +198,43 @@ export function HrStakeholdersPage() {
     } catch (err: any) { setStakeholderFormError(err.message || "Failed"); } finally { setIsStakeholderSaving(false); }
   };
 
+  const handleAddShareholder = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!shareholderForm.name.trim()) { setShareholderFormError("Name is required."); return; }
+    setIsShareholderSaving(true); setShareholderFormError("");
+    try {
+      const res = await fetch("/api/shareholders-crud", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...shareholderForm, status: "Active" }),
+      });
+      if (!res.ok) { const err = await res.json().catch(() => ({ error: `Server error (${res.status})` })); throw new Error(err.error || "Failed to add shareholder"); }
+      const data = await res.json();
+      
+      if (data.tempPassword) {
+        setCreatedCredentials({
+          name: shareholderForm.name,
+          email: shareholderForm.email || "N/A",
+          pass: data.tempPassword || "",
+          type: "Shareholder",
+          role: "Shareholder",
+          accessLevel: "READ ONLY"
+        });
+      }
+      
+      setShareholderForm({ name: "", email: "", phone: "", notes: "" });
+      setIsAddShareholderOpen(false);
+      loadData();
+    } catch (err: any) { setShareholderFormError(err.message || "Failed"); } finally { setIsShareholderSaving(false); }
+  };
+
   const loadData = async () => {
     try {
       const data = await fetchHrRegistry();
       setTeam(data.team || []);
       setHires(data.hires || []);
       setStakeholders(data.stakeholders || []);
+      setShareholders(data.shareholders || []);
       setError(null);
       setMissingTables([]);
       setDiagnostics(null);
@@ -288,18 +338,28 @@ export function HrStakeholdersPage() {
     }
   };
 
-  const handleGenerateLoginLink = async () => {
+  const handleGenerateLink = async () => {
     if (!drawerUser) return;
     try {
-      const endpoint = drawerUser.type === "team" ? "/api/team-members-crud" : "/api/stakeholders-crud";
-      const payload = drawerUser.type === "team"
-        ? { action: "generate-login-link", memberId: drawerUser.id }
-        : { action: "generate-login-link", stakeholderId: drawerUser.id };
-
+      let endpoint = "";
+      let payload: any = {};
+      let method = "POST";
+      
+      if (drawerUser.type === "team") {
+        endpoint = `/api/team-members-crud?id=${drawerUser.id}&action=generate-login-link`;
+        method = "PATCH";
+      } else if (drawerUser.type === "shareholder") {
+        endpoint = `/api/shareholders-crud`;
+        payload = { action: "generate-login-link", shareholderId: drawerUser.id };
+      } else {
+        endpoint = `/api/stakeholders-crud?id=${drawerUser.id}&action=generate-login-link`;
+        method = "PATCH";
+      }
+      
       const res = await fetch(endpoint, {
-        method: "POST",
+        method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
+        body: Object.keys(payload).length > 0 ? JSON.stringify(payload) : undefined
       });
       if (!res.ok) {
         throw new Error("Failed to generate login link");
@@ -316,14 +376,24 @@ export function HrStakeholdersPage() {
   const handleToggleStatus = async (newStatus: string) => {
     if (!drawerUser) return;
     try {
-      const endpoint = drawerUser.type === "team"
-        ? `/api/team-members-crud?id=${drawerUser.id}`
-        : `/api/stakeholders-crud?id=${drawerUser.id}`;
+      let endpoint = "";
+      let method = "PATCH";
+      let payload: any = { status: newStatus };
+      
+      if (drawerUser.type === "team") {
+        endpoint = `/api/team-members-crud?id=${drawerUser.id}`;
+      } else if (drawerUser.type === "shareholder") {
+        endpoint = `/api/shareholders-crud`;
+        method = "PUT";
+        payload = { id: drawerUser.id, status: newStatus };
+      } else {
+        endpoint = `/api/stakeholders-crud?id=${drawerUser.id}`;
+      }
         
       const res = await fetch(endpoint, {
-        method: "PATCH",
+        method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStatus })
+        body: JSON.stringify(payload)
       });
       if (!res.ok) {
         throw new Error("Failed to update status");
@@ -357,11 +427,9 @@ export function HrStakeholdersPage() {
     setIsEditSaving(true);
     setEditError("");
     try {
-      const endpoint = drawerUser.type === "team"
-        ? `/api/team-members-crud?id=${drawerUser.id}`
-        : `/api/stakeholders-crud?id=${drawerUser.id}`;
-
-      const payload: Record<string, any> = {
+      let endpoint = "";
+      let method = "PATCH";
+      let payload: Record<string, any> = {
         name: editForm.name,
         email: editForm.email,
         phone: editForm.phone,
@@ -369,15 +437,22 @@ export function HrStakeholdersPage() {
       };
 
       if (drawerUser.type === "team") {
+        endpoint = `/api/team-members-crud?id=${drawerUser.id}`;
         payload.role = editForm.role;
+      } else if (drawerUser.type === "shareholder") {
+        endpoint = `/api/shareholders-crud`;
+        method = "PUT";
+        payload.id = drawerUser.id;
+        payload.notes = editForm.notes;
       } else {
+        endpoint = `/api/stakeholders-crud?id=${drawerUser.id}`;
         payload.type = editForm.type;
         payload.organization = editForm.association;
         payload.notes = editForm.notes;
       }
 
       const res = await fetch(endpoint, {
-        method: "PATCH",
+        method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
       });
@@ -416,12 +491,21 @@ export function HrStakeholdersPage() {
     if (!drawerUser) return;
     setIsSaving(true);
     try {
-      const endpoint = drawerUser.type === "team"
-        ? `/api/team-members-crud?id=${drawerUser.id}`
-        : `/api/stakeholders-crud?id=${drawerUser.id}`;
+      let endpoint = "";
+      let payload: any = undefined;
+      if (drawerUser.type === "team") {
+        endpoint = `/api/team-members-crud?id=${drawerUser.id}`;
+      } else if (drawerUser.type === "shareholder") {
+        endpoint = `/api/shareholders-crud`;
+        payload = { id: drawerUser.id };
+      } else {
+        endpoint = `/api/stakeholders-crud?id=${drawerUser.id}`;
+      }
 
       const res = await fetch(endpoint, {
-        method: "DELETE"
+        method: "DELETE",
+        headers: payload ? { "Content-Type": "application/json" } : undefined,
+        body: payload ? JSON.stringify(payload) : undefined
       });
 
       if (!res.ok) {
@@ -525,6 +609,16 @@ export function HrStakeholdersPage() {
               type="button"
             >
               <Plus className="h-3 w-3" /> Stakeholder
+            </button>
+          )}
+
+          {canManageStakeholders && (
+            <button
+              onClick={() => setIsAddShareholderOpen(true)}
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#C6A66B]/30 bg-[#C6A66B]/5 px-3 text-[10px] font-bold uppercase tracking-wider text-[#C6A66B] hover:bg-[#C6A66B]/15 cursor-pointer transition animate-fade-in"
+              type="button"
+            >
+              <Plus className="h-3 w-3" /> Shareholder
             </button>
           )}
         </div>
@@ -776,6 +870,60 @@ export function HrStakeholdersPage() {
               </div>
             )}
           </div>
+
+          {/* SHAREHOLDERS */}
+          <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 shadow-premium-card card-sheen">
+            <h3 className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-400 border-b border-white/[0.02] pb-3 mb-4 select-none">
+              Shareholders
+            </h3>
+
+            {isLoading ? (
+              <div className="py-12 flex flex-col items-center justify-center gap-2 text-slate-500 text-xs">
+                <Loader2 className="h-5 w-5 animate-spin text-[#C6A66B]" />
+                <span>Loading shareholders...</span>
+              </div>
+            ) : shareholders.length === 0 ? (
+              <div className="py-12 text-center text-slate-550 text-xs select-none">
+                No shareholders recorded.
+              </div>
+            ) : (
+              <div className="grid gap-3.5 sm:grid-cols-2">
+                {shareholders.map((sh, idx) => {
+                  const isInactive = sh.status === "Inactive";
+                  return (
+                    <div 
+                      key={sh.id || idx} 
+                      onClick={() => openConfigDrawerForStakeholder({
+                        ...sh,
+                        type: "shareholder",
+                        association: "Shareholder",
+                        accentColor: "slate",
+                        description: sh.notes || "",
+                        stakeholderType: "Shareholder"
+                      } as unknown as ExternalStakeholder)}
+                      className={cx(
+                        "rounded-xl border border-white/[0.02] bg-white/[0.01] p-3.5 border-l-4 flex flex-col justify-center transition hover:bg-white/[0.02] duration-300 cursor-pointer relative",
+                        "border-l-slate-500/60",
+                        isInactive && "opacity-55"
+                      )}
+                    >
+                      <p className="text-xs font-bold text-white flex items-center justify-between gap-2">
+                        <span className="truncate">{sh.name}</span>
+                        {isInactive && (
+                          <span className="text-[7px] font-extrabold tracking-wider bg-rose-500/10 text-rose-400 px-1.5 py-0.5 rounded-full border border-rose-500/20 uppercase shrink-0">
+                            Inactive
+                          </span>
+                        )}
+                      </p>
+                      <p className="text-[10px] font-semibold text-slate-450 mt-1 leading-relaxed">
+                        {sh.assignments?.length || 0} Deals Assigned
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -860,7 +1008,7 @@ export function HrStakeholdersPage() {
                       </button>
                     ) : (
                       <button
-                        onClick={handleGenerateLoginLink}
+                        onClick={handleGenerateLink}
                         className="h-10 px-4 rounded-xl bg-[#C6A66B]/10 border border-[#C6A66B]/20 text-[10px] font-extrabold text-[#C6A66B] hover:bg-[#C6A66B]/20 transition cursor-pointer shrink-0"
                       >
                         Generate Link
@@ -1167,10 +1315,43 @@ export function HrStakeholdersPage() {
           <FormField label="Notes" id="sh-notes">
             <textarea id="sh-notes" value={stakeholderForm.notes} onChange={e => setStakeholderForm(f => ({ ...f, notes: e.target.value }))} rows={2} placeholder="Internal notes..." className={inputClass} />
           </FormField>
-          <div className="flex justify-end gap-2.5 pt-1">
-            <button type="button" onClick={() => setIsAddStakeholderOpen(false)} className="h-9 px-4 rounded-xl border border-white/[0.02] text-slate-400 text-xs font-bold uppercase tracking-wider hover:bg-white/[0.015] transition cursor-pointer">Cancel</button>
-            <button type="submit" disabled={isStakeholderSaving} className="h-9 px-5 rounded-xl bg-gradient-to-r from-[#C6A66B] to-[#B8924F] text-slate-950 text-xs font-bold uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none hover:shadow-glow-bronze transition cursor-pointer">
-              {isStakeholderSaving ? "Adding..." : "Add Stakeholder"}
+          <div className="flex justify-end gap-2 pt-4 border-t border-white/5">
+            <button type="button" onClick={() => setIsAddStakeholderOpen(false)} className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-white transition">Cancel</button>
+            <button type="submit" disabled={isStakeholderSaving} className="px-3 py-1.5 bg-[#C6A66B] text-[#07090c] text-[10px] font-black uppercase tracking-wider rounded border border-[#C6A66B] hover:bg-[#b0935d] transition">
+              {isStakeholderSaving ? "Saving..." : "Add Stakeholder"}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Add Shareholder Modal */}
+      <Modal isOpen={isAddShareholderOpen} onClose={() => setIsAddShareholderOpen(false)} title="Add Shareholder" maxWidth="max-w-lg">
+        <form onSubmit={handleAddShareholder} className="space-y-4 font-sans">
+          {shareholderFormError && (
+            <div className="rounded-lg border border-rose-500/20 bg-rose-500/5 p-3 text-xs font-semibold text-rose-450 flex items-center gap-2">
+              <AlertCircle className="h-3.5 w-3.5 shrink-0" />{shareholderFormError}
+            </div>
+          )}
+          <div className="grid grid-cols-2 gap-3">
+            <FormField label="Name" id="shrh-name" required>
+              <input id="shrh-name" type="text" required value={shareholderForm.name} onChange={e => setShareholderForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. John Smith" className={inputClass} />
+            </FormField>
+            <FormField label="Email" id="shrh-email">
+              <input id="shrh-email" type="email" value={shareholderForm.email} onChange={e => setShareholderForm(f => ({ ...f, email: e.target.value }))} placeholder="e.g. john@firm.com" className={inputClass} />
+            </FormField>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <FormField label="Phone" id="shrh-phone">
+              <input id="shrh-phone" type="text" value={shareholderForm.phone} onChange={e => setShareholderForm(f => ({ ...f, phone: e.target.value }))} placeholder="+44..." className={inputClass} />
+            </FormField>
+          </div>
+          <FormField label="Notes / Info" id="shrh-notes">
+            <textarea id="shrh-notes" rows={2} value={shareholderForm.notes} onChange={e => setShareholderForm(f => ({ ...f, notes: e.target.value }))} placeholder="Brief context about this shareholder..." className={cx(inputClass, "resize-none")} />
+          </FormField>
+          <div className="flex justify-end gap-2 pt-4 border-t border-white/5">
+            <button type="button" onClick={() => setIsAddShareholderOpen(false)} className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-white transition">Cancel</button>
+            <button type="submit" disabled={isShareholderSaving} className="px-3 py-1.5 bg-[#C6A66B] text-[#07090c] text-[10px] font-black uppercase tracking-wider rounded border border-[#C6A66B] hover:bg-[#b0935d] transition">
+              {isShareholderSaving ? "Saving..." : "Add Shareholder"}
             </button>
           </div>
         </form>

@@ -330,11 +330,21 @@ export async function moveDealToStage(
   }
 
   // ── 4. Update Active_Pipeline record ─────────────────────────────────────
-  await airtableUpdate(TABLES.PIPELINE, dealId, {
+  const updateFields: any = {
     Stage: exactToStage,
     Stage_Updated_At: timestamp,
     Workflow_Stage: exactToStage.toUpperCase().replace(/[^A-Z0-9]/g, "_"),
-  });
+  };
+
+  // Auto-route to Due Diligence owner
+  if (exactToStage === "Due Diligence") {
+    // We update the Owner or Collaborator fields. Since Airtable uses 'Owner' or 'Collaborator' as text fields for simple assignment,
+    // we'll set both to 'Dallience' to ensure it's picked up.
+    updateFields["Collaborator"] = "Dallience";
+    updateFields["Owner"] = "Dallience";
+  }
+
+  await airtableUpdate(TABLES.PIPELINE, dealId, updateFields);
 
   // ── 5. Create immutable audit record in Deal_Stage_History ────────────────
   let auditId = `audit-${Date.now()}`;

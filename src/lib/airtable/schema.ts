@@ -16,6 +16,9 @@ export const TABLES = {
   PORTFOLIO_METRICS: "Portfolio_Metrics",
   PORTFOLIO_ALERTS: "Portfolio_Alerts",
   PORTFOLIO_HEALTH: "Portfolio_Health",
+  DEAL_NOTES: "Deal_Notes",
+  SHAREHOLDERS: "Shareholders",
+  SHAREHOLDER_DEAL_ASSIGNMENTS: "Shareholder_Deal_Assignments",
 };
 
 // ─── Canonical Deal Stages ────────────────────────────────────────────────────

@@ -1,5 +1,5 @@
 import { config } from "dotenv";
-config();
+
 import { airtableFetchAll } from "./api/_services/airtable";
 
 async function run() {
