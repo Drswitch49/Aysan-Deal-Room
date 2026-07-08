@@ -26,7 +26,6 @@ export function DealForm({ initialData, onSubmit, isLoading }: DealFormProps) {
     stage: initialData?.stage || "Intro",
     nextAction: initialData?.nextAction || "",
     dueDate: initialData?.dueDate || "",
-    dueDate: initialData?.dueDate || "",
     internalNotes: initialData?.internalNotes || "",
     imDocumentUrl: initialData?.imDocumentUrl || "",
     financialPackUrl: initialData?.financialPackUrl || "",
