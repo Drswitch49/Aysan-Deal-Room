@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { FormField, inputClass, selectClass, textareaClass } from "../ui/FormField";
+import { Upload, Loader2, Link as LinkIcon } from "lucide-react";
 import type { CreateDealInput } from "../../types/entities";
 
 export interface DealFormProps {
@@ -25,8 +26,52 @@ export function DealForm({ initialData, onSubmit, isLoading }: DealFormProps) {
     stage: initialData?.stage || "Intro",
     nextAction: initialData?.nextAction || "",
     dueDate: initialData?.dueDate || "",
+    dueDate: initialData?.dueDate || "",
     internalNotes: initialData?.internalNotes || "",
+    imDocumentUrl: initialData?.imDocumentUrl || "",
+    financialPackUrl: initialData?.financialPackUrl || "",
   });
+
+  const [isUploadingIM, setIsUploadingIM] = useState(false);
+  const [isUploadingFin, setIsUploadingFin] = useState(false);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, fieldName: "imDocumentUrl" | "financialPackUrl") => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (fieldName === "imDocumentUrl") setIsUploadingIM(true);
+    else setIsUploadingFin(true);
+
+    try {
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64data = reader.result as string;
+        const res = await fetch("/api/admin/action", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "upload-temp-file",
+            fileData: base64data,
+            fileName: file.name,
+            fileType: file.type
+          })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setFormData(prev => ({ ...prev, [fieldName]: data.url }));
+        } else {
+          alert("File upload failed.");
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      console.error(err);
+      alert("Error uploading file");
+    } finally {
+      if (fieldName === "imDocumentUrl") setIsUploadingIM(false);
+      else setIsUploadingFin(false);
+    }
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -128,6 +173,48 @@ export function DealForm({ initialData, onSubmit, isLoading }: DealFormProps) {
           </FormField>
           <FormField label="Next Action Date" id="dueDate">
             <input type="date" name="dueDate" id="dueDate" value={formData.dueDate || ""} onChange={handleChange} className={inputClass} />
+          </FormField>
+        </div>
+      </div>
+
+      {/* Documents */}
+      <div className="space-y-4 rounded-xl border border-white/[0.02] bg-white/[0.01] p-5">
+        <h3 className="text-xs font-bold uppercase tracking-widest text-[#C6A66B]">Documents</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <FormField label="Information Memorandum (IM)" id="imDocumentUrl">
+            <div className="flex flex-col gap-2">
+              <input name="imDocumentUrl" id="imDocumentUrl" value={formData.imDocumentUrl || ""} onChange={handleChange} className={inputClass} placeholder="Document URL..." />
+              <div className="flex items-center gap-2 mt-1">
+                <input type="file" id="im-file-upload" className="hidden" accept=".pdf,.doc,.docx,.xls,.xlsx" onChange={(e) => handleFileUpload(e, "imDocumentUrl")} />
+                <label htmlFor="im-file-upload" className="flex items-center gap-2 cursor-pointer bg-white/5 hover:bg-white/10 text-xs font-semibold text-slate-300 px-3 py-1.5 rounded-lg transition-colors border border-white/10">
+                  {isUploadingIM ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+                  {isUploadingIM ? "Uploading..." : "Upload File"}
+                </label>
+                {formData.imDocumentUrl && (
+                  <a href={formData.imDocumentUrl} target="_blank" rel="noopener noreferrer" className="text-[10px] text-emerald-400 font-medium flex items-center gap-1 hover:underline">
+                    <LinkIcon className="h-3 w-3" /> View Uploaded File
+                  </a>
+                )}
+              </div>
+            </div>
+          </FormField>
+          
+          <FormField label="Financial Pack" id="financialPackUrl">
+            <div className="flex flex-col gap-2">
+              <input name="financialPackUrl" id="financialPackUrl" value={formData.financialPackUrl || ""} onChange={handleChange} className={inputClass} placeholder="Document URL..." />
+              <div className="flex items-center gap-2 mt-1">
+                <input type="file" id="fin-file-upload" className="hidden" accept=".pdf,.doc,.docx,.xls,.xlsx" onChange={(e) => handleFileUpload(e, "financialPackUrl")} />
+                <label htmlFor="fin-file-upload" className="flex items-center gap-2 cursor-pointer bg-white/5 hover:bg-white/10 text-xs font-semibold text-slate-300 px-3 py-1.5 rounded-lg transition-colors border border-white/10">
+                  {isUploadingFin ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+                  {isUploadingFin ? "Uploading..." : "Upload File"}
+                </label>
+                {formData.financialPackUrl && (
+                  <a href={formData.financialPackUrl} target="_blank" rel="noopener noreferrer" className="text-[10px] text-emerald-400 font-medium flex items-center gap-1 hover:underline">
+                    <LinkIcon className="h-3 w-3" /> View Uploaded File
+                  </a>
+                )}
+              </div>
+            </div>
           </FormField>
         </div>
       </div>

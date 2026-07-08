@@ -19,6 +19,9 @@ export interface Deal {
   dueDate?: string;
   internalNotes?: string;
   imReviewDocuments?: string[];
+  attachments?: string[];
+  imDocumentUrl?: string;
+  financialPackUrl?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -40,6 +43,8 @@ export interface CreateDealInput {
   nextAction?: string;
   dueDate?: string;
   internalNotes?: string;
+  imDocumentUrl?: string;
+  financialPackUrl?: string;
 }
 
 // Portfolio Company entity types

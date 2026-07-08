@@ -44,22 +44,27 @@ export default async function handler(req: any, res: any) {
     const pipelineRes = await airtableFetch(TABLES.PIPELINE);
     const pipeline = pipelineRes.records || [];
 
-    // Fetch documents
-    const docsRes = await airtableFetch(TABLES.IM_REVIEW_DOCUMENTS);
-    const documents = docsRes.records || [];
-
     const deals = dealRefs.map((ref: string) => {
       const deal = pipeline.find((d: any) => d.fields["REF. NO"] === ref || d.fields["Deal_Ref"] === ref);
       if (!deal) return null;
 
-      // Filter docs for this deal
-      const dealDocs = documents.filter((d: any) => d.fields["Deal_Ref"] === ref).map((d: any) => ({
+      const imDocs = Array.isArray(deal.fields["IM_Review_Documents"]) ? deal.fields["IM_Review_Documents"].map((d: any) => ({
         id: d.id,
-        name: d.fields["Document_Name"],
-        type: d.fields["File_Type"],
-        url: d.fields["File_Url"],
-        uploadedAt: d.fields["Uploaded_At"] || d.createdTime,
-      }));
+        name: d.filename,
+        type: d.type || "application/pdf",
+        url: d.url,
+        uploadedAt: deal.createdTime,
+      })) : [];
+
+      const attachDocs = Array.isArray(deal.fields["Attachments"]) ? deal.fields["Attachments"].map((d: any) => ({
+        id: d.id,
+        name: d.filename,
+        type: d.type || "application/pdf",
+        url: d.url,
+        uploadedAt: deal.createdTime,
+      })) : [];
+
+      const dealDocs = [...imDocs, ...attachDocs];
 
       // STRICTLY omit internal info
       return {
@@ -67,7 +72,7 @@ export default async function handler(req: any, res: any) {
         dealRef: ref,
         companyName: deal.fields["Company_Name"] || deal.fields["Company Name"] || "Unknown",
         industry: deal.fields["Industry"] || "N/A",
-        executiveSummary: deal.fields["Executive_Summary"] || "",
+        executiveSummary: deal.fields["Executive_Summary"] || deal.fields["Summary"] || "",
         businessDescription: deal.fields["Business_Description"] || "",
         ebitda: deal.fields["EBITDA"] || 0,
         revenue: deal.fields["Revenue"] || 0,

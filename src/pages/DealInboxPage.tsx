@@ -5,7 +5,7 @@ import {
   Building2, MapPin, Briefcase, Mail, Phone, ExternalLink, Sparkles, FileText
 } from "lucide-react";
 import { getDealInbox, createInboxDeal, updateInboxDeal } from "../api/airtable";
-import { promoteDealFromInbox, updateInboxStatus } from "../api/admin";
+import { promoteDealFromInbox, updateInboxStatus, deleteInboxDeal } from "../api/admin";
 import { LoadingState } from "../components/ui/LoadingState";
 import { Modal } from "../components/ui/Modal";
 import { FormField } from "../components/ui/FormField";
@@ -218,6 +218,20 @@ export function DealInboxPage() {
       alert("Error updating status: " + err.message);
     } finally {
       setIsUpdatingStatus(false);
+    }
+  };
+
+  const handleDeleteDeal = async () => {
+    if (!selectedDeal) return;
+    if (!confirm("Are you sure you want to permanently delete this deal?")) return;
+    try {
+      setLoading(true);
+      await deleteInboxDeal(selectedDeal.id);
+      setIsModalOpen(false);
+      fetchInbox();
+    } catch (err: any) {
+      alert("Error deleting deal: " + err.message);
+      setLoading(false);
     }
   };
 
@@ -490,6 +504,23 @@ export function DealInboxPage() {
                 {promotingId === selectedDeal.id && (
                   <RefreshCw className="w-4 h-4 text-[#C6A66B] animate-spin" />
                 )}
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={(e) => {
+                      setIsModalOpen(false);
+                      openEditModal(selectedDeal, e);
+                    }}
+                    className="h-9 px-4 rounded-xl border border-white/[0.05] bg-white/[0.02] text-xs font-bold text-white hover:bg-white/[0.05] transition"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={handleDeleteDeal}
+                    className="h-9 px-4 rounded-xl border border-rose-500/20 bg-rose-500/10 text-xs font-bold text-rose-500 hover:bg-rose-500/20 transition"
+                  >
+                    Delete
+                  </button>
+                </div>
               </div>
             </div>
 

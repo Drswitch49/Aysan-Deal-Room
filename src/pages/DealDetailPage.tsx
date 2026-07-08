@@ -5093,6 +5093,79 @@ function DocumentsTab({ deal, documentState, setRefreshTrigger }: { deal: any; d
     }
   }, [sectionParam]);
 
+  const [isUploadingIm, setIsUploadingIm] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  // Helper functions for IM upload/replace/delete
+  const handleUploadCoreDoc = async (e: React.ChangeEvent<HTMLInputElement>, fieldName: "IM_Review_Documents" | "Attachments") => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploadingIm(true);
+    setUploadError(null);
+    try {
+      const base64Data = await new Promise<string>((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve((r.result as string).split(",")[1]);
+        r.onerror = reject;
+        r.readAsDataURL(file);
+      });
+      // We can use the existing uploadImDocument API but it defaults to IM_Review_Documents
+      // For financial packs, we might need to update the endpoint or just use updateAdminDeal
+      const res = await fetch("/api/admin/action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "upload-temp-file",
+          fileData: `data:${file.type};base64,${base64Data}`,
+          fileName: file.name,
+          fileType: file.type
+        })
+      });
+      if (!res.ok) throw new Error("File upload failed");
+      const { url } = await res.json();
+      
+      const currentFiles = (deal.rawFields?.[fieldName] as any[]) || [];
+      const updatedFields = { [fieldName]: [...currentFiles, { url }] };
+      
+      await fetch(`/api/admin/action`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "update-deal",
+          id: deal.id,
+          updates: updatedFields
+        })
+      });
+      setRefreshTrigger((prev: number) => prev + 1);
+    } catch (err: any) {
+      setUploadError(err.message || "Upload failed");
+    } finally {
+      setIsUploadingIm(false);
+    }
+  };
+
+  const handleDeleteCoreDoc = async (fieldName: "IM_Review_Documents" | "Attachments", idx: number) => {
+    setIsUploadingIm(true);
+    try {
+      const currentFiles = (deal.rawFields?.[fieldName] as any[]) || [];
+      const newFiles = currentFiles.filter((_, i) => i !== idx);
+      await fetch(`/api/admin/action`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "update-deal",
+          id: deal.id,
+          updates: { [fieldName]: newFiles }
+        })
+      });
+      setRefreshTrigger((prev: number) => prev + 1);
+    } catch (err: any) {
+      setUploadError(err.message || "Delete failed");
+    } finally {
+      setIsUploadingIm(false);
+    }
+  };
+
   // Map files dynamically to categorizations
   const categories = useMemo(() => {
     const list = documentState.data ?? [];
@@ -5108,6 +5181,81 @@ function DocumentsTab({ deal, documentState, setRefreshTrigger }: { deal: any; d
 
   return (
     <div className="space-y-6 font-sans animate-fade-in-up">
+
+      {/* Core Documents Management (IM & Financial Packs) */}
+      <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 space-y-4">
+        <h4 className="text-xs font-bold uppercase tracking-wider text-[#C6A66B] mb-4 border-b border-white/5 pb-2">
+          Core Documents (IM & Attachments)
+        </h4>
+        {uploadError && (
+          <div className="text-xs text-rose-400 bg-rose-500/10 p-2 rounded border border-rose-500/20">{uploadError}</div>
+        )}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* IM Documents */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest">Information Memorandums</span>
+              <label className="text-[10px] uppercase font-bold text-[#C6A66B] cursor-pointer hover:text-white flex items-center gap-1">
+                {isUploadingIm ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />} Add IM
+                <input type="file" accept=".pdf,.doc,.docx" className="hidden" onChange={(e) => handleUploadCoreDoc(e, "IM_Review_Documents")} disabled={isUploadingIm} />
+              </label>
+            </div>
+            {deal.rawFields?.IM_Review_Documents?.length ? (
+              <div className="space-y-2">
+                {deal.rawFields.IM_Review_Documents.map((doc: any, idx: number) => (
+                  <div key={idx} className="flex items-center justify-between p-2.5 rounded-lg bg-white/[0.015] border border-white/5">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <FileText className="h-4 w-4 text-emerald-500 shrink-0" />
+                      <a href={doc.url} target="_blank" rel="noopener noreferrer" className="text-xs text-white truncate hover:text-[#C6A66B] hover:underline">
+                        {doc.filename || `IM Document ${idx + 1}`}
+                      </a>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button type="button" onClick={() => handleDeleteCoreDoc("IM_Review_Documents", idx)} disabled={isUploadingIm} className="text-rose-500 hover:bg-rose-500/20 p-1.5 rounded transition">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-xs text-slate-500 italic p-3 bg-black/20 rounded-lg border border-white/[0.02]">No IM documents attached</div>
+            )}
+          </div>
+          
+          {/* Financial Packs */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest">Financial Packs & Attachments</span>
+              <label className="text-[10px] uppercase font-bold text-[#C6A66B] cursor-pointer hover:text-white flex items-center gap-1">
+                {isUploadingIm ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />} Add Pack
+                <input type="file" accept=".xlsx,.xls,.pdf" className="hidden" onChange={(e) => handleUploadCoreDoc(e, "Attachments")} disabled={isUploadingIm} />
+              </label>
+            </div>
+            {deal.rawFields?.Attachments?.length ? (
+              <div className="space-y-2">
+                {deal.rawFields.Attachments.map((doc: any, idx: number) => (
+                  <div key={idx} className="flex items-center justify-between p-2.5 rounded-lg bg-white/[0.015] border border-white/5">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <FileSpreadsheet className="h-4 w-4 text-emerald-500 shrink-0" />
+                      <a href={doc.url} target="_blank" rel="noopener noreferrer" className="text-xs text-white truncate hover:text-[#C6A66B] hover:underline">
+                        {doc.filename || `Attachment ${idx + 1}`}
+                      </a>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button type="button" onClick={() => handleDeleteCoreDoc("Attachments", idx)} disabled={isUploadingIm} className="text-rose-500 hover:bg-rose-500/20 p-1.5 rounded transition">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-xs text-slate-500 italic p-3 bg-black/20 rounded-lg border border-white/[0.02]">No attachments</div>
+            )}
+          </div>
+        </div>
+      </div>
       
       {/* Folder selector grid */}
       <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 space-y-4">

@@ -1,32 +1,29 @@
-import { airtableCreate, airtableUpdate, airtableFetchAll, airtableDelete } from "../src/lib/airtable/client.js";
-import { ensureTable, ensureField } from "../src/lib/airtable/schema-manager.js";
-import { extractUserFromRequest } from "../src/lib/rbac.js";
-import { TABLES } from "../src/lib/airtable/schema.js";
+import { airtableCreate, airtableUpdate, airtableFetch, airtableDelete, TABLES, escapeFormulaString } from "./_utils/airtable.js";
+import { authenticateAdmin } from "./admin/lenders_auth_helper.js";
 
 export default async function handler(req: any, res: any) {
-  const user = extractUserFromRequest(req);
-  if (!user) {
-    return res.status(401).json({ error: "Unauthorized" });
-  }
-
   try {
+    await authenticateAdmin(req);
+    const user = req.user;
+
     if (req.method === "GET") {
       const { dealRef } = req.query;
       if (!dealRef) {
         return res.status(400).json({ error: "Missing dealRef" });
       }
       
-      const result = await airtableFetchAll(TABLES.DEAL_NOTES, {
-        filterByFormula: `{Deal_Ref} = "${dealRef}"`
+      const result = await airtableFetch(TABLES.DEAL_NOTES, {
+        filterByFormula: `{Deal_Ref} = '${escapeFormulaString(dealRef)}'`
       });
 
-      const notes = result.records.map((r: any) => ({
+      const notes = (result.records || []).map((r: any) => ({
         id: r.id,
         dealRef: r.fields.Deal_Ref,
         author: r.fields.Author,
+        authorEmail: r.fields.Author_Email,
         content: r.fields.Note_Content,
-        createdAt: r.fields.Created_At,
-        updatedAt: r.fields.Updated_At
+        createdAt: r.fields.Created_At || r.createdTime,
+        updatedAt: r.fields.Updated_At || r.createdTime
       }));
 
       return res.status(200).json(notes);
@@ -40,7 +37,8 @@ export default async function handler(req: any, res: any) {
 
       const result = await airtableCreate(TABLES.DEAL_NOTES, {
         Deal_Ref: dealRef,
-        Author: user.name || "Unknown",
+        Author: user.name || user.email || "Unknown",
+        Author_Email: user.email,
         Note_Content: content
       });
 
@@ -48,9 +46,10 @@ export default async function handler(req: any, res: any) {
         id: result.id,
         dealRef: result.fields.Deal_Ref,
         author: result.fields.Author,
+        authorEmail: result.fields.Author_Email,
         content: result.fields.Note_Content,
-        createdAt: result.fields.Created_At,
-        updatedAt: result.fields.Updated_At
+        createdAt: result.fields.Created_At || result.createdTime,
+        updatedAt: result.fields.Updated_At || result.createdTime
       });
     }
 
@@ -60,14 +59,13 @@ export default async function handler(req: any, res: any) {
         return res.status(400).json({ error: "Missing id or content" });
       }
 
-      // We should check if the user is the author
-      const existing = await airtableFetchAll(TABLES.DEAL_NOTES, {
-        filterByFormula: `RECORD_ID() = "${id}"`
+      const existing = await airtableFetch(TABLES.DEAL_NOTES, {
+        filterByFormula: `RECORD_ID() = '${escapeFormulaString(id)}'`
       });
-      if (existing.records.length === 0) {
+      if (!existing.records || existing.records.length === 0) {
         return res.status(404).json({ error: "Note not found" });
       }
-      if (existing.records[0].fields.Author !== user.name) {
+      if (existing.records[0].fields.Author_Email !== user.email && user.role !== "admin" && user.role !== "super admin") {
         return res.status(403).json({ error: "You can only edit your own notes" });
       }
 
@@ -87,13 +85,13 @@ export default async function handler(req: any, res: any) {
         return res.status(400).json({ error: "Missing id" });
       }
 
-      const existing = await airtableFetchAll(TABLES.DEAL_NOTES, {
-        filterByFormula: `RECORD_ID() = "${id}"`
+      const existing = await airtableFetch(TABLES.DEAL_NOTES, {
+        filterByFormula: `RECORD_ID() = '${escapeFormulaString(id)}'`
       });
-      if (existing.records.length === 0) {
+      if (!existing.records || existing.records.length === 0) {
         return res.status(404).json({ error: "Note not found" });
       }
-      if (existing.records[0].fields.Author !== user.name) {
+      if (existing.records[0].fields.Author_Email !== user.email && user.role !== "admin" && user.role !== "super admin") {
         return res.status(403).json({ error: "You can only delete your own notes" });
       }
 
@@ -104,6 +102,6 @@ export default async function handler(req: any, res: any) {
     return res.status(405).json({ error: "Method not allowed" });
   } catch (err: any) {
     console.error("Notes API error:", err);
-    return res.status(500).json({ error: "Internal server error" });
+    return res.status(err.status || 500).json({ error: err.message || "Internal server error" });
   }
 }

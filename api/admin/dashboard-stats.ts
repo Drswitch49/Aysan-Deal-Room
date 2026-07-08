@@ -580,7 +580,10 @@ export default async function handler(req: any, res: any) {
       owner,
       uniqueOwners,
       inboxDealsCount: inboxRes.records.length,
-      reviewedDealsCount: dealsRes.records.length,
+      reviewedDealsCount: filteredDeals.length + inboxRes.records.filter((r: any) => {
+        const s = (r.fields["Status"] || r.fields["Deal_Status"] || "").toLowerCase();
+        return s !== "pending" && s !== "active";
+      }).length,
       activePipelineCount: filteredDeals.length,
       pendingActionsCount: filteredDeals.filter(d => d.fields["Next Action Date"]).length,
       ddDealsCount,

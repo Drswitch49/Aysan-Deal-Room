@@ -90,6 +90,22 @@ export async function updateInboxStatus(inboxRecordId: string, status: string) {
   return response.json();
 }
 
+export async function deleteInboxDeal(dealId: string) {
+  const response = await fetch("/api/admin/action", {
+    method: "POST",
+    headers: getAdminHeaders(),
+    body: JSON.stringify({ action: "delete-inbox-deal", dealId })
+  });
+
+  if (!response.ok) {
+    const err = await response.json();
+    throw new Error(err.error || "Failed to delete inbox deal");
+  }
+
+  clearAirtableCache();
+  return response.json();
+}
+
 export async function removeDealAssignment(assignmentId: string) {
   const response = await fetch("/api/admin/action", {
     method: "POST",

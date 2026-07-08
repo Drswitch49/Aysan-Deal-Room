@@ -286,7 +286,7 @@ export function DashboardPage() {
                         {/* Context link */}
                         <div className="flex items-center gap-3 shrink-0 select-none">
                           <div className="text-right">
-                            <p className="text-[10px] font-bold text-slate-400 leading-none">
+                            <p className="text-[10px] font-bold text-slate-400 leading-none truncate max-w-[120px] ml-auto">
                               {move.companyName}
                             </p>
                             {move.timestamp && (

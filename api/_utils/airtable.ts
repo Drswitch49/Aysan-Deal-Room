@@ -22,7 +22,8 @@ export const TABLES = {
   PORTFOLIO_HEALTH: "Portfolio_Health",
   SHAREHOLDERS: "Shareholders",
   SHAREHOLDER_DEAL_ASSIGNMENTS: "Shareholder_Deal_Assignments",
-  IM_REVIEW_DOCUMENTS: "IM_Review_Documents"
+  IM_REVIEW_DOCUMENTS: "IM_Review_Documents",
+  DEAL_NOTES: "Deal_Notes"
 };
 
 export class AirtableError extends Error {

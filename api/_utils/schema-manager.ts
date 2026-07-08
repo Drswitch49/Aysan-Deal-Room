@@ -210,6 +210,18 @@ export const TABLE_SPECS: Record<string, TableSpec> = {
     ],
   },
 
+  DEAL_NOTES: {
+    name: "Deal_Notes",
+    fields: [
+      { name: "Deal_Ref", type: "singleLineText" },
+      { name: "Author", type: "singleLineText" },
+      { name: "Author_Email", type: "email" },
+      { name: "Note_Content", type: "multilineText" },
+      { name: "Created_At", type: "dateTime", options: { dateFormat: { name: "iso" }, timeFormat: { name: "24hour" }, timeZone: "utc" } },
+      { name: "Updated_At", type: "dateTime", options: { dateFormat: { name: "iso" }, timeFormat: { name: "24hour" }, timeZone: "utc" } }
+    ],
+  },
+
   DEAL_STAGE_HISTORY: {
     name: "Deal_Stage_History",
     fields: [

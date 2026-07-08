@@ -227,6 +227,10 @@ export default async function handler(req: any, res: any) {
           "Contact_Email": f["Contact_Email"] || f["Email"],
           "Contact_Phone": f["Contact_Phone"] || f["Phone"],
           "Broker": f["Broker"] || f["BROKER"],
+          "Broker_Name": f["Contact_Name"] || f["Broker Name"] || f["Broker_Name"] || f["Broker"] || f["BROKER"],
+          "Broker_Company": f["Broker Company"] || f["Broker_Company"],
+          "Broker_Email": f["Contact_Email"] || f["Email"] || f["Broker Email"] || f["Broker_Email"],
+          "Broker_Phone": f["Contact_Phone"] || f["Phone"] || f["Broker Phone"] || f["Broker_Phone"],
           "Source": f["Source"] || f["SOURCE"] || "Inbound",
           "Business_Description": f["Business_Description"] || f["BUSINESS_DESCRIPTION"],
         };
@@ -718,6 +722,11 @@ export default async function handler(req: any, res: any) {
           changedSummary.push(`${key}: ${String(value).substring(0, 50)}`);
         }
 
+        // Auto route to Dallience if stage is Due Diligence
+        if (updateFields.stage && ["due diligence", "due_diligence", "diligence"].includes(String(updateFields.stage).toLowerCase())) {
+          airtableFields["Owner"] = "Dallience";
+        }
+
         // Also update Deal Name if companyName changed
         if (updateFields.companyName && !updateFields.dealName) {
           airtableFields["Deal Name"] = updateFields.companyName;
@@ -778,6 +787,28 @@ export default async function handler(req: any, res: any) {
         );
 
         return res.status(200).json({ success: true, message: "Deal successfully deleted." });
+      }
+
+      case "delete-inbox-deal": {
+        const userRole = (req.user?.role || "").toLowerCase();
+        if (userRole === "analyst") {
+          return res.status(403).json({ error: "Forbidden: Analysts cannot delete inbox deals." });
+        }
+        const { dealId } = req.body;
+        if (!dealId) {
+          return res.status(400).json({ error: "Deal ID is required" });
+        }
+        await airtableDelete(TABLES.DEAL_INBOX, dealId);
+
+        await logAuditTrail(
+          "DELETE_INBOX_DEAL",
+          req.user.email,
+          req.user.role,
+          dealId,
+          `Deleted inbox deal record: ${dealId}`
+        );
+
+        return res.status(200).json({ success: true, message: "Inbox deal successfully deleted." });
       }
 
       case "upload-im-document": {

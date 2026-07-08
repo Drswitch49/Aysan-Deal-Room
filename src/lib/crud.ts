@@ -29,7 +29,9 @@ export async function createDeal(input: CreateDealInput): Promise<Deal> {
     Stage: input.stage || "Inbound",
     Next_Action: input.nextAction,
     Due_Date: input.dueDate,
-    Internal_Notes: input.internalNotes
+    Internal_Notes: input.internalNotes,
+    IM_Review_Documents: input.imDocumentUrl ? [{ url: input.imDocumentUrl }] : undefined,
+    Attachments: input.financialPackUrl ? [{ url: input.financialPackUrl }] : undefined
   });
 
   return mapAirtableDealToEntity(record);
@@ -66,6 +68,12 @@ export async function updateDeal(dealId: string, updates: Partial<CreateDealInpu
   if (updates.nextAction) fields.Next_Action = updates.nextAction;
   if (updates.dueDate) fields.Due_Date = updates.dueDate;
   if (updates.internalNotes) fields.Internal_Notes = updates.internalNotes;
+  if (updates.imDocumentUrl !== undefined) {
+    fields.IM_Review_Documents = updates.imDocumentUrl ? [{ url: updates.imDocumentUrl }] : [];
+  }
+  if (updates.financialPackUrl !== undefined) {
+    fields.Attachments = updates.financialPackUrl ? [{ url: updates.financialPackUrl }] : [];
+  }
 
   const record = await airtableUpdate("Deals", dealId, fields);
   return mapAirtableDealToEntity(record);
@@ -113,6 +121,9 @@ function mapAirtableDealToEntity(record: any): Deal {
     dueDate: record.fields.Due_Date,
     internalNotes: record.fields.Internal_Notes,
     imReviewDocuments: record.fields.IM_Review_Documents,
+    attachments: record.fields.Attachments,
+    imDocumentUrl: record.fields.IM_Review_Documents?.[0]?.url || "",
+    financialPackUrl: record.fields.Attachments?.[0]?.url || "",
     createdAt: record.createdTime,
     updatedAt: record.createdTime // Airtable doesn't expose updatedTime directly
   };
