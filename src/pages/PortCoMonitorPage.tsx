@@ -1055,8 +1055,22 @@ export function PortCoMonitorPage() {
       )}
 
       {/* Add Portfolio Company Modal */}
-      <Modal isOpen={isAddCompanyOpen} onClose={() => setIsAddCompanyOpen(false)} title="Add Portfolio Company" maxWidth="max-w-2xl">
-        <form onSubmit={handleAddCompany} className="space-y-4 font-sans max-h-[75vh] overflow-y-auto pr-1">
+      <Modal
+        isOpen={isAddCompanyOpen}
+        onClose={() => setIsAddCompanyOpen(false)}
+        title="Add Portfolio Company"
+        maxWidth="max-w-2xl"
+        onSubmit={handleAddCompany}
+        footer={(
+          <>
+            <button type="button" onClick={() => setIsAddCompanyOpen(false)} className="h-9 px-4 rounded-xl border border-white/[0.02] text-slate-405 text-xs font-bold uppercase tracking-wider hover:bg-white/[0.015] transition cursor-pointer">Cancel</button>
+            <button type="submit" disabled={isCompanySaving} className="h-9 px-5 rounded-xl bg-gradient-to-r from-[#C6A66B] to-[#B8924F] text-slate-950 text-xs font-bold uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none hover:shadow-glow-bronze transition cursor-pointer">
+              {isCompanySaving ? "Adding..." : "Add Company"}
+            </button>
+          </>
+        )}
+      >
+        <div className="space-y-4 font-sans pr-1">
           {companyError && (
             <div className="rounded-lg border border-rose-500/20 bg-rose-500/5 p-3 text-xs font-semibold text-rose-400 flex items-center gap-2">
               <AlertTriangle className="h-3.5 w-3.5 shrink-0" />{companyError}
@@ -1124,18 +1138,26 @@ export function PortCoMonitorPage() {
           <FormField label="Notes" id="pc-notes">
             <textarea id="pc-notes" value={companyForm.notes} onChange={e => setCompanyForm(f => ({...f, notes: e.target.value}))} rows={2} placeholder="Internal notes..." className={textareaClass} />
           </FormField>
-          <div className="flex justify-end gap-2.5 pt-1">
-            <button type="button" onClick={() => setIsAddCompanyOpen(false)} className="h-9 px-4 rounded-xl border border-white/[0.02] text-slate-405 text-xs font-bold uppercase tracking-wider hover:bg-white/[0.015] transition cursor-pointer">Cancel</button>
-            <button type="submit" disabled={isCompanySaving} className="h-9 px-5 rounded-xl bg-gradient-to-r from-[#C6A66B] to-[#B8924F] text-slate-950 text-xs font-bold uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none hover:shadow-glow-bronze transition cursor-pointer">
-              {isCompanySaving ? "Adding..." : "Add Company"}
-            </button>
-          </div>
-        </form>
+        </div>
       </Modal>
 
       {/* Edit Portfolio Company Modal */}
-      <Modal isOpen={isEditCompanyOpen} onClose={() => setIsEditCompanyOpen(false)} title="Edit Portfolio Company" maxWidth="max-w-2xl">
-        <form onSubmit={handleEditCompanySubmit} className="space-y-4 font-sans max-h-[75vh] overflow-y-auto pr-1">
+      <Modal
+        isOpen={isEditCompanyOpen}
+        onClose={() => setIsEditCompanyOpen(false)}
+        title="Edit Portfolio Company"
+        maxWidth="max-w-2xl"
+        onSubmit={handleEditCompanySubmit}
+        footer={(
+          <>
+            <button type="button" onClick={() => setIsEditCompanyOpen(false)} className="h-9 px-4 rounded-xl border border-white/[0.02] text-slate-405 text-xs font-bold uppercase tracking-wider hover:bg-white/[0.015] transition cursor-pointer">Cancel</button>
+            <button type="submit" disabled={isEditSaving} className="h-9 px-5 rounded-xl bg-gradient-to-r from-[#C6A66B] to-[#B8924F] text-slate-950 text-xs font-bold uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none hover:shadow-glow-bronze transition cursor-pointer">
+              {isEditSaving ? "Saving..." : "Save Changes"}
+            </button>
+          </>
+        )}
+      >
+        <div className="space-y-4 font-sans pr-1">
           {editCompanyError && (
             <div className="rounded-lg border border-rose-500/20 bg-rose-500/5 p-3 text-xs font-semibold text-rose-450 flex items-center gap-2">
               <AlertTriangle className="h-3.5 w-3.5 shrink-0" />{editCompanyError}
@@ -1203,13 +1225,7 @@ export function PortCoMonitorPage() {
           <FormField label="Notes" id="edit-pc-notes">
             <textarea id="edit-pc-notes" value={editCompanyForm.notes} onChange={e => setEditCompanyForm(f => ({...f, notes: e.target.value}))} rows={2} className={textareaClass} />
           </FormField>
-          <div className="flex justify-end gap-2.5 pt-1">
-            <button type="button" onClick={() => setIsEditCompanyOpen(false)} className="h-9 px-4 rounded-xl border border-white/[0.02] text-slate-405 text-xs font-bold uppercase tracking-wider hover:bg-white/[0.015] transition cursor-pointer">Cancel</button>
-            <button type="submit" disabled={isEditSaving} className="h-9 px-5 rounded-xl bg-gradient-to-r from-[#C6A66B] to-[#B8924F] text-slate-950 text-xs font-bold uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none hover:shadow-glow-bronze transition cursor-pointer">
-              {isEditSaving ? "Saving..." : "Save Changes"}
-            </button>
-          </div>
-        </form>
+        </div>
       </Modal>
     </div>
   );

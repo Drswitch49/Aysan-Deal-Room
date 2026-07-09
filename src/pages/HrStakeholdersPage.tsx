@@ -1071,14 +1071,27 @@ export function HrStakeholdersPage() {
       )}
 
       {/* Edit Profile details modal */}
-      <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} title="Edit Details">
-        {editError && (
-          <div className="mb-4 rounded-lg border border-rose-500/20 bg-rose-500/5 p-3 text-xs font-semibold text-rose-455 flex items-center gap-2">
-            <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-            <span>{editError}</span>
-          </div>
+      <Modal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        title="Edit Details"
+        onSubmit={handleEditSubmit}
+        footer={(
+          <>
+            <button type="button" onClick={() => setIsEditModalOpen(false)} className="h-9 px-4 rounded-xl border border-white/[0.02] text-slate-400 text-xs font-bold uppercase tracking-wider hover:bg-white/[0.015] transition cursor-pointer">Cancel</button>
+            <button type="submit" disabled={isEditSaving} className="h-9 px-5 rounded-xl bg-gradient-to-r from-[#C6A66B] to-[#B8924F] text-slate-950 text-xs font-bold uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none hover:shadow-glow-bronze transition cursor-pointer">
+              {isEditSaving ? "Saving..." : "Save Changes"}
+            </button>
+          </>
         )}
-        <form onSubmit={handleEditSubmit} className="space-y-4 font-sans text-xs">
+      >
+        <div className="space-y-4 font-sans text-xs pr-1">
+          {editError && (
+            <div className="mb-4 rounded-lg border border-rose-500/20 bg-rose-500/5 p-3 text-xs font-semibold text-rose-455 flex items-center gap-2">
+              <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+              <span>{editError}</span>
+            </div>
+          )}
           <FormField label="Full Name" id="edit-name" required>
             <input id="edit-name" type="text" required value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} className={inputClass} />
           </FormField>
@@ -1136,13 +1149,7 @@ export function HrStakeholdersPage() {
             </>
           )}
 
-          <div className="flex justify-end gap-2.5 pt-2 border-t border-white/5 mt-5">
-            <button type="button" onClick={() => setIsEditModalOpen(false)} className="h-9 px-4 rounded-xl border border-white/[0.02] text-slate-400 text-xs font-bold uppercase tracking-wider hover:bg-white/[0.015] transition cursor-pointer">Cancel</button>
-            <button type="submit" disabled={isEditSaving} className="h-9 px-5 rounded-xl bg-gradient-to-r from-[#C6A66B] to-[#B8924F] text-slate-950 text-xs font-bold uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none hover:shadow-glow-bronze transition cursor-pointer">
-              {isEditSaving ? "Saving..." : "Save Changes"}
-            </button>
-          </div>
-        </form>
+        </div>
       </Modal>
 
       {/* Confirm Password Reset */}
@@ -1184,7 +1191,27 @@ export function HrStakeholdersPage() {
       </Modal>
 
       {/* Modal Dialog */}
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Add Hiring Brief">
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title="Add Hiring Brief"
+        onSubmit={handleSubmitBrief}
+        footer={(
+          <>
+            <button type="button" onClick={() => setIsModalOpen(false)} className="h-9 rounded-lg border border-white/[0.02] bg-transparent px-4 text-[10px] font-extrabold uppercase tracking-wider text-slate-400 hover:text-white transition cursor-pointer">Cancel</button>
+            <button type="submit" disabled={isSaving} className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-[#C6A66B] px-4 text-[10px] font-extrabold uppercase tracking-wider text-slate-950 shadow-sm hover:bg-[#C6A66B]/90 disabled:opacity-50 cursor-pointer transition">
+              {isSaving ? (
+                <>
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  <span>Saving...</span>
+                </>
+              ) : (
+                <span>Add Brief</span>
+              )}
+            </button>
+          </>
+        )}
+      >
         {modalError && (
           <div className="mb-4 flex items-start gap-2 rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-[11px] text-red-400 animate-fade-in">
             <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
@@ -1195,7 +1222,7 @@ export function HrStakeholdersPage() {
           </div>
         )}
 
-        <form onSubmit={handleSubmitBrief} className="space-y-4">
+        <div className="space-y-4 pr-1">
           <FormField label="Role / Position" required id="hr-brief-role">
             <input id="hr-brief-role" type="text" required value={formRole} onChange={(e) => setFormRole(e.target.value)} placeholder="e.g. CEO, Operations Manager" className={inputClass} />
           </FormField>
@@ -1216,25 +1243,25 @@ export function HrStakeholdersPage() {
             </select>
           </FormField>
 
-          <div className="flex items-center justify-end gap-3 pt-3 border-t border-white/5 mt-5">
-            <button type="button" onClick={() => setIsModalOpen(false)} className="h-9 rounded-lg border border-white/[0.02] bg-transparent px-4 text-[10px] font-extrabold uppercase tracking-wider text-slate-400 hover:text-white transition cursor-pointer">Cancel</button>
-            <button type="submit" disabled={isSaving} className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-[#C6A66B] px-4 text-[10px] font-extrabold uppercase tracking-wider text-slate-950 shadow-sm hover:bg-[#C6A66B]/90 disabled:opacity-50 cursor-pointer transition">
-              {isSaving ? (
-                <>
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                  <span>Saving...</span>
-                </>
-              ) : (
-                <span>Add Brief</span>
-              )}
-            </button>
-          </div>
-        </form>
+        </div>
       </Modal>
 
       {/* Add Team Member Modal */}
-      <Modal isOpen={isAddTeamMemberOpen} onClose={() => setIsAddTeamMemberOpen(false)} title="Add Team Member">
-        <form onSubmit={handleAddTeamMember} className="space-y-4 font-sans">
+      <Modal
+        isOpen={isAddTeamMemberOpen}
+        onClose={() => setIsAddTeamMemberOpen(false)}
+        title="Add Team Member"
+        onSubmit={handleAddTeamMember}
+        footer={(
+          <>
+            <button type="button" onClick={() => setIsAddTeamMemberOpen(false)} className="h-9 px-4 rounded-xl border border-white/[0.02] text-slate-400 text-xs font-bold uppercase tracking-wider hover:bg-white/[0.015] transition cursor-pointer">Cancel</button>
+            <button type="submit" disabled={isTeamSaving} className="h-9 px-5 rounded-xl bg-gradient-to-r from-[#C6A66B] to-[#B8924F] text-slate-950 text-xs font-bold uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none hover:shadow-glow-bronze transition cursor-pointer">
+              {isTeamSaving ? "Adding..." : "Add Member"}
+            </button>
+          </>
+        )}
+      >
+        <div className="space-y-4 font-sans pr-1">
           {teamFormError && (
             <div className="rounded-lg border border-rose-500/20 bg-rose-500/5 p-3 text-xs font-semibold text-rose-450 flex items-center gap-2">
               <AlertCircle className="h-3.5 w-3.5 shrink-0" />{teamFormError}
@@ -1269,18 +1296,26 @@ export function HrStakeholdersPage() {
               </select>
             </FormField>
           </div>
-          <div className="flex justify-end gap-2.5 pt-1">
-            <button type="button" onClick={() => setIsAddTeamMemberOpen(false)} className="h-9 px-4 rounded-xl border border-white/[0.02] text-slate-400 text-xs font-bold uppercase tracking-wider hover:bg-white/[0.015] transition cursor-pointer">Cancel</button>
-            <button type="submit" disabled={isTeamSaving} className="h-9 px-5 rounded-xl bg-gradient-to-r from-[#C6A66B] to-[#B8924F] text-slate-950 text-xs font-bold uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none hover:shadow-glow-bronze transition cursor-pointer">
-              {isTeamSaving ? "Adding..." : "Add Member"}
-            </button>
-          </div>
-        </form>
+        </div>
       </Modal>
 
       {/* Add Stakeholder Modal */}
-      <Modal isOpen={isAddStakeholderOpen} onClose={() => setIsAddStakeholderOpen(false)} title="Add External Stakeholder" maxWidth="max-w-lg">
-        <form onSubmit={handleAddStakeholder} className="space-y-4 font-sans">
+      <Modal
+        isOpen={isAddStakeholderOpen}
+        onClose={() => setIsAddStakeholderOpen(false)}
+        title="Add External Stakeholder"
+        maxWidth="max-w-lg"
+        onSubmit={handleAddStakeholder}
+        footer={(
+          <>
+            <button type="button" onClick={() => setIsAddStakeholderOpen(false)} className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-white transition">Cancel</button>
+            <button type="submit" disabled={isStakeholderSaving} className="px-3 py-1.5 bg-[#C6A66B] text-[#07090c] text-[10px] font-black uppercase tracking-wider rounded border border-[#C6A66B] hover:bg-[#b0935d] transition">
+              {isStakeholderSaving ? "Saving..." : "Add Stakeholder"}
+            </button>
+          </>
+        )}
+      >
+        <div className="space-y-4 font-sans pr-1">
           {stakeholderFormError && (
             <div className="rounded-lg border border-rose-500/20 bg-rose-500/5 p-3 text-xs font-semibold text-rose-450 flex items-center gap-2">
               <AlertCircle className="h-3.5 w-3.5 shrink-0" />{stakeholderFormError}
@@ -1315,18 +1350,26 @@ export function HrStakeholdersPage() {
           <FormField label="Notes" id="sh-notes">
             <textarea id="sh-notes" value={stakeholderForm.notes} onChange={e => setStakeholderForm(f => ({ ...f, notes: e.target.value }))} rows={2} placeholder="Internal notes..." className={inputClass} />
           </FormField>
-          <div className="flex justify-end gap-2 pt-4 border-t border-white/5">
-            <button type="button" onClick={() => setIsAddStakeholderOpen(false)} className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-white transition">Cancel</button>
-            <button type="submit" disabled={isStakeholderSaving} className="px-3 py-1.5 bg-[#C6A66B] text-[#07090c] text-[10px] font-black uppercase tracking-wider rounded border border-[#C6A66B] hover:bg-[#b0935d] transition">
-              {isStakeholderSaving ? "Saving..." : "Add Stakeholder"}
-            </button>
-          </div>
-        </form>
+        </div>
       </Modal>
 
       {/* Add Shareholder Modal */}
-      <Modal isOpen={isAddShareholderOpen} onClose={() => setIsAddShareholderOpen(false)} title="Add Shareholder" maxWidth="max-w-lg">
-        <form onSubmit={handleAddShareholder} className="space-y-4 font-sans">
+      <Modal
+        isOpen={isAddShareholderOpen}
+        onClose={() => setIsAddShareholderOpen(false)}
+        title="Add Shareholder"
+        maxWidth="max-w-lg"
+        onSubmit={handleAddShareholder}
+        footer={(
+          <>
+            <button type="button" onClick={() => setIsAddShareholderOpen(false)} className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-white transition">Cancel</button>
+            <button type="submit" disabled={isShareholderSaving} className="px-3 py-1.5 bg-[#C6A66B] text-[#07090c] text-[10px] font-black uppercase tracking-wider rounded border border-[#C6A66B] hover:bg-[#b0935d] transition">
+              {isShareholderSaving ? "Saving..." : "Add Shareholder"}
+            </button>
+          </>
+        )}
+      >
+        <div className="space-y-4 font-sans pr-1">
           {shareholderFormError && (
             <div className="rounded-lg border border-rose-500/20 bg-rose-500/5 p-3 text-xs font-semibold text-rose-450 flex items-center gap-2">
               <AlertCircle className="h-3.5 w-3.5 shrink-0" />{shareholderFormError}
@@ -1348,13 +1391,7 @@ export function HrStakeholdersPage() {
           <FormField label="Notes / Info" id="shrh-notes">
             <textarea id="shrh-notes" rows={2} value={shareholderForm.notes} onChange={e => setShareholderForm(f => ({ ...f, notes: e.target.value }))} placeholder="Brief context about this shareholder..." className={cx(inputClass, "resize-none")} />
           </FormField>
-          <div className="flex justify-end gap-2 pt-4 border-t border-white/5">
-            <button type="button" onClick={() => setIsAddShareholderOpen(false)} className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-white transition">Cancel</button>
-            <button type="submit" disabled={isShareholderSaving} className="px-3 py-1.5 bg-[#C6A66B] text-[#07090c] text-[10px] font-black uppercase tracking-wider rounded border border-[#C6A66B] hover:bg-[#b0935d] transition">
-              {isShareholderSaving ? "Saving..." : "Add Shareholder"}
-            </button>
-          </div>
-        </form>
+        </div>
       </Modal>
 
       {/* Credentials Display Modal */}

@@ -861,9 +861,30 @@ export function LenderManagementPage() {
       )}
 
       {/* MODAL 1: CREATE NEW LENDER */}
-      <Modal isOpen={isAddModalOpen} onClose={closeAddModal} title={createdLenderDetails ? "Portal Access Ready" : "Create New Lender"}>
+      <Modal
+        isOpen={isAddModalOpen}
+        onClose={closeAddModal}
+        title={createdLenderDetails ? "Portal Access Ready" : "Create New Lender"}
+        onSubmit={!createdLenderDetails ? handleAddLender : undefined}
+        footer={!createdLenderDetails ? (
+          <button
+            type="submit"
+            disabled={submitting}
+            className="w-full inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-acp-bronze to-acp-bronze-dark text-xs font-bold uppercase tracking-wider text-white shadow-md hover:shadow-glow-bronze disabled:opacity-40 select-none cursor-pointer"
+          >
+            {submitting ? "Creating..." : "Generate Portal Access"}
+          </button>
+        ) : (
+          <button
+            onClick={closeAddModal}
+            className="w-full inline-flex h-10 items-center justify-center rounded-xl bg-white/[0.015] border border-white/[0.02] text-xs font-bold uppercase tracking-wider text-white hover:bg-white/[0.02]"
+          >
+            Done
+          </button>
+        )}
+      >
         {!createdLenderDetails ? (
-          <form onSubmit={handleAddLender} className="space-y-4">
+          <div className="space-y-4">
             <FormField label="Company Name" required id="add-lender-company">
               <input
                 id="add-lender-company"
@@ -909,15 +930,7 @@ export function LenderManagementPage() {
                 />
               </FormField>
             </div>
-
-            <button
-              type="submit"
-              disabled={submitting}
-              className="w-full inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-acp-bronze to-acp-bronze-dark text-xs font-bold uppercase tracking-wider text-white shadow-md hover:shadow-glow-bronze disabled:opacity-40 select-none cursor-pointer mt-4"
-            >
-              {submitting ? "Creating..." : "Generate Portal Access"}
-            </button>
-          </form>
+          </div>
         ) : (
           <div className="space-y-5 text-center">
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-450 border border-emerald-500/20 mx-auto">
@@ -954,13 +967,6 @@ export function LenderManagementPage() {
                 </div>
               </div>
             </div>
-
-            <button
-              onClick={closeAddModal}
-              className="w-full inline-flex h-10 items-center justify-center rounded-xl bg-white/[0.015] border border-white/[0.02] text-xs font-bold uppercase tracking-wider text-white hover:bg-white/[0.02] mt-4"
-            >
-              Done
-            </button>
           </div>
         )}
       </Modal>
@@ -974,9 +980,19 @@ export function LenderManagementPage() {
           setModalNdaApproved(false);
         }} 
         title="Assign Deal Access"
+        onSubmit={handleAssignDeal}
+        footer={(
+          <button
+            type="submit"
+            disabled={submitting || !selectedDealRef}
+            className="w-full inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-acp-bronze to-acp-bronze-dark text-xs font-bold uppercase tracking-wider text-white shadow-md hover:shadow-glow-bronze disabled:opacity-40 cursor-pointer"
+          >
+            {submitting ? "Assigning..." : "Assign Access"}
+          </button>
+        )}
       >
         {selectedLender && (
-          <form onSubmit={handleAssignDeal} className="space-y-4">
+          <div className="space-y-4">
             <p className="text-xs text-slate-400 leading-relaxed">Grant portal review access to {selectedLender.Company_Name}.</p>
 
             <FormField label="Select Acquisition Deal" id="deal-search-input">
@@ -1055,14 +1071,7 @@ export function LenderManagementPage() {
               </select>
             </FormField>
 
-            <button
-              type="submit"
-              disabled={submitting || !selectedDealRef}
-              className="w-full inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-acp-bronze to-acp-bronze-dark text-xs font-bold uppercase tracking-wider text-white shadow-md hover:shadow-glow-bronze disabled:opacity-40 cursor-pointer mt-4"
-            >
-              {submitting ? "Assigning..." : "Assign Access"}
-            </button>
-          </form>
+          </div>
         )}
       </Modal>
 
