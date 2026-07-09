@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { X } from "lucide-react";
 import { useEffect } from "react";
+import { createPortal } from "react-dom";
 
 /**
  * Shared modal wrapper with backdrop blur, Escape-key close support,
@@ -90,7 +91,7 @@ export function Modal({
     </>
   );
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       role="dialog"
@@ -116,6 +117,7 @@ export function Modal({
           modalContent
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
