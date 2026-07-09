@@ -479,58 +479,64 @@ export function DealInboxPage() {
       )}
 
       {/* Deal Detail Modal */}
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Deal Inbox Detail" maxWidth="max-w-4xl">
-        {selectedDeal && (
-          <div className="space-y-6 min-w-0">
-            {/* Header / Actions Row */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white/[0.01] p-4 rounded-xl border border-white/[0.03] min-w-0">
-              <div className="min-w-0 w-full sm:w-auto flex-1 pr-4">
-                <h2 className="text-lg font-bold text-white flex items-center gap-2 break-words whitespace-normal leading-tight">
-                  {getCompanyName(selectedDeal.fields)}
-                </h2>
-                <div className="text-xs text-slate-400 font-medium mt-1 truncate">
-                  Ref: {selectedDeal.fields["REF. NO"] || "N/A"}
-                </div>
-              </div>
-              <div className="flex items-center gap-3 w-full sm:w-auto shrink-0 flex-wrap">
-                <div className="relative w-full sm:w-auto">
-                  <select
-                    value={selectedDeal.fields.Status || ""}
-                    onChange={handleStatusChange}
-                    disabled={isUpdatingStatus || promotingId === selectedDeal.id}
-                    className="h-9 w-full appearance-none rounded-xl border border-[#C6A66B]/30 bg-[#C6A66B]/10 pl-4 pr-10 text-xs font-bold text-[#C6A66B] uppercase tracking-wider outline-none transition hover:bg-[#C6A66B]/20 cursor-pointer disabled:opacity-50"
-                  >
-                    <option value="" disabled>Set Status...</option>
-                    {statusOptions.map(o => (
-                      <option key={String(o)} value={String(o)} className="bg-[#161B22] text-white">
-                        {String(o)}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronRight className="absolute right-3 top-1/2 h-3 w-3 -translate-y-1/2 text-[#C6A66B] rotate-90 pointer-events-none" />
-                </div>
-                {promotingId === selectedDeal.id && (
-                  <RefreshCw className="w-4 h-4 text-[#C6A66B] animate-spin" />
-                )}
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={(e) => {
-                      setIsModalOpen(false);
-                      openEditModal(selectedDeal, e);
-                    }}
-                    className="h-9 px-4 rounded-xl border border-white/[0.05] bg-white/[0.02] text-xs font-bold text-white hover:bg-white/[0.05] transition"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={handleDeleteDeal}
-                    className="h-9 px-4 rounded-xl border border-rose-500/20 bg-rose-500/10 text-xs font-bold text-rose-500 hover:bg-rose-500/20 transition"
-                  >
-                    Delete
-                  </button>
-                </div>
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title="Deal Inbox Detail"
+        maxWidth="max-w-4xl"
+        subHeader={selectedDeal && (
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white/[0.01] p-4 rounded-xl border border-white/[0.03] min-w-0">
+            <div className="min-w-0 w-full sm:w-auto flex-1 pr-4">
+              <h2 className="text-lg font-bold text-white flex items-center gap-2 break-words whitespace-normal leading-tight">
+                {getCompanyName(selectedDeal.fields)}
+              </h2>
+              <div className="text-xs text-slate-400 font-medium mt-1 truncate">
+                Ref: {selectedDeal.fields["REF. NO"] || "N/A"}
               </div>
             </div>
+            <div className="flex items-center gap-3 w-full sm:w-auto shrink-0 flex-wrap">
+              <div className="relative w-full sm:w-auto">
+                <select
+                  value={selectedDeal.fields.Status || ""}
+                  onChange={handleStatusChange}
+                  disabled={isUpdatingStatus || promotingId === selectedDeal.id}
+                  className="h-9 w-full appearance-none rounded-xl border border-[#C6A66B]/30 bg-[#C6A66B]/10 pl-4 pr-10 text-xs font-bold text-[#C6A66B] uppercase tracking-wider outline-none transition hover:bg-[#C6A66B]/20 cursor-pointer disabled:opacity-50"
+                >
+                  <option value="" disabled>Set Status...</option>
+                  {statusOptions.map(o => (
+                    <option key={String(o)} value={String(o)} className="bg-[#161B22] text-white">
+                      {String(o)}
+                    </option>
+                  ))}
+                </select>
+                <ChevronRight className="absolute right-3 top-1/2 h-3 w-3 -translate-y-1/2 text-[#C6A66B] rotate-90 pointer-events-none" />
+              </div>
+              {promotingId === selectedDeal.id && (
+                <RefreshCw className="w-4 h-4 text-[#C6A66B] animate-spin" />
+              )}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={(e) => {
+                    setIsModalOpen(false);
+                    openEditModal(selectedDeal, e);
+                  }}
+                  className="h-9 px-4 rounded-xl border border-white/[0.05] bg-white/[0.02] text-xs font-bold text-white hover:bg-white/[0.05] transition"
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={handleDeleteDeal}
+                  className="h-9 px-4 rounded-xl border border-rose-500/20 bg-rose-500/10 text-xs font-bold text-rose-500 hover:bg-rose-500/20 transition"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      >
+        {selectedDeal && (
+          <div className="space-y-6 min-w-0">
 
             {/* AI Verdict Premium Card */}
             {selectedDeal.fields["AI_Verdict"] && (
@@ -681,8 +687,14 @@ export function DealInboxPage() {
         isOpen={isAddModalOpen || isEditModalOpen} 
         onClose={() => { setIsAddModalOpen(false); setIsEditModalOpen(false); }} 
         title={isAddModalOpen ? "Add New Deal to Inbox" : "Edit Deal"}
+        onSubmit={handleSaveDeal}
+        footer={(
+          <button type="submit" disabled={submittingDeal || isUploading} className="w-full flex items-center justify-center h-10 bg-acp-bronze hover:bg-acp-bronze-dark text-white rounded-xl text-xs font-bold uppercase tracking-wider transition disabled:opacity-50 cursor-pointer">
+            {submittingDeal || isUploading ? "Saving..." : "Save Deal"}
+          </button>
+        )}
       >
-        <form onSubmit={handleSaveDeal} className="space-y-4 pr-2">
+        <div className="space-y-4 pr-1">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <FormField label="Reference No. (Optional)" id="modal-ref">
               <input id="modal-ref" type="text" value={formData.refNo} onChange={e => setFormData({...formData, refNo: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder:text-white/20 focus:outline-none focus:border-acp-bronze/50 transition-colors" placeholder="e.g. ACP-CFS-018" />
@@ -779,11 +791,7 @@ export function DealInboxPage() {
               )}
             </div>
           </FormField>
-
-          <button type="submit" disabled={submittingDeal || isUploading} className="w-full mt-6 flex items-center justify-center h-10 bg-acp-bronze hover:bg-acp-bronze-dark text-white rounded-xl text-xs font-bold uppercase tracking-wider transition disabled:opacity-50 cursor-pointer">
-            {submittingDeal || isUploading ? "Saving..." : "Save Deal"}
-          </button>
-        </form>
+        </div>
       </Modal>
 
     </div>

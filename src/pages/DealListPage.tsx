@@ -794,8 +794,19 @@ export function DealListPage() {
         onClose={() => setIsModalOpen(false)}
         title="Add New Deal to Pipeline"
         maxWidth="max-w-2xl"
+        onSubmit={handleCreateDeal}
+        footer={(
+          <>
+            <button type="button" onClick={() => { setIsModalOpen(false); setPendingFiles([]); }} className="h-9 px-4 rounded-xl border border-white/[0.02] text-slate-400 text-xs font-bold uppercase tracking-wider hover:bg-white/[0.015] transition cursor-pointer">
+              Cancel
+            </button>
+            <button type="submit" disabled={isSubmittingDeal || isUploadingFiles} className="h-9 px-5 rounded-xl bg-gradient-to-r from-[#C6A66B] to-[#B8924F] text-slate-950 text-xs font-bold uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none hover:shadow-glow-bronze transition cursor-pointer">
+              {isSubmittingDeal ? "Adding Deal..." : isUploadingFiles ? "Uploading Files..." : "Add Deal"}
+            </button>
+          </>
+        )}
       >
-        <form onSubmit={handleCreateDeal} className="space-y-5 font-sans">
+        <div className="space-y-5 font-sans">
           {dealSubmitError && (
             <div className="rounded-lg border border-rose-500/20 bg-rose-500/5 p-3 text-xs font-semibold text-rose-400 flex items-center gap-2">
               <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
@@ -993,15 +1004,7 @@ export function DealListPage() {
             </div>
           </div>
 
-          <div className="sticky bottom-[-24px] bg-[#161B22] flex justify-end gap-2.5 pt-4 pb-4 border-t border-white/[0.05] mt-6 -mx-6 px-6 z-10">
-            <button type="button" onClick={() => { setIsModalOpen(false); setPendingFiles([]); }} className="h-9 px-4 rounded-xl border border-white/[0.02] text-slate-400 text-xs font-bold uppercase tracking-wider hover:bg-white/[0.015] transition cursor-pointer">
-              Cancel
-            </button>
-            <button type="submit" disabled={isSubmittingDeal || isUploadingFiles} className="h-9 px-5 rounded-xl bg-gradient-to-r from-[#C6A66B] to-[#B8924F] text-slate-950 text-xs font-bold uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none hover:shadow-glow-bronze transition cursor-pointer">
-              {isSubmittingDeal ? "Adding Deal..." : isUploadingFiles ? "Uploading Files..." : "Add Deal"}
-            </button>
-          </div>
-        </form>
+        </div>
       </Modal>
     </div>
   );

@@ -1088,8 +1088,22 @@ export function DealDetailPage() {
       </Modal>
 
       {/* Edit Deal Modal */}
-      <Modal isOpen={isEditDealOpen} onClose={() => setIsEditDealOpen(false)} title="Edit Deal" maxWidth="max-w-2xl">
-        <form onSubmit={handleEditDealSubmit} className="space-y-5 font-sans max-h-[75vh] overflow-y-auto pr-1">
+      <Modal
+        isOpen={isEditDealOpen}
+        onClose={() => setIsEditDealOpen(false)}
+        title="Edit Deal"
+        maxWidth="max-w-2xl"
+        onSubmit={handleEditDealSubmit}
+        footer={(
+          <>
+            <button type="button" onClick={() => setIsEditDealOpen(false)} className="h-9 px-4 rounded-xl border border-white/[0.02] text-slate-400 text-xs font-bold uppercase tracking-wider hover:bg-white/[0.015] transition cursor-pointer">Cancel</button>
+            <button type="submit" disabled={isEditSaving} className="h-9 px-5 rounded-xl bg-gradient-to-r from-[#C6A66B] to-[#B8924F] text-slate-950 text-xs font-bold uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none hover:shadow-glow-bronze transition cursor-pointer">
+              {isEditSaving ? "Saving..." : "Save Changes"}
+            </button>
+          </>
+        )}
+      >
+        <div className="space-y-5 font-sans">
           {editError && (
             <div className="rounded-lg border border-rose-500/20 bg-rose-500/5 p-3 text-xs font-semibold text-rose-400 flex items-center gap-2">
               <AlertTriangle className="h-3.5 w-3.5 shrink-0" />{editError}
@@ -1258,13 +1272,7 @@ export function DealDetailPage() {
             </div>
           </div>
 
-          <div className="flex justify-end gap-2.5 pt-2 border-t border-white/[0.02]">
-            <button type="button" onClick={() => setIsEditDealOpen(false)} className="h-9 px-4 rounded-xl border border-white/[0.02] text-slate-400 text-xs font-bold uppercase tracking-wider hover:bg-white/[0.015] transition cursor-pointer">Cancel</button>
-            <button type="submit" disabled={isEditSaving} className="h-9 px-5 rounded-xl bg-gradient-to-r from-[#C6A66B] to-[#B8924F] text-slate-950 text-xs font-bold uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none hover:shadow-glow-bronze transition cursor-pointer">
-              {isEditSaving ? "Saving..." : "Save Changes"}
-            </button>
-          </div>
-        </form>
+        </div>
       </Modal>
 
       {/* Delete Confirmation Modal for Edit Modal IM Attachment */}
