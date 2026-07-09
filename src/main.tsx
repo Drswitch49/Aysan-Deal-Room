@@ -20,9 +20,7 @@ const AdminMessagesPage = lazy(() => import("./pages/AdminMessagesPage").then(m 
 const DealInboxPage = lazy(() => import("./pages/DealInboxPage").then(m => ({ default: m.DealInboxPage })));
 const CreateDealPage = lazy(() => import("./pages/CreateDealPage").then(m => ({ default: m.CreateDealPage })));
 const EditDealPage = lazy(() => import("./pages/EditDealPage").then(m => ({ default: m.EditDealPage })));
-const PortfolioManagementPage = lazy(() => import("./pages/PortfolioManagementPage").then(m => ({ default: m.PortfolioManagementPage })));
-const TeamManagementPage = lazy(() => import("./pages/TeamManagementPage").then(m => ({ default: m.TeamManagementPage })));
-const StakeholderManagementPage = lazy(() => import("./pages/StakeholderManagementPage").then(m => ({ default: m.StakeholderManagementPage })));
+
 const NotFoundPage = lazy(() => import("./pages/NotFoundPage").then(m => ({ default: m.NotFoundPage })));
 
 const PageLoading = () => (
@@ -99,9 +97,7 @@ const router = createBrowserRouter([
       { path: "admin/inbox", element: withSuspense(DealInboxPage) },
       { path: "deals/create", element: withSuspense(CreateDealPage) },
       { path: "deals/:id/edit", element: withSuspense(EditDealPage) },
-      { path: "admin/portfolio", element: withSuspense(PortfolioManagementPage) },
-      { path: "admin/team", element: withSuspense(TeamManagementPage) },
-      { path: "admin/stakeholders", element: withSuspense(StakeholderManagementPage) },
+
       { path: "*", element: withSuspense(NotFoundPage) },
     ],
   },
