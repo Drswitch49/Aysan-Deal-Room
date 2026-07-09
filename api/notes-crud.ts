@@ -65,7 +65,7 @@ export default async function handler(req: any, res: any) {
       if (!existing.records || existing.records.length === 0) {
         return res.status(404).json({ error: "Note not found" });
       }
-      if (existing.records[0].fields.Author_Email !== user.email && user.role !== "admin" && user.role !== "super admin") {
+      if (existing.records[0].fields.Author_Email !== user.email && user.role !== "admin" && user.role !== "super admin" && user.role !== "owner") {
         return res.status(403).json({ error: "You can only edit your own notes" });
       }
 
@@ -91,7 +91,7 @@ export default async function handler(req: any, res: any) {
       if (!existing.records || existing.records.length === 0) {
         return res.status(404).json({ error: "Note not found" });
       }
-      if (existing.records[0].fields.Author_Email !== user.email && user.role !== "admin" && user.role !== "super admin") {
+      if (existing.records[0].fields.Author_Email !== user.email && user.role !== "admin" && user.role !== "super admin" && user.role !== "owner") {
         return res.status(403).json({ error: "You can only delete your own notes" });
       }
 

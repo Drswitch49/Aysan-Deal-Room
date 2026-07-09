@@ -11,7 +11,7 @@ export interface AuthenticatedUser {
 /**
  * Define permissions for each role
  */
-const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
+const ROLE_PERMISSIONS: Partial<Record<UserRole, string[]>> = {
   "Managing Partner": [
     "view_deals",
     "create_deal",
@@ -81,6 +81,12 @@ export function hasPermission(
 ): boolean {
   if (user.status !== "Active") {
     return false;
+  }
+
+  // Super Admin / Owner bypass: they have all permissions
+  const roleLower = (user.role || "").toLowerCase();
+  if (roleLower === "super admin" || roleLower === "owner") {
+    return true;
   }
 
   // Direct lookup first (title-case match)

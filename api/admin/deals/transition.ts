@@ -112,7 +112,7 @@ export default async function handler(req: any, res: any) {
   }
 
   const userRole = req.user.role;
-  const validRoles = ["analyst", "manager", "admin", "managing partner", "partner"];
+  const validRoles = ["analyst", "manager", "admin", "managing partner", "partner", "super admin", "owner"];
   const cleanRole = (userRole || "").toLowerCase();
   if (!validRoles.includes(cleanRole)) {
     return res.status(400).json({
@@ -120,11 +120,21 @@ export default async function handler(req: any, res: any) {
     });
   }
 
+  // Normalize role to canonical roles ("analyst" | "manager" | "admin") for transition validator
+  let canonicalRole: "analyst" | "manager" | "admin" = "admin";
+  if (cleanRole === "analyst") {
+    canonicalRole = "analyst";
+  } else if (cleanRole === "manager") {
+    canonicalRole = "manager";
+  } else {
+    canonicalRole = "admin"; // super admin, owner, managing partner, partner are normalized to admin
+  }
+
   // ── Execute Transition ───────────────────────────────────────────────────
   try {
     const result = await moveDealToStage(dealId, matchedStage, {
       changedBy: req.user.email,
-      role: (validRoles.includes(cleanRole) ? cleanRole : "admin") as any,
+      role: canonicalRole,
       notes: String(notes || ""),
     });
 

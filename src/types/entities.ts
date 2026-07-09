@@ -76,7 +76,7 @@ export interface CreatePortfolioCompanyInput {
 }
 
 // Team Member entity types
-export type UserRole = "Managing Partner" | "Partner" | "Analyst" | "Admin" | "Read Only" | "HR" | "Stakeholder";
+export type UserRole = "Managing Partner" | "Partner" | "Analyst" | "Admin" | "Read Only" | "HR" | "Stakeholder" | "Super Admin" | "Owner" | "super admin" | "owner";
 export type UserStatus = "Active" | "Inactive";
 
 export interface TeamMember {

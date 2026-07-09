@@ -206,8 +206,14 @@ export default async function handler(req: any, res: any) {
         let ownerName = "Unassigned";
         let ownerInitials = "??";
         const collabs = rec.fields["Collaborator"] as any;
+        const rawOwner = rec.fields["Owner"] as any;
         if (collabs && Array.isArray(collabs) && collabs.length > 0) {
           ownerName = String(collabs[0]?.name || "Unassigned");
+        } else if (rawOwner) {
+          ownerName = typeof rawOwner === "string" ? rawOwner : String(rawOwner.name || "Unassigned");
+        }
+        
+        if (ownerName !== "Unassigned") {
           if (ownerName.includes("Ayodeji") || ownerName.includes("Ayo")) {
             ownerName = "Ayo";
           } else if (ownerName.toLowerCase().includes("dami") || ownerName.toLowerCase().includes("dallience")) {

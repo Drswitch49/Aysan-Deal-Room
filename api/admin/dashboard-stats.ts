@@ -37,9 +37,19 @@ function cleanCompanyName(name: string | undefined | null): string {
 const matchOwner = (dealFields: any, ownerName: string) => {
   if (ownerName === "All") return true;
   const collabs = dealFields["Collaborator"];
-  if (Array.isArray(collabs)) {
-    return collabs.some((c: any) => c.name && c.name.toLowerCase() === ownerName.toLowerCase());
+  const rawOwner = dealFields["Owner"];
+  
+  let actualOwner = "";
+  if (Array.isArray(collabs) && collabs.length > 0) {
+    actualOwner = collabs[0].name || "";
+  } else if (rawOwner) {
+    actualOwner = typeof rawOwner === "string" ? rawOwner : (rawOwner.name || "");
   }
+  
+  if (actualOwner && actualOwner.toLowerCase() === ownerName.toLowerCase()) {
+    return true;
+  }
+
   // Fallback checks for Ayo's specific deal like in original code
   if (ownerName.toLowerCase() === "ayo" && (dealFields["REF No."] === "ACP-CFS-001" || dealFields["Deal_Ref"] === "ACP-CFS-001")) {
     return true;
@@ -95,6 +105,11 @@ export default async function handler(req: any, res: any) {
         collabs.forEach((c: any) => {
           if (c.name) collaboratorsList.add(c.name);
         });
+      }
+      const rawOwner = rec.fields["Owner"];
+      if (rawOwner) {
+        const name = typeof rawOwner === "string" ? rawOwner : (rawOwner.name || "");
+        if (name) collaboratorsList.add(name);
       }
     });
     // Add default options if not present

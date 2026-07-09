@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { FormField, inputClass, selectClass, textareaClass } from "../ui/FormField";
 import { Upload, Loader2, Link as LinkIcon } from "lucide-react";
 import type { CreateDealInput } from "../../types/entities";
+import { SearchableDropdown } from "../ui/SearchableDropdown";
+import { hasPermission } from "../../lib/rbac";
 
 export interface DealFormProps {
   initialData?: Partial<CreateDealInput>;
@@ -10,6 +12,46 @@ export interface DealFormProps {
 }
 
 export function DealForm({ initialData, onSubmit, isLoading }: DealFormProps) {
+  const [teamMembers, setTeamMembers] = useState<any[]>([]);
+
+  useEffect(() => {
+    const loadTeamMembers = async () => {
+      try {
+        const res = await fetch("/api/team-members-crud");
+        if (res.ok) {
+          const data = await res.json();
+          setTeamMembers(data || []);
+        }
+      } catch (err) {
+        console.error("Failed to load team members:", err);
+      }
+    };
+    loadTeamMembers();
+  }, []);
+
+  const eligibleUsers = useMemo(() => {
+    const list = teamMembers
+      .filter((member: any) => {
+        const fields = member.fields || {};
+        const tempUser = {
+          id: member.id,
+          email: fields.Email || "",
+          name: fields.Name || "",
+          role: fields.Role,
+          status: fields.Status || "Active"
+        };
+        return fields.Status !== "Inactive" && hasPermission(tempUser as any, "edit_deal");
+      })
+      .map((member: any) => member.fields.Name)
+      .filter(Boolean);
+
+    // Fallback list of users if API is loading or empty
+    if (list.length === 0) {
+      return ["Ayo Yusuf", "Prince Realo", "Dami", "Chante"];
+    }
+    return list;
+  }, [teamMembers]);
+
   const [formData, setFormData] = useState<CreateDealInput>({
     companyName: initialData?.companyName || "",
     projectName: initialData?.projectName || "",
@@ -118,10 +160,26 @@ export function DealForm({ initialData, onSubmit, isLoading }: DealFormProps) {
         <h3 className="text-xs font-bold uppercase tracking-widest text-[#C6A66B]">Ownership & Sourcing</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <FormField label="Owner" id="owner" required>
-            <input name="owner" id="owner" required value={formData.owner} onChange={handleChange} className={inputClass} />
+            <SearchableDropdown
+              id="owner"
+              name="owner"
+              required
+              value={formData.owner}
+              onChange={(val) => setFormData((prev) => ({ ...prev, owner: val }))}
+              options={eligibleUsers}
+              placeholder="Select Deal Owner"
+            />
           </FormField>
           <FormField label="Analyst" id="analyst" required>
-            <input name="analyst" id="analyst" required value={formData.analyst} onChange={handleChange} className={inputClass} />
+            <SearchableDropdown
+              id="analyst"
+              name="analyst"
+              required
+              value={formData.analyst}
+              onChange={(val) => setFormData((prev) => ({ ...prev, analyst: val }))}
+              options={eligibleUsers}
+              placeholder="Select Analyst"
+            />
           </FormField>
           <FormField label="Source" id="source" required>
             <input name="source" id="source" required value={formData.source} onChange={handleChange} className={inputClass} />

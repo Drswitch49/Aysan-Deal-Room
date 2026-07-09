@@ -20,3 +20,6 @@ scripts/playwright-auth.session.json
 # Local portable helpers
 git-local.cmd
 git-local.ps1
+
+# SSH key overrides
+dealroom@aysancapital.com001*

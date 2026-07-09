@@ -15,6 +15,8 @@ import { LoadingState } from "../components/ui/LoadingState";
 import { Modal } from "../components/ui/Modal";
 import { FormField, inputClass, selectClass, textareaClass } from "../components/ui/FormField";
 import { DealKanban } from "../components/deals/DealKanban";
+import { SearchableDropdown } from "../components/ui/SearchableDropdown";
+import { hasPermission } from "../lib/rbac";
 
 export function DealListPage() {
   const navigate = useNavigate();
@@ -65,6 +67,46 @@ export function DealListPage() {
   const [pendingFiles, setPendingFiles] = useState<Array<{ fileName: string; fileType: string; fileData: string }>>([]);
   const [isUploadingFiles, setIsUploadingFiles] = useState(false);
   const [dragActive, setDragActive] = useState(false);
+
+  const [teamMembers, setTeamMembers] = useState<any[]>([]);
+
+  useEffect(() => {
+    const loadTeamMembers = async () => {
+      try {
+        const res = await fetch("/api/team-members-crud");
+        if (res.ok) {
+          const data = await res.json();
+          setTeamMembers(data || []);
+        }
+      } catch (err) {
+        console.error("Failed to load team members:", err);
+      }
+    };
+    loadTeamMembers();
+  }, []);
+
+  const eligibleUsers = useMemo(() => {
+    const list = teamMembers
+      .filter((member: any) => {
+        const fields = member.fields || {};
+        const tempUser = {
+          id: member.id,
+          email: fields.Email || "",
+          name: fields.Name || "",
+          role: fields.Role,
+          status: fields.Status || "Active"
+        };
+        return fields.Status !== "Inactive" && hasPermission(tempUser as any, "edit_deal");
+      })
+      .map((member: any) => member.fields.Name)
+      .filter(Boolean);
+
+    // Fallback list of users if API is loading or empty
+    if (list.length === 0) {
+      return ["Ayo Yusuf", "Prince Realo", "Dami", "Chante"];
+    }
+    return list;
+  }, [teamMembers]);
 
   useEffect(() => {
     if (searchParams.get("create") === "true") {
@@ -790,10 +832,22 @@ export function DealListPage() {
             <p className="text-[9px] font-extrabold uppercase tracking-widest text-slate-500">Ownership</p>
             <div className="grid grid-cols-3 gap-3">
               <FormField label="Owner" id="new-deal-owner">
-                <input id="new-deal-owner" type="text" value={newDealOwner} onChange={(e) => setNewDealOwner(e.target.value)} placeholder="e.g. Ayo Yusuf" className={inputClass} />
+                <SearchableDropdown
+                  id="new-deal-owner"
+                  value={newDealOwner}
+                  onChange={(val) => setNewDealOwner(val)}
+                  options={eligibleUsers}
+                  placeholder="Select Deal Owner"
+                />
               </FormField>
               <FormField label="Analyst" id="new-deal-analyst">
-                <input id="new-deal-analyst" type="text" value={newDealAnalyst} onChange={(e) => setNewDealAnalyst(e.target.value)} placeholder="e.g. Prince Realo" className={inputClass} />
+                <SearchableDropdown
+                  id="new-deal-analyst"
+                  value={newDealAnalyst}
+                  onChange={(val) => setNewDealAnalyst(val)}
+                  options={eligibleUsers}
+                  placeholder="Select Analyst"
+                />
               </FormField>
               <FormField label="Source" id="new-deal-source">
                 <input id="new-deal-source" type="text" value={newDealSource} onChange={(e) => setNewDealSource(e.target.value)} placeholder="e.g. Broker / Direct" className={inputClass} />

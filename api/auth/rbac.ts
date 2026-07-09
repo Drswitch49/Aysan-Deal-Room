@@ -34,8 +34,8 @@ export async function requireRole(req: any, res: any, allowedRoles: string[]) {
 
   const userRole = (decoded.role as string).toLowerCase();
 
-  // Super admin bypasses all role checks
-  if (userRole === ROLES.SUPER_ADMIN) {
+  // Super admin / Owner bypasses all role checks
+  if (userRole === ROLES.SUPER_ADMIN || userRole === "owner") {
     req.user = decoded;
     return decoded;
   }
