@@ -13,6 +13,23 @@ import { cx } from "../utils/cx";
 import { usePipeline } from "../context/PipelineContext";
 import { ManualNotesTab } from "../components/deals/ManualNotesTab";
 
+// Helper to parse collaborator email or name safely
+const getOwnerName = (ownerField: any) => {
+  if (!ownerField) return "";
+  if (typeof ownerField === "string") return ownerField.trim();
+  if (Array.isArray(ownerField)) {
+    const first = ownerField[0];
+    if (first && typeof first === "object") {
+      return first.name || first.email || "";
+    }
+    return String(first || "").trim();
+  }
+  if (typeof ownerField === "object") {
+    return ownerField.name || ownerField.email || "";
+  }
+  return String(ownerField).trim();
+};
+
 // Helper to map and group raw statuses
 const getGroupedStatus = (status: string) => {
   const s = (status || "").trim();
@@ -120,7 +137,7 @@ export function DealInboxPage() {
       contactName: deal.fields["Contact_Name"] || "",
       contactEmail: deal.fields["Contact_Email"] || "",
       contactPhone: deal.fields["Contact_Phone"] || "",
-      owner: deal.fields["Owner"] || ""
+      owner: getOwnerName(deal.fields["Owner"]) || getOwnerName(deal.fields["Assigned To"]) || ""
     });
     setIsEditModalOpen(true);
   };
@@ -167,6 +184,7 @@ export function DealInboxPage() {
         "REF. NO": formData.refNo,
         "Deal Name": formData.dealName,
         "Company Name": formData.companyName,
+        "Company_Name": formData.companyName,
         "Sector": formData.sector,
         "Location": formData.location,
         "BROKER": formData.broker,
@@ -181,6 +199,7 @@ export function DealInboxPage() {
         "Contact_Email": formData.contactEmail,
         "Contact_Phone": formData.contactPhone,
         "Owner": formData.owner,
+        "Assigned To": formData.owner,
         "IM_Review_Documents": formData.imReviewDoc ? [{ url: formData.imReviewDoc }] : [],
         "Attachments": formData.imReviewDoc ? [{ url: formData.imReviewDoc }] : []
       };
@@ -474,7 +493,7 @@ export function DealInboxPage() {
                       </td>
                       <td className="px-5 py-4 text-right select-none">
                         <span className="inline-flex items-center rounded-full bg-blue-500/5 border border-blue-500/25 px-2.5 py-1 text-[10px] font-bold text-blue-400">
-                          {fields.Owner || "Unassigned"}
+                          {getOwnerName(fields.Owner) || getOwnerName(fields["Assigned To"]) || "Unassigned"}
                         </span>
                       </td>
                     </tr>
