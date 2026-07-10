@@ -18,7 +18,7 @@
 *   admin    → all stages
 */
 
-import { airtableFetchRecord, airtableUpdate, airtableCreate } from "../_utils/airtable.js";
+import { airtableFetchRecord, airtableUpdate, airtableCreate, airtableDelete } from "../_utils/airtable.js";
 import { TABLES } from "../../src/lib/airtable/schema.js";
 import { emitEvent } from "../_events/emit.js";
 
@@ -329,22 +329,59 @@ export async function moveDealToStage(
     );
   }
 
-  // ── 4. Update Active_Pipeline record ─────────────────────────────────────
-  const updateFields: any = {
-    Stage: exactToStage,
-    Stage_Updated_At: timestamp,
-    Workflow_Stage: exactToStage.toUpperCase().replace(/[^A-Z0-9]/g, "_"),
-  };
+  // ── 4. Update or Move/Delete Active_Pipeline record ──────────────────────
+  if (exactToStage === "Killed") {
+    // Map Active_Pipeline fields back to Deal_Inbox fields
+    const inboxFields: any = {
+      "REF. NO": fields["ACP REF NO"] || fields["Deal_Ref"] || fields["REF No."] || "",
+      "Deal Name": fields["Deal Name"] || "Unknown Deal",
+      "Company Name": fields["Company_Name"] || fields["Company Name"] || fields["Deal Name"] || "",
+      "Sector": fields["Industry"] || fields["Sector"] || "",
+      "Location": fields["Location"] || "",
+      "BROKER": fields["Broker_Name"] || fields["Broker"] || "",
+      "Status": "Kill",
+      "Summary": fields["Executive_Summary"] || fields["Summary"] || "",
+      "Description": fields["Business_Description"] || fields["Description"] || "",
+      "EBITDA_GBP": fields["EBITDA_GBP"] || fields["EBITDA"] || undefined,
+      "Turnover": fields["Turnover"] || fields["Revenue"] || undefined,
+      "Asking_Price_GBP": fields["Asking_Price_GBP"] || fields["Asking Price"] || undefined,
+      "Enterprise_Value": fields["Enterprise_Value"] || undefined,
+      "Contact_Name": fields["Broker_Name"] || fields["Contact_Name"] || "",
+      "Contact_Email": fields["Broker_Email"] || fields["Contact_Email"] || fields["Contact Email"] || "",
+      "Contact_Phone": fields["Broker_Phone"] || fields["Contact_Phone"] || fields["Contact Phone"] || "",
+      "Source": fields["Source"] || "Active Pipeline",
+    };
 
-  // Auto-route to Due Diligence owner
-  if (exactToStage === "Due Diligence") {
-    // We update the Owner or Collaborator fields. Since Airtable uses 'Owner' or 'Collaborator' as text fields for simple assignment,
-    // we'll set both to 'Dallience' to ensure it's picked up.
-    updateFields["Collaborator"] = "Dallience";
-    updateFields["Owner"] = "Dallience";
+    // Keep attachments / IM documents
+    if (fields["IM_Review_Documents"]) {
+      inboxFields["IM_Review_Documents"] = fields["IM_Review_Documents"];
+    }
+    if (fields["Attachments"]) {
+      inboxFields["Attachments"] = fields["Attachments"];
+    }
+
+    // 1. Create in Deal_Inbox
+    await airtableCreate(TABLES.DEAL_INBOX, inboxFields);
+
+    // 2. Delete from Active_Pipeline
+    await airtableDelete(TABLES.PIPELINE, dealId);
+  } else {
+    const updateFields: any = {
+      Stage: exactToStage,
+      Stage_Updated_At: timestamp,
+      Workflow_Stage: exactToStage.toUpperCase().replace(/[^A-Z0-9]/g, "_"),
+    };
+
+    // Auto-route to Due Diligence owner
+    if (exactToStage === "Due Diligence") {
+      // We update the Owner or Collaborator fields. Since Airtable uses 'Owner' or 'Collaborator' as text fields for simple assignment,
+      // we'll set both to 'Dallience' to ensure it's picked up.
+      updateFields["Collaborator"] = "Dallience";
+      updateFields["Owner"] = "Dallience";
+    }
+
+    await airtableUpdate(TABLES.PIPELINE, dealId, updateFields);
   }
-
-  await airtableUpdate(TABLES.PIPELINE, dealId, updateFields);
 
   // ── 5. Create immutable audit record in Deal_Stage_History ────────────────
   let auditId = `audit-${Date.now()}`;

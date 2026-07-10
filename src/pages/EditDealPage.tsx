@@ -38,6 +38,13 @@ export function EditDealPage() {
   const handleSubmit = async (data: CreateDealInput) => {
     if (!id) return;
     
+    if (data.stage === "Killed") {
+      const confirmed = window.confirm(
+        "Are you sure you want to kill this deal? It will be moved to the Deal Inbox under 'Kill' and permanently removed from the Active Pipeline."
+      );
+      if (!confirmed) return;
+    }
+
     setIsLoading(true);
     setError(null);
     try {

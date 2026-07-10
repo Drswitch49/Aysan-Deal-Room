@@ -419,6 +419,14 @@ export function DealDetailPage() {
   const handleTransitionSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!targetStage || !joinedDeal) return;
+
+    if (targetStage === "Killed") {
+      const confirmed = window.confirm(
+        "Are you sure you want to kill this deal? It will be moved to the Deal Inbox under 'Kill' and permanently removed from the Active Pipeline."
+      );
+      if (!confirmed) return;
+    }
+
     setIsTransitioning(true);
     setTransitionError(null);
     try {

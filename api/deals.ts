@@ -2,7 +2,43 @@ import { airtableFetchAll } from "../src/lib/airtable/client.js";
 import { TABLES } from "../src/lib/airtable/schema.js";
 import { mapPipelineDeal, mapDocument, mapSubmissionLogEntry } from "../src/lib/airtable/mapper.js";
 import { authenticateAdmin } from "./admin/lenders.js";
-import { airtableCreate, airtableUpdate } from "./_utils/airtable.js";
+import { airtableCreate, airtableUpdate, airtableDelete } from "./_utils/airtable.js";
+
+async function migrateKilledDeals(killedRecords: any[]) {
+  for (const record of killedRecords) {
+    const f = record.fields;
+    const inboxFields: any = {
+      "REF. NO": f["ACP REF NO"] || f["Deal_Ref"] || f["REF No."] || "",
+      "Deal Name": f["Deal Name"] || "Unknown Deal",
+      "Company Name": f["Company_Name"] || f["Company Name"] || f["Deal Name"] || "",
+      "Sector": f["Industry"] || f["Sector"] || "",
+      "Location": f["Location"] || "",
+      "BROKER": f["Broker_Name"] || f["Broker"] || "",
+      "Status": "Kill",
+      "Summary": f["Executive_Summary"] || f["Summary"] || "",
+      "Description": f["Business_Description"] || f["Description"] || "",
+      "EBITDA_GBP": f["EBITDA_GBP"] || f["EBITDA"] || undefined,
+      "Turnover": f["Turnover"] || f["Revenue"] || undefined,
+      "Asking_Price_GBP": f["Asking_Price_GBP"] || f["Asking Price"] || undefined,
+      "Enterprise_Value": f["Enterprise_Value"] || undefined,
+      "Contact_Name": f["Broker_Name"] || f["Contact_Name"] || "",
+      "Contact_Email": f["Broker_Email"] || f["Contact_Email"] || f["Contact Email"] || "",
+      "Contact_Phone": f["Broker_Phone"] || f["Contact_Phone"] || f["Contact Phone"] || "",
+      "Source": f["Source"] || "Active Pipeline",
+    };
+
+    if (f["IM_Review_Documents"]) inboxFields["IM_Review_Documents"] = f["IM_Review_Documents"];
+    if (f["Attachments"]) inboxFields["Attachments"] = f["Attachments"];
+
+    try {
+      await airtableCreate(TABLES.DEAL_INBOX, inboxFields);
+      await airtableDelete(TABLES.PIPELINE, record.id);
+      console.log(`[Migration] Successfully migrated killed deal ${record.id} to Inbox.`);
+    } catch (err) {
+      console.error(`[Migration] Failed to migrate killed deal ${record.id}:`, err);
+    }
+  }
+}
 
 // Helper to strip raw Airtable mention markup from text
 function cleanAirtableMentions(text: string | undefined | null): string {
@@ -101,6 +137,15 @@ export default async function handler(req: any, res: any) {
         pipelineDeals = cachedDeals.data;
       } else {
         const responseDeals = await airtableFetchAll(TABLES.PIPELINE);
+        const recordsToMigrate = responseDeals.records.filter((rec: any) => {
+          const stage = String(rec.fields?.["Stage"] || rec.fields?.["Status"] || "").toLowerCase();
+          return stage === "killed" || stage === "dead";
+        });
+        if (recordsToMigrate.length > 0) {
+          await migrateKilledDeals(recordsToMigrate);
+          const refetchedDeals = await airtableFetchAll(TABLES.PIPELINE);
+          responseDeals.records = refetchedDeals.records;
+        }
         pipelineDeals = responseDeals.records.map((rec: any) => mapPipelineDeal(rec.id, rec.fields));
         cache["deals"] = {
           timestamp: Date.now(),
@@ -172,13 +217,24 @@ export default async function handler(req: any, res: any) {
         airtableFetchAll(TABLES.POSTCALL_BRIEFS).catch(() => ({ records: [] }))
       ]);
 
+      let dealsRecords = dealsRes.records;
+      const recordsToMigrate = dealsRecords.filter((rec: any) => {
+        const stage = String(rec.fields?.["Stage"] || rec.fields?.["Status"] || "").toLowerCase();
+        return stage === "killed" || stage === "dead";
+      });
+      if (recordsToMigrate.length > 0) {
+        await migrateKilledDeals(recordsToMigrate);
+        const refetchedDeals = await airtableFetchAll(TABLES.PIPELINE);
+        dealsRecords = refetchedDeals.records;
+      }
+
       const inbox = inboxRes.records.map((rec: any) => ({ id: rec.id, fields: rec.fields }));
       const docs = docsRes.records;
       const precallBriefs = precallBriefsRes.records;
       const postcallBriefs = postcallBriefsRes.records;
       const todayStr = new Date().toISOString().split("T")[0];
 
-      results = dealsRes.records.map((rec: any) => {
+      results = dealsRecords.map((rec: any) => {
         const deal = mapPipelineDeal(rec.id, rec.fields);
         
         // Find matching Deal_Inbox record

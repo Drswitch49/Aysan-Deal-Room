@@ -14,7 +14,7 @@ export interface Deal {
   ebitda?: number;
   enterpriseValue?: number;
   askingPrice?: number;
-  stage: "Inbound" | "Seller Call" | "IM Review" | "Due Diligence" | "LOI" | "Under Offer" | "Closed" | "Archived";
+  stage: "Inbound" | "Seller Call" | "IM Review" | "Due Diligence" | "LOI" | "Under Offer" | "Closed" | "Archived" | "Killed";
   nextAction?: string;
   dueDate?: string;
   internalNotes?: string;

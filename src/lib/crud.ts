@@ -1,5 +1,6 @@
-import { airtableFetchAll, airtableCreate, airtableUpdate, airtableFetchRecord } from "./airtable/client.js";
+import { airtableFetchAll, airtableCreate, airtableUpdate, airtableFetchRecord, airtableDelete } from "./airtable/client.js";
 import { ensureTable } from "./airtable/schema-manager.js";
+import { TABLES } from "./airtable/schema.js";
 import type { Deal, CreateDealInput, PortfolioCompany, CreatePortfolioCompanyInput } from "../types/entities.js";
 
 /**
@@ -73,6 +74,71 @@ export async function updateDeal(dealId: string, updates: Partial<CreateDealInpu
   }
   if (updates.financialPackUrl !== undefined) {
     fields.Attachments = updates.financialPackUrl ? [{ url: updates.financialPackUrl }] : [];
+  }
+
+  // If the stage is updated to Killed, migrate this deal to the Inbox and delete it from all pipeline tables
+  if (updates.stage && String(updates.stage).toLowerCase() === "killed") {
+    // 1. Fetch current deal to map remaining fields
+    const dealRecord = await airtableFetchRecord("Deals", dealId).catch(() => null);
+    const f = dealRecord ? (dealRecord.fields as Record<string, any>) : {};
+
+    const inboxFields: Record<string, any> = {
+      "REF. NO": f.Deal_Ref || f["ACP REF NO"] || "",
+      "Deal Name": updates.companyName || f.Company_Name || "Unknown Deal",
+      "Company Name": updates.companyName || f.Company_Name || "",
+      "Sector": updates.industry || f.Industry || "",
+      "Location": updates.location || f.Location || "",
+      "BROKER": f.Broker_Name || f.Broker || "",
+      "Status": "Kill",
+      "Summary": updates.internalNotes || f.Internal_Notes || "",
+      "Description": updates.internalNotes || f.Internal_Notes || "",
+      "EBITDA_GBP": updates.ebitda !== undefined ? updates.ebitda : f.EBITDA,
+      "Turnover": updates.revenue !== undefined ? updates.revenue : f.Revenue,
+      "Asking_Price_GBP": updates.askingPrice !== undefined ? updates.askingPrice : f.Asking_Price,
+      "Enterprise_Value": updates.enterpriseValue !== undefined ? updates.enterpriseValue : f.Enterprise_Value,
+      "Contact_Name": f.Broker_Name || "",
+      "Contact_Email": f.Contact_Email || "",
+      "Contact_Phone": f.Contact_Phone || "",
+      "Source": updates.source || f.Source || "Active Pipeline",
+    };
+
+    if (f.IM_Review_Documents) inboxFields["IM_Review_Documents"] = f.IM_Review_Documents;
+    if (f.Attachments) inboxFields["Attachments"] = f.Attachments;
+
+    // 2. Create in Deal_Inbox
+    await airtableCreate(TABLES.DEAL_INBOX || "Deal_Inbox", inboxFields);
+
+    // 3. Delete from Deals
+    await airtableDelete("Deals", dealId);
+
+    // 4. Delete from Active_Pipeline (just in case)
+    try {
+      await airtableDelete(TABLES.PIPELINE || "Active_Pipeline", dealId);
+    } catch {}
+
+    // Return a dummy deal entity mapping to avoid breaks
+    return {
+      id: dealId,
+      dealRef: f.Deal_Ref || "",
+      companyName: updates.companyName || f.Company_Name || "",
+      projectName: updates.projectName || f.Project_Name || "",
+      industry: updates.industry || f.Industry || "",
+      website: updates.website || f.Website || "",
+      location: updates.location || f.Location || "",
+      owner: updates.owner || f.Owner || "",
+      analyst: updates.analyst || f.Analyst || "",
+      source: updates.source || f.Source || "",
+      revenue: updates.revenue !== undefined ? updates.revenue : (f.Revenue || 0),
+      ebitda: updates.ebitda !== undefined ? updates.ebitda : (f.EBITDA || 0),
+      enterpriseValue: updates.enterpriseValue !== undefined ? updates.enterpriseValue : (f.Enterprise_Value || 0),
+      askingPrice: updates.askingPrice !== undefined ? updates.askingPrice : (f.Asking_Price || 0),
+      stage: "Killed",
+      nextAction: updates.nextAction || f.Next_Action || "",
+      dueDate: updates.dueDate || f.Due_Date || "",
+      internalNotes: updates.internalNotes || f.Internal_Notes || "",
+      createdAt: "",
+      updatedAt: ""
+    };
   }
 
   const record = await airtableUpdate("Deals", dealId, fields);
