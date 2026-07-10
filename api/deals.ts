@@ -46,6 +46,22 @@ function cleanAirtableMentions(text: string | undefined | null): string {
   return text.replace(/<airtable:mention[^>]*>(@?[^<]+)<\/airtable:mention>/g, "$1");
 }
 
+function getOwnerName(ownerField: any): string {
+  if (!ownerField) return "";
+  if (typeof ownerField === "string") return ownerField.trim();
+  if (Array.isArray(ownerField)) {
+    const first = ownerField[0];
+    if (first && typeof first === "object") {
+      return first.name || first.email || "";
+    }
+    return String(first || "").trim();
+  }
+  if (typeof ownerField === "object") {
+    return ownerField.name || ownerField.email || "";
+  }
+  return String(ownerField).trim();
+}
+
 // Helper to extract the core company/deal name
 function cleanCompanyName(name: string | undefined | null): string {
   if (!name) return "";
@@ -305,26 +321,14 @@ export default async function handler(req: any, res: any) {
 
         // Collaborator details
         let ownerName = "Unassigned";
-        let ownerInitials = "??";
-        const collabs = rec.fields["Collaborator"] as any;
-        const rawOwner = rec.fields["Owner"] as any;
-        if (collabs && Array.isArray(collabs) && collabs.length > 0) {
-          ownerName = String(collabs[0]?.name || "Unassigned");
-        } else if (rawOwner) {
-          ownerName = typeof rawOwner === "string" ? rawOwner : String(rawOwner.name || "Unassigned");
-        }
-        
-        if (ownerName !== "Unassigned") {
-          if (ownerName.includes("Ayodeji") || ownerName.includes("Ayo")) {
-            ownerName = "Ayo";
-          } else if (ownerName.toLowerCase().includes("dami") || ownerName.toLowerCase().includes("dallience")) {
-            ownerName = "Dami";
-          } else if (ownerName.toLowerCase().includes("chante")) {
-            ownerName = "Chante";
-          } else if (ownerName.toLowerCase().includes("prince")) {
-            ownerName = "Prince";
+        let ownerInitials = "U";
+        const rawOwner = rec.fields["Owner"] || rec.fields["Collaborator"];
+        if (rawOwner) {
+          const parsed = getOwnerName(rawOwner);
+          if (parsed && parsed !== "Unassigned") {
+            ownerName = parsed;
+            ownerInitials = parsed.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2);
           }
-          ownerInitials = ownerName.slice(0, 2).toUpperCase();
         }
 
         // Next Action details
