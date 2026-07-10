@@ -733,6 +733,8 @@ export default async function handler(req: any, res: any) {
           nextAction: "Next Action",
           nextActionDate: "Next Action Date",
           internalNotes: "Internal_Notes",
+          businessDescription: "Business_Description",
+          executiveSummary: "Executive_Summary",
         };
 
         const airtableFields: Record<string, any> = {};
@@ -761,20 +763,28 @@ export default async function handler(req: any, res: any) {
 
         const updated = await airtableUpdate(TABLES.PIPELINE, dealId, airtableFields);
 
-        // Sync assignee change to Deal Inbox
+        // Sync changes (assignee, description, summary) to Deal Inbox
         try {
           const ownerVal = airtableFields["Owner"];
-          if (ownerVal !== undefined) {
+          const descVal = airtableFields["Business_Description"];
+          const summaryVal = airtableFields["Executive_Summary"];
+
+          if (ownerVal !== undefined || descVal !== undefined || summaryVal !== undefined) {
             const pipelineRec = await airtableFetchRecord(TABLES.PIPELINE, dealId);
             if (pipelineRec) {
+              const inboxUpdate: Record<string, any> = {};
+              if (ownerVal !== undefined) {
+                inboxUpdate["Owner"] = ownerVal;
+                inboxUpdate["Assigned To"] = ownerVal;
+              }
+              if (descVal !== undefined) inboxUpdate["Description"] = descVal;
+              if (summaryVal !== undefined) inboxUpdate["Summary"] = summaryVal;
+
               // 1. Sync via Deal_Inbox link
               const inboxLinks = pipelineRec.fields["Deal_Inbox"];
               if (inboxLinks && Array.isArray(inboxLinks) && inboxLinks.length > 0) {
                 for (const inboxId of inboxLinks) {
-                  await airtableUpdate(TABLES.DEAL_INBOX, inboxId, {
-                    "Owner": ownerVal,
-                    "Assigned To": ownerVal
-                  });
+                  await airtableUpdate(TABLES.DEAL_INBOX, inboxId, inboxUpdate);
                 }
               }
               // 2. Sync via REF. NO / Deal_Ref match fallback
@@ -786,16 +796,13 @@ export default async function handler(req: any, res: any) {
                   return String(ref).toLowerCase() === String(refNo).toLowerCase();
                 });
                 for (const m of matched) {
-                  await airtableUpdate(TABLES.DEAL_INBOX, m.id, {
-                    "Owner": ownerVal,
-                    "Assigned To": ownerVal
-                  });
+                  await airtableUpdate(TABLES.DEAL_INBOX, m.id, inboxUpdate);
                 }
               }
             }
           }
         } catch (syncErr) {
-          console.error("[Sync Error] Failed to sync Pipeline assignee to Inbox: ", syncErr);
+          console.error("[Sync Error] Failed to sync Pipeline updates to Inbox: ", syncErr);
         }
 
         await logAuditTrail(

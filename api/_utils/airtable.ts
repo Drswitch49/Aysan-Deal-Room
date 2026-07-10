@@ -26,6 +26,20 @@ export const TABLES = {
   DEAL_NOTES: "Deal_Notes"
 };
 
+const COMPUTED_FIELD_TYPES = new Set([
+  "formula",
+  "multipleLookupValues",
+  "rollup",
+  "count",
+  "createdTime",
+  "createdBy",
+  "lastModifiedTime",
+  "lastModifiedBy",
+  "button",
+  "autoNumber",
+  "externalLookup"
+]);
+
 export class AirtableError extends Error {
   status: number;
   type?: string;
@@ -141,6 +155,7 @@ export async function filterFieldsBySchema(tableName: string, fields: Record<str
     
     // Find matching field in the schema
     const matchingField = schema.fields.find((f: any) => {
+      if (COMPUTED_FIELD_TYPES.has(f.type)) return false;
       const cleanFieldName = f.name.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
       return cleanFieldName === cleanKey || 
              (cleanKey === "lenderid" && cleanFieldName === "lendersid") ||
