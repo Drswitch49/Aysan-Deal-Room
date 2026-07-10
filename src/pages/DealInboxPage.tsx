@@ -11,6 +11,7 @@ import { Modal } from "../components/ui/Modal";
 import { FormField } from "../components/ui/FormField";
 import { cx } from "../utils/cx";
 import { usePipeline } from "../context/PipelineContext";
+import { ManualNotesTab } from "../components/deals/ManualNotesTab";
 
 export function DealInboxPage() {
   const [inboxItems, setInboxItems] = useState<any[]>([]);
@@ -647,6 +648,11 @@ export function DealInboxPage() {
                   </div>
                 </div>
               )}
+
+              {/* Manual Notes Section */}
+              <div className="min-w-0 pt-6 border-t border-white/[0.05]">
+                <ManualNotesTab dealRef={selectedDeal.id} />
+              </div>
 
               {/* Attachments Section */}
               {(selectedDeal.fields["Attachments"] || selectedDeal.fields["IM_Review_Documents"]) && (
