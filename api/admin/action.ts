@@ -77,6 +77,22 @@ async function uploadToTempStorage(fileData: string, fileName: string, fileType:
   return uploadResult.data.url.replace("https://tmpfiles.org/", "https://tmpfiles.org/dl/");
 }
 
+const getOwnerName = (ownerField: any) => {
+  if (!ownerField) return "";
+  if (typeof ownerField === "string") return ownerField.trim();
+  if (Array.isArray(ownerField)) {
+    const first = ownerField[0];
+    if (first && typeof first === "object") {
+      return first.name || first.email || "";
+    }
+    return String(first || "").trim();
+  }
+  if (typeof ownerField === "object") {
+    return ownerField.name || ownerField.email || "";
+  }
+  return String(ownerField).trim();
+};
+
 export default async function handler(req: any, res: any) {
   if (req.method !== "POST") {
     return res.status(455).json({ error: "Method not allowed" });
@@ -225,7 +241,7 @@ export default async function handler(req: any, res: any) {
           "Asking_Price_GBP": f["Asking_Price_GBP"] || f["Asking Price"],
           "Location": f["Location"],
           "Deal_Type": f["Deal_Type"] || f["Deal Type"],
-          "Owner": f["Owner"] || undefined,
+          "Owner": getOwnerName(f["Owner"]) || getOwnerName(f["Assigned To"]) || undefined,
           "Stage": "Intro",
           "Workflow_Stage": "INTRO",
           "ACP REF NO": finalRef,
@@ -744,6 +760,43 @@ export default async function handler(req: any, res: any) {
         }
 
         const updated = await airtableUpdate(TABLES.PIPELINE, dealId, airtableFields);
+
+        // Sync assignee change to Deal Inbox
+        try {
+          const ownerVal = airtableFields["Owner"];
+          if (ownerVal !== undefined) {
+            const pipelineRec = await airtableFetchRecord(TABLES.PIPELINE, dealId);
+            if (pipelineRec) {
+              // 1. Sync via Deal_Inbox link
+              const inboxLinks = pipelineRec.fields["Deal_Inbox"];
+              if (inboxLinks && Array.isArray(inboxLinks) && inboxLinks.length > 0) {
+                for (const inboxId of inboxLinks) {
+                  await airtableUpdate(TABLES.DEAL_INBOX, inboxId, {
+                    "Owner": ownerVal,
+                    "Assigned To": ownerVal
+                  });
+                }
+              }
+              // 2. Sync via REF. NO / Deal_Ref match fallback
+              const refNo = pipelineRec.fields["REF No."] || pipelineRec.fields["ACP REF NO"] || pipelineRec.fields["Deal_Ref"];
+              if (refNo) {
+                const inboxDeals = await airtableFetch(TABLES.DEAL_INBOX);
+                const matched = inboxDeals.records.filter((r: any) => {
+                  const ref = r.fields["REF. NO"];
+                  return String(ref).toLowerCase() === String(refNo).toLowerCase();
+                });
+                for (const m of matched) {
+                  await airtableUpdate(TABLES.DEAL_INBOX, m.id, {
+                    "Owner": ownerVal,
+                    "Assigned To": ownerVal
+                  });
+                }
+              }
+            }
+          }
+        } catch (syncErr) {
+          console.error("[Sync Error] Failed to sync Pipeline assignee to Inbox: ", syncErr);
+        }
 
         await logAuditTrail(
           "UPDATE_DEAL",

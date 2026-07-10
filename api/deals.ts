@@ -2,7 +2,7 @@ import { airtableFetchAll } from "../src/lib/airtable/client.js";
 import { TABLES } from "../src/lib/airtable/schema.js";
 import { mapPipelineDeal, mapDocument, mapSubmissionLogEntry } from "../src/lib/airtable/mapper.js";
 import { authenticateAdmin } from "./admin/lenders.js";
-import { airtableCreate, airtableUpdate, airtableDelete } from "./_utils/airtable.js";
+import { airtableCreate, airtableUpdate, airtableDelete, airtableFetchRecord } from "./_utils/airtable.js";
 
 async function migrateKilledDeals(killedRecords: any[]) {
   for (const record of killedRecords) {
@@ -113,6 +113,40 @@ export default async function handler(req: any, res: any) {
         const { id } = req.query;
         if (!id) return res.status(400).json({ error: "Record ID required for PATCH" });
         const result = await airtableUpdate(targetTable, id, body.fields);
+
+        // Sync assignment changes to pipeline if updating inbox deal assignee
+        if (type === "inbox") {
+          try {
+            const ownerVal = body.fields["Owner"] || body.fields["Assigned To"];
+            if (ownerVal !== undefined) {
+              const inboxRec = await airtableFetchRecord(TABLES.DEAL_INBOX, id);
+              if (inboxRec) {
+                // 1. Sync via link
+                const activeLinks = inboxRec.fields["Active_Deal_Link"];
+                if (activeLinks && Array.isArray(activeLinks) && activeLinks.length > 0) {
+                  for (const activeId of activeLinks) {
+                    await airtableUpdate(TABLES.PIPELINE, activeId, { "Owner": ownerVal });
+                  }
+                }
+                // 2. Sync via REF. NO match fallback
+                const refNo = inboxRec.fields["REF. NO"];
+                if (refNo) {
+                  const pipeDeals = await airtableFetchAll(TABLES.PIPELINE);
+                  const matched = pipeDeals.records.filter((r: any) => {
+                    const ref = r.fields["REF No."] || r.fields["ACP REF NO"] || r.fields["Deal_Ref"] || "";
+                    return String(ref).toLowerCase() === String(refNo).toLowerCase();
+                  });
+                  for (const m of matched) {
+                    await airtableUpdate(TABLES.PIPELINE, m.id, { "Owner": ownerVal });
+                  }
+                }
+              }
+            }
+          } catch (syncErr) {
+            console.error("[Sync Error] Failed to sync Inbox assignee to Pipeline: ", syncErr);
+          }
+        }
+
         delete cache["deals"];
         delete cache["inbox"];
         delete cache["documents"];
