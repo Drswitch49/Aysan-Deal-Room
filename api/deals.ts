@@ -270,12 +270,13 @@ export default async function handler(req: any, res: any) {
     let results: any[];
     if (!type) {
       // Perform server-side joins & enrichments
-      const [dealsRes, inboxRes, docsRes, precallBriefsRes, postcallBriefsRes] = await Promise.all([
+      const [dealsRes, inboxRes, docsRes, precallBriefsRes, postcallBriefsRes, teamRes] = await Promise.all([
         airtableFetchAll(TABLES.PIPELINE),
         airtableFetchAll(TABLES.DEAL_INBOX).catch(() => ({ records: [] })),
         airtableFetchAll(TABLES.DOCUMENTS).catch(() => ({ records: [] })),
         airtableFetchAll(TABLES.PRECALL_BRIEFS).catch(() => ({ records: [] })),
-        airtableFetchAll(TABLES.POSTCALL_BRIEFS).catch(() => ({ records: [] }))
+        airtableFetchAll(TABLES.POSTCALL_BRIEFS).catch(() => ({ records: [] })),
+        airtableFetchAll(TABLES.TEAM).catch(() => ({ records: [] }))
       ]);
 
       let dealsRecords = dealsRes.records;
@@ -294,6 +295,16 @@ export default async function handler(req: any, res: any) {
       const precallBriefs = precallBriefsRes.records;
       const postcallBriefs = postcallBriefsRes.records;
       const todayStr = new Date().toISOString().split("T")[0];
+
+      const registeredTeamNames = (teamRes.records || [])
+        .filter((member: any) => member.fields?.Status !== "Inactive")
+        .map((member: any) => member.fields?.Name)
+        .filter(Boolean);
+
+      // Add default fallbacks just in case the database is empty or loading
+      if (registeredTeamNames.length === 0) {
+        registeredTeamNames.push("Ayo Yusuf", "Prince Realo", "Dami", "Chante");
+      }
 
       results = dealsRecords.map((rec: any) => {
         const deal = mapPipelineDeal(rec.id, rec.fields);
@@ -325,7 +336,7 @@ export default async function handler(req: any, res: any) {
         const rawOwner = rec.fields["Owner"] || rec.fields["Collaborator"];
         if (rawOwner) {
           const parsed = getOwnerName(rawOwner);
-          if (parsed && parsed !== "Unassigned") {
+          if (parsed && parsed !== "Unassigned" && registeredTeamNames.includes(parsed)) {
             ownerName = parsed;
             ownerInitials = parsed.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2);
           }

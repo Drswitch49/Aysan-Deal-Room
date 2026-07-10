@@ -739,10 +739,16 @@ export function DealListPage() {
 
                           {/* Owner Avatars */}
                           <td className="px-5 py-4 select-none">
-                            <div className="flex items-center gap-2">
-                              {getOwnerAvatar(deal.ownerInitials || "")}
-                              <span className="text-[10px] font-medium text-slate-400">{deal.ownerName}</span>
-                            </div>
+                            {deal.ownerName === "Unassigned" ? (
+                              <span className="inline-flex items-center rounded-full bg-blue-500/5 border border-blue-500/25 px-2.5 py-1 text-[10px] font-bold text-blue-400">
+                                Unassigned
+                              </span>
+                            ) : (
+                              <div className="flex items-center gap-2">
+                                {getOwnerAvatar(deal.ownerInitials || "")}
+                                <span className="text-[10px] font-medium text-slate-400">{deal.ownerName}</span>
+                              </div>
+                            )}
                           </td>
                         </tr>
                       );
