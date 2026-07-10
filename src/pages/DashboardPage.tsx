@@ -184,48 +184,30 @@ export function DashboardPage() {
           )}
 
           {/* Row 1 — Operational Telemetry (KPI Strip) */}
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-6">
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             <StatCard
               label="Deal Inbox"
               value={stats.inboxDealsCount ?? 0}
-              subLabel="Awaiting triage & promotion"
               tone="default"
               to="/admin/inbox"
             />
             <StatCard
               label="Reviewed Deals"
-              value={stats.reviewedDealsCount ?? 0}
-              subLabel="Total processed deals"
+              value={stats.reviewDealsCount ?? 0}
               tone="default"
-              to="/deals"
+              to="/admin/inbox?filter=Review"
             />
             <StatCard
               label="Active Pipeline"
               value={stats.activePipelineCount}
-              subLabel={`Inbound: ${stats.stageDistribution.inbound} · DD: ${stats.stageDistribution.dueDiligence}`}
               tone="default"
               to="/deals"
             />
             <StatCard
               label="Pending Actions"
-              value={stats.pendingActionsCount}
-              subLabel="Milestones scheduled"
+              value={stats.stageDistribution?.inbound ?? 0}
               tone="bronze"
-              to="/deals"
-            />
-            <StatCard
-              label="Deals in Due Diligence"
-              value={stats.ddDealsCount}
-              subLabel="Late-stage audit"
-              tone="default"
-              to="/deals"
-            />
-            <StatCard
-              label="LOIs Awaiting Response"
-              value={stats.loiTracker?.awaitingResponse ?? 0}
-              subLabel="Sent to seller / broker"
-              tone="default"
-              to="/deals"
+              to="/deals?stage=Inbound"
             />
           </div>
 

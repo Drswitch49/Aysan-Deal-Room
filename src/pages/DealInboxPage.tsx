@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { 
   Search, AlertTriangle, ChevronLeft, ChevronRight, Inbox, Plus, RefreshCw,
   Building2, MapPin, Briefcase, Mail, Phone, ExternalLink, Sparkles, FileText
@@ -23,13 +23,27 @@ const getGroupedStatus = (status: string) => {
 };
 
 export function DealInboxPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [inboxItems, setInboxItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { refresh: refreshPipeline } = usePipeline();
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeFilter, setActiveFilter] = useState("All Deals");
+  
+  const initialFilterParam = searchParams.get("filter");
+  const initialFilter = ["Inbox", "Active", "Kill", "Review", "All Deals"].includes(initialFilterParam || "") 
+    ? initialFilterParam! 
+    : "All Deals";
+
+  const [activeFilter, setActiveFilter] = useState(initialFilter);
+
+  useEffect(() => {
+    const filterParam = searchParams.get("filter");
+    if (filterParam && ["Inbox", "Active", "Kill", "Review", "All Deals"].includes(filterParam)) {
+      setActiveFilter(filterParam);
+    }
+  }, [searchParams]);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 

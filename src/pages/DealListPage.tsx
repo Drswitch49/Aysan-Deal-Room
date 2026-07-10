@@ -33,7 +33,15 @@ export function DealListPage() {
   const itemsPerPage = 8;
 
   // Stage filters selection (All, Inbound, Seller Call, IM Review, DD, Killed)
-  const [selectedStageFilter, setSelectedStageFilter] = useState("All");
+  const initialStage = searchParams.get("stage") || "All";
+  const [selectedStageFilter, setSelectedStageFilter] = useState(initialStage);
+
+  useEffect(() => {
+    const stageParam = searchParams.get("stage");
+    if (stageParam) {
+      setSelectedStageFilter(stageParam);
+    }
+  }, [searchParams]);
 
   // Filter Dropdown State
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);

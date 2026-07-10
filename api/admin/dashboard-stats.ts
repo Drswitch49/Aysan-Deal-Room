@@ -599,6 +599,10 @@ export default async function handler(req: any, res: any) {
         const s = (r.fields["Status"] || r.fields["Deal_Status"] || "").toLowerCase();
         return s !== "pending" && s !== "active";
       }).length,
+      reviewDealsCount: inboxRes.records.filter((r: any) => {
+        const s = String(r.fields["Status"] || r.fields["Deal_Status"] || "").toLowerCase().trim();
+        return s === "review";
+      }).length,
       activePipelineCount: filteredDeals.length,
       pendingActionsCount: filteredDeals.filter(d => d.fields["Next Action Date"]).length,
       ddDealsCount,
