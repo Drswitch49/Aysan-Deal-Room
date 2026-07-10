@@ -38,14 +38,14 @@ export function DealInboxPage() {
   const [isUploading, setIsUploading] = useState(false);
   
   const [formData, setFormData] = useState({
-    refNo: "", dealName: "", companyName: "", sector: "", location: "", broker: "", status: "Pending", imReviewDoc: "",
+    refNo: "", dealName: "", companyName: "", sector: "", location: "", broker: "", status: "Inbox", imReviewDoc: "",
     executiveSummary: "", businessDescription: "", ebitda: "", revenue: "", askingPrice: "", enterpriseValue: "", contactName: "", contactEmail: "", contactPhone: ""
   });
   const [submittingDeal, setSubmittingDeal] = useState(false);
 
   const openAddModal = () => {
     setFormData({ 
-      refNo: "", dealName: "", companyName: "", sector: "", location: "", broker: "", status: "Pending", imReviewDoc: "",
+      refNo: "", dealName: "", companyName: "", sector: "", location: "", broker: "", status: "Inbox", imReviewDoc: "",
       executiveSummary: "", businessDescription: "", ebitda: "", revenue: "", askingPrice: "", enterpriseValue: "", contactName: "", contactEmail: "", contactPhone: ""
     });
     setIsAddModalOpen(true);
@@ -62,7 +62,7 @@ export function DealInboxPage() {
       sector: deal.fields["Sector"] || "",
       location: deal.fields["Location"] || "",
       broker: deal.fields["Broker"] || deal.fields["BROKER"] || "",
-      status: deal.fields["Status"] || "Pending",
+      status: deal.fields["Status"] || "Inbox",
       executiveSummary: deal.fields["Summary"] || deal.fields["Description"] || deal.fields["Executive_Summary"] || "",
       businessDescription: deal.fields["Business_Description"] || "",
       ebitda: deal.fields["EBITDA_GBP"] || "",
@@ -149,12 +149,8 @@ export function DealInboxPage() {
     }
   };
 
-  // Dynamic status options from inbox items
-  const statusOptions = Array.from(new Set(inboxItems.map(item => item.fields?.Status).filter(Boolean)));
-  if (!statusOptions.includes("Active")) statusOptions.push("Active");
-  if (!statusOptions.includes("Passed")) statusOptions.push("Passed");
-  if (!statusOptions.includes("Review Required")) statusOptions.push("Review Required");
-  if (!statusOptions.includes("In Review")) statusOptions.push("In Review");
+  // Specific status options for Deal Inbox
+  const statusOptions = ["Active", "Kill", "Review", "Inbox"];
 
   useEffect(() => {
     fetchInbox();
@@ -242,12 +238,8 @@ export function DealInboxPage() {
     // Category Filter (based on status/stage)
     if (activeFilter !== "All Deals") {
       const rawStatus = fields["Status"];
-      const status = rawStatus?.trim();
-      if (activeFilter === "Other") {
-        if (status) return false;
-      } else {
-        if (status !== activeFilter) return false;
-      }
+      const groupedStatus = getGroupedStatus(rawStatus);
+      if (groupedStatus !== activeFilter) return false;
     }
 
     // Search Query
@@ -284,14 +276,21 @@ export function DealInboxPage() {
     return raw.replace(/^[A-Z0-9]+\s*[—\-:]\s*/i, "").trim();
   };
 
-  const dynamicCategories = Array.from(
-    new Set(
-      inboxItems
-        .map((item) => item.fields?.["Status"]?.trim())
-        .filter(Boolean)
-    )
-  ).sort();
-  const filters = ["All Deals", ...dynamicCategories, "Other"];
+  // Helper to map and group raw statuses
+  const getGroupedStatus = (status: string) => {
+    const s = (status || "").trim();
+    if (s === "Active") return "Active";
+    if (s === "Kill") return "Kill";
+    if (s === "Review") return "Review";
+    return "Inbox";
+  };
+
+  const filters = ["All Deals", "Active", "Kill", "Review", "Inbox"];
+
+  const getFilterCount = (filterName: string) => {
+    if (filterName === "All Deals") return inboxItems.length;
+    return inboxItems.filter((item: any) => getGroupedStatus(item.fields?.Status) === filterName).length;
+  };
 
   return (
     <div className="space-y-8 text-[#E2E8F0] font-sans animate-fade-in-up">
@@ -320,20 +319,23 @@ export function DealInboxPage() {
 
       {/* Filter Row */}
       <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
-        {filters.map((f) => (
-          <button
-            key={f}
-            onClick={() => { setActiveFilter(f); setCurrentPage(1); }}
-            className={cx(
-              "px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition-all border",
-              activeFilter === f 
-                ? "bg-acp-bronze text-[#0B0B0C] border-acp-bronze shadow-[0_0_15px_rgba(198,166,107,0.3)]" 
-                : "bg-white/[0.02] text-slate-400 border-white/[0.05] hover:bg-white/[0.05] hover:text-white"
-            )}
-          >
-            {f}
-          </button>
-        ))}
+        {filters.map((f) => {
+          const count = getFilterCount(f);
+          return (
+            <button
+              key={f}
+              onClick={() => { setActiveFilter(f); setCurrentPage(1); }}
+              className={cx(
+                "px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition-all border",
+                activeFilter === f 
+                  ? "bg-acp-bronze text-[#0B0B0C] border-acp-bronze shadow-[0_0_15px_rgba(198,166,107,0.3)]" 
+                  : "bg-white/[0.02] text-slate-400 border-white/[0.05] hover:bg-white/[0.05] hover:text-white"
+              )}
+            >
+              {f} ({count})
+            </button>
+          );
+        })}
       </div>
 
       {/* Toolbar */}
