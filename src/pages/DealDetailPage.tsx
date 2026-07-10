@@ -1581,10 +1581,13 @@ function OverviewTab({
   const ebitdaVal = Number(deal.ebitda) || 0;
   const multVal = Number(deal.multiplier) || 0;
 
-  const ownerName = deal.ownerName || deal.rawFields?.["Owner"] || deal.rawFields?.Collaborator?.[0]?.name || "";
-  const ownerInitials = ownerName 
-    ? ownerName.split(" ").map((n: string) => n[0]).join("").toUpperCase() 
-    : "UA";
+  let ownerName = deal.ownerName || deal.rawFields?.["Owner"] || deal.rawFields?.Collaborator?.[0]?.name || "";
+  if (!ownerName || ownerName === "Unassigned" || (eligibleUsers && eligibleUsers.length > 0 && !eligibleUsers.includes(ownerName))) {
+    ownerName = "Unassigned";
+  }
+  const ownerInitials = ownerName && ownerName !== "Unassigned"
+    ? ownerName.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)
+    : "U";
   
   const isEbitdaPass = ebitdaVal >= 150000;
   const isMultPass = multVal > 0 ? multVal <= 9.0 : true;
@@ -2214,7 +2217,7 @@ function OverviewTab({
               </div>
               <div className="flex-1 min-w-0">
                 <select
-                  value={deal.rawFields?.["Owner"] || ""}
+                  value={eligibleUsers.includes(deal.rawFields?.["Owner"]) ? deal.rawFields?.["Owner"] : ""}
                   onChange={async (e) => {
                     const newOwner = e.target.value;
                     if (onUpdateDeal) {
@@ -2232,7 +2235,6 @@ function OverviewTab({
                     <option key={name} value={name} className="bg-[#161B22] text-white">{name}</option>
                   ))}
                 </select>
-                <span className="text-[10px] text-slate-450 font-medium font-sans block mt-0.5 select-none">Deal Lead / Partner</span>
               </div>
             </div>
           </div>
