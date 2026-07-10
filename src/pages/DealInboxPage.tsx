@@ -13,6 +13,15 @@ import { cx } from "../utils/cx";
 import { usePipeline } from "../context/PipelineContext";
 import { ManualNotesTab } from "../components/deals/ManualNotesTab";
 
+// Helper to map and group raw statuses
+const getGroupedStatus = (status: string) => {
+  const s = (status || "").trim();
+  if (s === "Active") return "Active";
+  if (s === "Kill") return "Kill";
+  if (s === "Review") return "Review";
+  return "Inbox";
+};
+
 export function DealInboxPage() {
   const [inboxItems, setInboxItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -274,15 +283,6 @@ export function DealInboxPage() {
   const getCompanyName = (fields: any) => {
     const raw = fields["Deal Name"] || fields["Company Name"] || fields["Company_Name"] || "Unknown Company";
     return raw.replace(/^[A-Z0-9]+\s*[—\-:]\s*/i, "").trim();
-  };
-
-  // Helper to map and group raw statuses
-  const getGroupedStatus = (status: string) => {
-    const s = (status || "").trim();
-    if (s === "Active") return "Active";
-    if (s === "Kill") return "Kill";
-    if (s === "Review") return "Review";
-    return "Inbox";
   };
 
   const filters = ["All Deals", "Active", "Kill", "Review", "Inbox"];
