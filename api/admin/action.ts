@@ -82,6 +82,18 @@ export default async function handler(req: any, res: any) {
     return res.status(455).json({ error: "Method not allowed" });
   }
 
+  // Auto-invalidate deals cache on response
+  const originalJson = res.json;
+  res.json = function(data: any) {
+    if ((global as any).dealsCache) {
+      delete (global as any).dealsCache["deals"];
+      delete (global as any).dealsCache["inbox"];
+      delete (global as any).dealsCache["documents"];
+      delete (global as any).dealsCache["submissions"];
+    }
+    return originalJson.call(this, data);
+  };
+
   try {
     // 1. Authenticate Admin via RBAC
     const user = await requireRole(req, res, ANY_INTERNAL);

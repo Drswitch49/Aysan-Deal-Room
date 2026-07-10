@@ -74,7 +74,10 @@ interface CacheEntry {
   data: any;
 }
 
-const cache: Record<string, CacheEntry> = {};
+if (!(global as any).dealsCache) {
+  (global as any).dealsCache = {};
+}
+const cache: Record<string, CacheEntry> = (global as any).dealsCache;
 const CACHE_TTL_MS = 60000; // 60 seconds
 
 export default async function handler(req: any, res: any) {
@@ -101,11 +104,19 @@ export default async function handler(req: any, res: any) {
       
       if (req.method === "POST") {
         const result = await airtableCreate(targetTable, body.fields);
+        delete cache["deals"];
+        delete cache["inbox"];
+        delete cache["documents"];
+        delete cache["submissions"];
         return res.status(200).json({ success: true, record: result });
       } else if (req.method === "PATCH") {
         const { id } = req.query;
         if (!id) return res.status(400).json({ error: "Record ID required for PATCH" });
         const result = await airtableUpdate(targetTable, id, body.fields);
+        delete cache["deals"];
+        delete cache["inbox"];
+        delete cache["documents"];
+        delete cache["submissions"];
         return res.status(200).json({ success: true, record: result });
       }
     }
