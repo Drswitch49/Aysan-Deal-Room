@@ -264,6 +264,22 @@ export function DealDetailPage() {
 
   const { refresh: refreshPipeline } = usePipeline();
 
+  const [teamMembers, setTeamMembers] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetch("/api/team-members-crud")
+      .then(res => res.ok ? res.json() : [])
+      .then(data => setTeamMembers(data || []))
+      .catch(err => console.error("Failed to load team members in details:", err));
+  }, []);
+
+  const eligibleUsers = useMemo(() => {
+    return teamMembers
+      .filter((member: any) => member.fields?.Status !== "Inactive")
+      .map((member: any) => member.fields?.Name)
+      .filter(Boolean);
+  }, [teamMembers]);
+
   // Stage transition states
   const [targetStage, setTargetStage] = useState<string | null>(null);
   const [transitionNotes, setTransitionNotes] = useState("");
@@ -1142,8 +1158,18 @@ export function DealDetailPage() {
           <div className="space-y-3">
             <p className="text-[9px] font-extrabold uppercase tracking-widest text-slate-500">Ownership</p>
             <div className="grid grid-cols-3 gap-3">
-              <FormField label="Owner" id="edit-owner">
-                <input id="edit-owner" type="text" value={editFields.owner || ""} onChange={e => setEditFields(f => ({...f, owner: e.target.value}))} className={inputClass} />
+              <FormField label="Assigned To" id="edit-owner">
+                <select
+                  id="edit-owner"
+                  value={editFields.owner || ""}
+                  onChange={e => setEditFields(f => ({...f, owner: e.target.value}))}
+                  className={selectClass}
+                >
+                  <option value="">Unassigned</option>
+                  {eligibleUsers.map((name: string) => (
+                    <option key={name} value={name} className="bg-[#0B0B0C]">{name}</option>
+                  ))}
+                </select>
               </FormField>
               <FormField label="Analyst" id="edit-analyst">
                 <input id="edit-analyst" type="text" value={editFields.analyst || ""} onChange={e => setEditFields(f => ({...f, analyst: e.target.value}))} className={inputClass} />
@@ -2169,7 +2195,7 @@ function OverviewTab({
           
           {/* Section 0: Deal Owner Profile */}
           <div className="rounded-2xl border border-white/[0.04] bg-[#161B22] p-5 space-y-3 shadow-premium-card card-sheen">
-            <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 select-none block font-sans">Deal Owner</span>
+            <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 select-none block font-sans">Assigned To</span>
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-xl bg-[#C6A66B]/10 border border-[#C6A66B]/20 flex items-center justify-center text-[#C6A66B] font-bold text-sm tracking-wide font-mono">
                 {ownerInitials}

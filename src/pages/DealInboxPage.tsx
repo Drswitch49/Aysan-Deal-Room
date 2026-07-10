@@ -54,6 +54,29 @@ export function DealInboxPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
+  const [teamMembers, setTeamMembers] = useState<any[]>([]);
+
+  useEffect(() => {
+    const loadTeamMembers = async () => {
+      try {
+        const res = await fetch("/api/team-members-crud");
+        if (res.ok) {
+          const data = await res.json();
+          setTeamMembers(data || []);
+        }
+      } catch (err) {
+        console.error("Failed to load team members in inbox:", err);
+      }
+    };
+    loadTeamMembers();
+  }, []);
+
+  const eligibleUsers = useMemo(() => {
+    return teamMembers
+      .filter((member: any) => member.fields?.Status !== "Inactive")
+      .map((member: any) => member.fields?.Name)
+      .filter(Boolean);
+  }, [teamMembers]);
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -62,14 +85,16 @@ export function DealInboxPage() {
   
   const [formData, setFormData] = useState({
     refNo: "", dealName: "", companyName: "", sector: "", location: "", broker: "", status: "Inbox", imReviewDoc: "",
-    executiveSummary: "", businessDescription: "", ebitda: "", revenue: "", askingPrice: "", enterpriseValue: "", contactName: "", contactEmail: "", contactPhone: ""
+    executiveSummary: "", businessDescription: "", ebitda: "", revenue: "", askingPrice: "", enterpriseValue: "", contactName: "", contactEmail: "", contactPhone: "",
+    owner: ""
   });
   const [submittingDeal, setSubmittingDeal] = useState(false);
 
   const openAddModal = () => {
     setFormData({ 
       refNo: "", dealName: "", companyName: "", sector: "", location: "", broker: "", status: "Inbox", imReviewDoc: "",
-      executiveSummary: "", businessDescription: "", ebitda: "", revenue: "", askingPrice: "", enterpriseValue: "", contactName: "", contactEmail: "", contactPhone: ""
+      executiveSummary: "", businessDescription: "", ebitda: "", revenue: "", askingPrice: "", enterpriseValue: "", contactName: "", contactEmail: "", contactPhone: "",
+      owner: ""
     });
     setIsAddModalOpen(true);
   };
@@ -94,7 +119,8 @@ export function DealInboxPage() {
       enterpriseValue: deal.fields["Enterprise_Value"] || "",
       contactName: deal.fields["Contact_Name"] || "",
       contactEmail: deal.fields["Contact_Email"] || "",
-      contactPhone: deal.fields["Contact_Phone"] || ""
+      contactPhone: deal.fields["Contact_Phone"] || "",
+      owner: deal.fields["Owner"] || ""
     });
     setIsEditModalOpen(true);
   };
@@ -154,6 +180,7 @@ export function DealInboxPage() {
         "Contact_Name": formData.contactName,
         "Contact_Email": formData.contactEmail,
         "Contact_Phone": formData.contactPhone,
+        "Owner": formData.owner,
         "IM_Review_Documents": formData.imReviewDoc ? [{ url: formData.imReviewDoc }] : [],
         "Attachments": formData.imReviewDoc ? [{ url: formData.imReviewDoc }] : []
       };
@@ -401,7 +428,7 @@ export function DealInboxPage() {
                   <th className="w-[80px] px-4 py-3.5 text-[10px] font-semibold tracking-wide uppercase">EBITDA</th>
                   <th className="w-[80px] px-4 py-3.5 text-[10px] font-semibold tracking-wide uppercase">Asking Price</th>
                   <th className="w-[120px] px-4 py-3.5 text-[10px] font-semibold tracking-wide uppercase">Date Received</th>
-                  <th className="w-[160px] px-5 py-3.5 text-[10px] font-semibold tracking-wide uppercase text-right">Status</th>
+                  <th className="w-[160px] px-5 py-3.5 text-[10px] font-semibold tracking-wide uppercase text-right">Assigned To</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/[0.04]">
@@ -445,10 +472,10 @@ export function DealInboxPage() {
                       <td className="px-4 py-4 font-sans text-xs font-medium text-slate-400">
                         {fields["Date_Received"] || fields["Created Date"] || fields["Date Added"] || "N/A"}
                       </td>
-                      <td className="px-5 py-4 text-right">
-                        <div className="inline-flex items-center gap-1.5 rounded-lg border border-slate-500/30 bg-slate-500/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-300">
-                          {fields.Status || "Inbox"}
-                        </div>
+                      <td className="px-5 py-4 text-right select-none">
+                        <span className="inline-flex items-center rounded-full bg-blue-500/5 border border-blue-500/25 px-2.5 py-1 text-[10px] font-bold text-blue-400">
+                          {fields.Owner || "Unassigned"}
+                        </span>
                       </td>
                     </tr>
                   );
@@ -774,13 +801,19 @@ export function DealInboxPage() {
             </FormField>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <FormField label="Broker" id="modal-broker">
               <input id="modal-broker" type="text" value={formData.broker} onChange={e => setFormData({...formData, broker: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder:text-white/20 focus:outline-none focus:border-acp-bronze/50 transition-colors" placeholder="e.g. John Doe" />
             </FormField>
             <FormField label="Status" id="modal-status">
               <select id="modal-status" value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-acp-bronze/50 transition-colors">
                 {statusOptions.map((opt: string) => <option key={opt} value={opt}>{opt}</option>)}
+              </select>
+            </FormField>
+            <FormField label="Assigned To" id="modal-owner">
+              <select id="modal-owner" value={formData.owner} onChange={e => setFormData({...formData, owner: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-acp-bronze/50 transition-colors">
+                <option value="">Unassigned</option>
+                {eligibleUsers.map((name: string) => <option key={name} value={name}>{name}</option>)}
               </select>
             </FormField>
           </div>

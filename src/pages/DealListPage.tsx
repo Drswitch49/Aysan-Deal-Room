@@ -560,7 +560,7 @@ export function DealListPage() {
         <div className="rounded-2xl p-5 grid grid-cols-1 sm:grid-cols-2 gap-4 animate-fade-in-up premium-card">
           <div className="space-y-2">
             <label className="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 select-none">
-              Filter by Owner
+              Filter by Assigned To
             </label>
             <select
               value={selectedOwnerFilter}
@@ -622,7 +622,7 @@ export function DealListPage() {
                       <th className="w-[85px] px-4 py-3.5 text-[10px] font-semibold tracking-wide uppercase">Mult</th>
                       <th className="w-[110px] px-4 py-3.5 text-[10px] font-semibold tracking-wide uppercase">Stage</th>
                       <th className="w-[170px] px-4 py-3.5 text-[10px] font-semibold tracking-wide uppercase">Next Action</th>
-                      <th className="w-[110px] px-5 py-3.5 text-[10px] font-semibold tracking-wide uppercase">Owner</th>
+                      <th className="w-[110px] px-5 py-3.5 text-[10px] font-semibold tracking-wide uppercase">Assigned To</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/[0.04]">
@@ -850,13 +850,13 @@ export function DealListPage() {
           <div className="space-y-3">
             <p className="text-[9px] font-extrabold uppercase tracking-widest text-slate-500">Ownership</p>
             <div className="grid grid-cols-3 gap-3">
-              <FormField label="Owner" id="new-deal-owner">
+              <FormField label="Assigned To" id="new-deal-owner">
                 <SearchableDropdown
                   id="new-deal-owner"
                   value={newDealOwner}
                   onChange={(val) => setNewDealOwner(val)}
                   options={eligibleUsers}
-                  placeholder="Select Deal Owner"
+                  placeholder="Select Team Member"
                 />
               </FormField>
               <FormField label="Analyst" id="new-deal-analyst">
