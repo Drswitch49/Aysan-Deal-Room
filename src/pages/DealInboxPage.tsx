@@ -763,18 +763,18 @@ export function DealInboxPage() {
         )}
       >
         <div className="space-y-4 pr-1">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <FormField label="Reference No. (Optional)" id="modal-ref">
-              <input id="modal-ref" type="text" value={formData.refNo} onChange={e => setFormData({...formData, refNo: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder:text-white/20 focus:outline-none focus:border-acp-bronze/50 transition-colors" placeholder="e.g. ACP-CFS-018" />
-            </FormField>
-            <FormField label="Company Name" id="modal-company">
-              <input id="modal-company" type="text" value={formData.companyName} onChange={e => setFormData({...formData, companyName: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder:text-white/20 focus:outline-none focus:border-acp-bronze/50 transition-colors" required placeholder="e.g. Acme Corp" />
-            </FormField>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="sm:col-span-1">
+              <FormField label="Reference No. (Optional)" id="modal-ref">
+                <input id="modal-ref" type="text" value={formData.refNo} onChange={e => setFormData({...formData, refNo: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder:text-white/20 focus:outline-none focus:border-acp-bronze/50 transition-colors" placeholder="e.g. ACP-CFS-018" />
+              </FormField>
+            </div>
+            <div className="sm:col-span-2">
+              <FormField label="Deal Name" id="modal-name">
+                <input id="modal-name" type="text" value={formData.dealName} onChange={e => setFormData({...formData, dealName: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder:text-white/20 focus:outline-none focus:border-acp-bronze/50 transition-colors" required placeholder="e.g. ACP-CFS-018 - Acme Corp" />
+              </FormField>
+            </div>
           </div>
-          
-          <FormField label="Deal Name" id="modal-name">
-            <input id="modal-name" type="text" value={formData.dealName} onChange={e => setFormData({...formData, dealName: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder:text-white/20 focus:outline-none focus:border-acp-bronze/50 transition-colors" required placeholder="e.g. ACP-CFS-018 - Acme Corp" />
-          </FormField>
           
           <FormField label="Executive Summary" id="modal-summary">
             <textarea id="modal-summary" value={formData.executiveSummary} onChange={e => setFormData({...formData, executiveSummary: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder:text-white/20 focus:outline-none focus:border-acp-bronze/50 transition-colors h-20 resize-none" placeholder="Brief summary of the deal..." />
