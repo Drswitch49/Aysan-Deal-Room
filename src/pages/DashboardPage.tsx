@@ -143,20 +143,6 @@ export function DashboardPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5 shrink-0">
-          {/* Owner Filter */}
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 hidden sm:block select-none">Owner:</span>
-            <select
-              value={selectedAssignee}
-              onChange={(e) => setSelectedAssignee(e.target.value)}
-              className="h-8 rounded-xl border border-white/[0.02] bg-[#0B0B0C] px-3.5 text-xs font-semibold text-white outline-none focus:border-[#C6A66B] cursor-pointer shadow-inner hover:border-white/[0.12] transition"
-            >
-              {assignees.map(a => (
-                <option key={a} value={a} className="bg-[#0B0B0C] text-white">{a}</option>
-              ))}
-            </select>
-          </div>
-
           <Link
             to="/deals"
             className="inline-flex h-8 items-center gap-1.5 rounded-xl border border-white/[0.02] bg-white/[0.02] px-3.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-white transition cursor-pointer select-none"
