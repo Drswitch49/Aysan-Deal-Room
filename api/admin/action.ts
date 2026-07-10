@@ -213,7 +213,7 @@ export default async function handler(req: any, res: any) {
           "Asking_Price_GBP": f["Asking_Price_GBP"] || f["Asking Price"],
           "Location": f["Location"],
           "Deal_Type": f["Deal_Type"] || f["Deal Type"],
-          "Owner": req.user.email,
+          "Owner": f["Owner"] || undefined,
           "Stage": "Intro",
           "Workflow_Stage": "INTRO",
           "ACP REF NO": finalRef,

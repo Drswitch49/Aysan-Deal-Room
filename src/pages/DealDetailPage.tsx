@@ -758,6 +758,12 @@ export function DealDetailPage() {
             openComposer={openComposer}
             isGeneratingVerdict={isGeneratingVerdict}
             handleGenerateVerdict={handleGenerateVerdict}
+            eligibleUsers={eligibleUsers}
+            onUpdateDeal={async (fields: any) => {
+              await updateAdminDeal(joinedDeal.id, fields);
+              setRefreshTrigger(prev => prev + 1);
+              refreshPipeline();
+            }}
           />
         )}
 
@@ -1544,7 +1550,9 @@ function OverviewTab({
   overallDisplayScore,
   openComposer,
   isGeneratingVerdict,
-  handleGenerateVerdict
+  handleGenerateVerdict,
+  eligibleUsers = [],
+  onUpdateDeal
 }: { 
   deal: any; 
   assignedLenders: any[]; 
@@ -1566,13 +1574,17 @@ function OverviewTab({
   openComposer: (opts: any) => void;
   isGeneratingVerdict?: boolean;
   handleGenerateVerdict?: () => Promise<void>;
+  eligibleUsers?: string[];
+  onUpdateDeal?: (fields: any) => Promise<void>;
 }) {
 
   const ebitdaVal = Number(deal.ebitda) || 0;
   const multVal = Number(deal.multiplier) || 0;
 
-  const ownerName = deal.ownerName || deal.rawFields?.Collaborator?.[0]?.name || "Ayo Oyesanya";
-  const ownerInitials = deal.ownerInitials || (ownerName ? ownerName.split(" ").map((n: string) => n[0]).join("").toUpperCase() : "AO");
+  const ownerName = deal.ownerName || deal.rawFields?.["Owner"] || deal.rawFields?.Collaborator?.[0]?.name || "";
+  const ownerInitials = ownerName 
+    ? ownerName.split(" ").map((n: string) => n[0]).join("").toUpperCase() 
+    : "UA";
   
   const isEbitdaPass = ebitdaVal >= 150000;
   const isMultPass = multVal > 0 ? multVal <= 9.0 : true;
@@ -2197,12 +2209,30 @@ function OverviewTab({
           <div className="rounded-2xl border border-white/[0.04] bg-[#161B22] p-5 space-y-3 shadow-premium-card card-sheen">
             <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 select-none block font-sans">Assigned To</span>
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-[#C6A66B]/10 border border-[#C6A66B]/20 flex items-center justify-center text-[#C6A66B] font-bold text-sm tracking-wide font-mono">
+              <div className="h-10 w-10 rounded-xl bg-[#C6A66B]/10 border border-[#C6A66B]/20 flex items-center justify-center text-[#C6A66B] font-bold text-sm tracking-wide font-mono select-none">
                 {ownerInitials}
               </div>
-              <div className="flex flex-col">
-                <span className="text-xs font-bold text-white">{ownerName}</span>
-                <span className="text-[10px] text-slate-450 font-medium font-sans">Deal Lead / Partner</span>
+              <div className="flex-1 min-w-0">
+                <select
+                  value={deal.rawFields?.["Owner"] || ""}
+                  onChange={async (e) => {
+                    const newOwner = e.target.value;
+                    if (onUpdateDeal) {
+                      try {
+                        await onUpdateDeal({ owner: newOwner || null });
+                      } catch (err: any) {
+                        alert("Failed to update assignment: " + err.message);
+                      }
+                    }
+                  }}
+                  className="w-full bg-transparent border-0 p-0 text-xs font-bold text-white focus:ring-0 focus:outline-none cursor-pointer outline-none hover:text-[#C6A66B] transition-colors appearance-none"
+                >
+                  <option value="" className="bg-[#161B22] text-slate-400">Unassigned</option>
+                  {eligibleUsers.map((name: string) => (
+                    <option key={name} value={name} className="bg-[#161B22] text-white">{name}</option>
+                  ))}
+                </select>
+                <span className="text-[10px] text-slate-450 font-medium font-sans block mt-0.5 select-none">Deal Lead / Partner</span>
               </div>
             </div>
           </div>
