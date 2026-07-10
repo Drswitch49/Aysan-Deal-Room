@@ -375,21 +375,23 @@ export function DealDetailPage() {
     const d = dealState.data;
     if (!d) return;
     setEditFields({
-      companyName: d.companyName || d.rawFields?.["Company_Name"] || d.rawFields?.["Deal Name"] || "",
-      projectName: d.rawFields?.["Project_Name"] || "",
-      industry: d.sector || d.rawFields?.["Industry"] || "",
-      website: d.rawFields?.["Website"] || "",
+      companyName: d.companyName || d.rawFields?.["Company_Name"] || d.rawFields?.["Company Name"] || d.rawFields?.["Deal Name"] || "",
+      projectName: d.rawFields?.["Project_Name"] || d.rawFields?.["Project Name"] || "",
+      industry: d.sector || d.rawFields?.["Industry"] || d.rawFields?.["Sector"] || "",
+      website: d.rawFields?.["Website"] || d.rawFields?.["website"] || "",
       location: d.location || d.rawFields?.["Location"] || "",
-      owner: d.ownerName || d.rawFields?.["Owner"] || "",
-      analyst: d.rawFields?.["Analyst"] || "",
-      source: d.rawFields?.["Source"] || "",
-      revenue: d.rawFields?.["Turnover"] || "",
-      ebitda: d.rawFields?.["EBITDA_GBP"] || "",
-      enterpriseValue: d.rawFields?.["Enterprise_Value"] || "",
-      askingPrice: d.rawFields?.["Asking_Price_GBP"] || "",
-      nextAction: d.rawFields?.["Next Action"] || "",
-      nextActionDate: d.rawFields?.["Next Action Date"] || "",
-      internalNotes: d.rawFields?.["Internal_Notes"] || "",
+      owner: eligibleUsers.includes(d.rawFields?.["Owner"]) ? d.rawFields?.["Owner"] : "",
+      analyst: d.rawFields?.["Analyst"] || d.rawFields?.["analyst"] || "",
+      source: d.rawFields?.["Source"] || d.rawFields?.["source"] || "",
+      revenue: d.revenue || d.turnover || d.rawFields?.["Turnover"] || d.rawFields?.["Revenue"] || "",
+      ebitda: d.ebitda || d.rawFields?.["EBITDA_GBP"] || d.rawFields?.["EBITDA"] || "",
+      enterpriseValue: d.ev || d.rawFields?.["Enterprise_Value"] || d.rawFields?.["Enterprise Value"] || d.rawFields?.["EV"] || "",
+      askingPrice: d.evAsk || d.rawFields?.["Asking_Price_GBP"] || d.rawFields?.["Asking Price"] || "",
+      nextAction: d.nextActionTitle || d.rawFields?.["Next Action"] || d.rawFields?.["Next_Action"] || "",
+      nextActionDate: d.actionDate || d.rawFields?.["Next Action Date"] || d.rawFields?.["Next_Action_Date"] || "",
+      internalNotes: d.rawFields?.["Internal_Notes"] || d.rawFields?.["Internal Notes"] || d.rawFields?.["Notes"] || "",
+      businessDescription: d.businessDescription || d.rawFields?.["Business_Description"] || d.rawFields?.["Business Description"] || "",
+      executiveSummary: d.executiveSummary || d.rawFields?.["Executive_Summary"] || d.rawFields?.["Executive Summary"] || "",
     });
     setEditError(null);
     setIsEditDealOpen(true);
@@ -1215,6 +1217,12 @@ export function DealDetailPage() {
           </div>
           <FormField label="Internal Notes" id="edit-notes">
             <textarea id="edit-notes" value={editFields.internalNotes || ""} onChange={e => setEditFields(f => ({...f, internalNotes: e.target.value}))} rows={2} className={textareaClass} />
+          </FormField>
+          <FormField label="Business Description" id="edit-business-desc">
+            <textarea id="edit-business-desc" value={editFields.businessDescription || ""} onChange={e => setEditFields(f => ({...f, businessDescription: e.target.value}))} rows={3} className={textareaClass} />
+          </FormField>
+          <FormField label="Executive Summary" id="edit-exec-summary">
+            <textarea id="edit-exec-summary" value={editFields.executiveSummary || ""} onChange={e => setEditFields(f => ({...f, executiveSummary: e.target.value}))} rows={4} className={textareaClass} />
           </FormField>
 
           {/* IM & Attachments Section in Edit Modal */}

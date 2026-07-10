@@ -100,7 +100,7 @@ export default async function handler(req: any, res: any) {
 
   // Auto-invalidate deals cache on response
   const originalJson = res.json;
-  res.json = function(data: any) {
+  res.json = function (data: any) {
     if ((global as any).dealsCache) {
       delete (global as any).dealsCache["deals"];
       delete (global as any).dealsCache["inbox"];
@@ -203,7 +203,7 @@ export default async function handler(req: any, res: any) {
         if (!fileData) {
           return res.status(400).json({ error: "fileData is required" });
         }
-        
+
         const publicUrl = await uploadToTempStorage(fileData, fileName || "upload", fileType || "application/octet-stream");
         return res.status(200).json({ success: true, url: publicUrl });
       }
