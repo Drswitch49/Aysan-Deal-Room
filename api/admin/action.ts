@@ -226,7 +226,6 @@ export default async function handler(req: any, res: any) {
           "Executive_Summary": f["Summary"] || f["Description"] || f["Executive_Summary"],
           "Contact_Email": f["Contact_Email"] || f["Email"],
           "Contact_Phone": f["Contact_Phone"] || f["Phone"],
-          "Broker": f["Broker"] || f["BROKER"],
           "Broker_Name": f["Contact_Name"] || f["Broker Name"] || f["Broker_Name"] || f["Broker"] || f["BROKER"],
           "Broker_Company": f["Broker Company"] || f["Broker_Company"],
           "Broker_Email": f["Contact_Email"] || f["Email"] || f["Broker Email"] || f["Broker_Email"],
