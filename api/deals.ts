@@ -155,18 +155,27 @@ export default async function handler(req: any, res: any) {
         }
         const result = await airtableUpdate(targetTable, id, body.fields);
 
-        // Sync assignment changes to pipeline if updating inbox deal assignee
+        // Sync assignment and attachments changes to pipeline if updating inbox deal
         if (type === "inbox") {
           try {
             const ownerVal = body.fields["Owner"] || body.fields["Assigned To"];
-            if (ownerVal !== undefined) {
+            const attachmentsVal = body.fields["IM_Review_Documents"] || body.fields["IM/Review"] || body.fields["Attachments"];
+            if (ownerVal !== undefined || attachmentsVal !== undefined) {
               const inboxRec = await airtableFetchRecord(TABLES.DEAL_INBOX, id);
               if (inboxRec) {
+                const pipeUpdate: Record<string, any> = {};
+                if (ownerVal !== undefined) pipeUpdate["Owner"] = ownerVal;
+                if (attachmentsVal !== undefined) {
+                  pipeUpdate["IM_Review_Documents"] = attachmentsVal;
+                  pipeUpdate["IM/Review"] = attachmentsVal;
+                  pipeUpdate["Attachments"] = attachmentsVal;
+                }
+
                 // 1. Sync via link
                 const activeLinks = inboxRec.fields["Active_Deal_Link"];
                 if (activeLinks && Array.isArray(activeLinks) && activeLinks.length > 0) {
                   for (const activeId of activeLinks) {
-                    await airtableUpdate(TABLES.PIPELINE, activeId, { "Owner": ownerVal });
+                    await airtableUpdate(TABLES.PIPELINE, activeId, pipeUpdate);
                   }
                 }
                 // 2. Sync via REF. NO match fallback
@@ -178,13 +187,13 @@ export default async function handler(req: any, res: any) {
                     return String(ref).toLowerCase() === String(refNo).toLowerCase();
                   });
                   for (const m of matched) {
-                    await airtableUpdate(TABLES.PIPELINE, m.id, { "Owner": ownerVal });
+                    await airtableUpdate(TABLES.PIPELINE, m.id, pipeUpdate);
                   }
                 }
               }
             }
           } catch (syncErr) {
-            console.error("[Sync Error] Failed to sync Inbox assignee to Pipeline: ", syncErr);
+            console.error("[Sync Error] Failed to sync Inbox changes to Pipeline: ", syncErr);
           }
         }
 

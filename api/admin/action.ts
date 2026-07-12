@@ -93,6 +93,36 @@ const getOwnerName = (ownerField: any) => {
   return String(ownerField).trim();
 };
 
+async function syncAttachmentsBidirectional(targetTable: string, dealRecord: any, updatedAttachments: any) {
+  try {
+    if (targetTable === TABLES.PIPELINE) {
+      const dealInboxLinks = dealRecord.fields["Deal_Inbox"];
+      if (dealInboxLinks && Array.isArray(dealInboxLinks) && dealInboxLinks.length > 0) {
+        for (const inboxId of dealInboxLinks) {
+          await airtableUpdate(TABLES.DEAL_INBOX, inboxId, {
+            "IM_Review_Documents": updatedAttachments,
+            "IM/Review": updatedAttachments,
+            "Attachments": updatedAttachments
+          });
+        }
+      }
+    } else if (targetTable === TABLES.DEAL_INBOX) {
+      const activeLinks = dealRecord.fields["Active_Deal_Link"];
+      if (activeLinks && Array.isArray(activeLinks) && activeLinks.length > 0) {
+        for (const activeId of activeLinks) {
+          await airtableUpdate(TABLES.PIPELINE, activeId, {
+            "IM_Review_Documents": updatedAttachments,
+            "IM/Review": updatedAttachments,
+            "Attachments": updatedAttachments
+          });
+        }
+      }
+    }
+  } catch (err) {
+    console.error("[Sync Error] Bidirectional attachment sync failed:", err);
+  }
+}
+
 export default async function handler(req: any, res: any) {
   if (req.method !== "POST") {
     return res.status(455).json({ error: "Method not allowed" });
@@ -231,6 +261,11 @@ export default async function handler(req: any, res: any) {
         const finalRef = `ACP-CFS-${String(maxNum + 1).padStart(3, "0")}`;
         const todayStr = new Date().toISOString().split("T")[0];
 
+        const inboxAttachments = f["IM_Review_Documents"] || f["IM/Review"] || f["Attachments"] || [];
+        const copiedAttachments = Array.isArray(inboxAttachments)
+          ? inboxAttachments.map((a: any) => ({ url: a.url, filename: a.filename || "IM_Document" }))
+          : (typeof inboxAttachments === "string" ? [{ url: inboxAttachments, filename: "IM_Document" }] : []);
+
         const pipelineFields = {
           "Deal Name": f["Deal Name"] || f["Company Name"] || f["Company_Name"] || "Unknown Deal",
           "Company_Name": f["Company_Name"] || f["Company Name"] || f["Deal Name"],
@@ -260,6 +295,9 @@ export default async function handler(req: any, res: any) {
           "Broker_Phone": f["Contact_Phone"] || f["Phone"] || f["Broker Phone"] || f["Broker_Phone"],
           "Source": f["Source"] || f["SOURCE"] || "Inbound",
           "Business_Description": f["Business_Description"] || f["BUSINESS_DESCRIPTION"],
+          "IM_Review_Documents": copiedAttachments,
+          "IM/Review": copiedAttachments,
+          "Attachments": copiedAttachments,
         };
 
         const createdPipelineRecord = await airtableCreate(TABLES.PIPELINE, pipelineFields);
@@ -776,13 +814,14 @@ export default async function handler(req: any, res: any) {
 
         const updated = await airtableUpdate(TABLES.PIPELINE, dealId, airtableFields);
 
-        // Sync changes (assignee, description, summary) to Deal Inbox
+        // Sync changes (assignee, description, summary, attachments) to Deal Inbox
         try {
           const ownerVal = airtableFields["Owner"];
           const descVal = airtableFields["Business_Description"];
           const summaryVal = airtableFields["Executive_Summary"];
+          const attachmentsVal = airtableFields["IM_Review_Documents"] || airtableFields["IM/Review"] || airtableFields["Attachments"];
 
-          if (ownerVal !== undefined || descVal !== undefined || summaryVal !== undefined) {
+          if (ownerVal !== undefined || descVal !== undefined || summaryVal !== undefined || attachmentsVal !== undefined) {
             const pipelineRec = await airtableFetchRecord(TABLES.PIPELINE, dealId);
             if (pipelineRec) {
               const inboxUpdate: Record<string, any> = {};
@@ -792,6 +831,11 @@ export default async function handler(req: any, res: any) {
               }
               if (descVal !== undefined) inboxUpdate["Description"] = descVal;
               if (summaryVal !== undefined) inboxUpdate["Summary"] = summaryVal;
+              if (attachmentsVal !== undefined) {
+                inboxUpdate["IM_Review_Documents"] = attachmentsVal;
+                inboxUpdate["IM/Review"] = attachmentsVal;
+                inboxUpdate["Attachments"] = attachmentsVal;
+              }
 
               // 1. Sync via Deal_Inbox link
               const inboxLinks = pipelineRec.fields["Deal_Inbox"];
@@ -942,6 +986,8 @@ export default async function handler(req: any, res: any) {
           "Attachments": updatedAttachments
         });
 
+        await syncAttachmentsBidirectional(targetTable, dealRecord, updatedAttachments);
+
         await logAuditTrail(
           "IM_UPLOADED",
           req.user.email,
@@ -988,6 +1034,8 @@ export default async function handler(req: any, res: any) {
           "IM/Review": remaining.length > 0 ? remaining : [],
           "Attachments": remaining.length > 0 ? remaining : []
         });
+
+        await syncAttachmentsBidirectional(targetTable, dealRecord, remaining);
 
         await logAuditTrail(
           "IM_REMOVED",
@@ -1050,6 +1098,8 @@ export default async function handler(req: any, res: any) {
           "IM/Review": updated,
           "Attachments": updated
         });
+
+        await syncAttachmentsBidirectional(targetTable, dealRecord, updated);
 
         await logAuditTrail(
           "IM_REPLACED",
