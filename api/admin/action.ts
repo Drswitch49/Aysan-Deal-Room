@@ -707,7 +707,8 @@ export default async function handler(req: any, res: any) {
       }
 
       case "update-deal": {
-        const { dealId, fields: updateFields } = req.body;
+        const dealId = req.body.dealId || req.body.id;
+        const updateFields = req.body.fields || req.body.updates;
         if (!dealId) {
           return res.status(400).json({ error: "Deal ID is required" });
         }
@@ -749,6 +750,18 @@ export default async function handler(req: any, res: any) {
             airtableFields[airtableKey] = value;
           }
           changedSummary.push(`${key}: ${String(value).substring(0, 50)}`);
+        }
+
+        // Keep attachments synchronized
+        if (airtableFields["IM_Review_Documents"] !== undefined) {
+          airtableFields["IM/Review"] = airtableFields["IM_Review_Documents"];
+          airtableFields["Attachments"] = airtableFields["IM_Review_Documents"];
+        } else if (airtableFields["IM/Review"] !== undefined) {
+          airtableFields["IM_Review_Documents"] = airtableFields["IM/Review"];
+          airtableFields["Attachments"] = airtableFields["IM/Review"];
+        } else if (airtableFields["Attachments"] !== undefined) {
+          airtableFields["IM_Review_Documents"] = airtableFields["Attachments"];
+          airtableFields["IM/Review"] = airtableFields["Attachments"];
         }
 
         // Auto route to Dallience if stage is Due Diligence
@@ -893,13 +906,25 @@ export default async function handler(req: any, res: any) {
           return res.status(400).json({ error: "Only PDF, DOCX, and XLSX files are supported" });
         }
 
-        // Ensure IM_Review_Documents field exists
-        const schemeLogs = await ensurePipelineFields(TABLES.PIPELINE);
+        // Determine if this is an active pipeline deal or an inbox deal
+        let targetTable = TABLES.PIPELINE;
+        let dealRecord = await airtableFetchRecord(targetTable, dealId).catch(() => null);
+
+        if (!dealRecord) {
+          targetTable = TABLES.DEAL_INBOX;
+          dealRecord = await airtableFetchRecord(targetTable, dealId).catch(() => null);
+        }
+
+        if (!dealRecord) {
+          return res.status(404).json({ error: "Deal not found in either Pipeline or Inbox" });
+        }
+
+        // Ensure IM_Review_Documents and IM/Review fields exist
+        const schemeLogs = await ensurePipelineFields(targetTable);
         await persistSchemaLogs(schemeLogs);
 
         // Fetch current attachments to preserve existing ones
-        const dealRecord = await airtableFetchRecord(TABLES.PIPELINE, dealId);
-        const existingAttachments = dealRecord.fields["IM_Review_Documents"] || [];
+        const existingAttachments = dealRecord.fields["IM_Review_Documents"] || dealRecord.fields["IM/Review"] || dealRecord.fields["Attachments"] || [];
 
         // Upload to temp hosting to get a public URL for Airtable
         const publicUrl = await uploadToTempStorage(fileData, fileName, fileType);
@@ -911,8 +936,10 @@ export default async function handler(req: any, res: any) {
 
         const updatedAttachments = [...(Array.isArray(existingAttachments) ? existingAttachments.map((a: any) => ({ url: a.url, filename: a.filename })) : []), newAttachment];
 
-        await airtableUpdate(TABLES.PIPELINE, dealId, {
+        await airtableUpdate(targetTable, dealId, {
           "IM_Review_Documents": updatedAttachments,
+          "IM/Review": updatedAttachments,
+          "Attachments": updatedAttachments
         });
 
         await logAuditTrail(
@@ -920,7 +947,7 @@ export default async function handler(req: any, res: any) {
           req.user.email,
           req.user.role,
           dealId,
-          `Uploaded IM document: ${fileName || "document"} (${fileType || "unknown"}) to deal ${dealId}`
+          `Uploaded IM document: ${fileName || "document"} (${fileType || "unknown"}) to deal ${dealId} in ${targetTable}`
         );
 
         return res.status(200).json({ success: true, message: "IM document uploaded." });
@@ -932,8 +959,20 @@ export default async function handler(req: any, res: any) {
           return res.status(400).json({ error: "Deal ID and attachment index are required" });
         }
 
-        const dealRecord = await airtableFetchRecord(TABLES.PIPELINE, dealId);
-        const existingAttachments = dealRecord.fields["IM_Review_Documents"] || [];
+        // Determine target table
+        let targetTable = TABLES.PIPELINE;
+        let dealRecord = await airtableFetchRecord(targetTable, dealId).catch(() => null);
+
+        if (!dealRecord) {
+          targetTable = TABLES.DEAL_INBOX;
+          dealRecord = await airtableFetchRecord(targetTable, dealId).catch(() => null);
+        }
+
+        if (!dealRecord) {
+          return res.status(404).json({ error: "Deal not found in either Pipeline or Inbox" });
+        }
+
+        const existingAttachments = dealRecord.fields["IM_Review_Documents"] || dealRecord.fields["IM/Review"] || dealRecord.fields["Attachments"] || [];
 
         if (!Array.isArray(existingAttachments) || attachmentIndex >= existingAttachments.length) {
           return res.status(404).json({ error: "Attachment not found" });
@@ -944,8 +983,10 @@ export default async function handler(req: any, res: any) {
           .filter((_: any, i: number) => i !== attachmentIndex)
           .map((a: any) => ({ url: a.url, filename: a.filename }));
 
-        await airtableUpdate(TABLES.PIPELINE, dealId, {
+        await airtableUpdate(targetTable, dealId, {
           "IM_Review_Documents": remaining.length > 0 ? remaining : [],
+          "IM/Review": remaining.length > 0 ? remaining : [],
+          "Attachments": remaining.length > 0 ? remaining : []
         });
 
         await logAuditTrail(
@@ -953,7 +994,7 @@ export default async function handler(req: any, res: any) {
           req.user.email,
           req.user.role,
           dealId,
-          `Removed IM document: ${removedName} from deal ${dealId}`
+          `Removed IM document: ${removedName} from deal ${dealId} in ${targetTable}`
         );
 
         return res.status(200).json({ success: true, message: "IM document removed." });
@@ -970,8 +1011,20 @@ export default async function handler(req: any, res: any) {
           return res.status(400).json({ error: "Only PDF, DOCX, and XLSX files are supported" });
         }
 
-        const dealRecord = await airtableFetchRecord(TABLES.PIPELINE, dealId);
-        const existingAttachments = dealRecord.fields["IM_Review_Documents"] || [];
+        // Determine target table
+        let targetTable = TABLES.PIPELINE;
+        let dealRecord = await airtableFetchRecord(targetTable, dealId).catch(() => null);
+
+        if (!dealRecord) {
+          targetTable = TABLES.DEAL_INBOX;
+          dealRecord = await airtableFetchRecord(targetTable, dealId).catch(() => null);
+        }
+
+        if (!dealRecord) {
+          return res.status(404).json({ error: "Deal not found in either Pipeline or Inbox" });
+        }
+
+        const existingAttachments = dealRecord.fields["IM_Review_Documents"] || dealRecord.fields["IM/Review"] || dealRecord.fields["Attachments"] || [];
 
         if (!Array.isArray(existingAttachments) || attachmentIndex >= existingAttachments.length) {
           return res.status(404).json({ error: "Attachment to replace not found" });
@@ -992,8 +1045,10 @@ export default async function handler(req: any, res: any) {
           return { url: a.url, filename: a.filename };
         });
 
-        await airtableUpdate(TABLES.PIPELINE, dealId, {
+        await airtableUpdate(targetTable, dealId, {
           "IM_Review_Documents": updated,
+          "IM/Review": updated,
+          "Attachments": updated
         });
 
         await logAuditTrail(
@@ -1001,7 +1056,7 @@ export default async function handler(req: any, res: any) {
           req.user.email,
           req.user.role,
           dealId,
-          `Replaced IM document at index ${attachmentIndex} with ${fileName || "document"} in deal ${dealId}`
+          `Replaced IM document at index ${attachmentIndex} with ${fileName || "document"} in deal ${dealId} in ${targetTable}`
         );
 
         return res.status(200).json({ success: true, message: "IM document replaced." });

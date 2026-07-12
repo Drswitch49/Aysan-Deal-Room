@@ -293,46 +293,6 @@ export function DashboardPage() {
                 </div>
               </div>
 
-              {/* Key Pipeline Insights */}
-              <div className="rounded-2xl p-6 pe-card">
-                <SectionHeader>Key Pipeline Insights</SectionHeader>
-                <div className="mt-5 grid gap-4 grid-cols-2 sm:grid-cols-4 font-sans select-none">
-                  <div className="p-4 rounded-xl bg-white/[0.01] border border-white/[0.02]">
-                    <p className="text-[9.5px] font-bold uppercase tracking-wider text-slate-500">Pipeline Value</p>
-                    <p className="text-lg font-semibold text-white mt-1.5">
-                      {stats.pipelineInsights?.totalEV 
-                        ? (stats.pipelineInsights.totalEV >= 1000000 
-                          ? `£${(stats.pipelineInsights.totalEV / 1000000).toFixed(2)}M` 
-                          : `£${(stats.pipelineInsights.totalEV / 1000).toFixed(0)}k`) 
-                        : "—"}
-                    </p>
-                  </div>
-                  <div className="p-4 rounded-xl bg-white/[0.01] border border-white/[0.02]">
-                    <p className="text-[9.5px] font-bold uppercase tracking-wider text-slate-500">Avg Deal Score</p>
-                    <p className="text-lg font-semibold text-white mt-1.5">
-                      {stats.pipelineInsights?.avgDealScore ? `${stats.pipelineInsights.avgDealScore} / 10` : "—"}
-                    </p>
-                  </div>
-                  <div className="p-4 rounded-xl bg-white/[0.01] border border-white/[0.02]">
-                    <p className="text-[9.5px] font-bold uppercase tracking-wider text-slate-500">Seller Chats</p>
-                    <p className="text-lg font-semibold text-white mt-1.5">
-                      {stats.pipelineInsights?.activeConversations ?? 0} active
-                    </p>
-                  </div>
-                  <div className="p-4 rounded-xl bg-white/[0.01] border border-white/[0.02]">
-                    <p className="text-[9.5px] font-bold uppercase tracking-wider text-slate-500">Avg Pipeline Age</p>
-                    <p className="text-lg font-semibold text-white mt-1.5">
-                      {stats.pipelineInsights?.avgVelocityDays ? `${stats.pipelineInsights.avgVelocityDays} days` : "—"}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-            </div>
-
-            {/* Right Column — Execution & Pipeline */}
-            <div className="space-y-8">
-              
               {/* Actions Due Today */}
               <div className="rounded-2xl p-6 pe-card">
                 <SectionHeader>Actions Due Today</SectionHeader>
@@ -387,6 +347,46 @@ export function DashboardPage() {
                   )}
                 </div>
               </div>
+
+              {/* Key Pipeline Insights */}
+              <div className="rounded-2xl p-6 pe-card">
+                <SectionHeader>Key Pipeline Insights</SectionHeader>
+                <div className="mt-5 grid gap-4 grid-cols-2 sm:grid-cols-4 font-sans select-none">
+                  <div className="p-4 rounded-xl bg-white/[0.01] border border-white/[0.02]">
+                    <p className="text-[9.5px] font-bold uppercase tracking-wider text-slate-500">Pipeline Value</p>
+                    <p className="text-lg font-semibold text-white mt-1.5">
+                      {stats.pipelineInsights?.totalEV 
+                        ? (stats.pipelineInsights.totalEV >= 1000000 
+                          ? `£${(stats.pipelineInsights.totalEV / 1000000).toFixed(2)}M` 
+                          : `£${(stats.pipelineInsights.totalEV / 1000).toFixed(0)}k`) 
+                        : "—"}
+                    </p>
+                  </div>
+                  <div className="p-4 rounded-xl bg-white/[0.01] border border-white/[0.02]">
+                    <p className="text-[9.5px] font-bold uppercase tracking-wider text-slate-500">Avg Deal Score</p>
+                    <p className="text-lg font-semibold text-white mt-1.5">
+                      {stats.pipelineInsights?.avgDealScore ? `${stats.pipelineInsights.avgDealScore} / 10` : "—"}
+                    </p>
+                  </div>
+                  <div className="p-4 rounded-xl bg-white/[0.01] border border-white/[0.02]">
+                    <p className="text-[9.5px] font-bold uppercase tracking-wider text-slate-500">Seller Chats</p>
+                    <p className="text-lg font-semibold text-white mt-1.5">
+                      {stats.pipelineInsights?.activeConversations ?? 0} active
+                    </p>
+                  </div>
+                  <div className="p-4 rounded-xl bg-white/[0.01] border border-white/[0.02]">
+                    <p className="text-[9.5px] font-bold uppercase tracking-wider text-slate-500">Avg Pipeline Age</p>
+                    <p className="text-lg font-semibold text-white mt-1.5">
+                      {stats.pipelineInsights?.avgVelocityDays ? `${stats.pipelineInsights.avgVelocityDays} days` : "—"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            {/* Right Column — Execution & Pipeline */}
+            <div className="space-y-8">
 
               {/* Pipeline Distribution (Stage Funnel) */}
               <div className="rounded-2xl p-6 pe-card">

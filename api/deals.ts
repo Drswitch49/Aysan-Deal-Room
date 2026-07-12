@@ -28,6 +28,7 @@ async function migrateKilledDeals(killedRecords: any[]) {
     };
 
     if (f["IM_Review_Documents"]) inboxFields["IM_Review_Documents"] = f["IM_Review_Documents"];
+    if (f["IM/Review"]) inboxFields["IM/Review"] = f["IM/Review"];
     if (f["Attachments"]) inboxFields["Attachments"] = f["Attachments"];
 
     try {
@@ -119,6 +120,18 @@ export default async function handler(req: any, res: any) {
       const targetTable = type === "inbox" ? TABLES.DEAL_INBOX : TABLES.PIPELINE;
       
       if (req.method === "POST") {
+        if (body.fields) {
+          if (body.fields["IM_Review_Documents"] !== undefined) {
+            body.fields["IM/Review"] = body.fields["IM_Review_Documents"];
+            body.fields["Attachments"] = body.fields["IM_Review_Documents"];
+          } else if (body.fields["IM/Review"] !== undefined) {
+            body.fields["IM_Review_Documents"] = body.fields["IM/Review"];
+            body.fields["Attachments"] = body.fields["IM/Review"];
+          } else if (body.fields["Attachments"] !== undefined) {
+            body.fields["IM_Review_Documents"] = body.fields["Attachments"];
+            body.fields["IM/Review"] = body.fields["Attachments"];
+          }
+        }
         const result = await airtableCreate(targetTable, body.fields);
         delete cache["deals"];
         delete cache["inbox"];
@@ -128,6 +141,18 @@ export default async function handler(req: any, res: any) {
       } else if (req.method === "PATCH") {
         const { id } = req.query;
         if (!id) return res.status(400).json({ error: "Record ID required for PATCH" });
+        if (body.fields) {
+          if (body.fields["IM_Review_Documents"] !== undefined) {
+            body.fields["IM/Review"] = body.fields["IM_Review_Documents"];
+            body.fields["Attachments"] = body.fields["IM_Review_Documents"];
+          } else if (body.fields["IM/Review"] !== undefined) {
+            body.fields["IM_Review_Documents"] = body.fields["IM/Review"];
+            body.fields["Attachments"] = body.fields["IM/Review"];
+          } else if (body.fields["Attachments"] !== undefined) {
+            body.fields["IM_Review_Documents"] = body.fields["Attachments"];
+            body.fields["IM/Review"] = body.fields["Attachments"];
+          }
+        }
         const result = await airtableUpdate(targetTable, id, body.fields);
 
         // Sync assignment changes to pipeline if updating inbox deal assignee

@@ -2,10 +2,11 @@ import { useState, useEffect, useMemo } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { 
   Search, AlertTriangle, ChevronLeft, ChevronRight, Inbox, Plus, RefreshCw,
-  Building2, MapPin, Briefcase, Mail, Phone, ExternalLink, Sparkles, FileText
+  Building2, MapPin, Briefcase, Mail, Phone, ExternalLink, Sparkles, FileText, Trash2,
+  Upload
 } from "lucide-react";
 import { getDealInbox, createInboxDeal, updateInboxDeal } from "../api/airtable";
-import { promoteDealFromInbox, updateInboxStatus, deleteInboxDeal } from "../api/admin";
+import { promoteDealFromInbox, updateInboxStatus, deleteInboxDeal, removeImDocument } from "../api/admin";
 import { LoadingState } from "../components/ui/LoadingState";
 import { Modal } from "../components/ui/Modal";
 import { FormField } from "../components/ui/FormField";
@@ -101,7 +102,8 @@ export function DealInboxPage() {
   const [isUploading, setIsUploading] = useState(false);
   
   const [formData, setFormData] = useState({
-    refNo: "", dealName: "", companyName: "", sector: "", location: "", broker: "", status: "Inbox", imReviewDoc: "",
+    refNo: "", dealName: "", companyName: "", sector: "", location: "", broker: "", status: "Inbox",
+    imReviewDocs: [] as any[],
     executiveSummary: "", businessDescription: "", ebitda: "", revenue: "", askingPrice: "", enterpriseValue: "", contactName: "", contactEmail: "", contactPhone: "",
     owner: ""
   });
@@ -109,7 +111,8 @@ export function DealInboxPage() {
 
   const openAddModal = () => {
     setFormData({ 
-      refNo: "", dealName: "", companyName: "", sector: "", location: "", broker: "", status: "Inbox", imReviewDoc: "",
+      refNo: "", dealName: "", companyName: "", sector: "", location: "", broker: "", status: "Inbox",
+      imReviewDocs: [],
       executiveSummary: "", businessDescription: "", ebitda: "", revenue: "", askingPrice: "", enterpriseValue: "", contactName: "", contactEmail: "", contactPhone: "",
       owner: ""
     });
@@ -119,9 +122,24 @@ export function DealInboxPage() {
   const openEditModal = (deal: any, e: any) => {
     e.stopPropagation();
     setEditingDeal(deal);
+    
+    // Resolve attachments array
+    let rawDocs = deal.fields["IM/Review"] || deal.fields["IM_Review_Documents"] || deal.fields["Attachments"] || [];
+    if (typeof rawDocs === "string") {
+      rawDocs = [{ url: rawDocs, filename: "Document" }];
+    } else if (!Array.isArray(rawDocs)) {
+      rawDocs = [];
+    } else {
+      rawDocs = rawDocs.map((doc: any) => ({
+        id: doc.id,
+        url: doc.url,
+        filename: doc.filename || "IM_Document"
+      }));
+    }
+
     setFormData({
       refNo: deal.fields["REF. NO"] || "",
-      imReviewDoc: (Array.isArray(deal.fields["Attachments"]) && deal.fields["Attachments"][0]?.url) || (Array.isArray(deal.fields["IM_Review_Documents"]) && deal.fields["IM_Review_Documents"][0]?.url) || deal.fields["Attachments"] || deal.fields["IM_Review_Documents"] || "",
+      imReviewDocs: rawDocs,
       dealName: deal.fields["Deal Name"] || "",
       companyName: deal.fields["Company Name"] || deal.fields["Company_Name"] || "",
       sector: deal.fields["Sector"] || "",
@@ -142,7 +160,42 @@ export function DealInboxPage() {
     setIsEditModalOpen(true);
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleRemoveAttachment = async (idx: number, filename: string) => {
+    if (!selectedDeal) return;
+    if (!confirm(`Are you sure you want to delete ${filename}?`)) return;
+    try {
+      await removeImDocument(selectedDeal.id, idx);
+      
+      // Update selectedDeal state locally so it updates immediately in the UI
+      const currentDocs = selectedDeal.fields["IM/Review"] || selectedDeal.fields["IM_Review_Documents"] || selectedDeal.fields["Attachments"] || [];
+      const updatedDocs = currentDocs.filter((_: any, i: number) => i !== idx);
+      
+      const updatedDeal = {
+        ...selectedDeal,
+        fields: {
+          ...selectedDeal.fields,
+          "IM/Review": updatedDocs,
+          "IM_Review_Documents": updatedDocs,
+          "Attachments": updatedDocs
+        }
+      };
+      setSelectedDeal(updatedDeal);
+      
+      // Also update the list in the background
+      setInboxItems(prev => prev.map(item => item.id === selectedDeal.id ? updatedDeal : item));
+    } catch (err: any) {
+      alert("Error deleting document: " + err.message);
+    }
+  };
+
+  const handleRemoveFormDoc = (idx: number) => {
+    setFormData(prev => ({
+      ...prev,
+      imReviewDocs: prev.imReviewDocs.filter((_, i) => i !== idx)
+    }));
+  };
+
+  const handleReplaceFormDoc = async (idx: number, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setIsUploading(true);
@@ -162,7 +215,48 @@ export function DealInboxPage() {
         });
         if (res.ok) {
           const data = await res.json();
-          setFormData(prev => ({ ...prev, imReviewDoc: data.url }));
+          setFormData(prev => {
+            const updated = [...prev.imReviewDocs];
+            updated[idx] = { url: data.url, filename: file.name };
+            return { ...prev, imReviewDocs: updated };
+          });
+        } else {
+          alert("File replacement failed.");
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      console.error(err);
+      alert("Error replacing file");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleAddFormDoc = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploading(true);
+    try {
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64data = reader.result as string;
+        const res = await fetch("/api/admin/action", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "upload-temp-file",
+            fileData: base64data,
+            fileName: file.name,
+            fileType: file.type
+          })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setFormData(prev => ({
+            ...prev,
+            imReviewDocs: [...prev.imReviewDocs, { url: data.url, filename: file.name }]
+          }));
         } else {
           alert("File upload failed.");
         }
@@ -200,8 +294,9 @@ export function DealInboxPage() {
         "Contact_Phone": formData.contactPhone,
         "Owner": formData.owner,
         "Assigned To": formData.owner,
-        "IM_Review_Documents": formData.imReviewDoc ? [{ url: formData.imReviewDoc }] : [],
-        "Attachments": formData.imReviewDoc ? [{ url: formData.imReviewDoc }] : []
+        "IM_Review_Documents": formData.imReviewDocs.map(d => d.id ? { id: d.id } : { url: d.url, filename: d.filename }),
+        "IM/Review": formData.imReviewDocs.map(d => d.id ? { id: d.id } : { url: d.url, filename: d.filename }),
+        "Attachments": formData.imReviewDocs.map(d => d.id ? { id: d.id } : { url: d.url, filename: d.filename })
       };
       if (isAddModalOpen) {
         await createInboxDeal(payload);
@@ -716,34 +811,64 @@ export function DealInboxPage() {
                 <ManualNotesTab dealRef={selectedDeal.id} />
               </div>
 
-              {/* Attachments Section */}
-              {(selectedDeal.fields["Attachments"] || selectedDeal.fields["IM_Review_Documents"]) && (
-                <div className="min-w-0">
-                  <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2">Attached Documents</h4>
-                  <div className="flex flex-col gap-2 min-w-0">
-                    {(() => {
-                      const attachments = selectedDeal.fields["Attachments"] || selectedDeal.fields["IM_Review_Documents"];
-                      if (Array.isArray(attachments)) {
-                        return attachments.map((att: any, idx: number) => (
-                          <a key={att.id || idx} href={att.url} target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-white/[0.01] border border-white/[0.02] p-4 rounded-xl hover:bg-white/[0.04] transition min-w-0">
-                            <FileText className="w-5 h-5 text-acp-bronze flex-shrink-0" />
-                            <div className="text-xs text-white truncate font-medium">{att.filename || `Document ${idx + 1}`}</div>
-                          </a>
-                        ));
-                      }
-                      if (typeof attachments === "string") {
+              {/* IM & Review Documents Section */}
+              <div className="space-y-4 min-w-0 border-t border-white/[0.05] pt-6">
+                <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2">IM & Review Documents</h4>
+                {(() => {
+                  const attachments = selectedDeal.fields["IM/Review"] || selectedDeal.fields["IM_Review_Documents"] || selectedDeal.fields["Attachments"] || [];
+                  const docsList = Array.isArray(attachments) 
+                    ? attachments 
+                    : (typeof attachments === "string" ? [{ url: attachments, filename: "Link to Document" }] : []);
+                  
+                  if (docsList.length === 0) {
+                    return <p className="text-xs text-slate-500 italic">No IM documents attached to this deal.</p>;
+                  }
+                  
+                  return (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 min-w-0">
+                      {docsList.map((att: any, idx: number) => {
+                        const name = att.filename || `IM_Document_${idx + 1}`;
                         return (
-                          <a href={attachments} target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-white/[0.01] border border-white/[0.02] p-4 rounded-xl hover:bg-white/[0.04] transition min-w-0">
-                            <FileText className="w-5 h-5 text-acp-bronze flex-shrink-0" />
-                            <div className="text-xs text-white truncate font-medium">Link to Document</div>
-                          </a>
+                          <div key={att.id || idx} className="flex items-center justify-between bg-white/[0.01] border border-white/[0.02] p-4 rounded-xl hover:bg-white/[0.03] transition min-w-0">
+                            <div className="flex items-center gap-3 min-w-0 flex-1 pr-2">
+                              <FileText className="w-5 h-5 text-acp-bronze flex-shrink-0" />
+                              <div className="text-xs text-white truncate font-medium" title={name}>
+                                {name}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-3 flex-shrink-0">
+                              <a 
+                                href={att.url} 
+                                target="_blank" 
+                                rel="noreferrer" 
+                                className="text-xs text-slate-400 hover:text-white font-bold select-none"
+                              >
+                                View
+                              </a>
+                              <a 
+                                href={att.url} 
+                                download={name}
+                                target="_blank" 
+                                rel="noreferrer" 
+                                className="text-xs text-[#C6A66B] hover:text-white font-bold select-none"
+                              >
+                                Download
+                              </a>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveAttachment(idx, name)}
+                                className="text-xs text-rose-500 hover:text-rose-450 font-bold select-none"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </div>
                         );
-                      }
-                      return null;
-                    })()}
-                  </div>
-                </div>
-              )}
+                      })}
+                    </div>
+                  );
+                })()}
+              </div>
             </div>
 
           </div>
@@ -837,34 +962,111 @@ export function DealInboxPage() {
             </FormField>
           </div>
 
-          <FormField label="IM Review Document (Upload or URL)" id="modal-im-review">
-            <div className="flex flex-col gap-2">
-              <input 
-                id="modal-im-review-file" 
-                type="file" 
-                onChange={handleFileUpload} 
-                accept=".pdf,.doc,.docx,.xls,.xlsx"
-                className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white file:mr-4 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-acp-bronze/20 file:text-acp-bronze hover:file:bg-acp-bronze/30 transition-colors cursor-pointer" 
-              />
-              {isUploading && <span className="text-[10px] text-acp-bronze animate-pulse font-medium">Uploading file...</span>}
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] text-slate-500 font-bold uppercase">OR</span>
-                <input 
-                  id="modal-im-review" 
-                  type="url" 
-                  value={formData.imReviewDoc || ""} 
-                  onChange={e => setFormData({...formData, imReviewDoc: e.target.value})} 
-                  className="flex-1 bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder:text-white/20 focus:outline-none focus:border-acp-bronze/50 transition-colors" 
-                  placeholder="Paste URL..." 
-                />
+          {/* IM & Attachments Section */}
+          <div className="space-y-3 pt-2 border-t border-white/[0.02]">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">IM & Attachments</p>
+            
+            {/* List of existing files */}
+            {formData.imReviewDocs && formData.imReviewDocs.length > 0 && (
+              <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                {formData.imReviewDocs.map((att: any, idx: number) => (
+                  <div key={att.id || idx} className="flex items-center justify-between p-2 rounded-lg bg-white/[0.015] border border-white/5 text-[11px]">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <FileText className="h-3.5 w-3.5 text-[#C6A66B] shrink-0" />
+                      <span className="text-white truncate font-medium">{att.filename || "IM_Document"}</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <label className="text-[10px] font-bold text-[#C6A66B] hover:text-white cursor-pointer select-none">
+                        Replace
+                        <input
+                          type="file"
+                          accept=".pdf,.doc,.docx,.xls,.xlsx"
+                          className="hidden"
+                          onChange={(e) => handleReplaceFormDoc(idx, e)}
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveFormDoc(idx)}
+                        className="text-[10px] font-bold text-rose-500 hover:text-rose-450 select-none"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
-              {formData.imReviewDoc && (
-                <a href={formData.imReviewDoc} target="_blank" rel="noreferrer" className="text-[10px] text-blue-400 hover:underline break-all truncate block">
-                  Current Document: {formData.imReviewDoc}
-                </a>
-              )}
+            )}
+
+            {/* Add new attachment input */}
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-2">
+                <label className="flex-1 h-9 rounded-xl border border-dashed border-white/10 hover:border-white/20 bg-[#0B0B0C]/40 flex items-center justify-center gap-2 text-xs text-slate-450 cursor-pointer select-none">
+                  <Upload className="h-3.5 w-3.5 text-slate-500" />
+                  <span>Upload New Attachment</span>
+                  <input
+                    type="file"
+                    accept=".pdf,.doc,.docx,.xls,.xlsx"
+                    className="hidden"
+                    onChange={handleAddFormDoc}
+                  />
+                </label>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <input
+                  type="url"
+                  id="modal-add-url"
+                  placeholder="Or paste URL to add..."
+                  className="flex-1 bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder:text-white/20 focus:outline-none focus:border-acp-bronze/50 transition-colors"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      const input = e.currentTarget;
+                      const val = input.value.trim();
+                      if (val) {
+                        try {
+                          new URL(val);
+                          setFormData(prev => ({
+                            ...prev,
+                            imReviewDocs: [...prev.imReviewDocs, { url: val, filename: val.split("/").pop() || "Document" }]
+                          }));
+                          input.value = "";
+                        } catch {
+                          alert("Please enter a valid URL.");
+                        }
+                      }
+                    }
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const input = document.getElementById("modal-add-url") as HTMLInputElement;
+                    const val = input?.value.trim();
+                    if (val) {
+                      try {
+                        new URL(val);
+                        setFormData(prev => ({
+                          ...prev,
+                          imReviewDocs: [...prev.imReviewDocs, { url: val, filename: val.split("/").pop() || "Document" }]
+                        }));
+                        if (input) input.value = "";
+                      } catch {
+                        alert("Please enter a valid URL.");
+                      }
+                    }
+                  }}
+                  className="px-3 h-8 bg-white/5 hover:bg-white/10 text-xs font-semibold text-slate-300 rounded-lg transition-colors border border-white/10"
+                >
+                  Add URL
+                </button>
+              </div>
             </div>
-          </FormField>
+            {isUploading && (
+              <span className="text-[10px] text-acp-bronze animate-pulse font-medium">Uploading file...</span>
+            )}
+          </div>
         </div>
       </Modal>
 

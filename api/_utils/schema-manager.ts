@@ -311,6 +311,7 @@ export const PIPELINE_FIELD_SPECS: FieldSpec[] = [
   { name: "Source", type: "singleLineText" },
   { name: "Internal_Notes", type: "multilineText" },
   { name: "IM_Review_Documents", type: "multipleAttachments" },
+  { name: "IM/Review", type: "multipleAttachments" },
   { name: "Archived", type: "checkbox" },
   { name: "Listing_Link", type: "url" },
   { name: "Contact_Email", type: "email" },
