@@ -77,28 +77,22 @@ export default async function handler(req: any, res: any) {
     }
 
     // 4. Upload to temporary file hosting to generate a public URL
-    const formData = new FormData();
-    const fileBlob = new Blob([buffer], { type: fileType || "application/octet-stream" });
-    formData.append("file", fileBlob, fileName || "document" + fileExt);
+    const binId = "aysan-" + Math.random().toString(36).substring(2, 15);
+    const cleanFileName = (fileName || "document" + fileExt).replace(/[^a-zA-Z0-9.-]/g, "_");
+    const directDownloadUrl = `https://filebin.net/${binId}/${cleanFileName}`;
 
-    const uploadResponse = await fetch("https://tmpfiles.org/api/v1/upload", {
-      method: "POST",
-      body: formData
+    const uploadResponse = await fetch(directDownloadUrl, {
+      method: "PUT",
+      headers: {
+        "Content-Type": fileType || "application/octet-stream"
+      },
+      body: buffer
     });
 
     if (!uploadResponse.ok) {
       const errorText = await uploadResponse.text();
       throw new Error(`Temporary file hosting upload failed: ${uploadResponse.statusText} - ${errorText}`);
     }
-
-    const uploadResult = await uploadResponse.json();
-    if (uploadResult.status !== "success" || !uploadResult.data?.url) {
-      throw new Error(`Temporary file hosting responded with error: ${JSON.stringify(uploadResult)}`);
-    }
-
-    // Transform page URL to direct download URL (injecting /dl/)
-    const pageUrl = uploadResult.data.url;
-    const directDownloadUrl = pageUrl.replace("https://tmpfiles.org/", "https://tmpfiles.org/dl/");
 
     // 5. Formulate Airtable record fields
     // Resolve single select choices dynamically to prevent "Insufficient permission to create new select option"

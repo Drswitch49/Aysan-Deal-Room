@@ -56,13 +56,17 @@ async function uploadToTempStorage(fileData: string, fileName: string, fileType:
     cleanBase64 = fileData.split(";base64,")[1];
   }
   const buffer = Buffer.from(cleanBase64, "base64");
-  const formData = new FormData();
-  const fileBlob = new Blob([buffer], { type: fileType || "application/octet-stream" });
-  formData.append("file", fileBlob, fileName || "document.pdf");
 
-  const uploadResponse = await fetch("https://tmpfiles.org/api/v1/upload", {
-    method: "POST",
-    body: formData
+  const binId = "aysan-" + Math.random().toString(36).substring(2, 15);
+  const cleanFileName = (fileName || "document.pdf").replace(/[^a-zA-Z0-9.-]/g, "_");
+  const uploadUrl = `https://filebin.net/${binId}/${cleanFileName}`;
+
+  const uploadResponse = await fetch(uploadUrl, {
+    method: "PUT",
+    headers: {
+      "Content-Type": fileType || "application/octet-stream"
+    },
+    body: buffer
   });
 
   if (!uploadResponse.ok) {
@@ -70,12 +74,7 @@ async function uploadToTempStorage(fileData: string, fileName: string, fileType:
     throw new Error(`Temporary file hosting upload failed: ${uploadResponse.statusText} - ${text}`);
   }
 
-  const uploadResult = await uploadResponse.json();
-  if (uploadResult.status !== "success" || !uploadResult.data?.url) {
-    throw new Error(`Temporary file hosting responded with error: ${JSON.stringify(uploadResult)}`);
-  }
-
-  return uploadResult.data.url.replace("https://tmpfiles.org/", "https://tmpfiles.org/dl/");
+  return uploadUrl;
 }
 
 const getOwnerName = (ownerField: any) => {
