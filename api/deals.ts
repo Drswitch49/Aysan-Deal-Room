@@ -2,7 +2,7 @@ import { airtableFetchAll } from "../src/lib/airtable/client.js";
 import { TABLES } from "../src/lib/airtable/schema.js";
 import { mapPipelineDeal, mapDocument, mapSubmissionLogEntry } from "../src/lib/airtable/mapper.js";
 import { authenticateAdmin } from "./admin/lenders.js";
-import { airtableCreate, airtableUpdate, airtableDelete, airtableFetchRecord } from "./_utils/airtable.js";
+import { airtableCreate, airtableUpdate, safeAirtableUpdate, airtableDelete, airtableFetchRecord } from "./_utils/airtable.js";
 
 async function migrateKilledDeals(killedRecords: any[]) {
   for (const record of killedRecords) {
@@ -152,7 +152,7 @@ export default async function handler(req: any, res: any) {
         if (body.fields) {
           syncAttachmentFields(body.fields);
         }
-        const result = await airtableUpdate(targetTable, id, body.fields);
+        const result = await safeAirtableUpdate(targetTable, id, body.fields);
 
         // Sync assignment and attachments changes to pipeline if updating inbox deal
         if (type === "inbox") {
@@ -180,7 +180,7 @@ export default async function handler(req: any, res: any) {
                 const activeLinks = inboxRec.fields["Active_Deal_Link"];
                 if (activeLinks && Array.isArray(activeLinks) && activeLinks.length > 0) {
                   for (const activeId of activeLinks) {
-                    await airtableUpdate(TABLES.PIPELINE, activeId, pipeUpdate);
+                    await safeAirtableUpdate(TABLES.PIPELINE, activeId, pipeUpdate);
                   }
                 }
                 // 2. Sync via REF. NO match fallback
@@ -192,7 +192,7 @@ export default async function handler(req: any, res: any) {
                     return String(ref).toLowerCase() === String(refNo).toLowerCase();
                   });
                   for (const m of matched) {
-                    await airtableUpdate(TABLES.PIPELINE, m.id, pipeUpdate);
+                    await safeAirtableUpdate(TABLES.PIPELINE, m.id, pipeUpdate);
                   }
                 }
               }

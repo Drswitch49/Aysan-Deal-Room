@@ -279,6 +279,28 @@ export async function airtableUpdate(table: string, id: string, fields: Record<s
   return handleResponse(response, table);
 }
 
+export async function safeAirtableUpdate(table: string, id: string, fields: Record<string, any>): Promise<any> {
+  const currentFields = { ...fields };
+  while (Object.keys(currentFields).length > 0) {
+    try {
+      return await airtableUpdate(table, id, currentFields);
+    } catch (err: any) {
+      const errMsg = err.message || "";
+      if (errMsg.includes("Unknown field name:")) {
+        const match = errMsg.match(/Unknown field name:\s*["']?([^"'\s]+)["']?/);
+        if (match && match[1]) {
+          const invalidField = match[1].replace(/["']/g, "");
+          console.warn(`[Safe Update] Removing invalid field: "${invalidField}" from table "${table}" update`);
+          delete currentFields[invalidField];
+          continue;
+        }
+      }
+      throw err;
+    }
+  }
+  return null;
+}
+
 export async function airtableDelete(table: string, id: string) {
   if (!apiKey || !baseId) {
     throw new Error("Missing Airtable environment configuration.");

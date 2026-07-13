@@ -3,6 +3,7 @@ import {
   airtableFetch,
   airtableFetchRecord,
   airtableUpdate,
+  safeAirtableUpdate,
   airtableDelete,
   getTableSchema,
   escapeFormulaString,
@@ -99,7 +100,7 @@ async function syncAttachmentsBidirectional(targetTable: string, dealRecord: any
       const dealInboxLinks = dealRecord.fields["Deal_Inbox"];
       if (dealInboxLinks && Array.isArray(dealInboxLinks) && dealInboxLinks.length > 0) {
         for (const inboxId of dealInboxLinks) {
-          await airtableUpdate(TABLES.DEAL_INBOX, inboxId, {
+          await safeAirtableUpdate(TABLES.DEAL_INBOX, inboxId, {
             "IM_Review_Documents": updatedAttachments,
             "IM/Review": updatedAttachments,
             "Attachments": updatedAttachments,
@@ -112,7 +113,7 @@ async function syncAttachmentsBidirectional(targetTable: string, dealRecord: any
       const activeLinks = dealRecord.fields["Active_Deal_Link"];
       if (activeLinks && Array.isArray(activeLinks) && activeLinks.length > 0) {
         for (const activeId of activeLinks) {
-          await airtableUpdate(TABLES.PIPELINE, activeId, {
+          await safeAirtableUpdate(TABLES.PIPELINE, activeId, {
             "IM_Review_Documents": updatedAttachments,
             "IM/Review": updatedAttachments,
             "Attachments": updatedAttachments,
@@ -996,7 +997,7 @@ export default async function handler(req: any, res: any) {
 
         const updatedAttachments = [...attachmentsArray, newAttachment];
 
-        await airtableUpdate(targetTable, dealId, {
+        await safeAirtableUpdate(targetTable, dealId, {
           "IM_Review_Documents": updatedAttachments,
           "IM/Review": updatedAttachments,
           "Attachments": updatedAttachments,
@@ -1059,7 +1060,7 @@ export default async function handler(req: any, res: any) {
           .filter((_: any, i: number) => i !== attachmentIndex)
           .map((a: any) => ({ url: a.url || "", filename: a.filename || "Document" }));
 
-        await airtableUpdate(targetTable, dealId, {
+        await safeAirtableUpdate(targetTable, dealId, {
           "IM_Review_Documents": remaining.length > 0 ? remaining : [],
           "IM/Review": remaining.length > 0 ? remaining : [],
           "Attachments": remaining.length > 0 ? remaining : [],
@@ -1137,7 +1138,7 @@ export default async function handler(req: any, res: any) {
           return { url: a.url || "", filename: a.filename || "Document" };
         });
 
-        await airtableUpdate(targetTable, dealId, {
+        await safeAirtableUpdate(targetTable, dealId, {
           "IM_Review_Documents": updated,
           "IM/Review": updated,
           "Attachments": updated,
