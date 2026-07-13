@@ -979,6 +979,13 @@ export default async function handler(req: any, res: any) {
                                      dealRecord.fields["Deal_Files"] || 
                                      [];
 
+        let attachmentsArray: any[] = [];
+        if (Array.isArray(existingAttachments)) {
+          attachmentsArray = existingAttachments.map((a: any) => ({ url: a.url, filename: a.filename }));
+        } else if (typeof existingAttachments === "string" && existingAttachments.trim() !== "") {
+          attachmentsArray = [{ url: existingAttachments, filename: "Document" }];
+        }
+
         // Upload to temp hosting to get a public URL for Airtable
         const publicUrl = await uploadToTempStorage(fileData, fileName, fileType);
 
@@ -987,7 +994,7 @@ export default async function handler(req: any, res: any) {
           filename: fileName || "IM_Document",
         };
 
-        const updatedAttachments = [...(Array.isArray(existingAttachments) ? existingAttachments.map((a: any) => ({ url: a.url, filename: a.filename })) : []), newAttachment];
+        const updatedAttachments = [...attachmentsArray, newAttachment];
 
         await airtableUpdate(targetTable, dealId, {
           "IM_Review_Documents": updatedAttachments,
@@ -1036,14 +1043,21 @@ export default async function handler(req: any, res: any) {
                                      dealRecord.fields["Deal_Files"] || 
                                      [];
 
-        if (!Array.isArray(existingAttachments) || attachmentIndex >= existingAttachments.length) {
+        let attachmentsArray: any[] = [];
+        if (Array.isArray(existingAttachments)) {
+          attachmentsArray = existingAttachments;
+        } else if (typeof existingAttachments === "string" && existingAttachments.trim() !== "") {
+          attachmentsArray = [{ url: existingAttachments, filename: "Document" }];
+        }
+
+        if (attachmentIndex >= attachmentsArray.length) {
           return res.status(404).json({ error: "Attachment not found" });
         }
 
-        const removedName = existingAttachments[attachmentIndex]?.filename || "document";
-        const remaining = existingAttachments
+        const removedName = attachmentsArray[attachmentIndex]?.filename || "document";
+        const remaining = attachmentsArray
           .filter((_: any, i: number) => i !== attachmentIndex)
-          .map((a: any) => ({ url: a.url, filename: a.filename }));
+          .map((a: any) => ({ url: a.url || "", filename: a.filename || "Document" }));
 
         await airtableUpdate(targetTable, dealId, {
           "IM_Review_Documents": remaining.length > 0 ? remaining : [],
@@ -1097,7 +1111,14 @@ export default async function handler(req: any, res: any) {
                                      dealRecord.fields["Deal_Files"] || 
                                      [];
 
-        if (!Array.isArray(existingAttachments) || attachmentIndex >= existingAttachments.length) {
+        let attachmentsArray: any[] = [];
+        if (Array.isArray(existingAttachments)) {
+          attachmentsArray = existingAttachments;
+        } else if (typeof existingAttachments === "string" && existingAttachments.trim() !== "") {
+          attachmentsArray = [{ url: existingAttachments, filename: "Document" }];
+        }
+
+        if (attachmentIndex >= attachmentsArray.length) {
           return res.status(404).json({ error: "Attachment to replace not found" });
         }
 
@@ -1109,11 +1130,11 @@ export default async function handler(req: any, res: any) {
           filename: fileName || "IM_Document",
         };
 
-        const updated = existingAttachments.map((a: any, i: number) => {
+        const updated = attachmentsArray.map((a: any, i: number) => {
           if (i === attachmentIndex) {
             return newAttachment;
           }
-          return { url: a.url, filename: a.filename };
+          return { url: a.url || "", filename: a.filename || "Document" };
         });
 
         await airtableUpdate(targetTable, dealId, {
