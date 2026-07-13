@@ -85,6 +85,23 @@ function cleanCompanyName(name: string | undefined | null): string {
   return clean.replace(/^[\s\-|–|—|:|·|•]+|[\s\-|–|—|:|·|•]+$/g, "").trim();
 }
 
+function syncAttachmentFields(fields: any) {
+  if (!fields) return;
+  const attachmentsVal = fields["IM_Review_Documents"] || 
+                         fields["IM/Review"] || 
+                         fields["Attachments"] || 
+                         fields["Deal Files"] || 
+                         fields["Deal_Files"];
+  
+  if (attachmentsVal !== undefined) {
+    fields["IM_Review_Documents"] = attachmentsVal;
+    fields["IM/Review"] = attachmentsVal;
+    fields["Attachments"] = attachmentsVal;
+    fields["Deal Files"] = attachmentsVal;
+    fields["Deal_Files"] = attachmentsVal;
+  }
+}
+
 // In-memory cache variables for server warm starts
 interface CacheEntry {
   timestamp: number;
@@ -121,16 +138,7 @@ export default async function handler(req: any, res: any) {
       
       if (req.method === "POST") {
         if (body.fields) {
-          if (body.fields["IM_Review_Documents"] !== undefined) {
-            body.fields["IM/Review"] = body.fields["IM_Review_Documents"];
-            body.fields["Attachments"] = body.fields["IM_Review_Documents"];
-          } else if (body.fields["IM/Review"] !== undefined) {
-            body.fields["IM_Review_Documents"] = body.fields["IM/Review"];
-            body.fields["Attachments"] = body.fields["IM/Review"];
-          } else if (body.fields["Attachments"] !== undefined) {
-            body.fields["IM_Review_Documents"] = body.fields["Attachments"];
-            body.fields["IM/Review"] = body.fields["Attachments"];
-          }
+          syncAttachmentFields(body.fields);
         }
         const result = await airtableCreate(targetTable, body.fields);
         delete cache["deals"];
@@ -142,16 +150,7 @@ export default async function handler(req: any, res: any) {
         const { id } = req.query;
         if (!id) return res.status(400).json({ error: "Record ID required for PATCH" });
         if (body.fields) {
-          if (body.fields["IM_Review_Documents"] !== undefined) {
-            body.fields["IM/Review"] = body.fields["IM_Review_Documents"];
-            body.fields["Attachments"] = body.fields["IM_Review_Documents"];
-          } else if (body.fields["IM/Review"] !== undefined) {
-            body.fields["IM_Review_Documents"] = body.fields["IM/Review"];
-            body.fields["Attachments"] = body.fields["IM/Review"];
-          } else if (body.fields["Attachments"] !== undefined) {
-            body.fields["IM_Review_Documents"] = body.fields["Attachments"];
-            body.fields["IM/Review"] = body.fields["Attachments"];
-          }
+          syncAttachmentFields(body.fields);
         }
         const result = await airtableUpdate(targetTable, id, body.fields);
 
@@ -159,7 +158,11 @@ export default async function handler(req: any, res: any) {
         if (type === "inbox") {
           try {
             const ownerVal = body.fields["Owner"] || body.fields["Assigned To"];
-            const attachmentsVal = body.fields["IM_Review_Documents"] || body.fields["IM/Review"] || body.fields["Attachments"];
+            const attachmentsVal = body.fields["IM_Review_Documents"] || 
+                                   body.fields["IM/Review"] || 
+                                   body.fields["Attachments"] || 
+                                   body.fields["Deal Files"] || 
+                                   body.fields["Deal_Files"];
             if (ownerVal !== undefined || attachmentsVal !== undefined) {
               const inboxRec = await airtableFetchRecord(TABLES.DEAL_INBOX, id);
               if (inboxRec) {
@@ -169,6 +172,8 @@ export default async function handler(req: any, res: any) {
                   pipeUpdate["IM_Review_Documents"] = attachmentsVal;
                   pipeUpdate["IM/Review"] = attachmentsVal;
                   pipeUpdate["Attachments"] = attachmentsVal;
+                  pipeUpdate["Deal Files"] = attachmentsVal;
+                  pipeUpdate["Deal_Files"] = attachmentsVal;
                 }
 
                 // 1. Sync via link

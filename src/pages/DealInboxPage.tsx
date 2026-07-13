@@ -124,7 +124,17 @@ export function DealInboxPage() {
     setEditingDeal(deal);
     
     // Resolve attachments array
-    let rawDocs = deal.fields["IM/Review"] || deal.fields["IM_Review_Documents"] || deal.fields["Attachments"] || [];
+    let rawDocs = deal.fields["IM/Review"] || 
+                  deal.fields["IM_Review_Documents"] || 
+                  deal.fields["Attachments"] || 
+                  deal.fields["Deal Files"] || 
+                  deal.fields["Deal_Files"] || 
+                  deal.fields["Deal Link"] || 
+                  deal.fields["Drive_Link"] || 
+                  deal.fields["Drive Link"] || 
+                  deal.fields["Link"] || 
+                  deal.fields["link"] || 
+                  [];
     if (typeof rawDocs === "string") {
       rawDocs = [{ url: rawDocs, filename: "Document" }];
     } else if (!Array.isArray(rawDocs)) {
@@ -132,9 +142,9 @@ export function DealInboxPage() {
     } else {
       rawDocs = rawDocs.map((doc: any) => ({
         id: doc.id,
-        url: doc.url,
-        filename: doc.filename || "IM_Document"
-      }));
+        url: doc.url || doc.File_Url || doc.fileUrl || "",
+        filename: doc.filename || doc.Document_Name || doc.documentName || "IM_Document"
+      })).filter((doc: any) => doc.url);
     }
 
     setFormData({
@@ -167,17 +177,20 @@ export function DealInboxPage() {
       await removeImDocument(selectedDeal.id, idx);
       
       // Update selectedDeal state locally so it updates immediately in the UI
-      const currentDocs = selectedDeal.fields["IM/Review"] || selectedDeal.fields["IM_Review_Documents"] || selectedDeal.fields["Attachments"] || [];
-      const updatedDocs = currentDocs.filter((_: any, i: number) => i !== idx);
+      const fieldsToUpdate = ["IM/Review", "IM_Review_Documents", "Attachments", "Deal Files", "Deal_Files", "Deal Link", "Drive_Link", "Drive Link", "Link", "link"];
+      const updatedFields = { ...selectedDeal.fields };
+      fieldsToUpdate.forEach(f => {
+        const val = updatedFields[f];
+        if (Array.isArray(val)) {
+          updatedFields[f] = val.filter((_: any, i: number) => i !== idx);
+        } else if (typeof val === "string" && idx === 0) {
+          updatedFields[f] = "";
+        }
+      });
       
       const updatedDeal = {
         ...selectedDeal,
-        fields: {
-          ...selectedDeal.fields,
-          "IM/Review": updatedDocs,
-          "IM_Review_Documents": updatedDocs,
-          "Attachments": updatedDocs
-        }
+        fields: updatedFields
       };
       setSelectedDeal(updatedDeal);
       
@@ -815,10 +828,30 @@ export function DealInboxPage() {
               <div className="space-y-4 min-w-0 border-t border-white/[0.05] pt-6">
                 <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2">IM & Review Documents</h4>
                 {(() => {
-                  const attachments = selectedDeal.fields["IM/Review"] || selectedDeal.fields["IM_Review_Documents"] || selectedDeal.fields["Attachments"] || [];
-                  const docsList = Array.isArray(attachments) 
-                    ? attachments 
-                    : (typeof attachments === "string" ? [{ url: attachments, filename: "Link to Document" }] : []);
+                  const attachments = selectedDeal.fields["IM/Review"] || 
+                                      selectedDeal.fields["IM_Review_Documents"] || 
+                                      selectedDeal.fields["Attachments"] || 
+                                      selectedDeal.fields["Deal Files"] || 
+                                      selectedDeal.fields["Deal_Files"] || 
+                                      selectedDeal.fields["Deal Link"] || 
+                                      selectedDeal.fields["Drive_Link"] || 
+                                      selectedDeal.fields["Drive Link"] || 
+                                      selectedDeal.fields["Link"] || 
+                                      selectedDeal.fields["link"] || 
+                                      [];
+                  const docsList = (Array.isArray(attachments) ? attachments : [attachments])
+                    .filter(Boolean)
+                    .map((att: any, idx: number) => {
+                      if (typeof att === "string") {
+                        return { url: att, filename: `Document ${idx + 1}` };
+                      }
+                      return {
+                        id: att.id,
+                        url: att.url || att.File_Url || att.fileUrl || "",
+                        filename: att.filename || att.Document_Name || att.documentName || `Document ${idx + 1}`
+                      };
+                    })
+                    .filter(doc => doc.url);
                   
                   if (docsList.length === 0) {
                     return <p className="text-xs text-slate-500 italic">No IM documents attached to this deal.</p>;

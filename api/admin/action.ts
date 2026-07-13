@@ -102,7 +102,9 @@ async function syncAttachmentsBidirectional(targetTable: string, dealRecord: any
           await airtableUpdate(TABLES.DEAL_INBOX, inboxId, {
             "IM_Review_Documents": updatedAttachments,
             "IM/Review": updatedAttachments,
-            "Attachments": updatedAttachments
+            "Attachments": updatedAttachments,
+            "Deal Files": updatedAttachments,
+            "Deal_Files": updatedAttachments
           });
         }
       }
@@ -113,7 +115,9 @@ async function syncAttachmentsBidirectional(targetTable: string, dealRecord: any
           await airtableUpdate(TABLES.PIPELINE, activeId, {
             "IM_Review_Documents": updatedAttachments,
             "IM/Review": updatedAttachments,
-            "Attachments": updatedAttachments
+            "Attachments": updatedAttachments,
+            "Deal Files": updatedAttachments,
+            "Deal_Files": updatedAttachments
           });
         }
       }
@@ -968,7 +972,12 @@ export default async function handler(req: any, res: any) {
         await persistSchemaLogs(schemeLogs);
 
         // Fetch current attachments to preserve existing ones
-        const existingAttachments = dealRecord.fields["IM_Review_Documents"] || dealRecord.fields["IM/Review"] || dealRecord.fields["Attachments"] || [];
+        const existingAttachments = dealRecord.fields["IM_Review_Documents"] || 
+                                     dealRecord.fields["IM/Review"] || 
+                                     dealRecord.fields["Attachments"] || 
+                                     dealRecord.fields["Deal Files"] || 
+                                     dealRecord.fields["Deal_Files"] || 
+                                     [];
 
         // Upload to temp hosting to get a public URL for Airtable
         const publicUrl = await uploadToTempStorage(fileData, fileName, fileType);
@@ -983,7 +992,9 @@ export default async function handler(req: any, res: any) {
         await airtableUpdate(targetTable, dealId, {
           "IM_Review_Documents": updatedAttachments,
           "IM/Review": updatedAttachments,
-          "Attachments": updatedAttachments
+          "Attachments": updatedAttachments,
+          "Deal Files": updatedAttachments,
+          "Deal_Files": updatedAttachments
         });
 
         await syncAttachmentsBidirectional(targetTable, dealRecord, updatedAttachments);
@@ -1018,7 +1029,12 @@ export default async function handler(req: any, res: any) {
           return res.status(404).json({ error: "Deal not found in either Pipeline or Inbox" });
         }
 
-        const existingAttachments = dealRecord.fields["IM_Review_Documents"] || dealRecord.fields["IM/Review"] || dealRecord.fields["Attachments"] || [];
+        const existingAttachments = dealRecord.fields["IM_Review_Documents"] || 
+                                     dealRecord.fields["IM/Review"] || 
+                                     dealRecord.fields["Attachments"] || 
+                                     dealRecord.fields["Deal Files"] || 
+                                     dealRecord.fields["Deal_Files"] || 
+                                     [];
 
         if (!Array.isArray(existingAttachments) || attachmentIndex >= existingAttachments.length) {
           return res.status(404).json({ error: "Attachment not found" });
@@ -1032,7 +1048,9 @@ export default async function handler(req: any, res: any) {
         await airtableUpdate(targetTable, dealId, {
           "IM_Review_Documents": remaining.length > 0 ? remaining : [],
           "IM/Review": remaining.length > 0 ? remaining : [],
-          "Attachments": remaining.length > 0 ? remaining : []
+          "Attachments": remaining.length > 0 ? remaining : [],
+          "Deal Files": remaining.length > 0 ? remaining : [],
+          "Deal_Files": remaining.length > 0 ? remaining : []
         });
 
         await syncAttachmentsBidirectional(targetTable, dealRecord, remaining);
@@ -1072,7 +1090,12 @@ export default async function handler(req: any, res: any) {
           return res.status(404).json({ error: "Deal not found in either Pipeline or Inbox" });
         }
 
-        const existingAttachments = dealRecord.fields["IM_Review_Documents"] || dealRecord.fields["IM/Review"] || dealRecord.fields["Attachments"] || [];
+        const existingAttachments = dealRecord.fields["IM_Review_Documents"] || 
+                                     dealRecord.fields["IM/Review"] || 
+                                     dealRecord.fields["Attachments"] || 
+                                     dealRecord.fields["Deal Files"] || 
+                                     dealRecord.fields["Deal_Files"] || 
+                                     [];
 
         if (!Array.isArray(existingAttachments) || attachmentIndex >= existingAttachments.length) {
           return res.status(404).json({ error: "Attachment to replace not found" });
@@ -1096,7 +1119,9 @@ export default async function handler(req: any, res: any) {
         await airtableUpdate(targetTable, dealId, {
           "IM_Review_Documents": updated,
           "IM/Review": updated,
-          "Attachments": updated
+          "Attachments": updated,
+          "Deal Files": updated,
+          "Deal_Files": updated
         });
 
         await syncAttachmentsBidirectional(targetTable, dealRecord, updated);
