@@ -842,14 +842,23 @@ export function DealInboxPage() {
                   const docsList = (Array.isArray(attachments) ? attachments : [attachments])
                     .filter(Boolean)
                     .map((att: any, idx: number) => {
+                      let url = "";
+                      let filename = `Document ${idx + 1}`;
+                      let id = undefined;
+
                       if (typeof att === "string") {
-                        return { url: att, filename: `Document ${idx + 1}` };
+                        url = att;
+                      } else if (att && typeof att === "object") {
+                        url = att.url || att.File_Url || att.fileUrl || "";
+                        filename = att.filename || att.Document_Name || att.documentName || `Document ${idx + 1}`;
+                        id = att.id;
                       }
-                      return {
-                        id: att.id,
-                        url: att.url || att.File_Url || att.fileUrl || "",
-                        filename: att.filename || att.Document_Name || att.documentName || `Document ${idx + 1}`
-                      };
+
+                      if (url && url.includes("tmpfiles.org/") && !url.includes("tmpfiles.org/dl/")) {
+                        url = url.replace("tmpfiles.org/", "tmpfiles.org/dl/");
+                      }
+
+                      return { id, url, filename };
                     })
                     .filter(doc => doc.url);
                   

@@ -5288,7 +5288,14 @@ function DocumentsTab({ deal, documentState, setRefreshTrigger }: { deal: any; d
                   <div key={idx} className="flex items-center justify-between p-2.5 rounded-lg bg-white/[0.015] border border-white/5">
                     <div className="flex items-center gap-2 min-w-0">
                       <FileText className="h-4 w-4 text-emerald-500 shrink-0" />
-                      <a href={doc.url} target="_blank" rel="noopener noreferrer" className="text-xs text-white truncate hover:text-[#C6A66B] hover:underline">
+                      <a 
+                        href={doc.url && doc.url.includes("tmpfiles.org/") && !doc.url.includes("tmpfiles.org/dl/") 
+                          ? doc.url.replace("tmpfiles.org/", "tmpfiles.org/dl/") 
+                          : doc.url} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="text-xs text-white truncate hover:text-[#C6A66B] hover:underline"
+                      >
                         {doc.filename || `IM Document ${idx + 1}`}
                       </a>
                     </div>
@@ -5320,7 +5327,14 @@ function DocumentsTab({ deal, documentState, setRefreshTrigger }: { deal: any; d
                   <div key={idx} className="flex items-center justify-between p-2.5 rounded-lg bg-white/[0.015] border border-white/5">
                     <div className="flex items-center gap-2 min-w-0">
                       <FileSpreadsheet className="h-4 w-4 text-emerald-500 shrink-0" />
-                      <a href={doc.url} target="_blank" rel="noopener noreferrer" className="text-xs text-white truncate hover:text-[#C6A66B] hover:underline">
+                      <a 
+                        href={doc.url && doc.url.includes("tmpfiles.org/") && !doc.url.includes("tmpfiles.org/dl/") 
+                          ? doc.url.replace("tmpfiles.org/", "tmpfiles.org/dl/") 
+                          : doc.url} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="text-xs text-white truncate hover:text-[#C6A66B] hover:underline"
+                      >
                         {doc.filename || `Attachment ${idx + 1}`}
                       </a>
                     </div>

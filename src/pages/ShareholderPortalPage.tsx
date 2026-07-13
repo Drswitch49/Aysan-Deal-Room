@@ -276,7 +276,14 @@ export function ShareholderPortalPage() {
                                   <div className="text-[9px] font-semibold uppercase tracking-wider text-slate-500 mt-0.5">{doc.type || "Document"}</div>
                                 </div>
                               </div>
-                              <a href={doc.url} target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-[#C6A66B] bg-[#C6A66B]/10 hover:bg-[#C6A66B]/20 rounded transition">
+                              <a 
+                                href={doc.url && doc.url.includes("tmpfiles.org/") && !doc.url.includes("tmpfiles.org/dl/") 
+                                  ? doc.url.replace("tmpfiles.org/", "tmpfiles.org/dl/") 
+                                  : doc.url} 
+                                target="_blank" 
+                                rel="noopener noreferrer" 
+                                className="px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-[#C6A66B] bg-[#C6A66B]/10 hover:bg-[#C6A66B]/20 rounded transition"
+                              >
                                 View
                               </a>
                             </div>
