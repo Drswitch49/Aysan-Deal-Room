@@ -1,35 +1,40 @@
 /**
- * Authorization context extraction (default-deny at the handler level).
+ * Authorization context (Phase 4 — Supabase-backed, default-deny).
  *
- * PHASE 3: reads the identity headers the edge middleware forwards
- * (x-user-email / x-user-role / x-user-id) after it verifies the legacy session.
- * PHASE 4: this module is rewritten to verify a Supabase session/JWT directly and
- * derive the role from the `profiles` table / JWT claim. The exported interface
- * (`getUserContext`, `UserContext`) stays stable so handlers don't change.
+ * Verifies the Supabase access token (httpOnly cookie or Authorization: Bearer)
+ * directly in the handler layer — no reliance on edge-middleware headers, so an
+ * unlisted route can never slip through unguarded. Role comes from the auth
+ * user's server-controlled app_metadata (set at import/invite time).
  */
+import { getTokens, verifyAccessToken } from "./session.js";
 
 export interface UserContext {
   id: string | null;
   email: string | null;
   role: string;
-}
-
-function headerValue(req: any, name: string): string | null {
-  const v = req.headers?.[name];
-  if (Array.isArray(v)) return v[0] ?? null;
-  return typeof v === "string" ? v : null;
+  /** Set for lender portal accounts (app_metadata.lender_id). */
+  lenderId?: string | null;
+  /** Set for shareholder portal accounts (app_metadata.shareholder_id). */
+  shareholderId?: string | null;
 }
 
 /** Returns the authenticated user context, or null if unauthenticated. */
-export function getUserContext(req: any): UserContext | null {
-  const email = headerValue(req, "x-user-email");
-  const role = headerValue(req, "x-user-role");
-  const id = headerValue(req, "x-user-id");
-  if (!email && !id) return null;
-  return { id, email, role: (role ?? "").toLowerCase() || "read_only" };
+export async function getUserContext(req: any): Promise<UserContext | null> {
+  const { access } = getTokens(req);
+  if (!access) return null;
+  const user = await verifyAccessToken(access);
+  if (!user) return null;
+  return {
+    id: user.id,
+    email: user.email,
+    role: user.role,
+    lenderId: user.lenderId,
+    shareholderId: user.shareholderId,
+  };
 }
 
-// Role groupings for route authorization.
+// Role groupings for route authorization (normalized enum from Phase 1 schema).
 export const ALL_STAFF = ["owner", "managing_partner", "partner", "analyst", "hr", "admin", "read_only"];
 export const ALL_ADMINS = ["owner", "managing_partner", "partner", "admin"];
 export const WRITERS = ["owner", "managing_partner", "partner", "analyst", "admin"];
+export const PORTAL_ROLES = ["lender", "shareholder", "stakeholder"];

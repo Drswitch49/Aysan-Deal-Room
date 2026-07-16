@@ -71,9 +71,17 @@ const ROLE_PERMISSIONS: Partial<Record<UserRole, string[]>> = {
 };
 
 /**
+ * Canonicalize a role string for comparison: lowercase, with spaces/underscores
+ * collapsed. Handles legacy title-case ("Managing Partner"), legacy lowercase
+ * ("managing partner"), and the new normalized enum ("managing_partner").
+ */
+function canonicalRole(role: string): string {
+  return (role || "").toLowerCase().replace(/[\s_]+/g, "_").trim();
+}
+
+/**
  * Check if a user has a specific permission.
- * Performs case-insensitive role lookup to handle roles from different sources
- * (Airtable stores title-case, JWT/middleware use lowercase).
+ * Role lookup is canonicalized so all historical role spellings resolve.
  */
 export function hasPermission(
   user: AuthenticatedUser,
@@ -83,25 +91,17 @@ export function hasPermission(
     return false;
   }
 
+  const canon = canonicalRole(user.role);
+
   // Super Admin / Owner bypass: they have all permissions
-  const roleLower = (user.role || "").toLowerCase();
-  if (roleLower === "super admin" || roleLower === "owner") {
+  if (canon === "super_admin" || canon === "owner") {
     return true;
   }
 
-  // Direct lookup first (title-case match)
-  let permissions = ROLE_PERMISSIONS[user.role];
-
-  // Case-insensitive fallback: find the matching role key
-  if (!permissions) {
-    const roleLower = (user.role || "").toLowerCase();
-    const matchingKey = Object.keys(ROLE_PERMISSIONS).find(
-      (key) => key.toLowerCase() === roleLower
-    ) as UserRole | undefined;
-    if (matchingKey) {
-      permissions = ROLE_PERMISSIONS[matchingKey];
-    }
-  }
+  const matchingKey = Object.keys(ROLE_PERMISSIONS).find(
+    (key) => canonicalRole(key) === canon
+  ) as UserRole | undefined;
+  const permissions = matchingKey ? ROLE_PERMISSIONS[matchingKey] : undefined;
 
   return permissions ? permissions.includes(permission) : false;
 }

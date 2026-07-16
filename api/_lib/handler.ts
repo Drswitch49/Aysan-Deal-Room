@@ -48,7 +48,7 @@ export function createHandler<TBody = unknown, TQuery = unknown>(config: Handler
         throw new MethodNotAllowedError(`${req.method} not allowed`);
       }
 
-      const user = getUserContext(req);
+      const user = await getUserContext(req);
       if (requireAuth && !user) throw new UnauthorizedError();
       if (config.roles?.length && (!user || !config.roles.includes(user.role))) {
         throw new ForbiddenError(`Requires role: ${config.roles.join(", ")}`);
