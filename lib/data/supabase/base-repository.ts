@@ -19,6 +19,10 @@ export abstract class SupabaseRepository<TRow, TCreate, TUpdate>
   protected abstract updateSchema: ZodType<TUpdate>;
   /** Columns allowed as equality filters in list(). */
   protected filterableColumns: string[] = [];
+  /** Whether the table has a deleted_at column. Append-only tables
+   *  (stage history, audit logs, portfolio time-series) set this false;
+   *  for them remove() is a HARD delete. */
+  protected softDelete = true;
 
   protected get db(): SupabaseClient {
     return adminClient();
@@ -33,12 +37,9 @@ export abstract class SupabaseRepository<TRow, TCreate, TUpdate>
   }
 
   async findById(id: string): Promise<TRow | null> {
-    const { data, error } = await this.db
-      .from(this.table)
-      .select("*")
-      .eq("id", id)
-      .is("deleted_at", null)
-      .maybeSingle();
+    let q = this.db.from(this.table).select("*").eq("id", id);
+    if (this.softDelete) q = q.is("deleted_at", null);
+    const { data, error } = await q.maybeSingle();
     if (error) throw new InternalError(`${this.table}.findById: ${error.message}`);
     return data ? this.parseRow(data) : null;
   }
@@ -49,10 +50,8 @@ export abstract class SupabaseRepository<TRow, TCreate, TUpdate>
     const orderBy = typeof query.orderBy === "string" ? query.orderBy : "created_at";
     const ascending = query.ascending === true || (query.ascending as unknown) === "true";
 
-    let q = this.db
-      .from(this.table)
-      .select("*", { count: "exact" })
-      .is("deleted_at", null);
+    let q = this.db.from(this.table).select("*", { count: "exact" });
+    if (this.softDelete) q = q.is("deleted_at", null);
 
     for (const col of this.filterableColumns) {
       if (query[col] != null) q = q.eq(col, query[col] as string);
@@ -81,23 +80,18 @@ export abstract class SupabaseRepository<TRow, TCreate, TUpdate>
   async update(id: string, patch: TUpdate): Promise<TRow> {
     const parsed = this.updateSchema.safeParse(patch);
     if (!parsed.success) throw new ValidationError(`Invalid ${this.table} patch`, parsed.error.issues);
-    const { data, error } = await this.db
-      .from(this.table)
-      .update(parsed.data as object)
-      .eq("id", id)
-      .is("deleted_at", null)
-      .select("*")
-      .maybeSingle();
+    let q = this.db.from(this.table).update(parsed.data as object).eq("id", id);
+    if (this.softDelete) q = q.is("deleted_at", null);
+    const { data, error } = await q.select("*").maybeSingle();
     if (error) throw new InternalError(`${this.table}.update: ${error.message}`);
     if (!data) throw new NotFoundError(`${this.table} ${id} not found`);
     return this.parseRow(data);
   }
 
   async remove(id: string): Promise<void> {
-    const { error } = await this.db
-      .from(this.table)
-      .update({ deleted_at: new Date().toISOString() })
-      .eq("id", id);
+    const { error } = this.softDelete
+      ? await this.db.from(this.table).update({ deleted_at: new Date().toISOString() }).eq("id", id)
+      : await this.db.from(this.table).delete().eq("id", id);
     if (error) throw new InternalError(`${this.table}.remove: ${error.message}`);
   }
 }

@@ -63,6 +63,8 @@ class LooseRepository extends SupabaseRepository<LooseRow, Record<string, unknow
   constructor(
     protected table: string,
     protected filterableColumns: string[] = [],
+    /** false for append-only tables without a deleted_at column (hard delete). */
+    protected softDelete: boolean = true,
   ) {
     super();
   }
@@ -81,7 +83,7 @@ export const repositories = {
   shareholderDealAssignments: new LooseRepository("shareholder_deal_assignments", ["deal_id", "shareholder_id"]),
   chatMessages: new LooseRepository("chat_messages", ["deal_id", "lender_id"]),
   dealNotes: new LooseRepository("deal_notes", ["deal_id"]),
-  dealStageHistory: new LooseRepository("deal_stage_history", ["deal_id"]),
+  dealStageHistory: new LooseRepository("deal_stage_history", ["deal_id"], false),
   transcriptAnalyses: new LooseRepository("transcript_analyses", ["deal_id"]),
   precallBriefs: new LooseRepository("precall_briefs", ["deal_id"]),
   postcallBriefs: new LooseRepository("postcall_briefs", ["deal_id"]),
@@ -90,10 +92,10 @@ export const repositories = {
   externalStakeholders: new LooseRepository("external_stakeholders", ["status", "type"]),
   shareholders: new LooseRepository("shareholders", ["status"]),
   portfolioCompanies: new LooseRepository("portfolio_companies", ["status"]),
-  portfolioMetrics: new LooseRepository("portfolio_metrics", ["company_id"]),
-  portfolioAlerts: new LooseRepository("portfolio_alerts", ["company_id", "severity"]),
-  portfolioHealth: new LooseRepository("portfolio_health", ["company_id"]),
-  auditLogs: new LooseRepository("audit_logs", ["entity_type", "entity_id"]),
+  portfolioMetrics: new LooseRepository("portfolio_metrics", ["company_id"], false),
+  portfolioAlerts: new LooseRepository("portfolio_alerts", ["company_id", "severity"], false),
+  portfolioHealth: new LooseRepository("portfolio_health", ["company_id"], false),
+  auditLogs: new LooseRepository("audit_logs", ["entity_type", "entity_id"], false),
 } as const;
 
 export type Repositories = typeof repositories;
