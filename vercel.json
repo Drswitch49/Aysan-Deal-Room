@@ -10,47 +10,17 @@
     }
   ],
   "functions": {
-    "api/jobs/document-analysis.ts": {
-      "maxDuration": 300
-    },
-    "api/jobs/transcript-analysis.ts": {
-      "maxDuration": 300
-    },
-    "api/jobs/precall-brief.ts": {
-      "maxDuration": 300
-    },
-    "api/jobs/postcall-brief.ts": {
-      "maxDuration": 300
-    },
-    "api/jobs/osint-scraping.ts": {
-      "maxDuration": 300
-    },
-    "api/jobs/portfolio-processing.ts": {
-      "maxDuration": 300
-    },
-    "api/jobs/status.ts": {
-      "maxDuration": 30
-    },
-    "api/inngest.ts": {
-      "maxDuration": 300
-    },
-    "api/documents/parse.ts": {
-      "maxDuration": 300
-    },
-    "api/documents/analyze.ts": {
+    "api/jobs/worker.ts": {
       "maxDuration": 300
     },
     "api/documents/upload.ts": {
       "maxDuration": 300
-    },
-    "api/admin/transcript-analysis.ts": {
-      "maxDuration": 300
-    },
-    "api/admin/precall-brief.ts": {
-      "maxDuration": 300
-    },
-    "api/admin/postcall-brief.ts": {
-      "maxDuration": 300
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/jobs/worker",
+      "schedule": "* * * * *"
+    }
+  ]
 }

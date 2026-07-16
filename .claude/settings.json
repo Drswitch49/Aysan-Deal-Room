@@ -15,7 +15,9 @@
       "Bash(echo \"typecheck-exit=$?\")",
       "Bash(grep -iE \"\\(^|/\\)\\\\.env\\($|[^.]\\)\")",
       "Bash(node --env-file=.env --import tsx scripts/etl/import-auth-users.ts)",
-      "Bash(echo \"tc=$?\")"
+      "Bash(echo \"tc=$?\")",
+      "Skill(claude-api)",
+      "Skill(claude-api:*)"
     ]
   }
 }

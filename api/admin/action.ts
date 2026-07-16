@@ -2051,12 +2051,9 @@ export default async function handler(req: any, res: any) {
           const companyName = dealRecord.fields.Company_Name || dealRecord.fields["Company Name"] || dealRecord.fields.Deal_Ref || dealRecord.fields["Deal Name"] || "";
           const website = dealRecord.fields.Website || dealRecord.fields.Company_Website || "";
 
-          const { emitEvent } = await import("../_events/emit.js");
-          const emitRes = await emitEvent("osint/scrape_requested", {
-            dealId,
-            companyName: String(companyName),
-            website: website ? String(website) : undefined,
-          });
+          // LEGACY: Inngest was removed in Phase 5 — always run the local fallback.
+          // OSINT is being rebuilt on the Supabase job system (lib/jobs).
+          const emitRes = null;
 
           if (!emitRes) {
             console.log(`[OSINT Local Fallback] Inngest not available. Running OSINT synchronously in background for ${companyName}...`);
@@ -2105,14 +2102,14 @@ export default async function handler(req: any, res: any) {
                   OSINT_Status: "Analyzing Company",
                 });
 
-                // Synthesis
-                const { synthesizeWithClaude } = await import("../inngest/osint-workflows.js");
-                const synthesisResult = await synthesizeWithClaude(String(companyName), {
-                  website: websiteResult.success ? websiteResult : undefined,
-                  companiesHouse: chResult.found ? chResult : undefined,
-                  linkedIn: linkedinResult.found ? linkedinResult.data : undefined,
-                  news: newsResult.articles && newsResult.articles.length > 0 ? newsResult.articles : undefined,
-                });
+                // Synthesis — LEGACY stub: the Inngest synthesis workflow was removed in
+                // Phase 5; the full OSINT pipeline is being rebuilt on lib/jobs (Phase 5c).
+                const synthesisResult: { synthesis?: string; keyInsights?: string[]; riskFlags?: string[]; industry?: string } = {
+                  synthesis: "",
+                  keyInsights: [],
+                  riskFlags: [],
+                  industry: "Unknown",
+                };
 
                 // 5. Generating Risk Profile
                 await airtableUpdate(PIPELINE_TABLE, dealId, {
@@ -2183,14 +2180,12 @@ export default async function handler(req: any, res: any) {
             return res.status(404).json({ error: "Deal not found" });
           }
 
-          const { emitEvent } = await import("../_events/emit.js");
-          await emitEvent("financial/analysis_requested", {
-            dealId,
-            documentId: documentId || undefined,
-            manuallyTriggered: true,
+          // LEGACY: the Inngest financial workflow was removed in Phase 5.
+          // Financial analysis is being rebuilt on the Supabase job system (lib/jobs).
+          void documentId;
+          return res.status(410).json({
+            error: "This trigger has moved to the job system. Use POST /api/ai/jobs.",
           });
-
-          return res.status(200).json({ success: true, message: "Financial analysis triggered." });
         } catch (err: any) {
           return res.status(500).json({ error: `Failed to trigger financial analysis: ${err.message}` });
         }
