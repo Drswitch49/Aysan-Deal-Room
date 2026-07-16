@@ -2,16 +2,7 @@ import { airtableCreate, airtableUpdate, airtableDelete, airtableFetch, airtable
 import { authenticateAdmin } from "./admin/lenders_auth_helper.js";
 import { ensureTable, TEAM_FIELD_SPECS } from "./_utils/schema-manager.js";
 import bcrypt from "bcryptjs";
-
-// Helper to generate a secure random password
-function generatePassword(): string {
-  const chars = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789!@#$%&*";
-  let pass = "";
-  for (let i = 0; i < 8; i++) {
-    pass += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return pass;
-}
+import { generatePassword } from "../lib/core/secure-random.js";
 
 export default async function handler(req: any, res: any) {
   try {

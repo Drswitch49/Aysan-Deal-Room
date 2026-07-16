@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node --env-file=.env --import tsx scripts/etl/migrate.ts)",
+      "Bash(echo \"EXIT=$?\")",
+      "Bash(node --env-file=.env --import tsx -e ' *)",
+      "Bash(node --env-file=.env --import tsx scripts/etl/reset.ts)",
+      "Bash(npm run *)",
+      "Bash(node --env-file=.env --import tsx scripts/etl/rehost-files.ts)",
+      "Bash(git check-ignore *)",
+      "Bash(git add *)"
+    ]
+  }
+}

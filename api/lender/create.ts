@@ -1,16 +1,7 @@
 import { airtableCreate, escapeFormulaString, airtableFetch, TABLES, normalizeLenderFields } from "../_utils/airtable.js";
 import { authenticateAdmin } from "../admin/lenders_auth_helper.js";
 import bcrypt from "bcryptjs";
-
-// Helper to generate a secure random password
-function generatePassword(): string {
-  const chars = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789!@#$%&*";
-  let pass = "";
-  for (let i = 0; i < 8; i++) {
-    pass += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return pass;
-}
+import { generatePassword, generateSlugSuffix } from "../../lib/core/secure-random.js";
 
 // Helper to generate a unique portal slug
 async function generateUniqueSlug(companyName: string): Promise<string> {
@@ -19,7 +10,7 @@ async function generateUniqueSlug(companyName: string): Promise<string> {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "");
   
-  const randomSuffix = Math.random().toString(36).substring(2, 8);
+  const randomSuffix = generateSlugSuffix(6);
   const slug = `${normalized || "lender"}-${randomSuffix}`;
   
   try {
@@ -54,7 +45,7 @@ export default async function handler(req: any, res: any) {
 
     const slug = await generateUniqueSlug(companyName);
     const password = generatePassword();
-    const uniqueLenderId = "LND-" + Math.random().toString(36).substring(2, 8).toUpperCase();
+    const uniqueLenderId = "LND-" + generateSlugSuffix(6).toUpperCase();
 
     // 2. Hash password for the Users and Lenders tables
     const salt = bcrypt.genSaltSync(10);

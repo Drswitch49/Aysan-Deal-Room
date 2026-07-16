@@ -5,6 +5,12 @@
  * Prevents execution with insecure fallbacks or missing database configurations.
  */
 
+// Secrets that were previously committed/hardcoded and are therefore compromised.
+// These must never be accepted in any environment.
+const COMPROMISED_SECRETS = new Set<string>([
+  "acp-deal-os-jwt-secret-key-2026-super-secure-hash",
+]);
+
 export function validateEnv(): void {
   const jwtSecret = process.env.JWT_SECRET;
   const airtableKey = process.env.AIRTABLE_API_KEY || process.env.VITE_AIRTABLE_API_KEY;
@@ -14,12 +20,19 @@ export function validateEnv(): void {
 
   if (!jwtSecret) {
     missing.push("JWT_SECRET");
-  } else if (jwtSecret === "acp-deal-os-jwt-secret-key-2026-super-secure-hash") {
-    // Block the use of the default fallback in production
-    if (process.env.NODE_ENV === "production") {
+  } else {
+    // Fail fast in EVERY environment (not just production): a known-compromised
+    // or weak signing secret must never be used.
+    if (COMPROMISED_SECRETS.has(jwtSecret)) {
       throw new Error(
-        "CRITICAL CONFIGURATION ERROR: The default insecure JWT_SECRET cannot be used in production. " +
-        "Please update your production environment variables."
+        "CRITICAL CONFIGURATION ERROR: JWT_SECRET is set to a known-compromised value. " +
+        "Generate a fresh secret (e.g. `openssl rand -base64 48`) and set it in your environment."
+      );
+    }
+    if (jwtSecret.length < 32) {
+      throw new Error(
+        "CRITICAL CONFIGURATION ERROR: JWT_SECRET is too weak (min 32 chars). " +
+        "Generate a fresh secret (e.g. `openssl rand -base64 48`)."
       );
     }
   }

@@ -15,19 +15,11 @@ import { requireRole, ANY_INTERNAL, ALL_ADMINS } from "../auth/rbac.js";
 import { logAuditTrail } from "../_utils/audit.js";
 import { ensureTable, ensurePipelineFields, persistSchemaLogs, TABLE_SPECS, TEAM_FIELD_SPECS, STAKEHOLDER_FIELD_SPECS } from "../_utils/schema-manager.js";
 import { generateInvestmentVerdictWithAI } from "../_services/ai.js";
+import { generatePassword, generateSlugSuffix } from "../../lib/core/secure-random.js";
 import bcrypt from "bcryptjs";
 
 // Global in-memory map to track failed passcode update attempts for security rate-limiting
 const failedPasscodeAttempts = new Map<string, { count: number; lockUntil: number }>();
-
-function generatePassword(): string {
-  const chars = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789!@#$%&*";
-  let pass = "";
-  for (let i = 0; i < 8; i++) {
-    pass += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return pass;
-}
 
 async function generateUniqueSlug(companyName: string): Promise<string> {
   const normalized = companyName
@@ -35,7 +27,7 @@ async function generateUniqueSlug(companyName: string): Promise<string> {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "");
 
-  const randomSuffix = Math.random().toString(36).substring(2, 8);
+  const randomSuffix = generateSlugSuffix(6);
   const slug = `${normalized || "lender"}-${randomSuffix}`;
 
   const existing = await airtableFetch(TABLES.LENDERS, {

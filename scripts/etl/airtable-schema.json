@@ -1,0 +1,1484 @@
+[
+  {
+    "name": "Deal_Inbox",
+    "fields": [
+      {
+        "name": "Deal Name",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Sector",
+        "type": "singleSelect"
+      },
+      {
+        "name": "AI_Verdict",
+        "type": "singleSelect"
+      },
+      {
+        "name": "One Line Reason",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Location",
+        "type": "singleLineText"
+      },
+      {
+        "name": "EBITDA_GBP",
+        "type": "currency"
+      },
+      {
+        "name": "Asking_Price_GBP",
+        "type": "currency"
+      },
+      {
+        "name": "Status",
+        "type": "singleSelect"
+      },
+      {
+        "name": "IM/Attachments",
+        "type": "multipleAttachments"
+      },
+      {
+        "name": "Date Added",
+        "type": "dateTime"
+      },
+      {
+        "name": "Last_Modified",
+        "type": "lastModifiedTime"
+      },
+      {
+        "name": "REF. NO",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Listing Link",
+        "type": "url"
+      },
+      {
+        "name": "BROKER",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Contact E-mail",
+        "type": "email"
+      },
+      {
+        "name": "Contact Call Line ",
+        "type": "phoneNumber"
+      },
+      {
+        "name": "Business Description",
+        "type": "multilineText"
+      },
+      {
+        "name": "Turnover",
+        "type": "currency"
+      },
+      {
+        "name": "Source",
+        "type": "singleSelect"
+      },
+      {
+        "name": "Listing Image",
+        "type": "multipleAttachments"
+      },
+      {
+        "name": "Summary (Listing Link)",
+        "type": "aiText"
+      },
+      {
+        "name": "Total Score",
+        "type": "number"
+      },
+      {
+        "name": "Platform_test_result",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Executive Summary",
+        "type": "multilineText"
+      },
+      {
+        "name": "Revenue_per_employee_score",
+        "type": "number"
+      },
+      {
+        "name": "Exit Score",
+        "type": "number"
+      },
+      {
+        "name": "Capital_intensity_score",
+        "type": "number"
+      },
+      {
+        "name": "Growth Score",
+        "type": "number"
+      },
+      {
+        "name": "Market_position_score",
+        "type": "number"
+      },
+      {
+        "name": "Management_score",
+        "type": "number"
+      },
+      {
+        "name": "Customer_concentration_score",
+        "type": "number"
+      },
+      {
+        "name": "Recurring_revenue_score",
+        "type": "number"
+      },
+      {
+        "name": "Ebitda_quality_score",
+        "type": "number"
+      },
+      {
+        "name": "Revenue_scale_score",
+        "type": "number"
+      },
+      {
+        "name": "Sector_score",
+        "type": "number"
+      },
+      {
+        "name": "EV Multiple",
+        "type": "formula"
+      },
+      {
+        "name": "DSCR_Proxy",
+        "type": "number"
+      },
+      {
+        "name": "DSCR_Score",
+        "type": "number"
+      },
+      {
+        "name": "Deal Files",
+        "type": "url"
+      },
+      {
+        "name": "Assigned To",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Review_Queue",
+        "type": "multipleRecordLinks"
+      },
+      {
+        "name": "Active_Pipeline",
+        "type": "multipleRecordLinks"
+      },
+      {
+        "name": "Archive",
+        "type": "multipleRecordLinks"
+      },
+      {
+        "name": "Deal_Notes",
+        "type": "singleLineText"
+      }
+    ]
+  },
+  {
+    "name": "Review_Queue",
+    "fields": [
+      {
+        "name": "Deal Name",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Deal_Name",
+        "type": "multipleRecordLinks"
+      },
+      {
+        "name": "AI verdict",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Partner Review",
+        "type": "singleSelect"
+      },
+      {
+        "name": "Reviewed By",
+        "type": "lastModifiedBy"
+      },
+      {
+        "name": "Kill Reason (Single Select)",
+        "type": "singleSelect"
+      },
+      {
+        "name": "Kill Reason (Free Text)",
+        "type": "multilineText"
+      },
+      {
+        "name": "Information Needed",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Acquisition Associate - Dallience_Recommendation",
+        "type": "multilineText"
+      },
+      {
+        "name": "Decision_Date",
+        "type": "lastModifiedTime"
+      },
+      {
+        "name": "Manual sort",
+        "type": "manualSort"
+      },
+      {
+        "name": "Archive",
+        "type": "multipleRecordLinks"
+      },
+      {
+        "name": "Date Added",
+        "type": "multipleLookupValues"
+      },
+      {
+        "name": "Listing Link",
+        "type": "multipleLookupValues"
+      },
+      {
+        "name": "REF. NO",
+        "type": "multipleLookupValues"
+      },
+      {
+        "name": "BROKER",
+        "type": "multipleLookupValues"
+      },
+      {
+        "name": "DSCR_PROXY",
+        "type": "multipleLookupValues"
+      },
+      {
+        "name": "DSCR_SCORE",
+        "type": "multipleLookupValues"
+      }
+    ]
+  },
+  {
+    "name": "Active_Pipeline",
+    "fields": [
+      {
+        "name": "Deal Name",
+        "type": "singleLineText"
+      },
+      {
+        "name": "ACP REF NO",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Deal_Inbox",
+        "type": "multipleRecordLinks"
+      },
+      {
+        "name": "Location (from Deal_Inbox)",
+        "type": "multipleLookupValues"
+      },
+      {
+        "name": "EBITDA_GBP (from Deal_Inbox)",
+        "type": "multipleLookupValues"
+      },
+      {
+        "name": "Asking_Price_GBP (from Deal_Inbox)",
+        "type": "multipleLookupValues"
+      },
+      {
+        "name": "Listing Link (from Deal_Inbox)",
+        "type": "multipleLookupValues"
+      },
+      {
+        "name": "BROKER (from Deal_Inbox)",
+        "type": "multipleLookupValues"
+      },
+      {
+        "name": "Contact E-mail (from Deal_Inbox)",
+        "type": "multipleLookupValues"
+      },
+      {
+        "name": "Contact Call Line  (from Deal_Inbox)",
+        "type": "multipleLookupValues"
+      },
+      {
+        "name": "Turnover (from Deal_Inbox)",
+        "type": "multipleLookupValues"
+      },
+      {
+        "name": "Executive Summary (from Deal_Inbox)",
+        "type": "multipleLookupValues"
+      },
+      {
+        "name": "DSCR_Proxy (from Deal_Inbox)",
+        "type": "multipleLookupValues"
+      },
+      {
+        "name": "DSCR_Score (from Deal_Inbox)",
+        "type": "multipleLookupValues"
+      },
+      {
+        "name": "Stage",
+        "type": "singleSelect"
+      },
+      {
+        "name": "Collaborator",
+        "type": "multipleCollaborators"
+      },
+      {
+        "name": "Next Action",
+        "type": "multilineText"
+      },
+      {
+        "name": "Next Action Date",
+        "type": "date"
+      },
+      {
+        "name": "Date_Advanced",
+        "type": "createdTime"
+      },
+      {
+        "name": "EV Multiple",
+        "type": "multipleLookupValues"
+      },
+      {
+        "name": "DSCR_Proxy",
+        "type": "multipleLookupValues"
+      },
+      {
+        "name": "Listing Link",
+        "type": "multipleLookupValues"
+      },
+      {
+        "name": "REF No.",
+        "type": "multipleLookupValues"
+      },
+      {
+        "name": "Broker",
+        "type": "multipleLookupValues"
+      },
+      {
+        "name": "IM/Attachments",
+        "type": "multipleLookupValues"
+      },
+      {
+        "name": "DSCR_SCORE",
+        "type": "multipleLookupValues"
+      },
+      {
+        "name": "Documents",
+        "type": "multipleRecordLinks"
+      },
+      {
+        "name": "Submission_Log",
+        "type": "multipleRecordLinks"
+      },
+      {
+        "name": "Deal Files",
+        "type": "multipleLookupValues"
+      },
+      {
+        "name": "Lender_Deal_Assignments",
+        "type": "multipleRecordLinks"
+      },
+      {
+        "name": "Chat_Messages",
+        "type": "multipleRecordLinks"
+      },
+      {
+        "name": "Transcript_Analyses",
+        "type": "multipleRecordLinks"
+      },
+      {
+        "name": "Precall_Briefs",
+        "type": "multipleRecordLinks"
+      },
+      {
+        "name": "Precall_Briefs copy",
+        "type": "multipleRecordLinks"
+      },
+      {
+        "name": "Company_Name",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Project_Name",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Industry",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Website",
+        "type": "url"
+      },
+      {
+        "name": "Location",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Turnover",
+        "type": "number"
+      },
+      {
+        "name": "EBITDA_GBP",
+        "type": "number"
+      },
+      {
+        "name": "Enterprise_Value",
+        "type": "number"
+      },
+      {
+        "name": "Asking_Price_GBP",
+        "type": "number"
+      },
+      {
+        "name": "Owner",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Analyst",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Source",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Internal_Notes",
+        "type": "multilineText"
+      },
+      {
+        "name": "IM_Review_Documents",
+        "type": "multipleAttachments"
+      },
+      {
+        "name": "Business Description",
+        "type": "multipleLookupValues"
+      },
+      {
+        "name": "Listing_Link",
+        "type": "url"
+      },
+      {
+        "name": "Contact_Email",
+        "type": "email"
+      },
+      {
+        "name": "Contact_Phone",
+        "type": "phoneNumber"
+      },
+      {
+        "name": "Executive_Summary",
+        "type": "multilineText"
+      },
+      {
+        "name": "Business_Description",
+        "type": "multilineText"
+      },
+      {
+        "name": "Lender_Executive_Summary",
+        "type": "multilineText"
+      },
+      {
+        "name": "Investment_Highlights",
+        "type": "multilineText"
+      },
+      {
+        "name": "Acquisition_Rationale",
+        "type": "multilineText"
+      },
+      {
+        "name": "Deal_Type",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Claude_Verdict",
+        "type": "multilineText"
+      },
+      {
+        "name": "Deal_Notes",
+        "type": "multipleRecordLinks"
+      },
+      {
+        "name": "Assigned To",
+        "type": "singleLineText"
+      }
+    ]
+  },
+  {
+    "name": "Documents",
+    "fields": [
+      {
+        "name": "Doc_Key",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Deal_Ref",
+        "type": "multipleRecordLinks"
+      },
+      {
+        "name": "Document_Name",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Category",
+        "type": "singleSelect"
+      },
+      {
+        "name": "ABL_Critical",
+        "type": "checkbox"
+      },
+      {
+        "name": "Status",
+        "type": "singleSelect"
+      },
+      {
+        "name": "Source",
+        "type": "singleSelect"
+      },
+      {
+        "name": "Date_Received",
+        "type": "date"
+      },
+      {
+        "name": "Drive_Link",
+        "type": "url"
+      },
+      {
+        "name": "Expected_Date",
+        "type": "date"
+      },
+      {
+        "name": "Internal_Notes",
+        "type": "multilineText"
+      },
+      {
+        "name": "Date_Sent_To_Lender",
+        "type": "date"
+      },
+      {
+        "name": "Lender_Target",
+        "type": "singleSelect"
+      },
+      {
+        "name": "Extracted_Text",
+        "type": "multilineText"
+      },
+      {
+        "name": "Summary",
+        "type": "multilineText"
+      },
+      {
+        "name": "Risks",
+        "type": "multilineText"
+      },
+      {
+        "name": "Covenants",
+        "type": "multilineText"
+      },
+      {
+        "name": "Metrics",
+        "type": "multilineText"
+      },
+      {
+        "name": "Processing_Status",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Processed_At",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Processing_Error",
+        "type": "multilineText"
+      },
+      {
+        "name": "Processing_Started_At",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Document_Access",
+        "type": "singleSelect"
+      }
+    ]
+  },
+  {
+    "name": "Submission_Log",
+    "fields": [
+      {
+        "name": "Date",
+        "type": "date"
+      },
+      {
+        "name": "Deal_Ref",
+        "type": "multipleRecordLinks"
+      },
+      {
+        "name": "What_Was_Sent",
+        "type": "multilineText"
+      },
+      {
+        "name": "Sent_To",
+        "type": "singleSelect"
+      },
+      {
+        "name": "Sent_Via",
+        "type": "singleSelect"
+      },
+      {
+        "name": "Response_Received",
+        "type": "multilineText"
+      },
+      {
+        "name": "Flag",
+        "type": "singleSelect"
+      }
+    ]
+  },
+  {
+    "name": "Archive",
+    "fields": [
+      {
+        "name": "Deal Name.",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Deal Name",
+        "type": "multipleRecordLinks"
+      },
+      {
+        "name": "Total Score",
+        "type": "rollup"
+      },
+      {
+        "name": "AI_Verdict",
+        "type": "rollup"
+      },
+      {
+        "name": "One Line Reason (from Kill_Reason)",
+        "type": "multipleLookupValues"
+      },
+      {
+        "name": "Executive Summary (from Deal Name)",
+        "type": "multipleLookupValues"
+      },
+      {
+        "name": "Kill_Date",
+        "type": "createdTime"
+      },
+      {
+        "name": "Review_Queue",
+        "type": "multipleRecordLinks"
+      },
+      {
+        "name": "Kill Reason (Single Select) (from Review_Queue)",
+        "type": "multipleLookupValues"
+      },
+      {
+        "name": "Kill Reason (Free Text) (from Review_Queue)",
+        "type": "multipleLookupValues"
+      },
+      {
+        "name": "Killed_By",
+        "type": "singleSelect"
+      },
+      {
+        "name": "Listing Link",
+        "type": "multipleLookupValues"
+      },
+      {
+        "name": "Broker",
+        "type": "multipleLookupValues"
+      },
+      {
+        "name": "REF No.",
+        "type": "multipleLookupValues"
+      }
+    ]
+  },
+  {
+    "name": "Lenders",
+    "fields": [
+      {
+        "name": "Name",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Lender_ID",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Company_Name",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Contact_Name",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Email",
+        "type": "email"
+      },
+      {
+        "name": "Phone Number",
+        "type": "phoneNumber"
+      },
+      {
+        "name": "Portal_Slug",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Portal_Password",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Lender_Deal_Assignments",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Lender_Deal_Assignments 2",
+        "type": "multipleRecordLinks"
+      },
+      {
+        "name": "Chat_Messages",
+        "type": "multipleRecordLinks"
+      },
+      {
+        "name": "NDA_APPROVED",
+        "type": "checkbox"
+      },
+      {
+        "name": "Criteria_Pills",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Last_Contact_Date",
+        "type": "date"
+      },
+      {
+        "name": "Passcode_Plain",
+        "type": "singleLineText"
+      }
+    ]
+  },
+  {
+    "name": "Lender_Deal_Assignments",
+    "fields": [
+      {
+        "name": "Name",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Assignment_ID",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Deal_Ref",
+        "type": "multipleRecordLinks"
+      },
+      {
+        "name": "Deal_Inbox (from Deal_Ref)",
+        "type": "multipleLookupValues"
+      },
+      {
+        "name": "Lenders_ID",
+        "type": "multipleRecordLinks"
+      },
+      {
+        "name": "Lender_ID (from Lenders_ID)",
+        "type": "multipleLookupValues"
+      }
+    ]
+  },
+  {
+    "name": "Chat_Messages",
+    "fields": [
+      {
+        "name": "Name",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Message",
+        "type": "multilineText"
+      },
+      {
+        "name": "Sender",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Deal_Ref",
+        "type": "multipleRecordLinks"
+      },
+      {
+        "name": "Lender_ID",
+        "type": "multipleRecordLinks"
+      }
+    ]
+  },
+  {
+    "name": "ACP_Team",
+    "fields": [
+      {
+        "name": "Name",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Role",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Initials",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Access_Level",
+        "type": "singleSelect"
+      },
+      {
+        "name": "Avatar_Theme",
+        "type": "singleSelect"
+      },
+      {
+        "name": "Order",
+        "type": "number"
+      },
+      {
+        "name": "Email",
+        "type": "email"
+      },
+      {
+        "name": "Phone",
+        "type": "phoneNumber"
+      },
+      {
+        "name": "Status",
+        "type": "singleSelect"
+      },
+      {
+        "name": "Login_Link",
+        "type": "url"
+      }
+    ]
+  },
+  {
+    "name": "Hiring_Briefs",
+    "fields": [
+      {
+        "name": "Role",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Company",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Status_Text",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Accent_Color",
+        "type": "singleSelect"
+      },
+      {
+        "name": "Created At",
+        "type": "createdTime"
+      }
+    ]
+  },
+  {
+    "name": "External_Stakeholders",
+    "fields": [
+      {
+        "name": "Name",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Association",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Description",
+        "type": "multilineText"
+      },
+      {
+        "name": "Accent_Color",
+        "type": "singleSelect"
+      },
+      {
+        "name": "Type",
+        "type": "singleSelect"
+      },
+      {
+        "name": "Email",
+        "type": "email"
+      },
+      {
+        "name": "Phone",
+        "type": "phoneNumber"
+      },
+      {
+        "name": "Organization",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Notes",
+        "type": "multilineText"
+      },
+      {
+        "name": "Status",
+        "type": "singleSelect"
+      },
+      {
+        "name": "Company",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Login_Link",
+        "type": "url"
+      }
+    ]
+  },
+  {
+    "name": "Transcript_Analyses",
+    "fields": [
+      {
+        "name": "Name",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Deal Name",
+        "type": "multipleRecordLinks"
+      },
+      {
+        "name": "Deal Name (from Deal Name)",
+        "type": "multipleLookupValues"
+      },
+      {
+        "name": "ACP REF NO (from Deal Name)",
+        "type": "multipleLookupValues"
+      },
+      {
+        "name": "Deal_Inbox (from Deal Name)",
+        "type": "multipleLookupValues"
+      },
+      {
+        "name": "Transcript",
+        "type": "multilineText"
+      },
+      {
+        "name": "Processing_Status",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Processing_Error",
+        "type": "multilineText"
+      },
+      {
+        "name": "Processing_Started_At",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Processed_At",
+        "type": "singleLineText"
+      }
+    ]
+  },
+  {
+    "name": "Precall_Briefs",
+    "fields": [
+      {
+        "name": "Name",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Deal Name (from Active_Pipeline)",
+        "type": "multipleLookupValues"
+      },
+      {
+        "name": "Brief Data",
+        "type": "multilineText"
+      },
+      {
+        "name": "Website",
+        "type": "url"
+      },
+      {
+        "name": "Active_Pipeline",
+        "type": "multipleRecordLinks"
+      },
+      {
+        "name": "Processing_Status",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Processing_Error",
+        "type": "multilineText"
+      },
+      {
+        "name": "Processing_Started_At",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Processed_At",
+        "type": "singleLineText"
+      }
+    ]
+  },
+  {
+    "name": "Postcall_Briefs",
+    "fields": [
+      {
+        "name": "Name",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Deal Name (from Active_Pipeline)",
+        "type": "multipleLookupValues"
+      },
+      {
+        "name": "Brief Data",
+        "type": "multilineText"
+      },
+      {
+        "name": "Website",
+        "type": "url"
+      },
+      {
+        "name": "Active_Pipeline",
+        "type": "multipleRecordLinks"
+      },
+      {
+        "name": "Processing_Status",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Processing_Error",
+        "type": "multilineText"
+      },
+      {
+        "name": "Processing_Started_At",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Processed_At",
+        "type": "singleLineText"
+      }
+    ]
+  },
+  {
+    "name": "Users",
+    "fields": [
+      {
+        "name": "Email",
+        "type": "singleLineText"
+      },
+      {
+        "name": "PasswordHash",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Role",
+        "type": "singleSelect"
+      },
+      {
+        "name": "Status",
+        "type": "singleSelect"
+      },
+      {
+        "name": "Permissions",
+        "type": "multilineText"
+      },
+      {
+        "name": "CreatedAt",
+        "type": "singleLineText"
+      },
+      {
+        "name": "LastLogin",
+        "type": "singleLineText"
+      }
+    ]
+  },
+  {
+    "name": "Portfolio_Metrics",
+    "fields": [
+      {
+        "name": "Company_Id",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Company_Name",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Reporting_Period",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Revenue",
+        "type": "number"
+      },
+      {
+        "name": "EBITDA",
+        "type": "number"
+      },
+      {
+        "name": "DSCR",
+        "type": "number"
+      },
+      {
+        "name": "Leverage",
+        "type": "number"
+      },
+      {
+        "name": "Headcount",
+        "type": "number"
+      },
+      {
+        "name": "Churn_Rate",
+        "type": "number"
+      },
+      {
+        "name": "Recurring_Revenue",
+        "type": "number"
+      }
+    ]
+  },
+  {
+    "name": "Portfolio_Alerts",
+    "fields": [
+      {
+        "name": "Company_Id",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Company_Name",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Alert_Type",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Severity",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Explanation",
+        "type": "multilineText"
+      },
+      {
+        "name": "Triggered_At",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Resolved_At",
+        "type": "singleLineText"
+      }
+    ]
+  },
+  {
+    "name": "Portfolio_Health",
+    "fields": [
+      {
+        "name": "Company_Id",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Company_Name",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Portfolio_Score",
+        "type": "number"
+      },
+      {
+        "name": "Risk_Level",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Active_Alerts",
+        "type": "number"
+      },
+      {
+        "name": "Trend_Summary",
+        "type": "multilineText"
+      },
+      {
+        "name": "Updated_At",
+        "type": "singleLineText"
+      }
+    ]
+  },
+  {
+    "name": "Deal_Stage_History",
+    "fields": [
+      {
+        "name": "Deal_Ref",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Deal_ID",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Company_Name",
+        "type": "singleLineText"
+      },
+      {
+        "name": "From_Stage",
+        "type": "singleLineText"
+      },
+      {
+        "name": "To_Stage",
+        "type": "singleLineText"
+      },
+      {
+        "name": "From_Stage_Label",
+        "type": "singleLineText"
+      },
+      {
+        "name": "To_Stage_Label",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Changed_By",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Changed_By_Role",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Changed_At",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Notes",
+        "type": "multilineText"
+      },
+      {
+        "name": "Transition_Valid",
+        "type": "checkbox"
+      }
+    ]
+  },
+  {
+    "name": "Audit_Logs",
+    "fields": [
+      {
+        "name": "Action",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Operator",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Operator_Role",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Target",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Details",
+        "type": "multilineText"
+      },
+      {
+        "name": "Timestamp",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Event_Type",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Entity_Type",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Entity_Id",
+        "type": "singleLineText"
+      },
+      {
+        "name": "User_Id",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Changes",
+        "type": "multilineText"
+      },
+      {
+        "name": "IP_Address",
+        "type": "singleLineText"
+      }
+    ]
+  },
+  {
+    "name": "Portfolio_Companies",
+    "fields": [
+      {
+        "name": "Company_Name",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Industry",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Location",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Status",
+        "type": "singleSelect"
+      },
+      {
+        "name": "Revenue",
+        "type": "number"
+      },
+      {
+        "name": "EBITDA",
+        "type": "number"
+      },
+      {
+        "name": "Debt",
+        "type": "number"
+      },
+      {
+        "name": "Headcount",
+        "type": "number"
+      },
+      {
+        "name": "Notes",
+        "type": "multilineText"
+      }
+    ]
+  },
+  {
+    "name": "IM_Review_Documents",
+    "fields": [
+      {
+        "name": "Document_Name",
+        "type": "singleLineText"
+      },
+      {
+        "name": "File_Type",
+        "type": "singleSelect"
+      },
+      {
+        "name": "File_Url",
+        "type": "url"
+      },
+      {
+        "name": "Deal_Ref",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Uploaded_By",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Uploaded_At",
+        "type": "dateTime"
+      },
+      {
+        "name": "File_Size",
+        "type": "number"
+      }
+    ]
+  },
+  {
+    "name": "Shareholders",
+    "fields": [
+      {
+        "name": "Name",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Email",
+        "type": "email"
+      },
+      {
+        "name": "Phone",
+        "type": "phoneNumber"
+      },
+      {
+        "name": "Status",
+        "type": "singleSelect"
+      },
+      {
+        "name": "Notes",
+        "type": "multilineText"
+      },
+      {
+        "name": "Login_Link",
+        "type": "url"
+      },
+      {
+        "name": "Last_Login",
+        "type": "dateTime"
+      }
+    ]
+  },
+  {
+    "name": "Shareholder_Deal_Assignments",
+    "fields": [
+      {
+        "name": "Shareholder_ID",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Deal_Ref",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Assigned_At",
+        "type": "dateTime"
+      }
+    ]
+  },
+  {
+    "name": "Deal_Notes",
+    "fields": [
+      {
+        "name": "Deal_Ref",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Notes",
+        "type": "multilineText"
+      },
+      {
+        "name": "Linked Record",
+        "type": "multipleRecordLinks"
+      },
+      {
+        "name": "ACP REF NO (from Linked Record)",
+        "type": "multipleLookupValues"
+      },
+      {
+        "name": "REF No. (from Linked Record)",
+        "type": "multipleLookupValues"
+      },
+      {
+        "name": "Status",
+        "type": "singleSelect"
+      },
+      {
+        "name": "Author",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Author_Email",
+        "type": "singleLineText"
+      },
+      {
+        "name": "Note_Content",
+        "type": "multilineText"
+      }
+    ]
+  }
+]

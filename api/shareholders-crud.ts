@@ -1,15 +1,7 @@
 import { airtableCreate, airtableUpdate, airtableDelete, airtableFetch, TABLES, escapeFormulaString } from "./_utils/airtable.js";
 import { authenticateAdmin } from "./admin/lenders_auth_helper.js";
 import bcrypt from "bcryptjs";
-
-function generatePassword(): string {
-  const chars = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789!@#$%&*";
-  let pass = "";
-  for (let i = 0; i < 8; i++) {
-    pass += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return pass;
-}
+import { generatePassword } from "../lib/core/secure-random.js";
 
 export default async function handler(req: any, res: any) {
   try {

@@ -30,6 +30,35 @@ function apiDevServerPlugin() {
             }
           }
 
+          // Fallback: resolve Vercel-style dynamic segments (e.g. /api/deals/123 → api/deals/[id].ts).
+          // Walks the path, and where a literal segment file/dir is missing, tries a single
+          // `[param].ts` / `[param]/` at that level, capturing the value into req.query.
+          const dynamicParams: Record<string, string> = {};
+          if (!filePath) {
+            const segments = pathname.replace(/^\/+|\/+$/g, "").split("/"); // e.g. ["api","deals","123"]
+            let dir = process.cwd();
+            let ok = true;
+            for (let i = 0; i < segments.length; i++) {
+              const seg = segments[i];
+              const isLast = i === segments.length - 1;
+              const literalDir = path.join(dir, seg);
+              const literalFile = path.join(dir, seg + ".ts");
+              if (isLast && fs.existsSync(literalFile)) { filePath = literalFile; break; }
+              if (isLast && fs.existsSync(path.join(literalDir, "index.ts"))) { filePath = path.join(literalDir, "index.ts"); break; }
+              if (!isLast && fs.existsSync(literalDir)) { dir = literalDir; continue; }
+              // try a dynamic [param] entry at this level
+              const entries = fs.existsSync(dir) ? fs.readdirSync(dir) : [];
+              const dynMatch = entries.find((e: string) => /^\[.+\]\.ts$/.test(e) || /^\[.+\]$/.test(e));
+              if (!dynMatch) { ok = false; break; }
+              const param = dynMatch.replace(/^\[|\]\.ts$|\]$/g, "");
+              dynamicParams[param] = decodeURIComponent(seg);
+              if (isLast && dynMatch.endsWith(".ts")) { filePath = path.join(dir, dynMatch); break; }
+              dir = path.join(dir, dynMatch);
+              if (isLast && fs.existsSync(path.join(dir, "index.ts"))) { filePath = path.join(dir, "index.ts"); }
+            }
+            if (!ok) filePath = "";
+          }
+
           if (!filePath) {
             res.statusCode = 404;
             res.setHeader("Content-Type", "application/json");
@@ -60,7 +89,7 @@ function apiDevServerPlugin() {
           }
 
           // Attach query parameters and helpers to request/response
-          (req as any).query = parsedUrl.query;
+          (req as any).query = { ...parsedUrl.query, ...dynamicParams };
 
           (res as any).json = (data: any) => {
             res.setHeader("Content-Type", "application/json");
