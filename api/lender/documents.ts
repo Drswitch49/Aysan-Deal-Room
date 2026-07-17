@@ -1,164 +1,32 @@
-import { airtableFetch, TABLES, escapeFormulaString, getAssignmentFields, getTableSchema, normalizeAssignmentFields } from "../_utils/airtable.js";
-import { authenticateLender } from "./deals.js";
+/**
+ * GET /api/lender/documents — documents shared with the signed-in lender
+ * (status "Sent to Lender" on their assigned deals). Internal notes and
+ * lender-target fields are never selected.
+ */
+import { createHandler } from "../_lib/handler.js";
+import { resolveLenderScope } from "../_lib/lender-context.js";
+import { adminClient } from "../../lib/data/supabase/client.js";
+import { InternalError } from "../../lib/core/errors.js";
 
-const SAFE_DOC_FIELDS = [
-  "Deal_Ref", "Deal Ref", "Deal Reference",
-  "Document_Name", "Document Name", "Name",
-  "Category", "category",
-  "ABL_Critical", "ABL Critical", "abl_critical", "abl critical", "Critical",
-  "Status", "status", "Stage",
-  "Source", "source",
-  "Date_Received", "Date Received", "date_received", "date received", "Date",
-  "drive link", "Drive Link", "Drive_Link", "drive_link", "Link", "link",
-  "Expected_Date", "Expected Date", "expected_date", "expected date",
-  "Date_Sent_To_Lender", "Date Sent To Lender", "date_sent_to_lender", "date sent to lender"
-];
+const LENDER_SAFE_DOC_COLUMNS = [
+  "id", "deal_id", "document_name", "category", "abl_critical", "status",
+  "source", "date_received", "expected_date", "date_sent_to_lender", "file_url",
+].join(", ");
 
-export default async function handler(req: any, res: any) {
-  if (req.method !== "GET") {
-    return res.status(455).json({ error: "Method not allowed" });
-  }
+export default createHandler({
+  methods: ["GET"],
+  requireAuth: true,
+  handle: async ({ query, user }) => {
+    const scope = await resolveLenderScope(user, (query as any)?.lender_id);
+    if (scope.dealIds.length === 0) return { rows: [] };
 
-  try {
-    // 1. Authenticate lender
-    const lender = await authenticateLender(req);
-    const lenderRecordId = lender.id;
-    const lenderIdText = lender.normalizedFields.Lender_ID;
-
-    // 2. Fetch lender assignments using dynamic fields
-    const { lenderIdCol, lenderIdLookupCol, dealRefCol, statusCol } = await getAssignmentFields();
-    let filterFormula = `OR(FIND('${lenderRecordId}', {${lenderIdCol}}) > 0, FIND('${escapeFormulaString(lenderIdText)}', {${lenderIdCol}}) > 0)`;
-    if (lenderIdLookupCol) {
-      filterFormula = `OR(${filterFormula}, FIND('${escapeFormulaString(lenderIdText)}', {${lenderIdLookupCol}}) > 0)`;
-    }
-    if (statusCol) {
-      filterFormula = `AND(${filterFormula}, {${statusCol}} = 'Active')`;
-    }
-
-    const assignmentsData = await airtableFetch(TABLES.ASSIGNMENTS, {
-      filterByFormula: filterFormula
-    });
-
-    if (!assignmentsData.records || assignmentsData.records.length === 0) {
-      return res.status(200).json([]);
-    }
-
-    // Resolve assigned deals and their associated file links
-    const pipelineData = await airtableFetch(TABLES.PIPELINE);
-    const pipelineRecords = pipelineData.records || [];
-
-    const dealIds = new Set<string>();
-    const dealFilesMap = new Map<string, string>();
-    const refToRecordMap = new Map<string, string>();
-
-    pipelineRecords.forEach((rec: any) => {
-      const refNo = rec.fields["REF No."] || rec.fields.Deal_Ref || rec.fields.dealRef || rec.fields["Deal Name"] || rec.fields.REF_No;
-      if (refNo) {
-        refToRecordMap.set(String(refNo).toLowerCase(), rec.id);
-      }
-      
-      const dealFiles = rec.fields["Deal Files"] || rec.fields.Deal_Files || rec.fields.deal_files || rec.fields["Deal Link"] || rec.fields.Drive_Link || rec.fields["Drive Link"] || rec.fields.Link || rec.fields.link || "";
-      if (dealFiles) {
-        dealFilesMap.set(rec.id, String(dealFiles));
-      }
-    });
-
-    const ndaApprovedDealIds = new Set<string>();
-    const ndaApprovedDealRefs = new Set<string>();
-    
-    let lenderNdaApproved = false;
-    const ndaField = lender.normalizedFields.NDA_Approved;
-    if (Array.isArray(ndaField)) {
-       lenderNdaApproved = ndaField.some(v => v === "Yes" || v === "yes" || v === true || String(v).toLowerCase() === "true");
-    } else {
-       lenderNdaApproved = ndaField === "Yes" || ndaField === "yes" || ndaField === true || String(ndaField).toLowerCase() === "true";
-    }
-
-    for (const record of assignmentsData.records) {
-      const dealRefVal = record.fields[dealRefCol] || record.fields.Deal_Ref || record.fields["Deal Ref"];
-      if (dealRefVal && lenderNdaApproved) {
-        const addRef = (val: string) => {
-          const str = String(val);
-          if (str.startsWith("rec")) ndaApprovedDealIds.add(str);
-          else ndaApprovedDealRefs.add(str.toLowerCase());
-        };
-        if (Array.isArray(dealRefVal)) dealRefVal.forEach(addRef);
-        else addRef(dealRefVal);
-      }
-    }
-
-    // Populate missing cross-references
-    pipelineRecords.forEach((rec: any) => {
-      const refNo = String(rec.fields["REF No."] || rec.fields.Deal_Ref || rec.fields.dealRef || rec.fields["Deal Name"] || rec.fields.REF_No || "").toLowerCase();
-      if (ndaApprovedDealIds.has(rec.id) || (refNo && ndaApprovedDealRefs.has(refNo))) {
-        ndaApprovedDealIds.add(rec.id);
-        if (refNo) ndaApprovedDealRefs.add(refNo);
-      }
-    });
-
-    // 3. Fetch documents
-    const documentsData = await airtableFetch(TABLES.DOCUMENTS);
-
-    // 4. Filter:
-    // - Must belong to one of the assigned deals where NDA is approved
-    const approvedDocs = documentsData.records.filter((doc: any) => {
-      const docDealRefs = doc.fields.Deal_Ref || [];
-      const belongsToAssignedDeal = Array.isArray(docDealRefs) 
-        ? docDealRefs.some(val => ndaApprovedDealIds.has(val) || ndaApprovedDealRefs.has(String(val).toLowerCase()))
-        : (ndaApprovedDealIds.has(String(docDealRefs)) || ndaApprovedDealRefs.has(String(docDealRefs).toLowerCase()));
-
-      const status = String(doc.fields.Status || doc.fields.status || doc.fields.Stage || "").trim().toLowerCase();
-      const isApproved = ["sent to lender", "approved", "approved for lender", "complete", "nda signed"].some(s => status.includes(s));
-
-      const access = String(doc.fields.Document_Access || doc.fields.document_access || doc.fields["Document Access"] || "").trim().toLowerCase();
-      const isAccessExplicitlyAllowed = ["lender", "public", "external"].includes(access);
-      const isAccessExplicitlyDenied = ["internal", "admin", "restricted"].includes(access);
-
-      const isExplicitlySentToLender = ["sent to lender", "approved for lender"].some(s => status.includes(s));
-
-      const shouldShow = isAccessExplicitlyAllowed || isExplicitlySentToLender || (isApproved && !isAccessExplicitlyDenied);
-
-      return belongsToAssignedDeal && shouldShow;
-    });
-
-    // 5. Redact fields and inject populated / fallback Drive_Link field
-    const safeDocs = approvedDocs.map((doc: any) => {
-      const fields: Record<string, any> = {};
-      Object.keys(doc.fields).forEach(key => {
-        if (SAFE_DOC_FIELDS.includes(key)) {
-          fields[key] = doc.fields[key];
-        }
-      });
-
-      // Find if we already have a drive link in the safe fields
-      const existingLinkKey = Object.keys(fields).find(k => 
-        ["drive link", "Drive Link", "Drive_Link", "drive_link", "Link", "link"].includes(k)
-      );
-      
-      let linkValue = existingLinkKey ? fields[existingLinkKey] : "";
-      if (!linkValue) {
-        // Fallback to deal files link
-        const docDealRefs = doc.fields.Deal_Ref || [];
-        const matchedDealId = Array.isArray(docDealRefs) 
-          ? docDealRefs.find(id => dealFilesMap.has(id))
-          : (dealFilesMap.has(String(docDealRefs)) ? String(docDealRefs) : undefined);
-        
-        if (matchedDealId) {
-          linkValue = dealFilesMap.get(matchedDealId) || "";
-        }
-      }
-
-      // Ensure Drive_Link is explicitly provided for mapping on the client side
-      fields["Drive_Link"] = linkValue;
-
-      return {
-        id: doc.id,
-        fields
-      };
-    });
-
-    return res.status(200).json(safeDocs);
-  } catch (err: any) {
-    return res.status(err.status || 401).json({ error: err.message, type: err.type });
-  }
-}
+    const { data, error } = await adminClient()
+      .from("documents")
+      .select(LENDER_SAFE_DOC_COLUMNS)
+      .in("deal_id", scope.dealIds)
+      .ilike("status", "sent to lender")
+      .is("deleted_at", null);
+    if (error) throw new InternalError(`lender documents: ${error.message}`);
+    return { rows: data ?? [] };
+  },
+});

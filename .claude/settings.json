@@ -21,7 +21,9 @@
       "Bash(node --input-type=module -e ' *)",
       "Bash(sort -t: -k2 -rn)",
       "Bash(grep -rln \"fetch\\(\\\\\"/api\\\\|fetch\\(\\\\`/api\" src --include=\"*.ts*\")",
-      "Bash(grep -n 'fetch\\(\"/api\\\\|fetch\\(`/api' src/components/deals/DealForm.tsx src/components/deals/ManualNotesTab.tsx src/components/layout/AdminGuard.tsx src/components/layout/AppLayout.tsx src/pages/CreateDealPage.tsx src/pages/DealDetailPage.tsx src/pages/DealInboxPage.tsx src/pages/DealListPage.tsx src/pages/EditDealPage.tsx src/hooks/useJobStatus.ts)"
+      "Bash(grep -n 'fetch\\(\"/api\\\\|fetch\\(`/api' src/components/deals/DealForm.tsx src/components/deals/ManualNotesTab.tsx src/components/layout/AdminGuard.tsx src/components/layout/AppLayout.tsx src/pages/CreateDealPage.tsx src/pages/DealDetailPage.tsx src/pages/DealInboxPage.tsx src/pages/DealListPage.tsx src/pages/EditDealPage.tsx src/hooks/useJobStatus.ts)",
+      "Bash(break)",
+      "Bash(ping -n 2 127.0.0.1)"
     ]
   }
 }

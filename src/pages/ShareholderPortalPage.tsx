@@ -6,7 +6,9 @@ import { EmptyState } from "../components/ui/EmptyState";
 import { cx } from "../utils/cx";
 
 export function ShareholderPortalPage() {
-  const [token, setToken] = useState(localStorage.getItem("acp_auth_token") || "");
+  // Session lives in httpOnly cookies now (no tokens in localStorage — XSS-safe).
+  // `token` is just a "signed in" marker; on mount we probe the session.
+  const [token, setToken] = useState("");
   const [deals, setDeals] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(!!token);
   const [error, setError] = useState<string | null>(null);
@@ -17,23 +19,35 @@ export function ShareholderPortalPage() {
   const [password, setPassword] = useState("");
   const [isVerifying, setIsVerifying] = useState(false);
 
+  // On mount: if an httpOnly session cookie already exists for a shareholder,
+  // resume it automatically.
+  useEffect(() => {
+    fetch("/api/auth/session")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.authenticated && (data.user?.role || "").toLowerCase() === "shareholder") {
+          setToken("session");
+        }
+      })
+      .catch(() => undefined);
+  }, []);
+
   useEffect(() => {
     if (!token) return;
     setIsLoading(true);
-    fetch("/api/shareholder-portal", {
-      headers: { Authorization: `Bearer ${token}` }
-    })
+    fetch("/api/shareholder-portal")
       .then(async (res) => {
         if (!res.ok) {
           if (res.status === 401 || res.status === 403) {
             handleLogout();
           }
           const err = await res.json().catch(() => ({}));
-          throw new Error(err.error || "Failed to load portal data");
+          throw new Error(err?.error?.message || err.error || "Failed to load portal data");
         }
         return res.json();
       })
-      .then((data) => {
+      .then((payload) => {
+        const data = payload?.data ?? payload;
         setDeals(data.deals || []);
         if (data.deals?.length > 0) setSelectedDeal(data.deals[0]);
       })
@@ -60,8 +74,8 @@ export function ShareholderPortalPage() {
       if ((data.user.role || "").toLowerCase() !== "shareholder") {
         throw new Error("Access denied. Shareholder profile required.");
       }
-      localStorage.setItem("acp_auth_token", data.token);
-      setToken(data.token);
+      // Session cookie set by the server; no token stored client-side.
+      setToken("session");
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -70,7 +84,7 @@ export function ShareholderPortalPage() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem("acp_auth_token");
+    fetch("/api/auth/logout", { method: "POST" }).catch(() => undefined);
     setToken("");
     setDeals([]);
     setSelectedDeal(null);

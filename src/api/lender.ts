@@ -1,142 +1,87 @@
+/**
+ * Lender portal client (Phase 6 — Supabase-backed).
+ *
+ * Login keeps the slug+password contract, but the password is now the lender's
+ * real Supabase Auth password; the session lives in httpOnly cookies, so the
+ * old x-lender-slug header is gone (kept as an ignored arg for signatures).
+ */
+import { api } from "./http";
 import type { DealDocument, PipelineDeal, SubmissionLogEntry } from "../types/deal";
-import { asUrl } from "../utils/fields";
 
-// Retrieve lender credentials from sessionStorage
-const getLenderHeaders = (portalSlug: string): Record<string, string> => {
-  return {
-    "x-lender-slug": portalSlug
-  };
-};
+type Row = Record<string, any>;
 
 export async function loginLender(portalSlug: string, passcode: string) {
   const response = await fetch("/api/lender/auth", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({ portalSlug, password: passcode })
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ portalSlug, password: passcode }),
   });
-
   if (!response.ok) {
-    const err = await response.json();
+    const err = await response.json().catch(() => ({}));
     throw new Error(err.error || "Incorrect portal credentials");
   }
-
   return response.json();
 }
 
-export async function fetchLenderDeals(portalSlug: string): Promise<PipelineDeal[]> {
-  const response = await fetch("/api/lender/deals", {
-    headers: getLenderHeaders(portalSlug)
-  });
-
-  if (!response.ok) {
-    const err = await response.json();
-    throw new Error(err.error || "Failed to load assigned deals");
-  }
-
-  const rawDeals = await response.json();
-  
-  // Map raw fields to PipelineDeal format
-  return rawDeals.map((rec: any) => ({
-    id: rec.id,
-    dealRef: rec.fields["REF No."] || rec.fields.Deal_Ref || rec.fields.dealRef || rec.fields["Deal Name"] || "",
-    companyName: "Undisclosed Company", // Explicitly masked for Lender Portal privacy
-    status: rec.fields.Status || rec.fields.Deal_Status || rec.fields.Stage || "",
-    location: rec.fields.Location || rec.fields["Company Location"] || "",
-    sector: rec.fields.Sector || rec.fields.Industry || "",
-    ev: rec.fields.EV || rec.fields["Enterprise Value"] || "",
-    dscrBase: rec.fields.DSCR_Base || rec.fields["DSCR Base"] || "",
-    dscrStress: rec.fields.DSCR_Stress || rec.fields["DSCR Stress"] || "",
-    broker: rec.fields.Broker || "",
-    lenderAssigned: rec.fields.Lender_Assigned || "",
-    vendorNames: rec.fields.Vendor_Names || "",
-    postCompletionRoles: rec.fields.Post_Completion_Roles || rec.fields["Post-Completion Roles"] || "",
-    lenderExecutiveSummary: rec.fields.Lender_Executive_Summary || rec.fields["Lender Executive Summary"] || "",
-    businessDescription: rec.fields.Business_Description || rec.fields["Business Description"] || "",
-    investmentHighlights: rec.fields.Investment_Highlights || rec.fields["Investment Highlights"] || "",
-    acquisitionRationale: rec.fields.Acquisition_Rationale || rec.fields["Acquisition Rationale"] || "",
-    dealType: rec.fields.Deal_Type || rec.fields["Deal Type"] || "",
-    turnover: rec.fields.Turnover || rec.fields.turnover || rec.fields.Revenue || rec.fields.revenue || "",
-    ebitda: rec.fields.EBITDA || rec.fields.ebitda || rec.fields.EBITDA_GBP || rec.fields["EBITDA GBP"] || "",
-    evAsk: rec.fields.Asking_Price_GBP || rec.fields["Asking Price"] || rec.fields.Asking_Price || rec.fields.evAsk || "",
-    capitalStructure: buildCapitalStructure(rec.fields),
-    rawFields: rec.fields,
-    dealFiles: asUrl(rec.fields["Deal Files"] || rec.fields.dealFiles),
-    ndaApproved: rec.ndaApproved
+export async function fetchLenderDeals(_portalSlug: string): Promise<PipelineDeal[]> {
+  const { rows } = await api.get<{ rows: Row[] }>("/api/lender/deals");
+  return rows.map((d) => ({
+    id: d.id,
+    dealRef: d.acp_ref_no || d.ref_no || d.id,
+    companyName: "Undisclosed Company", // masked for lender-portal privacy
+    status: d.pipeline_stage || d.stage || "",
+    location: d.location || "",
+    sector: d.sector || d.industry || "",
+    ev: String(d.enterprise_value ?? ""),
+    dscrBase: String(d.dscr_proxy ?? ""),
+    dscrStress: String(d.dscr_score ?? ""),
+    broker: "",
+    lenderAssigned: "",
+    vendorNames: "",
+    postCompletionRoles: "",
+    lenderExecutiveSummary: d.lender_executive_summary || "",
+    businessDescription: d.business_description || "",
+    investmentHighlights: d.investment_highlights || "",
+    acquisitionRationale: d.acquisition_rationale || "",
+    dealType: d.deal_type || "",
+    turnover: String(d.turnover ?? ""),
+    ebitda: String(d.ebitda_gbp ?? ""),
+    evAsk: String(d.asking_price_gbp ?? d.enterprise_value ?? ""),
+    capitalStructure: [],
+    rawFields: d as PipelineDeal["rawFields"],
+    dealFiles: d.deal_files_secure_url || "",
   }));
 }
 
-export async function fetchLenderDocuments(portalSlug: string): Promise<DealDocument[]> {
-  const response = await fetch("/api/lender/documents", {
-    headers: getLenderHeaders(portalSlug)
-  });
-
-  if (!response.ok) {
-    const err = await response.json();
-    throw new Error(err.error || "Failed to load approved documents");
-  }
-
-  const rawDocs = await response.json();
-  
-  // Map raw fields to DealDocument format
-  return rawDocs.map((rec: any) => ({
-    id: rec.id,
-    dealRef: Array.isArray(rec.fields.Deal_Ref) ? rec.fields.Deal_Ref[0] : (rec.fields.Deal_Ref || ""),
-    documentName: rec.fields.Document_Name || rec.fields["Document Name"] || "",
-    category: rec.fields.Category || "",
-    ablCritical: Boolean(rec.fields.ABL_Critical || rec.fields["ABL Critical"]),
-    status: rec.fields.Status || "",
-    source: rec.fields.Source || "",
-    dateReceived: rec.fields.Date_Received || rec.fields["Date Received"] || "",
-    driveLink: asUrl(rec.fields.Drive_Link || rec.fields["drive link"]),
-    expectedDate: rec.fields.Expected_Date || "",
-    internalNotes: "", // Purposely redacted on client
-    dateSentToLender: rec.fields.Date_Sent_To_Lender || "",
-    lenderTarget: "" // Purposely redacted on client
+export async function fetchLenderDocuments(_portalSlug: string): Promise<DealDocument[]> {
+  const { rows } = await api.get<{ rows: Row[] }>("/api/lender/documents");
+  return rows.map((r) => ({
+    id: r.id,
+    dealRef: r.deal_id ?? "",
+    documentName: r.document_name ?? "",
+    category: r.category ?? "",
+    ablCritical: Boolean(r.abl_critical),
+    status: r.status ?? "",
+    source: r.source ?? "",
+    dateReceived: r.date_received ?? "",
+    driveLink: r.file_url ?? "",
+    expectedDate: r.expected_date ?? "",
+    internalNotes: "", // never exposed to lenders
+    dateSentToLender: r.date_sent_to_lender ?? "",
+    lenderTarget: "", // never exposed to lenders
   }));
 }
 
-function buildCapitalStructure(fields: any) {
-  const rows = [
-    {
-      label: "Senior Debt",
-      provider: fields["Senior_Debt_Provider"] || fields["Senior Debt Provider"] || "",
-      amount: fields["Senior_Debt"] || fields["Senior Debt"] || "",
-      notes: fields["Senior_Debt_Notes"] || fields["Senior Debt Notes"] || ""
-    },
-    {
-      label: "Subordinated Debt",
-      provider: fields["Sub_Debt_Provider"] || fields["Sub Debt Provider"] || "",
-      amount: fields["Sub_Debt"] || fields["Sub Debt"] || "",
-      notes: fields["Sub_Debt_Notes"] || fields["Sub Debt Notes"] || ""
-    },
-    {
-      label: "Equity",
-      provider: fields["Equity_Provider"] || fields["Equity Provider"] || "",
-      amount: fields["Equity"] || fields["Equity Amount"] || "",
-      notes: fields["Equity_Notes"] || fields["Equity Notes"] || ""
-    },
-    {
-      label: "Seller Note",
-      provider: fields["Seller_Note_Provider"] || fields["Seller Note Provider"] || "",
-      amount: fields["Seller_Note"] || fields["Seller Note"] || "",
-      notes: fields["Seller_Note_Notes"] || fields["Seller Note Notes"] || ""
-    }
-  ];
-
-  return rows.filter(row => row.provider || row.amount || row.notes);
-}
-
-export async function fetchLenderSubmissions(portalSlug: string): Promise<SubmissionLogEntry[]> {
-  const response = await fetch("/api/lender/submissions", {
-    headers: getLenderHeaders(portalSlug)
-  });
-
-  if (!response.ok) {
-    const err = await response.json();
-    throw new Error(err.error || "Failed to load activity logs");
-  }
-
-  return response.json();
+export async function fetchLenderSubmissions(_portalSlug: string): Promise<SubmissionLogEntry[]> {
+  const { rows } = await api.get<{ rows: Row[] }>("/api/lender/submissions");
+  return rows.map((r) => ({
+    id: r.id,
+    dealRef: r.deal_id ?? "",
+    date: r.submitted_on ?? "",
+    whatWasSent: r.what_was_sent ?? "",
+    sentTo: r.sent_to ?? "",
+    sentVia: r.sent_via ?? "",
+    responseReceived: r.response_received ?? "",
+    flag: r.flag ?? "",
+  }));
 }
