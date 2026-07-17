@@ -6,7 +6,7 @@ import {
   Upload
 } from "lucide-react";
 import { getDealInbox, createInboxDeal, updateInboxDeal } from "../api/airtable";
-import { promoteDealFromInbox, updateInboxStatus, deleteInboxDeal, removeImDocument } from "../api/admin";
+import { promoteDealFromInbox, updateInboxStatus, deleteInboxDeal, removeImDocument, fetchTeamMemberRecords, uploadTempFile } from "../api/admin";
 import { LoadingState } from "../components/ui/LoadingState";
 import { Modal } from "../components/ui/Modal";
 import { FormField } from "../components/ui/FormField";
@@ -77,11 +77,7 @@ export function DealInboxPage() {
   useEffect(() => {
     const loadTeamMembers = async () => {
       try {
-        const res = await fetch("/api/team-members-crud");
-        if (res.ok) {
-          const data = await res.json();
-          setTeamMembers(data || []);
-        }
+        setTeamMembers(await fetchTeamMemberRecords());
       } catch (err) {
         console.error("Failed to load team members in inbox:", err);
       }
@@ -216,24 +212,15 @@ export function DealInboxPage() {
       const reader = new FileReader();
       reader.onloadend = async () => {
         const base64data = reader.result as string;
-        const res = await fetch("/api/admin/action", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "upload-temp-file",
-            fileData: base64data,
-            fileName: file.name,
-            fileType: file.type
-          })
-        });
-        if (res.ok) {
-          const data = await res.json();
+        try {
+          const raw = base64data.includes(",") ? base64data.split(",")[1] : base64data;
+          const data = await uploadTempFile(file.name, file.type, raw);
           setFormData(prev => {
             const updated = [...prev.imReviewDocs];
             updated[idx] = { url: data.url, filename: file.name };
             return { ...prev, imReviewDocs: updated };
           });
-        } else {
+        } catch {
           alert("File replacement failed.");
         }
       };
@@ -254,23 +241,14 @@ export function DealInboxPage() {
       const reader = new FileReader();
       reader.onloadend = async () => {
         const base64data = reader.result as string;
-        const res = await fetch("/api/admin/action", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "upload-temp-file",
-            fileData: base64data,
-            fileName: file.name,
-            fileType: file.type
-          })
-        });
-        if (res.ok) {
-          const data = await res.json();
+        try {
+          const raw = base64data.includes(",") ? base64data.split(",")[1] : base64data;
+          const data = await uploadTempFile(file.name, file.type, raw);
           setFormData(prev => ({
             ...prev,
             imReviewDocs: [...prev.imReviewDocs, { url: data.url, filename: file.name }]
           }));
-        } else {
+        } catch {
           alert("File upload failed.");
         }
       };

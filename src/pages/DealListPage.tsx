@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { getDealInbox, getAllDocuments } from "../api/airtable";
-import { fetchAdminLenders, createAdminDeal, uploadImDocument } from "../api/admin";
+import { fetchAdminLenders, createAdminDeal, uploadImDocument, fetchTeamMemberRecords } from "../api/admin";
 import type { PipelineDeal, DealDocument } from "../types/deal";
 import { cx } from "../utils/cx";
 import { usePipeline } from "../context/PipelineContext";
@@ -81,11 +81,7 @@ export function DealListPage() {
   useEffect(() => {
     const loadTeamMembers = async () => {
       try {
-        const res = await fetch("/api/team-members-crud");
-        if (res.ok) {
-          const data = await res.json();
-          setTeamMembers(data || []);
-        }
+        setTeamMembers(await fetchTeamMemberRecords());
       } catch (err) {
         console.error("Failed to load team members:", err);
       }

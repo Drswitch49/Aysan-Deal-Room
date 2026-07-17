@@ -1,130 +1,78 @@
-import { config } from "../config/env";
+/**
+ * Deal-room read client (Phase 6 — Supabase-backed REST).
+ *
+ * NOTE: filename kept as airtable.ts temporarily so ~20 importers don't churn
+ * in the same commit; it no longer talks to Airtable. Renamed in the
+ * decomposition pass.
+ */
+import { api, type Paginated } from "./http";
+import { mapDeal, mapDocument, mapSubmission } from "./mappers";
 import type { DealDocument, PipelineDeal, SubmissionLogEntry } from "../types/deal";
 
-const getAdminHeaders = () => {
-  return {
-    "Content-Type": "application/json"
-  };
-};
-
 export function clearAirtableCache() {
-  // Caching is now handled server-side at the CDN Edge and in-memory levels.
+  // No client cache; reads hit the API directly.
 }
 
-export async function getDeals(forceRefresh: boolean = false): Promise<PipelineDeal[]> {
-  const url = forceRefresh ? "/api/deals?forceRefresh=true" : "/api/deals";
-  const response = await fetch(url);
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.error || "Failed to load active pipeline deals");
-  }
-  return response.json();
+/** Active-pipeline deals (the main working set). */
+export async function getDeals(_forceRefresh: boolean = false): Promise<PipelineDeal[]> {
+  const page = await api.get<Paginated<any>>("/api/deals?stage=active&limit=200");
+  return page.rows.map(mapDeal);
 }
 
-export async function getDealByRef(ref: string, forceRefresh: boolean = false): Promise<PipelineDeal | null> {
-  const url = forceRefresh ? `/api/deals?ref=${encodeURIComponent(ref)}&forceRefresh=true` : `/api/deals?ref=${encodeURIComponent(ref)}`;
-  const response = await fetch(url);
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.error || `Failed to load deal details for ref: ${ref}`);
-  }
-  return response.json();
+export async function getDealByRef(ref: string, _forceRefresh: boolean = false): Promise<PipelineDeal | null> {
+  const page = await api.get<Paginated<any>>(`/api/deals?ref=${encodeURIComponent(ref)}`);
+  return page.rows.length ? mapDeal(page.rows[0]) : null;
 }
 
 export async function getAllDocuments(): Promise<DealDocument[]> {
-  const response = await fetch("/api/deals?type=documents");
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.error || "Failed to load checklist documents");
-  }
-  return response.json();
+  const page = await api.get<Paginated<any>>("/api/documents?limit=200");
+  return page.rows.map(mapDocument);
 }
 
 export async function getDocumentsForDeal(ref: string): Promise<DealDocument[]> {
-  const response = await fetch(`/api/deals?type=documents&ref=${encodeURIComponent(ref)}`);
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.error || `Failed to load documents for deal: ${ref}`);
-  }
-  return response.json();
+  const deal = await getDealByRef(ref);
+  if (!deal) return [];
+  const page = await api.get<Paginated<any>>(`/api/documents?deal_id=${encodeURIComponent(deal.id)}&limit=200`);
+  return page.rows.map(mapDocument);
 }
 
 export async function getAllSubmissionLog(): Promise<SubmissionLogEntry[]> {
-  const response = await fetch("/api/deals?type=submissions");
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.error || "Failed to load submission activities");
-  }
-  return response.json();
+  const page = await api.get<Paginated<any>>("/api/submissions?limit=200");
+  return page.rows.map(mapSubmission);
 }
 
 export async function getSubmissionLogForDeal(ref: string): Promise<SubmissionLogEntry[]> {
-  const response = await fetch(`/api/deals?type=submissions&ref=${encodeURIComponent(ref)}`);
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.error || `Failed to load activity logs for deal: ${ref}`);
-  }
-  return response.json();
+  const deal = await getDealByRef(ref);
+  if (!deal) return [];
+  const page = await api.get<Paginated<any>>(`/api/submissions?deal_id=${encodeURIComponent(deal.id)}&limit=200`);
+  return page.rows.map(mapSubmission);
 }
 
 export async function getDealByRefForLender(ref: string): Promise<PipelineDeal | null> {
-  // Lenders resolve their deals securely through the proxy endpoint
   return getDealByRef(ref);
 }
 
 export async function getDocumentsForLender(ref: string): Promise<DealDocument[]> {
   const deal = await getDealByRefForLender(ref);
   if (!deal) return [];
-
-  const allDocs = await getAllDocuments();
-  return allDocs
-    .filter(
-      (doc) => 
-        doc.dealRef.toLowerCase() === deal.id.toLowerCase() &&
-        (doc.status || "").trim().toLowerCase() === "sent to lender"
-    )
-    .map((doc) => {
-      if (!doc.driveLink && deal.dealFiles) {
-        return { ...doc, driveLink: deal.dealFiles };
-      }
-      return doc;
-    });
+  const docs = await getDocumentsForDeal(ref);
+  return docs
+    .filter((doc) => (doc.status || "").trim().toLowerCase() === "sent to lender")
+    .map((doc) => (!doc.driveLink && deal.dealFiles ? { ...doc, driveLink: deal.dealFiles } : doc));
 }
 
+/** Inbox deals (lifecycle stage = inbox). Returns mapped deals. */
 export async function getDealInbox(): Promise<any[]> {
-  const response = await fetch("/api/deals?type=inbox", {
-    headers: getAdminHeaders()
-  });
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.error || "Failed to load deal inbox records");
-  }
-  const data = await response.json();
-  return data;
+  const page = await api.get<Paginated<any>>("/api/deals?stage=inbox&limit=200&orderBy=date_added");
+  return page.rows.map(mapDeal);
 }
 
 export async function createInboxDeal(fields: Record<string, any>) {
-  const response = await fetch("/api/deals?type=inbox", {
-    method: "POST",
-    headers: { ...getAdminHeaders(), "Content-Type": "application/json" },
-    body: JSON.stringify({ fields })
-  });
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.error || "Failed to create deal");
-  }
-  return response.json();
+  // Accepts either Supabase column names or the legacy field bag; the create
+  // schema passes through extra keys, so callers are migrated incrementally.
+  return api.post<any>("/api/deals", { stage: "inbox", ...fields });
 }
 
 export async function updateInboxDeal(id: string, fields: Record<string, any>) {
-  const response = await fetch(`/api/deals?type=inbox&id=${id}`, {
-    method: "PATCH",
-    headers: { ...getAdminHeaders(), "Content-Type": "application/json" },
-    body: JSON.stringify({ fields })
-  });
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.error || "Failed to update deal");
-  }
-  return response.json();
+  return api.patch<any>(`/api/deals/${encodeURIComponent(id)}`, fields);
 }

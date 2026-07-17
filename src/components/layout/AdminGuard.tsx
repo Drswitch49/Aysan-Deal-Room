@@ -82,24 +82,13 @@ export function AdminGuard({ children }: AdminGuardProps) {
     setIsResetSubmitting(true);
 
     try {
-      const response = await fetch("/api/admin/action", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-admin-passcode": masterPasscode
-        },
-        body: JSON.stringify({ action: "change-admin-password", newPassword: newPasscode })
-      });
+      // Master-passcode recovery was removed with the legacy auth system —
+      // password resets now happen through Supabase (an owner resets the account).
+      throw new Error(
+        "Master-passcode recovery is no longer available. Ask an owner to reset your account password in Supabase."
+      );
 
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.error || "Failed to reset passcode.");
-      }
-
-      setResetSuccess(true);
-      
-      // Auto-authenticate with the new passcode!
-      // For fallback recovery, we can auto-login the default admin user with the new password
+      // eslint-disable-next-line no-unreachable
       const loginRes = await fetch("/api/auth/login", {
         method: "POST",
         headers: {

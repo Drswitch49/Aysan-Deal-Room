@@ -15,6 +15,8 @@ const listSchema = listQuerySchema.extend({
   sector: z.string().optional(),
   owner: z.string().optional(),
   analyst: z.string().optional(),
+  /** Lookup by human ref (ACP ref / listing ref / name) or uuid. */
+  ref: z.string().optional(),
 });
 
 export default createHandler({
@@ -22,7 +24,12 @@ export default createHandler({
   requireAuth: true,
   handle: async ({ req, body, query, user }) => {
     if (req.method === "GET") {
-      return repositories.deals.list(listSchema.parse(query));
+      const q = listSchema.parse(query);
+      if (q.ref) {
+        const deal = await repositories.deals.findByRef(q.ref);
+        return { rows: deal ? [deal] : [], total: deal ? 1 : 0, limit: 1, offset: 0 };
+      }
+      return repositories.deals.list(q);
     }
     // POST — create (writers only)
     if (!user || !WRITERS.includes(user.role)) {

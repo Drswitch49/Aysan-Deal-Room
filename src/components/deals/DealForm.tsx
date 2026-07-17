@@ -4,6 +4,7 @@ import { Upload, Loader2, Link as LinkIcon } from "lucide-react";
 import type { CreateDealInput } from "../../types/entities";
 import { SearchableDropdown } from "../ui/SearchableDropdown";
 import { hasPermission } from "../../lib/rbac";
+import { fetchTeamMemberRecords, uploadTempFile } from "../../api/admin";
 
 export interface DealFormProps {
   initialData?: Partial<CreateDealInput>;
@@ -17,11 +18,7 @@ export function DealForm({ initialData, onSubmit, isLoading }: DealFormProps) {
   useEffect(() => {
     const loadTeamMembers = async () => {
       try {
-        const res = await fetch("/api/team-members-crud");
-        if (res.ok) {
-          const data = await res.json();
-          setTeamMembers(data || []);
-        }
+        setTeamMembers(await fetchTeamMemberRecords());
       } catch (err) {
         console.error("Failed to load team members:", err);
       }
@@ -87,20 +84,12 @@ export function DealForm({ initialData, onSubmit, isLoading }: DealFormProps) {
       const reader = new FileReader();
       reader.onloadend = async () => {
         const base64data = reader.result as string;
-        const res = await fetch("/api/admin/action", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "upload-temp-file",
-            fileData: base64data,
-            fileName: file.name,
-            fileType: file.type
-          })
-        });
-        if (res.ok) {
-          const data = await res.json();
+        try {
+          // strip the data-URI prefix; uploadTempFile expects raw base64
+          const rawBase64 = base64data.includes(",") ? base64data.split(",")[1] : base64data;
+          const data = await uploadTempFile(file.name, file.type, rawBase64);
           setFormData(prev => ({ ...prev, [fieldName]: data.url }));
-        } else {
+        } catch {
           alert("File upload failed.");
         }
       };

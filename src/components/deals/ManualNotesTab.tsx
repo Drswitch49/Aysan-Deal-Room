@@ -1,6 +1,15 @@
 import { useState, useEffect } from "react";
 import { Loader2, Plus, Edit2, Trash2, Check, X } from "lucide-react";
 import { cx } from "../../utils/cx";
+import { api, type Paginated } from "../../api/http";
+
+type NoteRow = Record<string, any>;
+
+async function resolveNotesDealId(refOrId: string): Promise<string | null> {
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(refOrId)) return refOrId;
+  const page = await api.get<Paginated<NoteRow>>(`/api/deals?ref=${encodeURIComponent(refOrId)}`);
+  return page.rows[0]?.id ?? null;
+}
 
 interface Note {
   id: string;
@@ -29,12 +38,18 @@ export function ManualNotesTab({ dealRef }: ManualNotesTabProps) {
   const fetchNotes = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch(`/api/notes-crud?dealRef=${encodeURIComponent(dealRef)}`);
-      if (res.ok) {
-        const data = await res.json();
-        // Sort by created at, descending
-        setNotes(data.sort((a: Note, b: Note) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
-      }
+      const dealId = await resolveNotesDealId(dealRef);
+      if (!dealId) { setNotes([]); return; }
+      const page = await api.get<Paginated<NoteRow>>(`/api/deal-notes?deal_id=${encodeURIComponent(dealId)}&limit=200`);
+      const mapped: Note[] = page.rows.map((r) => ({
+        id: r.id,
+        dealRef: r.deal_id ?? dealRef,
+        author: r.author ?? r.author_email ?? "Team",
+        content: r.note_content ?? "",
+        createdAt: r.created_at ?? "",
+        updatedAt: r.updated_at ?? r.created_at ?? "",
+      }));
+      setNotes(mapped.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
     } catch (err) {
       console.error("Failed to fetch notes:", err);
     } finally {
@@ -50,22 +65,15 @@ export function ManualNotesTab({ dealRef }: ManualNotesTabProps) {
     if (!newContent.trim()) return;
     setIsSubmitting(true);
     try {
-      const res = await fetch("/api/notes-crud", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ dealRef, content: newContent })
-      });
-      if (res.ok) {
-        setNewContent("");
-        setIsAdding(false);
-        fetchNotes();
-      } else {
-        const err = await res.json();
-        alert(err.error || "Failed to add note");
-      }
-    } catch (error) {
+      const dealId = await resolveNotesDealId(dealRef);
+      if (!dealId) throw new Error(`Deal not found: ${dealRef}`);
+      await api.post("/api/deal-notes", { deal_id: dealId, note_content: newContent, legacy_deal_ref: dealRef });
+      setNewContent("");
+      setIsAdding(false);
+      fetchNotes();
+    } catch (error: any) {
       console.error(error);
-      alert("Error adding note");
+      alert(error?.message || "Error adding note");
     } finally {
       setIsSubmitting(false);
     }
@@ -74,39 +82,23 @@ export function ManualNotesTab({ dealRef }: ManualNotesTabProps) {
   const handleEditSubmit = async (id: string) => {
     if (!editContent.trim()) return;
     try {
-      const res = await fetch("/api/notes-crud", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, content: editContent })
-      });
-      if (res.ok) {
-        setEditingId(null);
-        fetchNotes();
-      } else {
-        const err = await res.json();
-        alert(err.error || "Failed to update note");
-      }
-    } catch (error) {
+      await api.patch(`/api/deal-notes/${encodeURIComponent(id)}`, { note_content: editContent });
+      setEditingId(null);
+      fetchNotes();
+    } catch (error: any) {
       console.error(error);
-      alert("Error updating note");
+      alert(error?.message || "Error updating note");
     }
   };
 
   const handleDelete = async (id: string) => {
     if (!window.confirm("Are you sure you want to delete this note?")) return;
     try {
-      const res = await fetch(`/api/notes-crud?id=${encodeURIComponent(id)}`, {
-        method: "DELETE"
-      });
-      if (res.ok) {
-        fetchNotes();
-      } else {
-        const err = await res.json();
-        alert(err.error || "Failed to delete note");
-      }
-    } catch (error) {
+      await api.del(`/api/deal-notes/${encodeURIComponent(id)}`);
+      fetchNotes();
+    } catch (error: any) {
       console.error(error);
-      alert("Error deleting note");
+      alert(error?.message || "Error deleting note");
     }
   };
 

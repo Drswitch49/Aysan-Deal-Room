@@ -1,132 +1,62 @@
-import { config } from "../config/env";
+/**
+ * Chat client (Phase 6 — Supabase-backed /api/chats).
+ * Admin and lender both use the same authenticated endpoint now; the lender's
+ * session (Supabase cookie) scopes what they can see.
+ */
+import { api, type Paginated } from "./http";
+import { mapChatMessage } from "./mappers";
 import type { ChatMessage } from "../types/deal";
 
-// Helper to retrieve lender headers from sessionStorage
-const getLenderHeaders = (portalSlug: string): Record<string, string> => {
-  return {
-    "Content-Type": "application/json",
-    "x-lender-slug": portalSlug
-  };
-};
+type Row = Record<string, any>;
 
-// Helper to retrieve admin headers from sessionStorage
-const getAdminHeaders = () => {
-  return {
-    "Content-Type": "application/json"
-  };
-};
-
-/**
- * Fetch chat messages for a specific deal in the lender portal
- */
-export async function fetchLenderChat(portalSlug: string, dealId: string): Promise<ChatMessage[]> {
-  const response = await fetch(`/api/lender/chat?dealId=${encodeURIComponent(dealId)}`, {
-    headers: getLenderHeaders(portalSlug)
-  });
-
-  if (!response.ok) {
-    const err = await response.json();
-    throw new Error(err.error || "Failed to load chat history");
-  }
-
-  return response.json();
+async function resolveDealId(refOrId: string): Promise<string | null> {
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(refOrId)) return refOrId;
+  const page = await api.get<Paginated<Row>>(`/api/deals?ref=${encodeURIComponent(refOrId)}`);
+  return page.rows[0]?.id ?? null;
 }
 
-/**
- * Send a chat message from a lender in the lender portal
- */
-export async function sendLenderChatMessage(
-  portalSlug: string,
-  dealId: string,
-  message: string
-): Promise<ChatMessage> {
-  const response = await fetch("/api/lender/chat", {
-    method: "POST",
-    headers: getLenderHeaders(portalSlug),
-    body: JSON.stringify({ dealId, message })
-  });
-
-  if (!response.ok) {
-    const err = await response.json();
-    throw new Error(err.error || "Failed to send message");
-  }
-
-  return response.json();
+async function listChat(dealId: string, lenderId?: string): Promise<ChatMessage[]> {
+  const id = await resolveDealId(dealId);
+  if (!id) return [];
+  const params = new URLSearchParams({ deal_id: id, limit: "200" });
+  if (lenderId) params.set("lender_id", lenderId);
+  const page = await api.get<Paginated<Row>>(`/api/chats?${params.toString()}`);
+  return page.rows.map(mapChatMessage);
 }
 
-/**
- * Fetch chat messages for a specific lender-deal thread in the admin panel
- */
+async function sendChat(dealId: string, message: string, lenderId?: string): Promise<ChatMessage> {
+  const id = await resolveDealId(dealId);
+  if (!id) throw new Error(`Deal not found: ${dealId}`);
+  const row = await api.post<Row>("/api/chats", { deal_id: id, message, lender_id: lenderId });
+  return mapChatMessage(row);
+}
+
+// ─── Lender portal ──────────────────────────────────────────────────────────
+
+export async function fetchLenderChat(_portalSlug: string, dealId: string): Promise<ChatMessage[]> {
+  return listChat(dealId);
+}
+
+export async function sendLenderChatMessage(_portalSlug: string, dealId: string, message: string): Promise<ChatMessage> {
+  return sendChat(dealId, message);
+}
+
+export async function fetchRecentLenderChat(_portalSlug: string): Promise<ChatMessage[]> {
+  const page = await api.get<Paginated<Row>>("/api/chats?limit=100");
+  return page.rows.map(mapChatMessage);
+}
+
+// ─── Admin panel ────────────────────────────────────────────────────────────
+
 export async function fetchAdminChat(dealId: string, lenderRecordId: string): Promise<ChatMessage[]> {
-  const response = await fetch("/api/admin/action", {
-    method: "POST",
-    headers: getAdminHeaders(),
-    body: JSON.stringify({ action: "get-chat", dealId, lenderRecordId })
-  });
-
-  if (!response.ok) {
-    const err = await response.json();
-    throw new Error(err.error || "Failed to load chat history");
-  }
-
-  const data = await response.json();
-  return data.results || [];
+  return listChat(dealId, lenderRecordId || undefined);
 }
 
-/**
- * Send a chat message from the admin to a specific lender in the admin panel
- */
-export async function sendAdminChatMessage(
-  dealId: string,
-  lenderRecordId: string,
-  message: string
-): Promise<ChatMessage> {
-  const response = await fetch("/api/admin/action", {
-    method: "POST",
-    headers: getAdminHeaders(),
-    body: JSON.stringify({ action: "send-chat", dealId, lenderRecordId, message })
-  });
-
-  if (!response.ok) {
-    const err = await response.json();
-    throw new Error(err.error || "Failed to send message");
-  }
-
-  const data = await response.json();
-  return data.result;
+export async function sendAdminChatMessage(dealId: string, lenderRecordId: string, message: string): Promise<ChatMessage> {
+  return sendChat(dealId, message, lenderRecordId || undefined);
 }
 
-/**
- * Fetch all recent chat messages across deals for a lender
- */
-export async function fetchRecentLenderChat(portalSlug: string): Promise<ChatMessage[]> {
-  const response = await fetch(`/api/lender/chat`, {
-    headers: getLenderHeaders(portalSlug)
-  });
-
-  if (!response.ok) {
-    const err = await response.json();
-    throw new Error(err.error || "Failed to load recent messages");
-  }
-
-  return response.json();
-}
-
-/**
- * Fetch all recent chat messages across all deals/lenders for the admin
- */
 export async function fetchRecentAdminChat(): Promise<ChatMessage[]> {
-  const response = await fetch("/api/admin/action", {
-    method: "POST",
-    headers: getAdminHeaders(),
-    body: JSON.stringify({ action: "get-recent-messages" })
-  });
-
-  if (!response.ok) {
-    const err = await response.json();
-    throw new Error(err.error || "Failed to load recent messages");
-  }
-
-  const data = await response.json();
-  return data.results || [];
+  const page = await api.get<Paginated<Row>>("/api/chats?limit=100");
+  return page.rows.map(mapChatMessage);
 }

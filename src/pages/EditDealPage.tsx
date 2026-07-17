@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { DealForm } from "../components/deals/DealForm";
 import { LoadingState } from "../components/ui/LoadingState";
+import { getDeal, updateDeal } from "../lib/crud";
 import type { CreateDealInput, Deal } from "../types/entities";
 
 export function EditDealPage() {
@@ -18,12 +19,8 @@ export function EditDealPage() {
     
     const fetchDeal = async () => {
       try {
-        const response = await fetch(`/api/deals-crud?id=${encodeURIComponent(id)}`);
-        if (!response.ok) {
-          const errData = await response.json().catch(() => ({}));
-          throw new Error(errData.error || "Failed to load deal");
-        }
-        const data = await response.json();
+        const data = await getDeal(id);
+        if (!data) throw new Error("Deal not found");
         setDeal(data);
       } catch (err: any) {
         setError(err.message || "Failed to load deal data");
@@ -31,7 +28,7 @@ export function EditDealPage() {
         setIsFetching(false);
       }
     };
-    
+
     fetchDeal();
   }, [id]);
 
@@ -48,17 +45,7 @@ export function EditDealPage() {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetch(`/api/deals-crud?id=${encodeURIComponent(id)}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.error || "Failed to update deal");
-      }
-
+      await updateDeal(id, data);
       navigate(-1); // Go back to where we came from
     } catch (err: any) {
       setError(err.message || "An unexpected error occurred");

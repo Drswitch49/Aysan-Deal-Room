@@ -1,23 +1,127 @@
-import { config } from "../config/env";
+/**
+ * Admin client (Phase 6 — Supabase-backed REST).
+ *
+ * Full rewrite of the legacy module that funneled 35 actions through the
+ * /api/admin/action god-endpoint. Every export keeps its signature so pages
+ * keep compiling; internally everything now hits the rebuilt REST API.
+ * Lender/HR objects keep their legacy Airtable-style keys (Company_Name, …)
+ * until the pages are decomposed.
+ */
+import { api, type Paginated } from "./http";
 import { clearAirtableCache } from "./airtable";
 
-const getAdminHeaders = () => {
-  return {
-    "Content-Type": "application/json"
-  };
+type Row = Record<string, any>;
+
+// ─── Field-name mapping (legacy Airtable keys → Supabase columns) ───────────
+
+const DEAL_KEY_MAP: Record<string, string> = {
+  "Company_Name": "company_name",
+  "Company Name": "company_name",
+  "Deal Name": "deal_name",
+  "Project_Name": "project_name",
+  "Industry": "industry",
+  "Sector": "sector",
+  "Website": "website",
+  "Location": "location",
+  "Owner": "owner",
+  "Analyst": "analyst",
+  "Assigned To": "assigned_to",
+  "Source": "source",
+  "Turnover": "turnover",
+  "Revenue": "turnover",
+  "EBITDA": "ebitda_gbp",
+  "EBITDA_GBP": "ebitda_gbp",
+  "Enterprise_Value": "enterprise_value",
+  "EV": "enterprise_value",
+  "Asking_Price_GBP": "asking_price_gbp",
+  "Asking Price": "asking_price_gbp",
+  "Stage": "pipeline_stage",
+  "Status": "status",
+  "Next Action": "next_action",
+  "Next_Action": "next_action",
+  "Next Action Date": "next_action_date",
+  "Next_Action_Date": "next_action_date",
+  "Internal_Notes": "internal_notes",
+  "Executive_Summary": "executive_summary",
+  "Business_Description": "business_description",
+  "Lender_Executive_Summary": "lender_executive_summary",
+  "Investment_Highlights": "investment_highlights",
+  "Acquisition_Rationale": "acquisition_rationale",
+  "Deal_Type": "deal_type",
+  "Contact_Email": "contact_email",
+  "Contact E-mail": "contact_email",
+  "Contact_Phone": "contact_phone",
+  "Listing Link": "listing_link",
+  "Listing_Link": "listing_link",
+  "BROKER": "broker",
+  "Broker": "broker",
+  "Broker Name": "broker",
+  "ACP REF NO": "acp_ref_no",
+  "REF No.": "ref_no",
+  "REF. NO": "ref_no",
 };
 
-export async function fetchAdminLenders() {
-  const response = await fetch("/api/admin/lenders", {
-    headers: getAdminHeaders()
-  });
+const DOC_KEY_MAP: Record<string, string> = {
+  "Deal_Ref": "deal_id",
+  "Document_Name": "document_name",
+  "Category": "category",
+  "ABL_Critical": "abl_critical",
+  "Status": "status",
+  "Source": "source",
+  "Date_Received": "date_received",
+  "Drive_Link": "legacy_drive_link",
+  "Expected_Date": "expected_date",
+  "Internal_Notes": "internal_notes",
+  "Date_Sent_To_Lender": "date_sent_to_lender",
+  "Lender_Target": "lender_target",
+  "Document_Access": "document_access",
+};
 
-  if (!response.ok) {
-    const err = await response.json();
-    throw new Error(err.error || "Failed to load lenders list");
+function mapKeys(fields: Row, keyMap: Record<string, string>): Row {
+  const out: Row = {};
+  for (const [k, v] of Object.entries(fields ?? {})) {
+    const col = keyMap[k] ?? (/^[a-z0-9_]+$/.test(k) ? k : undefined);
+    if (col) out[col] = v;
   }
+  return out;
+}
 
-  return response.json();
+async function resolveDealId(refOrId: string): Promise<string> {
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(refOrId)) return refOrId;
+  const page = await api.get<Paginated<Row>>(`/api/deals?ref=${encodeURIComponent(refOrId)}`);
+  const deal = page.rows[0];
+  if (!deal) throw new Error(`Deal not found: ${refOrId}`);
+  return deal.id;
+}
+
+// ─── Lenders ────────────────────────────────────────────────────────────────
+
+/** Legacy-shaped lender object (pages read Company_Name etc.). */
+function mapLenderLegacy(l: Row, assignments: Row[]): Row {
+  return {
+    id: l.id,
+    Lender_ID: l.lender_ref ?? "",
+    Company_Name: l.company_name ?? "",
+    Contact_Name: l.contact_name ?? "",
+    Email: l.email ?? "",
+    Phone: l.phone ?? "",
+    Portal_Slug: l.portal_slug ?? "",
+    NDA_Approved: Boolean(l.nda_approved),
+    Criteria_Pills: l.criteria_pills ?? "",
+    Status: l.deleted_at ? "Inactive" : "Active",
+    Last_Contact_Date: l.last_contact_date ?? "",
+    assignments: assignments
+      .filter((a) => a.lender_id === l.id)
+      .map((a) => ({ id: a.id, dealRef: a.deal_id, Deal_Ref: [a.deal_id], ndaApproved: Boolean(a.nda_approved) })),
+  };
+}
+
+export async function fetchAdminLenders(): Promise<any[]> {
+  const [lenders, assignments] = await Promise.all([
+    api.get<Paginated<Row>>("/api/lenders?limit=200"),
+    api.get<Paginated<Row>>("/api/deal-assignments?limit=200").catch(() => ({ rows: [] as Row[] })),
+  ]);
+  return lenders.rows.map((l) => mapLenderLegacy(l, assignments.rows ?? []));
 }
 
 export async function createLender(data: {
@@ -25,252 +129,83 @@ export async function createLender(data: {
   contactName: string;
   email: string;
   phone: string;
-  status: string;
+  status?: string;
+  criteriaPills?: string;
 }) {
-  const response = await fetch("/api/lender/create", {
-    method: "POST",
-    headers: getAdminHeaders(),
-    body: JSON.stringify(data)
+  if (!data.email) throw new Error("An email is required — lenders now sign in with email + password.");
+  const result = await api.post<Row>("/api/lenders/provision", {
+    company_name: data.companyName,
+    contact_name: data.contactName,
+    email: data.email,
+    phone: data.phone,
+    criteria_pills: data.criteriaPills,
   });
-
-  if (!response.ok) {
-    const err = await response.json();
-    throw new Error(err.error || "Failed to create lender");
-  }
-
   clearAirtableCache();
-  return response.json();
+  // Legacy consumers read Airtable-style keys off the returned record.
+  return {
+    success: true,
+    id: result.lender?.id,
+    Company_Name: result.lender?.company_name ?? data.companyName,
+    Contact_Name: result.lender?.contact_name ?? data.contactName,
+    Email: result.lender?.email ?? data.email,
+    Portal_Slug: result.portal_slug,
+    Portal_Password: result.password,
+    lender: result.lender,
+    portalSlug: result.portal_slug,
+    password: result.password,
+  } as Row;
 }
 
 export async function assignDealToLender(lenderRecordId: string, dealRef: string, ndaApproved?: boolean) {
-  const response = await fetch("/api/admin/action", {
-    method: "POST",
-    headers: getAdminHeaders(),
-    body: JSON.stringify({ action: "assign-deal", lenderRecordId, dealRef, ndaApproved })
+  const dealId = await resolveDealId(dealRef);
+  return api.post<Row>("/api/deal-assignments", {
+    lender_id: lenderRecordId,
+    deal_id: dealId,
+    nda_approved: ndaApproved ?? false,
   });
-
-  if (!response.ok) {
-    const err = await response.json();
-    throw new Error(err.error || "Failed to assign deal");
-  }
-
-  clearAirtableCache();
-  return response.json();
-}
-
-export async function promoteDealFromInbox(inboxRecordId: string) {
-  const response = await fetch("/api/admin/action", {
-    method: "POST",
-    headers: getAdminHeaders(),
-    body: JSON.stringify({ action: "promote-deal", inboxRecordId })
-  });
-
-  if (!response.ok) {
-    const err = await response.json();
-    throw new Error(err.error || "Failed to promote deal");
-  }
-
-  clearAirtableCache();
-  return response.json();
-}
-
-export async function updateInboxStatus(inboxRecordId: string, status: string) {
-  const response = await fetch("/api/admin/action", {
-    method: "POST",
-    headers: getAdminHeaders(),
-    body: JSON.stringify({ action: "update-inbox-status", inboxRecordId, status })
-  });
-
-  if (!response.ok) {
-    const err = await response.json();
-    throw new Error(err.error || "Failed to update inbox status");
-  }
-
-  clearAirtableCache();
-  return response.json();
-}
-
-export async function deleteInboxDeal(dealId: string) {
-  const response = await fetch("/api/admin/action", {
-    method: "POST",
-    headers: getAdminHeaders(),
-    body: JSON.stringify({ action: "delete-inbox-deal", dealId })
-  });
-
-  if (!response.ok) {
-    const err = await response.json();
-    throw new Error(err.error || "Failed to delete inbox deal");
-  }
-
-  clearAirtableCache();
-  return response.json();
 }
 
 export async function removeDealAssignment(assignmentId: string) {
-  const response = await fetch("/api/admin/action", {
-    method: "POST",
-    headers: getAdminHeaders(),
-    body: JSON.stringify({ action: "remove-deal", assignmentId })
-  });
-
-  if (!response.ok) {
-    const err = await response.json();
-    throw new Error(err.error || "Failed to remove assignment");
-  }
-
-  clearAirtableCache();
-  return response.json();
+  return api.del<Row>(`/api/deal-assignments/${encodeURIComponent(assignmentId)}`);
 }
 
 export async function toggleLenderNda(lenderId: string, ndaApproved: boolean) {
-  const response = await fetch("/api/admin/action", {
-    method: "POST",
-    headers: getAdminHeaders(),
-    body: JSON.stringify({ action: "update-lender-nda", lenderId, ndaApproved })
-  });
-
-  if (!response.ok) {
-    const err = await response.json();
-    throw new Error(err.error || "Failed to update lender NDA status");
-  }
-
-  clearAirtableCache();
-  return response.json();
+  return api.patch<Row>(`/api/lenders/${encodeURIComponent(lenderId)}`, { nda_approved: ndaApproved });
 }
 
 export async function resetLenderPassword(lenderRecordId: string) {
-  const response = await fetch("/api/admin/action", {
-    method: "POST",
-    headers: getAdminHeaders(),
-    body: JSON.stringify({ action: "reset-password", lenderRecordId })
-  });
-
-  if (!response.ok) {
-    const err = await response.json();
-    throw new Error(err.error || "Failed to reset password");
-  }
-
-  clearAirtableCache();
-  return response.json();
+  const r = await api.post<{ password: string }>("/api/lenders/reset-password", { lender_id: lenderRecordId });
+  return { success: true, password: r.password };
 }
 
+/** Portal credentials are now the lender's Supabase account — same as a reset. */
 export async function regenerateLenderPortal(lenderRecordId: string) {
-  const response = await fetch("/api/admin/action", {
-    method: "POST",
-    headers: getAdminHeaders(),
-    body: JSON.stringify({ action: "regenerate-portal", lenderRecordId })
-  });
-
-  if (!response.ok) {
-    const err = await response.json();
-    throw new Error(err.error || "Failed to regenerate portal link");
-  }
-
-  clearAirtableCache();
-  return response.json();
+  return resetLenderPassword(lenderRecordId);
 }
 
 export async function deleteLender(lenderRecordId: string) {
-  const response = await fetch("/api/admin/action", {
-    method: "POST",
-    headers: getAdminHeaders(),
-    body: JSON.stringify({ action: "delete-lender", lenderRecordId })
-  });
+  return api.del<Row>(`/api/lenders/${encodeURIComponent(lenderRecordId)}`);
+}
 
-  if (!response.ok) {
-    const err = await response.json();
-    throw new Error(err.error || "Failed to delete lender");
-  }
+/** Plaintext passcodes no longer exist — reset instead. */
+export async function fetchLenderPasscode(_lenderRecordId: string): Promise<string> {
+  throw new Error("Passcodes are no longer stored. Use 'Reset password' to issue a new one.");
+}
 
+// ─── Deals ──────────────────────────────────────────────────────────────────
+
+export async function promoteDealFromInbox(inboxRecordId: string): Promise<Row> {
+  const deal = await api.post<Row>("/api/deal-transitions", { deal_id: inboxRecordId, to_stage: "active" });
   clearAirtableCache();
-  return response.json();
+  return { success: true, newDealId: deal.id };
 }
 
-export async function updateAdminDocuments(updates: Array<{ id: string; fields: Record<string, any> }>) {
-  const response = await fetch("/api/admin/action", {
-    method: "POST",
-    headers: getAdminHeaders(),
-    body: JSON.stringify({ action: "update-documents", updates })
-  });
-
-  if (!response.ok) {
-    const err = await response.json();
-    throw new Error(err.error || "Failed to update documents");
-  }
-
-  clearAirtableCache();
-  return response.json();
+export async function updateInboxStatus(inboxRecordId: string, status: string) {
+  return api.patch<Row>(`/api/deals/${encodeURIComponent(inboxRecordId)}`, { status });
 }
 
-export async function createAdminDocument(data: {
-  documentName: string;
-  category: string;
-  status: string;
-  driveLink?: string;
-  dealId: string;
-  ablCritical?: boolean;
-}) {
-  const response = await fetch("/api/admin/action", {
-    method: "POST",
-    headers: getAdminHeaders(),
-    body: JSON.stringify({ action: "create-document", ...data })
-  });
-
-  if (!response.ok) {
-    const err = await response.json();
-    throw new Error(err.error || "Failed to create document");
-  }
-
-  clearAirtableCache();
-  return response.json();
-}
-
-export async function changeAdminPassword(currentPassword: string, newPassword: string) {
-  const response = await fetch("/api/admin/action", {
-    method: "POST",
-    headers: getAdminHeaders(),
-    body: JSON.stringify({ action: "change-admin-password", currentPassword, newPassword })
-  });
-
-  if (!response.ok) {
-    const err = await response.json();
-    throw new Error(err.error || "Failed to update admin passcode");
-  }
-
-  return response.json();
-}
-
-export async function verifyIntegration(integrationId: string) {
-  const response = await fetch("/api/admin/action", {
-    method: "POST",
-    headers: getAdminHeaders(),
-    body: JSON.stringify({ action: "verify-integration", integrationId })
-  });
-
-  if (!response.ok) {
-    const err = await response.json();
-    throw new Error(err.error || `Failed to verify integration: ${integrationId}`);
-  }
-
-  return response.json();
-}
-
-export async function resetAdminPassword(masterPasscode: string, newPassword: string) {
-  const response = await fetch("/api/admin/action", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-admin-passcode": masterPasscode
-    },
-    body: JSON.stringify({ action: "change-admin-password", newPassword })
-  });
-
-  if (!response.ok) {
-    const err = await response.json();
-    throw new Error(err.error || "Failed to reset admin passcode");
-  }
-
-  return response.json();
+export async function deleteInboxDeal(dealId: string) {
+  return api.del<Row>(`/api/deals/${encodeURIComponent(dealId)}`);
 }
 
 export interface CreateDealPayload {
@@ -296,330 +231,43 @@ export interface CreateDealPayload {
 }
 
 export async function createAdminDeal(data: CreateDealPayload) {
-  const response = await fetch("/api/admin/action", {
-    method: "POST",
-    headers: getAdminHeaders(),
-    body: JSON.stringify({ action: "create-deal", ...data })
+  const row = await api.post<Row>("/api/deals", {
+    deal_name: data.dealName || data.projectName || data.companyName || "New Deal",
+    stage: "active",
+    company_name: data.companyName,
+    project_name: data.projectName,
+    industry: data.industry,
+    website: data.website,
+    location: data.location,
+    turnover: data.revenue,
+    ebitda_gbp: data.ebitda,
+    enterprise_value: data.enterpriseValue,
+    asking_price_gbp: data.askingPrice,
+    owner: data.owner,
+    analyst: data.analyst,
+    source: data.source,
+    acp_ref_no: data.acpRefNo,
+    pipeline_stage: data.stage,
+    next_action: data.nextAction,
+    next_action_date: data.nextActionDate,
+    internal_notes: data.internalNotes,
   });
-
-  if (!response.ok) {
-    const err = await response.json();
-    throw new Error(err.error || "Failed to create deal");
-  }
-
   clearAirtableCache();
-  return response.json();
+  return { success: true, deal: row, result: row, id: row.id } as Row;
 }
 
-export async function fetchHrRegistry() {
-  const response = await fetch("/api/admin/hr", {
-    headers: getAdminHeaders()
-  });
-
-  if (!response.ok) {
-    let err: any;
-    try {
-      err = await response.json();
-    } catch {
-      err = { error: "Failed to load HR data" };
-    }
-    const error: any = new Error(err.error || "Failed to load HR data");
-    error.status = response.status;
-    error.missingTables = err.missingTables;
-    error.diagnostics = err.diagnostics;
-    throw error;
-  }
-
-  return response.json();
-}
-
-export async function addHiringBrief(data: {
-  role: string;
-  company: string;
-  statusText: string;
-  accentColor: string;
-}) {
-  const response = await fetch("/api/admin/action", {
-    method: "POST",
-    headers: getAdminHeaders(),
-    body: JSON.stringify({ action: "add-hiring-brief", ...data })
-  });
-
-  if (!response.ok) {
-    const err = await response.json();
-    throw new Error(err.error || err.message || "Failed to add hiring brief");
-  }
-
+export async function updateAdminDeal(dealId: string, fields: Row) {
+  const id = await resolveDealId(dealId);
+  const row = await api.patch<Row>(`/api/deals/${encodeURIComponent(id)}`, mapKeys(fields, DEAL_KEY_MAP));
   clearAirtableCache();
-  return response.json();
+  return { success: true, deal: row };
 }
 
-export async function deleteHiringBrief(id: string) {
-  const response = await fetch("/api/admin/action", {
-    method: "POST",
-    headers: getAdminHeaders(),
-    body: JSON.stringify({ action: "delete-hiring-brief", id })
-  });
-
-  if (!response.ok) {
-    const err = await response.json();
-    throw new Error(err.error || "Failed to delete hiring brief");
-  }
-
-  clearAirtableCache();
-  return response.json();
+export async function deleteDeal(dealId: string) {
+  return api.del<Row>(`/api/deals/${encodeURIComponent(dealId)}`);
 }
 
-export async function analyzeTranscript(dealId: string, text: string, fileName?: string) {
-  const response = await fetch("/api/admin/transcript-analysis", {
-    method: "POST",
-    headers: getAdminHeaders(),
-    body: JSON.stringify({ dealId, text, fileName })
-  });
-
-  // 202 = job queued successfully (QStash). 200 = sync fallback (local dev).
-  if (response.status !== 200 && response.status !== 202) {
-    const err = await response.json();
-    throw new Error(err.error || "Failed to analyze transcript");
-  }
-
-  return response.json();
-}
-
-export async function fetchTranscriptAnalyses(dealId: string) {
-  const response = await fetch(`/api/admin/transcript-analysis?dealId=${encodeURIComponent(dealId)}`, {
-    headers: getAdminHeaders()
-  });
-
-  if (!response.ok) {
-    const err = await response.json();
-    throw new Error(err.error || "Failed to load transcript analyses");
-  }
-
-  return response.json();
-}
-
-export async function fetchPrecallBriefs(dealId: string) {
-  const response = await fetch(`/api/admin/precall-brief?dealId=${encodeURIComponent(dealId)}`, {
-    headers: getAdminHeaders()
-  });
-
-  if (!response.ok) {
-    const err = await response.json();
-    throw new Error(err.error || "Failed to load pre-call briefs");
-  }
-
-  return response.json();
-}
-
-export async function generatePrecallBrief(data: {
-  dealId: string;
-  selectedPersonas: string[];
-  selectedScenario: string;
-  selectedCallType: string;
-  dataSources: Record<string, boolean>;
-  pastedText?: string;
-}) {
-  const response = await fetch("/api/admin/precall-brief", {
-    method: "POST",
-    headers: getAdminHeaders(),
-    body: JSON.stringify({ action: "generate", ...data })
-  });
-
-  // 202 = job queued, 200 = sync result
-  if (response.status !== 200 && response.status !== 202) {
-    const err = await response.json();
-    throw new Error(err.error || "Failed to generate pre-call brief");
-  }
-
-  return response.json();
-}
-
-export async function askPrecallBriefQuestion(data: {
-  dealId: string;
-  briefId: string;
-  question: string;
-  history: Array<{ q: string; a: string }>;
-}) {
-  const response = await fetch("/api/admin/precall-brief", {
-    method: "POST",
-    headers: getAdminHeaders(),
-    body: JSON.stringify({ action: "ask-question", ...data })
-  });
-
-  if (!response.ok) {
-    const err = await response.json();
-    throw new Error(err.error || "Failed to get answer from Claude");
-  }
-
-  return response.json();
-}
-
-export async function fetchPostcallBriefs(dealId: string) {
-  const response = await fetch(`/api/admin/postcall-brief?dealId=${encodeURIComponent(dealId)}`, {
-    headers: getAdminHeaders()
-  });
-
-  if (!response.ok) {
-    const err = await response.json();
-    throw new Error(err.error || "Failed to load post-call briefs");
-  }
-
-  return response.json();
-}
-
-export async function generatePostcallBrief(data: {
-  dealId: string;
-  notes: string;
-  schemaId: string;
-}) {
-  const response = await fetch("/api/admin/postcall-brief", {
-    method: "POST",
-    headers: getAdminHeaders(),
-    body: JSON.stringify({ action: "generate", ...data })
-  });
-
-  // 202 = job queued, 200 = sync result
-  if (response.status !== 200 && response.status !== 202) {
-    const err = await response.json();
-    throw new Error(err.error || "Failed to generate post-call scorecard");
-  }
-
-  clearAirtableCache();
-  return response.json();
-}
-
-export async function overridePostcallScores(data: {
-  dealId: string;
-  briefId: string;
-  overrides: Record<string, number>;
-}) {
-  const response = await fetch("/api/admin/postcall-brief", {
-    method: "POST",
-    headers: getAdminHeaders(),
-    body: JSON.stringify({ action: "override", ...data })
-  });
-
-  if (!response.ok) {
-    const err = await response.json();
-    throw new Error(err.error || "Failed to update overrides");
-  }
-
-  clearAirtableCache();
-  return response.json();
-}
-
-export async function uploadAdminDocument(data: {
-  documentName: string;
-  category: string;
-  status: string;
-  dealId: string;
-  ablCritical?: boolean;
-  fileName?: string;
-  fileType?: string;
-  fileData?: string; // base64
-  expectedDate?: string;
-  internalNotes?: string;
-}) {
-  const response = await fetch("/api/documents/upload", {
-    method: "POST",
-    headers: getAdminHeaders(),
-    body: JSON.stringify(data)
-  });
-
-  if (!response.ok) {
-    const err = await response.json();
-    throw new Error(err.error || "Failed to upload document");
-  }
-
-  clearAirtableCache();
-  return response.json();
-}
-
-export async function analyzeAdminDocument(documentId: string) {
-  const response = await fetch("/api/documents/analyze", {
-    method: "POST",
-    headers: getAdminHeaders(),
-    body: JSON.stringify({ documentId })
-  });
-
-  // 202 = job queued, 200 = sync result
-  if (response.status !== 200 && response.status !== 202) {
-    const err = await response.json();
-    throw new Error(err.error || "Failed to run AI document analysis");
-  }
-
-  return response.json();
-}
-
-export async function parseAdminDocument(documentId: string) {
-  const response = await fetch("/api/documents/parse", {
-    method: "POST",
-    headers: getAdminHeaders(),
-    body: JSON.stringify({ documentId })
-  });
-
-  // 202 = job queued, 200 = sync result
-  if (response.status !== 200 && response.status !== 202) {
-    const err = await response.json();
-    throw new Error(err.error || "Failed to parse document");
-  }
-
-  return response.json(); // { status, id/documentId, messageId? } or sync result
-}
-
-// ─── Job Status Polling ───────────────────────────────────────────────────
-
-export interface JobStatusResponse {
-  recordId: string;
-  table: string;
-  status: "queued" | "processing" | "extracted" | "analyzing" | "completed" | "failed" | "unknown";
-  error: string | null;
-  startedAt: string | null;
-  completedAt: string | null;
-  hasContent: boolean;
-  isComplete: boolean;
-  isFailed: boolean;
-  isProcessing: boolean;
-}
-
-export async function getJobStatus(
-  table: string,
-  recordId: string,
-  jobType?: string
-): Promise<JobStatusResponse> {
-  const url = `/api/jobs/status?table=${encodeURIComponent(table)}&recordId=${encodeURIComponent(recordId)}${
-    jobType ? `&jobType=${encodeURIComponent(jobType)}` : ""
-  }`;
-  const response = await fetch(url, { headers: getAdminHeaders() });
-
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.error || `Status check failed (${response.status})`);
-  }
-
-  return response.json();
-}
-
-export async function triggerFinancialAnalysis(
-  dealId: string,
-  documentId?: string
-): Promise<{ success: boolean; message: string }> {
-  const response = await fetch("/api/admin/action", {
-    method: "POST",
-    headers: getAdminHeaders(),
-    body: JSON.stringify({ action: "trigger-financial", dealId, documentId }),
-  });
-
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.error || "Failed to trigger financial analysis");
-  }
-
-  return response.json();
-}
-
-// ─── Deal Workflow Lifecycle ─────────────────────────────────────────────────
+// ─── Deal workflow lifecycle ────────────────────────────────────────────────
 
 export interface DealTransitionResult {
   success: true;
@@ -633,37 +281,28 @@ export interface DealTransitionResult {
 }
 
 /**
- * The ONLY valid way to change a deal's stage from the frontend.
- * Calls the centralized transition engine — validated, audited, orchestrated.
+ * Kanban stage-label change (pipeline_stage). Lifecycle moves (kill/revive/
+ * promote) go through /api/deal-transitions instead.
  */
 export async function transitionDealStage(
   dealId: string,
   toStage: string,
-  options: {
-    notes?: string;
-    changedBy?: string;
-    role?: "analyst" | "manager" | "admin";
-  } = {}
+  options: { notes?: string; changedBy?: string; role?: "analyst" | "manager" | "admin" } = {},
 ): Promise<DealTransitionResult> {
-  const response = await fetch("/api/admin/deals/transition", {
-    method: "POST",
-    headers: getAdminHeaders(),
-    body: JSON.stringify({
-      dealId,
-      toStage,
-      notes: options.notes || "",
-      changedBy: options.changedBy || "Admin",
-      role: options.role || "admin",
-    }),
-  });
-
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.error || `Stage transition failed (${response.status})`);
-  }
-
+  const id = await resolveDealId(dealId);
+  const before = await api.get<Row>(`/api/deals/${encodeURIComponent(id)}`);
+  const row = await api.patch<Row>(`/api/deals/${encodeURIComponent(id)}`, { pipeline_stage: toStage });
   clearAirtableCache();
-  return response.json();
+  return {
+    success: true,
+    dealId: id,
+    dealRef: row.acp_ref_no ?? row.ref_no ?? id,
+    fromStage: before.pipeline_stage ?? "",
+    toStage,
+    auditId: "",
+    changedBy: options.changedBy ?? "Admin",
+    timestamp: new Date().toISOString(),
+  };
 }
 
 export interface StageHistoryEntry {
@@ -682,436 +321,593 @@ export interface StageHistoryEntry {
 
 /** Fetches the immutable audit trail for a specific deal */
 export async function fetchDealStageHistory(dealId: string): Promise<StageHistoryEntry[]> {
-  const response = await fetch(
-    `/api/admin/deals/transition?dealId=${encodeURIComponent(dealId)}`,
-    { headers: getAdminHeaders() }
-  );
-
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.error || "Failed to load stage history");
-  }
-
-  const data = await response.json();
-  return data.history || [];
+  const id = await resolveDealId(dealId).catch(() => dealId);
+  const page = await api.get<Paginated<Row>>(`/api/deal-stage-history?deal_id=${encodeURIComponent(id)}`);
+  return page.rows.map((r) => ({
+    id: r.id,
+    dealId: r.deal_id ?? "",
+    dealRef: r.legacy_deal_ref ?? "",
+    fromStage: r.from_stage ?? "",
+    toStage: r.to_stage ?? "",
+    fromStageLabel: r.from_stage_label ?? r.from_stage ?? "",
+    toStageLabel: r.to_stage_label ?? r.to_stage ?? "",
+    changedBy: r.changed_by ?? "",
+    changedByRole: r.changed_by_role ?? "",
+    changedAt: r.changed_at ?? r.created_at ?? "",
+    notes: r.notes ?? "",
+  }));
 }
 
 export interface ActivityEvent {
   id: string;
-  type: "stage_transition" | "document_uploaded" | "transcript_analyzed" | "brief_completed" | "osint_completed";
+  type: string;
   title: string;
-  detail?: string;
+  color: "bronze" | "blue" | "emerald" | "purple" | "amber" | "red";
+  icon: string;
   dealId?: string;
   dealRef?: string;
   companyName?: string;
   changedBy?: string;
+  detail?: string;
   timestamp: string;
-  color: "bronze" | "blue" | "emerald" | "purple" | "amber" | "red";
-  icon: "arrow-right" | "file" | "mic" | "brain" | "search";
-  metadata?: Record<string, any>;
 }
 
-/** Fetches the unified activity feed (cross-deal or for a specific deal) */
-export async function fetchActivityFeed(options: {
+function classifyAuditEvent(r: Row): Pick<ActivityEvent, "type" | "title" | "color" | "icon"> {
+  const action = String(r.action ?? r.event_type ?? "").toUpperCase();
+  if (action.includes("TRANSITION") || action.includes("STAGE")) {
+    return { type: "stage_transition", title: r.details ?? "Stage transition", color: "bronze", icon: "arrow-right" };
+  }
+  if (action.includes("DOCUMENT") || action.includes("UPLOAD")) {
+    return { type: "document_uploaded", title: r.details ?? "Document updated", color: "blue", icon: "file" };
+  }
+  if (action.includes("TRANSCRIPT")) {
+    return { type: "transcript_analyzed", title: r.details ?? "Transcript analyzed", color: "purple", icon: "mic" };
+  }
+  if (action.includes("BRIEF") || action.includes("VERDICT")) {
+    return { type: "brief_completed", title: r.details ?? "AI brief completed", color: "purple", icon: "brain" };
+  }
+  if (action.includes("OSINT")) {
+    return { type: "osint_completed", title: r.details ?? "OSINT scan", color: "amber", icon: "search" };
+  }
+  return { type: "event", title: r.details ?? action.toLowerCase() ?? "Activity", color: "emerald", icon: "clock" };
+}
+
+export async function fetchActivityFeed(options: { dealId?: string; limit?: number } = {}): Promise<ActivityEvent[]> {
+  const params = new URLSearchParams({ limit: String(options.limit ?? 50), orderBy: "occurred_at" });
+  if (options.dealId) {
+    params.set("entity_type", "deal");
+    params.set("entity_id", options.dealId);
+  }
+  const page = await api.get<Paginated<Row>>(`/api/audit-logs?${params.toString()}`);
+  return page.rows.map((r) => ({
+    id: r.id,
+    ...classifyAuditEvent(r),
+    dealId: r.entity_type === "deal" ? r.entity_id ?? undefined : undefined,
+    dealRef: r.target ?? undefined,
+    companyName: undefined,
+    changedBy: r.operator ?? "",
+    detail: r.details ?? "",
+    timestamp: r.occurred_at ?? r.created_at ?? "",
+  }));
+}
+
+export async function fetchDashboardStats(_owner: string) {
+  return api.get<Row>("/api/deals/stats");
+}
+
+// ─── Documents ──────────────────────────────────────────────────────────────
+
+export async function updateAdminDocuments(updates: Array<{ id: string; fields: Row }>) {
+  const results = [];
+  for (const u of updates) {
+    results.push(await api.patch<Row>(`/api/documents/${encodeURIComponent(u.id)}`, mapKeys(u.fields, DOC_KEY_MAP)));
+  }
+  return { success: true, updated: results.length };
+}
+
+export async function createAdminDocument(data: {
+  dealRef?: string;
   dealId?: string;
-  limit?: number;
-} = {}): Promise<ActivityEvent[]> {
-  const params = new URLSearchParams();
-  if (options.dealId) params.set("dealId", options.dealId);
-  if (options.limit) params.set("limit", String(options.limit));
-
-  const response = await fetch(`/api/admin/activity?${params.toString()}`, {
-    headers: getAdminHeaders(),
-  });
-
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.error || "Failed to load activity feed");
-  }
-
-  const data = await response.json();
-  return data.events || [];
-}
-
-export async function triggerOsintEnrichment(dealId: string): Promise<{ success: boolean; message: string }> {
-  const response = await fetch("/api/admin/action", {
-    method: "POST",
-    headers: getAdminHeaders(),
-    body: JSON.stringify({ action: "trigger-osint", dealId }),
-  });
-
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.error || "Failed to trigger OSINT enrichment");
-  }
-
-  return response.json();
-}
-
-export async function fetchPortfolioData() {
-  const response = await fetch("/api/admin/portfolio", {
-    headers: getAdminHeaders()
-  });
-
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.error || "Failed to load portfolio details");
-  }
-
-  return response.json();
-}
-
-export async function triggerPortfolioAnalysis() {
-  const response = await fetch("/api/admin/portfolio", {
-    method: "POST",
-    headers: getAdminHeaders()
-  });
-
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.error || "Failed to run portfolio analysis");
-  }
-
-  return response.json();
-}
-
-export async function fetchDashboardStats(owner: string) {
-  const response = await fetch(`/api/admin/dashboard-stats?owner=${encodeURIComponent(owner)}`, {
-    headers: getAdminHeaders()
-  });
-
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.error || "Failed to load dashboard metrics");
-  }
-
-  return response.json();
-}
-
-export async function fetchLenderPasscode(lenderRecordId: string): Promise<string> {
-  const response = await fetch("/api/admin/action", {
-    method: "POST",
-    headers: getAdminHeaders(),
-    body: JSON.stringify({ action: "get-lender-passcode", lenderRecordId })
-  });
-
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.error || "Failed to retrieve passcode");
-  }
-
-  const data = await response.json();
-  return data.passcode || "";
-}
-
-export async function sendLoiWebhook(data: {
-  lenderName: string;
-  lenderEmail: string;
-  companyName: string;
-  dealId: string;
-  subject: string;
-  body: string;
-  type: "loi";
+  documentName: string;
+  category?: string;
+  status?: string;
+  ablCritical?: boolean;
+  expectedDate?: string;
+  internalNotes?: string;
+  driveLink?: string;
 }) {
-  const response = await fetch("/api/admin/action", {
-    method: "POST",
-    headers: getAdminHeaders(),
-    body: JSON.stringify({ action: "send-loi", ...data })
+  const dealId = data.dealId ?? (data.dealRef ? await resolveDealId(data.dealRef) : undefined);
+  return api.post<Row>("/api/documents", {
+    deal_id: dealId,
+    document_name: data.documentName,
+    category: data.category,
+    status: data.status ?? "Outstanding",
+    abl_critical: data.ablCritical ?? false,
+    expected_date: data.expectedDate,
+    internal_notes: data.internalNotes,
+    legacy_drive_link: data.driveLink,
   });
-
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.error || "Failed to send LOI");
-  }
-
-  clearAirtableCache();
-  return response.json();
-}
-
-export async function sendEmailWebhook(data: {
-  lenderName: string;
-  lenderEmail: string;
-  companyName: string;
-  dealId: string;
-  subject: string;
-  body: string;
-  type: "post_meeting_email";
-}) {
-  const response = await fetch("/api/admin/action", {
-    method: "POST",
-    headers: getAdminHeaders(),
-    body: JSON.stringify({ action: "send-email", ...data })
-  });
-
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.error || "Failed to send email");
-  }
-
-  clearAirtableCache();
-  return response.json();
-}
-
-// ─── Deal Update ─────────────────────────────────────────────────────────────
-
-export async function updateAdminDeal(dealId: string, fields: Record<string, any>) {
-  const response = await fetch("/api/admin/action", {
-    method: "POST",
-    headers: getAdminHeaders(),
-    body: JSON.stringify({ action: "update-deal", dealId, fields })
-  });
-
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.error || "Failed to update deal");
-  }
-
-  clearAirtableCache();
-  return response.json();
 }
 
 export async function deleteAdminDocument(documentId: string) {
-  const response = await fetch("/api/admin/action", {
-    method: "POST",
-    headers: getAdminHeaders(),
-    body: JSON.stringify({ action: "delete-document", documentId })
-  });
-
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.error || "Failed to delete document");
-  }
-
-  clearAirtableCache();
-  return response.json();
+  return api.del<Row>(`/api/documents/${encodeURIComponent(documentId)}`);
 }
 
-export async function deleteDeal(dealId: string) {
-  const response = await fetch("/api/admin/action", {
-    method: "POST",
-    headers: getAdminHeaders(),
-    body: JSON.stringify({ action: "delete-deal", dealId })
-  });
+/** Direct browser → Cloudinary upload via a server-signed payload. */
+async function uploadToCloudinary(fileName: string, fileType: string, fileDataBase64: string, folder: string) {
+  const signed = await api.post<Row>("/api/documents/sign-upload", { folder });
+  const form = new FormData();
+  const bytes = Uint8Array.from(atob(fileDataBase64), (c) => c.charCodeAt(0));
+  form.append("file", new Blob([bytes], { type: fileType }), fileName);
+  form.append("api_key", signed.apiKey);
+  form.append("timestamp", String(signed.timestamp));
+  form.append("signature", signed.signature);
+  form.append("folder", signed.folder);
+  form.append("type", "authenticated");
 
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.error || "Failed to delete deal");
-  }
-
-  clearAirtableCache();
-  return response.json();
+  const res = await fetch(`https://api.cloudinary.com/v1_1/${signed.cloudName}/auto/upload`, { method: "POST", body: form });
+  const payload = await res.json();
+  if (!res.ok) throw new Error(payload?.error?.message ?? "Cloudinary upload failed");
+  return { publicId: payload.public_id as string, secureUrl: payload.secure_url as string };
 }
 
-// ─── IM Documents ────────────────────────────────────────────────────────────
+export async function uploadAdminDocument(data: {
+  documentName: string;
+  category: string;
+  status: string;
+  dealId: string;
+  ablCritical?: boolean;
+  fileName?: string;
+  fileType?: string;
+  fileData?: string; // base64
+  expectedDate?: string;
+  internalNotes?: string;
+}) {
+  const dealId = await resolveDealId(data.dealId);
+  let asset: { publicId: string; secureUrl: string } | null = null;
+  if (data.fileName && data.fileData) {
+    asset = await uploadToCloudinary(data.fileName, data.fileType ?? "application/octet-stream", data.fileData, "aysan-deal-room/documents");
+  }
+  const row = await api.post<Row>("/api/documents", {
+    deal_id: dealId,
+    document_name: data.documentName,
+    category: data.category,
+    status: data.status || (asset ? "Received" : "Outstanding"),
+    abl_critical: data.ablCritical ?? false,
+    expected_date: data.expectedDate,
+    internal_notes: data.internalNotes,
+    ...(asset
+      ? { cloudinary_public_id: asset.publicId, file_url: asset.secureUrl, date_received: new Date().toISOString().slice(0, 10) }
+      : {}),
+  });
+  clearAirtableCache();
+  return { success: true, document: row, result: row } as Row;
+}
+
+export async function analyzeAdminDocument(documentId: string): Promise<Row> {
+  const r = await api.post<Row>("/api/ai/jobs", { type: "document-analysis", payload: { document_id: documentId } });
+  // Legacy shape: 202-style { status, id } + sync-parse fields left undefined.
+  return { success: true, status: "queued", id: r.job_id, jobId: r.job_id, documentId };
+}
+
+export async function parseAdminDocument(documentId: string): Promise<Row> {
+  return analyzeAdminDocument(documentId);
+}
+
+// ─── IM documents on a deal (Cloudinary-backed deal file) ──────────────────
+
+/** Upload a standalone file to Cloudinary and return its URL (replaces the
+ *  legacy upload-temp-file action that pushed to public filebin.net). */
+export async function uploadTempFile(fileName: string, fileType: string, fileDataBase64: string): Promise<{ url: string; publicId: string }> {
+  const asset = await uploadToCloudinary(fileName, fileType, fileDataBase64, "aysan-deal-room/uploads");
+  return { url: asset.secureUrl, publicId: asset.publicId };
+}
 
 export async function uploadImDocument(dealId: string, fileName: string, fileType: string, fileData: string) {
-  const response = await fetch("/api/admin/action", {
-    method: "POST",
-    headers: getAdminHeaders(),
-    body: JSON.stringify({ action: "upload-im-document", dealId, fileName, fileType, fileData })
+  const id = await resolveDealId(dealId);
+  const asset = await uploadToCloudinary(fileName, fileType, fileData, "aysan-deal-room/im");
+  return api.patch<Row>(`/api/deals/${encodeURIComponent(id)}`, {
+    deal_files_cloudinary_id: asset.publicId,
+    deal_files_secure_url: asset.secureUrl,
   });
-
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.error || "Failed to upload IM document");
-  }
-
-  clearAirtableCache();
-  return response.json();
 }
 
-export async function removeImDocument(dealId: string, attachmentIndex: number) {
-  const response = await fetch("/api/admin/action", {
-    method: "POST",
-    headers: getAdminHeaders(),
-    body: JSON.stringify({ action: "remove-im-document", dealId, attachmentIndex })
+export async function removeImDocument(dealId: string, _attachmentIndex?: number) {
+  const id = await resolveDealId(dealId);
+  return api.patch<Row>(`/api/deals/${encodeURIComponent(id)}`, {
+    deal_files_cloudinary_id: null,
+    deal_files_secure_url: null,
   });
-
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.error || "Failed to remove IM document");
-  }
-
-  clearAirtableCache();
-  return response.json();
 }
 
-export async function replaceImDocument(dealId: string, attachmentIndex: number, fileName: string, fileType: string, fileData: string) {
-  const response = await fetch("/api/admin/action", {
-    method: "POST",
-    headers: getAdminHeaders(),
-    body: JSON.stringify({ action: "replace-im-document", dealId, attachmentIndex, fileName, fileType, fileData })
-  });
-
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.error || "Failed to replace IM document");
-  }
-
-  clearAirtableCache();
-  return response.json();
+export async function replaceImDocument(dealId: string, _attachmentIndex: number, fileName: string, fileType: string, fileData: string) {
+  return uploadImDocument(dealId, fileName, fileType, fileData);
 }
 
-// ─── Portfolio Company CRUD ──────────────────────────────────────────────────
+// ─── HR / team / stakeholders ───────────────────────────────────────────────
+
+export async function fetchHrRegistry(): Promise<{
+  team: any[];
+  hires: any[];
+  stakeholders: any[];
+  shareholders: any[];
+}> {
+  const [team, hiring, stakeholders, shareholders] = await Promise.all([
+    api.get<Paginated<Row>>("/api/team-members?limit=200"),
+    api.get<Paginated<Row>>("/api/hiring-briefs?limit=200"),
+    api.get<Paginated<Row>>("/api/stakeholders?limit=200"),
+    api.get<Paginated<Row>>("/api/shareholders?limit=200").catch(() => ({ rows: [] as Row[] })),
+  ]);
+  return {
+    team: team.rows.map((r) => ({
+      id: r.id,
+      initials: r.initials ?? "",
+      name: r.name ?? "",
+      role: r.role ?? "",
+      email: r.email ?? "",
+      phone: r.phone ?? "",
+      loginLink: r.login_link ?? "",
+      status: r.status ?? "active",
+      createdAt: r.created_at ?? "",
+      lastLogin: "",
+      accessLevel: r.access_level ?? "",
+      avatarTheme: r.avatar_theme ?? "",
+    })),
+    hires: hiring.rows.map((r) => ({
+      id: r.id,
+      role: r.role ?? "",
+      company: r.company ?? "",
+      statusText: r.status_text ?? "",
+      accentColor: r.accent_color ?? "",
+      createdAt: r.created_at ?? "",
+    })),
+    stakeholders: stakeholders.rows.map((r) => ({
+      id: r.id,
+      name: r.name ?? "",
+      email: r.email ?? "",
+      phone: r.phone ?? "",
+      association: r.association ?? r.organization ?? "",
+      type: r.type ?? "",
+      accentColor: r.accent_color ?? "",
+      description: r.description ?? "",
+      status: r.status ?? "active",
+      loginLink: r.login_link ?? "",
+      createdAt: r.created_at ?? "",
+      lastLogin: "",
+    })),
+    shareholders: (shareholders.rows ?? []).map((r) => ({
+      id: r.id,
+      name: r.name ?? "",
+      email: r.email ?? "",
+      phone: r.phone ?? "",
+      notes: r.notes ?? "",
+      status: r.status ?? "active",
+      loginLink: "",
+      createdAt: r.created_at ?? "",
+      lastLogin: r.last_login_at ?? "",
+    })),
+  };
+}
+
+export async function addHiringBrief(data: { role: string; company?: string; statusText?: string; accentColor?: string }) {
+  return api.post<Row>("/api/hiring-briefs", {
+    role: data.role,
+    company: data.company,
+    status_text: data.statusText,
+    accent_color: data.accentColor,
+  });
+}
+
+export async function deleteHiringBrief(id: string) {
+  return api.del<Row>(`/api/hiring-briefs/${encodeURIComponent(id)}`);
+}
+
+/** Legacy record-shaped team list ({ id, fields: {Name, …} }) for old pages. */
+export async function fetchTeamMemberRecords(): Promise<Array<{ id: string; fields: Row }>> {
+  const page = await api.get<Paginated<Row>>("/api/team-members?limit=200");
+  return page.rows.map((r) => ({
+    id: r.id,
+    fields: {
+      Name: r.name,
+      Role: r.role,
+      Status: (r.status ?? "active").toLowerCase() === "inactive" ? "Inactive" : "Active",
+      Access_Level: r.access_level,
+      Email: r.email,
+      Initials: r.initials,
+    },
+  }));
+}
+
+export interface TeamMemberPayload {
+  name: string;
+  role?: string;
+  accessLevel?: string;
+  email?: string;
+  phone?: string;
+  status?: string;
+}
+
+export async function createTeamMember(data: TeamMemberPayload) {
+  return api.post<Row>("/api/team-members", {
+    name: data.name,
+    role: data.role,
+    access_level: data.accessLevel,
+    email: data.email,
+    phone: data.phone,
+    status: (data.status ?? "active").toLowerCase(),
+    initials: data.name.split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase(),
+  });
+}
+
+export async function updateTeamMember(memberId: string, fields: Row) {
+  const map: Record<string, string> = {
+    Name: "name", Role: "role", Access_Level: "access_level", Email: "email",
+    Phone: "phone", Status: "status", Initials: "initials", Avatar_Theme: "avatar_theme", Order: "sort_order",
+  };
+  return api.patch<Row>(`/api/team-members/${encodeURIComponent(memberId)}`, mapKeys(fields, map));
+}
+
+export interface StakeholderPayload {
+  name: string;
+  association?: string;
+  description?: string;
+  type?: string;
+  email?: string;
+  phone?: string;
+  organization?: string;
+  notes?: string;
+  status?: string;
+}
+
+export async function createStakeholder(data: StakeholderPayload) {
+  return api.post<Row>("/api/stakeholders", {
+    name: data.name,
+    association: data.association,
+    description: data.description,
+    type: data.type,
+    email: data.email,
+    phone: data.phone,
+    organization: data.organization,
+    notes: data.notes,
+    status: (data.status ?? "active").toLowerCase(),
+  });
+}
+
+export async function updateStakeholder(stakeholderId: string, fields: Row) {
+  const map: Record<string, string> = {
+    Name: "name", Association: "association", Description: "description", Type: "type", Email: "email",
+    Phone: "phone", Organization: "organization", Notes: "notes", Status: "status", Accent_Color: "accent_color", Company: "company",
+  };
+  return api.patch<Row>(`/api/stakeholders/${encodeURIComponent(stakeholderId)}`, mapKeys(fields, map));
+}
+
+// ─── AI: transcripts, briefs, OSINT, financial ─────────────────────────────
+
+export async function analyzeTranscript(dealId: string, text: string, fileName?: string) {
+  const id = await resolveDealId(dealId);
+  const row = await api.post<Row>("/api/transcripts", {
+    deal_id: id,
+    transcript: text,
+    name: fileName ?? `Transcript ${new Date().toISOString().slice(0, 10)}`,
+    processing_status: "queued",
+  });
+  const job = await api.post<Row>("/api/ai/jobs", { type: "transcript-analysis", payload: { transcript_analysis_id: row.id } });
+  return { success: true, jobId: job.job_id, transcriptId: row.id, recordId: row.id };
+}
+
+export async function fetchTranscriptAnalyses(dealId: string) {
+  const id = await resolveDealId(dealId).catch(() => dealId);
+  const page = await api.get<Paginated<Row>>(`/api/transcripts?deal_id=${encodeURIComponent(id)}`);
+  return page.rows;
+}
+
+export async function fetchPrecallBriefs(dealId: string) {
+  const id = await resolveDealId(dealId).catch(() => dealId);
+  const page = await api.get<Paginated<Row>>(`/api/briefs/precall?deal_id=${encodeURIComponent(id)}`);
+  return page.rows;
+}
+
+export async function generatePrecallBrief(data: { dealId: string; [k: string]: any }): Promise<Row> {
+  const { dealId, ...params } = data;
+  const id = await resolveDealId(dealId);
+  const job = await api.post<Row>("/api/ai/jobs", { type: "precall-brief", payload: { deal_id: id, params } });
+  return { success: true, status: "queued", id: job.job_id, jobId: job.job_id };
+}
+
+export async function askPrecallBriefQuestion(data: {
+  dealId?: string;
+  briefId?: string;
+  question: string;
+  brief?: Row;
+  history?: Array<{ q: string; a: string }>;
+}): Promise<Row> {
+  let dealId = data.dealId;
+  let brief = data.brief;
+  // Legacy callers pass only briefId — resolve the deal (and brief) from it.
+  if (!dealId && data.briefId) {
+    const briefRow = await api.get<Row>(`/api/briefs/precall?limit=200`).then(
+      (p: any) => (p.rows as Row[]).find((b) => b.id === data.briefId),
+    );
+    if (briefRow) {
+      dealId = briefRow.deal_id ?? undefined;
+      brief = brief ?? briefRow.brief_data ?? undefined;
+    }
+  }
+  if (!dealId) throw new Error("Could not resolve the deal for this brief.");
+  const id = await resolveDealId(dealId);
+  const r = await api.post<{ answer: string }>("/api/ai/ask", {
+    deal_id: id,
+    question: data.question,
+    brief,
+    history: data.history ?? [],
+  });
+  return { answer: r.answer, aiAnswers: r.answer };
+}
+
+export async function fetchPostcallBriefs(dealId: string) {
+  const id = await resolveDealId(dealId).catch(() => dealId);
+  const page = await api.get<Paginated<Row>>(`/api/briefs/postcall?deal_id=${encodeURIComponent(id)}`);
+  return page.rows;
+}
+
+export async function generatePostcallBrief(data: { dealId: string; notes: string; schemaId?: string }): Promise<Row> {
+  const id = await resolveDealId(data.dealId);
+  const job = await api.post<Row>("/api/ai/jobs", {
+    type: "postcall-brief",
+    payload: { deal_id: id, notes: data.notes, schema_id: data.schemaId },
+  });
+  return { success: true, status: "queued", id: job.job_id, jobId: job.job_id };
+}
+
+export async function overridePostcallScores(data: {
+  briefId: string;
+  scores?: Row;
+  overrides?: Row;
+  summary?: string;
+  dealId?: string;
+}) {
+  const scores = data.scores ?? data.overrides ?? {};
+  const existing = await api.get<Row>(`/api/postcall-briefs/${encodeURIComponent(data.briefId)}`);
+  const prev = existing.brief_data ?? {};
+  const briefData = {
+    ...prev,
+    scores: { ...(prev.scores ?? {}), ...scores },
+    ...(data.summary ? { summary: data.summary } : {}),
+  };
+  return api.patch<Row>(`/api/postcall-briefs/${encodeURIComponent(data.briefId)}`, { brief_data: briefData });
+}
+
+export async function triggerOsintEnrichment(dealId: string): Promise<{ success: boolean; message: string }> {
+  const id = await resolveDealId(dealId);
+  await api.post<Row>("/api/ai/jobs", { type: "osint-scan", payload: { deal_id: id } });
+  return { success: true, message: "OSINT enrichment queued." };
+}
+
+export async function triggerFinancialAnalysis(_dealId: string, _documentId?: string): Promise<{ success: boolean; message: string }> {
+  throw new Error("Financial analysis is being rebuilt on the new job system and is not available yet.");
+}
+
+// ─── Job status polling ─────────────────────────────────────────────────────
+
+export interface JobStatusResponse {
+  recordId: string;
+  table: string;
+  status: "queued" | "processing" | "extracted" | "analyzing" | "completed" | "failed" | "unknown";
+  error: string | null;
+  startedAt: string | null;
+  completedAt: string | null;
+  hasContent: boolean;
+  isComplete: boolean;
+  isFailed: boolean;
+  isProcessing: boolean;
+}
+
+/**
+ * Legacy-compatible job polling. `recordId` is now a JOB ID from the new job
+ * system (returned by analyze/generate calls); `table`/`jobType` are ignored.
+ */
+export async function getJobStatus(_table: string, recordId: string, _jobType?: string): Promise<JobStatusResponse> {
+  const job = await api.get<Row>(`/api/jobs/status?id=${encodeURIComponent(recordId)}`);
+  const status =
+    job.status === "done" ? "completed"
+    : job.status === "failed" ? "failed"
+    : job.status === "running" ? "processing"
+    : "queued";
+  return {
+    recordId,
+    table: _table,
+    status,
+    error: job.error ?? null,
+    startedAt: job.created_at ?? null,
+    completedAt: job.finished_at ?? null,
+    hasContent: job.status === "done",
+    isComplete: job.status === "done",
+    isFailed: job.status === "failed",
+    isProcessing: job.status === "running" || job.status === "queued",
+  };
+}
+
+// ─── Portfolio ──────────────────────────────────────────────────────────────
+
+export async function fetchPortfolioData() {
+  return api.get<Row>("/api/portfolio/summary");
+}
+
+export async function triggerPortfolioAnalysis() {
+  const job = await api.post<Row>("/api/ai/jobs", { type: "portfolio-briefing", payload: {} });
+  return { success: true, jobId: job.job_id };
+}
 
 export interface PortfolioCompanyPayload {
   companyName: string;
   industry?: string;
+  location?: string;
   revenue?: number;
   ebitda?: number;
   debt?: number;
   headcount?: number;
   status?: string;
-  location?: string;
   notes?: string;
 }
 
 export async function createPortfolioCompany(data: PortfolioCompanyPayload) {
-  const response = await fetch("/api/admin/action", {
-    method: "POST",
-    headers: getAdminHeaders(),
-    body: JSON.stringify({ action: "create-portfolio-company", ...data })
+  return api.post<Row>("/api/portfolio-companies", {
+    company_name: data.companyName,
+    industry: data.industry,
+    location: data.location,
+    revenue: data.revenue,
+    ebitda: data.ebitda,
+    debt: data.debt,
+    headcount: data.headcount,
+    status: (data.status ?? "active").toLowerCase(),
+    notes: data.notes,
   });
-
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.error || "Failed to create portfolio company");
-  }
-
-  clearAirtableCache();
-  return response.json();
 }
 
-export async function updatePortfolioCompany(companyId: string, fields: Record<string, any>) {
-  const response = await fetch("/api/admin/action", {
-    method: "POST",
-    headers: getAdminHeaders(),
-    body: JSON.stringify({ action: "update-portfolio-company", companyId, fields })
-  });
-
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.error || "Failed to update portfolio company");
-  }
-
-  clearAirtableCache();
-  return response.json();
+export async function updatePortfolioCompany(companyId: string, fields: Row) {
+  const map: Record<string, string> = {
+    Company_Name: "company_name", Industry: "industry", Location: "location", Revenue: "revenue",
+    EBITDA: "ebitda", Debt: "debt", Headcount: "headcount", Status: "status", Notes: "notes",
+  };
+  return api.patch<Row>(`/api/portfolio-companies/${encodeURIComponent(companyId)}`, mapKeys(fields, map));
 }
 
 export async function archivePortfolioCompany(companyId: string) {
-  const response = await fetch("/api/admin/action", {
-    method: "POST",
-    headers: getAdminHeaders(),
-    body: JSON.stringify({ action: "archive-portfolio-company", companyId })
-  });
-
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.error || "Failed to archive portfolio company");
-  }
-
-  clearAirtableCache();
-  return response.json();
+  return api.patch<Row>(`/api/portfolio-companies/${encodeURIComponent(companyId)}`, { status: "archived" });
 }
 
 export async function fetchPortfolioCompanies() {
-  const response = await fetch("/api/admin/portfolio?section=companies", {
-    headers: getAdminHeaders(),
-  });
-
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.error || "Failed to fetch portfolio companies");
-  }
-
-  return response.json();
+  const page = await api.get<Paginated<Row>>("/api/portfolio-companies?limit=200");
+  return page.rows;
 }
 
-// ─── Team Member CRUD ────────────────────────────────────────────────────────
+// ─── Auth / settings ────────────────────────────────────────────────────────
 
-export interface TeamMemberPayload {
-  name: string;
-  email?: string;
-  phone?: string;
-  role: string;
-  status?: string;
-  accessLevel?: string;
-}
-
-export async function createTeamMember(data: TeamMemberPayload) {
-  const response = await fetch("/api/admin/action", {
+export async function changeAdminPassword(currentPassword: string, newPassword: string) {
+  const res = await fetch("/api/auth/change-password", {
     method: "POST",
-    headers: getAdminHeaders(),
-    body: JSON.stringify({ action: "create-team-member", ...data })
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ currentPassword, newPassword }),
   });
-
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.error || "Failed to create team member");
-  }
-
-  clearAirtableCache();
-  return response.json();
+  const payload = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(payload.error || "Failed to change password");
+  return payload;
 }
 
-export async function updateTeamMember(memberId: string, fields: Record<string, any>) {
-  const response = await fetch("/api/admin/action", {
-    method: "POST",
-    headers: getAdminHeaders(),
-    body: JSON.stringify({ action: "update-team-member", memberId, fields })
-  });
-
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.error || "Failed to update team member");
-  }
-
-  clearAirtableCache();
-  return response.json();
+export async function resetAdminPassword(_masterPasscode: string, _newPassword: string): Promise<Row> {
+  throw new Error("Master-passcode resets were removed. Ask an owner to reset your account in Supabase.");
 }
 
-// ─── Stakeholder CRUD ────────────────────────────────────────────────────────
-
-export interface StakeholderPayload {
-  name: string;
-  company?: string;
-  email?: string;
-  phone?: string;
-  type?: string;
-  status?: string;
-  notes?: string;
-  association?: string;
-  accentColor?: string;
+export async function verifyIntegration(_integrationId: string): Promise<Row> {
+  throw new Error("Integration checks are being rebuilt and are not available yet.");
 }
 
-export async function createStakeholder(data: StakeholderPayload) {
-  const response = await fetch("/api/admin/action", {
-    method: "POST",
-    headers: getAdminHeaders(),
-    body: JSON.stringify({ action: "create-stakeholder", ...data })
-  });
+// ─── Legacy webhooks (not yet ported) ───────────────────────────────────────
 
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.error || "Failed to create stakeholder");
-  }
-
-  clearAirtableCache();
-  return response.json();
+export async function sendLoiWebhook(_data: Row): Promise<Row> {
+  throw new Error("LOI sending is being rebuilt and is not available yet.");
 }
 
-export async function updateStakeholder(stakeholderId: string, fields: Record<string, any>) {
-  const response = await fetch("/api/admin/action", {
-    method: "POST",
-    headers: getAdminHeaders(),
-    body: JSON.stringify({ action: "update-stakeholder", stakeholderId, fields })
-  });
-
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.error || "Failed to update stakeholder");
-  }
-
-  clearAirtableCache();
-  return response.json();
+export async function sendEmailWebhook(_data: Row): Promise<Row> {
+  throw new Error("Email sending is being rebuilt and is not available yet.");
 }

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { DealForm } from "../components/deals/DealForm";
+import { createDeal } from "../lib/crud";
 import type { CreateDealInput } from "../types/entities";
 
 export function CreateDealPage() {
@@ -12,17 +13,7 @@ export function CreateDealPage() {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetch("/api/deals-crud", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.error || "Failed to create deal");
-      }
-
+      await createDeal(data);
       navigate("/deals");
     } catch (err: any) {
       setError(err.message || "An unexpected error occurred");

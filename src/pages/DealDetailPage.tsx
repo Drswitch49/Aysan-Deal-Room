@@ -32,7 +32,7 @@ import {
   transitionDealStage, triggerOsintEnrichment, triggerFinancialAnalysis,
   sendLoiWebhook, sendEmailWebhook, updateAdminDeal,
   uploadImDocument, removeImDocument, replaceImDocument,
-  deleteDeal
+  deleteDeal, fetchTeamMemberRecords, getJobStatus
 } from "../api/admin";
 import { getDealInbox } from "../api/airtable";
 import { HeaderMetrics } from "../components/ui/HeaderMetrics";
@@ -159,7 +159,8 @@ export function DealDetailPage() {
     "Analyzing Company",
     "Generating Risk Profile",
     "queued",
-    "processing"
+    "processing",
+    "running"
   ].includes(rawOsintStatus);
 
   const osintJob = useJobStatus({
@@ -236,20 +237,16 @@ export function DealDetailPage() {
     if (!dealState.data?.id) return;
     setIsGeneratingVerdict(true);
     try {
-      const res = await fetch("/api/admin/action", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${sessionStorage.getItem("admin_token") || ""}`
-        },
-        body: JSON.stringify({
-          action: "generate-verdict",
-          dealId: dealState.data.id
-        })
+      const job = await (await import("../api/http")).api.post<any>("/api/ai/jobs", {
+        type: "investment-verdict",
+        payload: { deal_id: dealState.data.id },
       });
-      if (!res.ok) {
-        const data = await res.json().catch(() => null);
-        throw new Error(data?.error || "Failed to generate verdict");
+      // Poll until the verdict lands, then refresh the deal.
+      for (let i = 0; i < 60; i++) {
+        await new Promise((r) => setTimeout(r, 3000));
+        const s = await getJobStatus("deals", job.job_id);
+        if (s.isComplete) break;
+        if (s.isFailed) throw new Error(s.error || "Verdict generation failed");
       }
       setRefreshTrigger(prev => prev + 1);
     } catch (err: any) {
@@ -267,8 +264,7 @@ export function DealDetailPage() {
   const [teamMembers, setTeamMembers] = useState<any[]>([]);
 
   useEffect(() => {
-    fetch("/api/team-members-crud")
-      .then(res => res.ok ? res.json() : [])
+    fetchTeamMemberRecords()
       .then(data => setTeamMembers(data || []))
       .catch(err => console.error("Failed to load team members in details:", err));
   }, []);
@@ -301,26 +297,8 @@ export function DealDetailPage() {
     "Offer Submitted"
   ]);
 
-  useEffect(() => {
-    async function loadStages() {
-      try {
-        const res = await fetch("/api/admin/deals/stages", {
-          headers: {
-            Authorization: `Bearer ${sessionStorage.getItem("admin_token") || ""}`,
-          }
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.success && Array.isArray(data.stages)) {
-            setAvailableStages(data.stages);
-          }
-        }
-      } catch (err) {
-        console.error("Failed to load stages:", err);
-      }
-    }
-    loadStages();
-  }, []);
+  // Stage labels are a fixed pipeline vocabulary now (the legacy endpoint that
+  // served them from Airtable is gone); the defaults above are authoritative.
 
   
   // Composer states
@@ -2581,13 +2559,8 @@ function PreCallBriefTab({ deal, openComposer }: { deal: any; openComposer: (opt
         
         const pollInterval = setInterval(async () => {
           try {
-            const statusRes = await fetch(`/api/jobs/status?table=Precall_Briefs&recordId=${briefId}`, {
-              headers: {
-                Authorization: `Bearer ${sessionStorage.getItem("admin_token") || ""}`,
-              }
-            });
-            if (!statusRes.ok) return;
-            const statusData = await statusRes.json();
+            const statusData = await getJobStatus("Precall_Briefs", briefId).catch(() => null);
+            if (!statusData) return;
             
             if (statusData.isComplete) {
               clearInterval(pollInterval);
@@ -3525,13 +3498,8 @@ Owner is open to deferred payment structures, specifically accepting 20% Vendor 
 
         const pollInterval = setInterval(async () => {
           try {
-            const statusRes = await fetch(`/api/jobs/status?table=Postcall_Briefs&recordId=${briefId}`, {
-              headers: {
-                Authorization: `Bearer ${sessionStorage.getItem("admin_token") || ""}`,
-              }
-            });
-            if (!statusRes.ok) return;
-            const statusData = await statusRes.json();
+            const statusData = await getJobStatus("Postcall_Briefs", briefId).catch(() => null);
+            if (!statusData) return;
 
             if (statusData.isComplete) {
               clearInterval(pollInterval);
@@ -5191,33 +5159,10 @@ function DocumentsTab({ deal, documentState, setRefreshTrigger }: { deal: any; d
         r.onerror = reject;
         r.readAsDataURL(file);
       });
-      // We can use the existing uploadImDocument API but it defaults to IM_Review_Documents
-      // For financial packs, we might need to update the endpoint or just use updateAdminDeal
-      const res = await fetch("/api/admin/action", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "upload-temp-file",
-          fileData: `data:${file.type};base64,${base64Data}`,
-          fileName: file.name,
-          fileType: file.type
-        })
-      });
-      if (!res.ok) throw new Error("File upload failed");
-      const { url } = await res.json();
-      
-      const currentFiles = (deal.rawFields?.[fieldName] as any[]) || [];
-      const updatedFields = { [fieldName]: [...currentFiles, { url }] };
-      
-      await fetch(`/api/admin/action`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "update-deal",
-          id: deal.id,
-          updates: updatedFields
-        })
-      });
+      // Deal files are single-slot Cloudinary assets now; either slot uploads
+      // land on the deal's file fields.
+      void fieldName;
+      await uploadImDocument(deal.id, file.name, file.type, base64Data);
       setRefreshTrigger((prev: number) => prev + 1);
     } catch (err: any) {
       setUploadError(err.message || "Upload failed");
@@ -5229,17 +5174,8 @@ function DocumentsTab({ deal, documentState, setRefreshTrigger }: { deal: any; d
   const handleDeleteCoreDoc = async (fieldName: "IM_Review_Documents" | "Attachments", idx: number) => {
     setIsUploadingIm(true);
     try {
-      const currentFiles = (deal.rawFields?.[fieldName] as any[]) || [];
-      const newFiles = currentFiles.filter((_, i) => i !== idx);
-      await fetch(`/api/admin/action`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "update-deal",
-          id: deal.id,
-          updates: { [fieldName]: newFiles }
-        })
-      });
+      void fieldName;
+      await removeImDocument(deal.id, idx);
       setRefreshTrigger((prev: number) => prev + 1);
     } catch (err: any) {
       setUploadError(err.message || "Delete failed");

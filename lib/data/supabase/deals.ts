@@ -21,6 +21,21 @@ export class DealsRepository extends SupabaseRepository<Deal, CreateDealInput, U
     return this.list({ stage, limit, offset });
   }
 
+  /** Find a deal by any of its human refs (ACP ref, listing ref) or uuid. */
+  async findByRef(ref: string): Promise<Deal | null> {
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(ref);
+    if (isUuid) return this.findById(ref);
+    const { data, error } = await this.db
+      .from("deals")
+      .select("*")
+      .is("deleted_at", null)
+      .or(`acp_ref_no.eq.${ref},ref_no.eq.${ref},deal_name.eq.${ref}`)
+      .limit(1)
+      .maybeSingle();
+    if (error) throw new Error(`deals.findByRef: ${error.message}`);
+    return data ? this.parseRow(data) : null;
+  }
+
   /** Count deals grouped by stage (dashboard). Uses per-stage count queries so it
    *  is not limited by the 1000-row select cap. */
   async stageCounts(): Promise<Record<DealStage, number>> {
