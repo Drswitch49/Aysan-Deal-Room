@@ -66,7 +66,28 @@ export async function uploadFromUrl(
 }
 
 /**
+ * API-key-signed download URL for server-side access to an authenticated asset.
+ * Works even while the account's "Allow delivery of PDF and ZIP files" security
+ * toggle is off (which 401s normal delivery URLs for PDFs on new accounts).
+ * Use THIS for backend fetches; `signedUrl` is for browser delivery and needs
+ * that toggle enabled for PDFs.
+ */
+export function downloadUrl(
+  publicId: string,
+  opts: { format?: string; resourceType?: "image" | "video" | "raw"; expiresInSeconds?: number } = {},
+): string {
+  ensureConfigured();
+  return cloudinary.utils.private_download_url(publicId, opts.format ?? "", {
+    resource_type: opts.resourceType ?? "image",
+    type: "authenticated",
+    expires_at: Math.floor(Date.now() / 1000) + (opts.expiresInSeconds ?? 600),
+  });
+}
+
+/**
  * Generate a short-lived signed delivery URL for an authenticated asset.
+ * NOTE: for PDF/ZIP delivery the Cloudinary account setting
+ * "Security → Allow delivery of PDF and ZIP files" must be enabled.
  * @param expiresInSeconds default 1 hour.
  */
 export function signedUrl(

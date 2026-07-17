@@ -19,6 +19,8 @@ const bodySchema = z.object({
     "precall-brief",
     "postcall-brief",
     "portfolio-briefing",
+    "osint-scan",
+    "document-analysis",
   ]),
   payload: z.record(z.string(), z.unknown()).default({}),
 });

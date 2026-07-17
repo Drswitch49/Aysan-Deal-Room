@@ -17,7 +17,8 @@
       "Bash(node --env-file=.env --import tsx scripts/etl/import-auth-users.ts)",
       "Bash(echo \"tc=$?\")",
       "Skill(claude-api)",
-      "Skill(claude-api:*)"
+      "Skill(claude-api:*)",
+      "Bash(node --input-type=module -e ' *)"
     ]
   }
 }
