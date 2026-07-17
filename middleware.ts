@@ -14,9 +14,8 @@ const PUBLIC_PREFIXES = [
   "/api/auth/login",
   "/api/auth/logout",
   "/api/auth/session",
-  "/api/lender/auth", // legacy lender slug login (removed in Phase 6)
+  "/api/lender/auth", // lender portal login (Supabase-backed)
   "/api/health",
-  "/api/inngest", // legacy job system (removed in Phase 5)
 ];
 
 export async function middleware(request: Request) {

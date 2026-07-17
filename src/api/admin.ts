@@ -829,8 +829,54 @@ export async function getJobStatus(_table: string, recordId: string, _jobType?: 
 
 // ─── Portfolio ──────────────────────────────────────────────────────────────
 
-export async function fetchPortfolioData() {
-  return api.get<Row>("/api/portfolio/summary");
+export async function fetchPortfolioData(): Promise<Row> {
+  const s = await api.get<Row>("/api/portfolio/summary");
+  const metrics = (s.metrics ?? []).map((m: Row) => ({
+    id: m.id,
+    companyId: m.company_id ?? m.legacy_company_id ?? "",
+    companyName: m.company_name ?? "",
+    reportingPeriod: m.reporting_period ?? "",
+    revenue: m.revenue ?? 0,
+    ebitda: m.ebitda ?? 0,
+    dscr: m.dscr ?? 0,
+    leverage: m.leverage ?? 0,
+    headcount: m.headcount ?? 0,
+    churnRate: m.churn_rate ?? 0,
+    recurringRevenue: m.recurring_revenue ?? 0,
+  }));
+  const alerts = (s.alerts ?? []).map((a: Row) => ({
+    id: a.id,
+    companyId: a.company_id ?? a.legacy_company_id ?? "",
+    companyName: a.company_name ?? "",
+    alertType: a.alert_type ?? "",
+    severity: a.severity ?? "info",
+    explanation: a.explanation ?? "",
+    triggeredAt: a.triggered_at ?? "",
+    resolvedAt: a.resolved_at ?? null,
+  }));
+  const healths = (s.healths ?? []).map((h: Row) => ({
+    id: h.id,
+    companyId: h.company_id ?? h.legacy_company_id ?? "",
+    companyName: h.company_name ?? "",
+    portfolioScore: h.portfolio_score ?? 0,
+    riskLevel: h.risk_level ?? "",
+    activeAlerts: h.active_alerts ?? 0,
+    trendSummary: h.trend_summary ?? "",
+    updatedAt: h.updated_at ?? "",
+  }));
+  const healthIndex = healths.length
+    ? Math.round(healths.reduce((sum: number, h: Row) => sum + (h.portfolioScore ?? 0), 0) / healths.length)
+    : 100;
+  return {
+    success: true,
+    metrics,
+    alerts,
+    healths,
+    companies: s.companies ?? [],
+    summaryBriefing: "",
+    healthIndex,
+    isFallbackActive: false,
+  };
 }
 
 export async function triggerPortfolioAnalysis() {

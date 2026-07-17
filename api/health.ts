@@ -1,42 +1,29 @@
-import { getBaseSchema } from "../src/lib/airtable/client.js";
+/**
+ * GET /api/health — service health (public). Verifies Supabase connectivity.
+ */
+import { adminClient } from "../lib/data/supabase/client.js";
 
 export default async function handler(req: any, res: any) {
   if (req.method !== "GET") {
-    return res.status(455).json({ error: "Method not allowed" });
+    res.setHeader("Allow", "GET");
+    return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const apiKey = process.env.AIRTABLE_API_KEY || process.env.VITE_AIRTABLE_API_KEY;
-  const baseId = process.env.AIRTABLE_BASE_ID || process.env.VITE_AIRTABLE_BASE_ID;
-
-  const envStatus = {
-    apiKeyConfigured: !!apiKey,
-    baseIdConfigured: !!baseId,
-    apiRoot: "https://api.airtable.com/v0"
-  };
-
   try {
-    // Attempt to connect to Airtable by querying the tables schema
-    const schema = await getBaseSchema();
-    const tableNames = schema.tables?.map((t: any) => t.name) || [];
-    
+    const { count, error } = await adminClient()
+      .from("deals")
+      .select("*", { count: "exact", head: true });
+    if (error) throw new Error(error.message);
     return res.status(200).json({
       status: "ok",
       timestamp: new Date().toISOString(),
-      environment: envStatus,
-      airtable: {
-        connection: "successful",
-        availableTables: tableNames
-      }
+      database: { connection: "successful", deals: count ?? 0 },
     });
   } catch (err: any) {
     return res.status(500).json({
       status: "error",
       timestamp: new Date().toISOString(),
-      environment: envStatus,
-      airtable: {
-        connection: "failed",
-        error: err.message || err
-      }
+      database: { connection: "failed", error: err?.message ?? String(err) },
     });
   }
 }

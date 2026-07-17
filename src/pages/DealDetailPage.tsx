@@ -37,7 +37,7 @@ import {
 import { getDealInbox } from "../api/airtable";
 import { HeaderMetrics } from "../components/ui/HeaderMetrics";
 import { usePipeline } from "../context/PipelineContext";
-import { STAGE_LABELS, type DealStage } from "../lib/airtable/schema";
+import { STAGE_LABELS, type DealStage } from "../lib/stages";
 
 type TabId = "overview" | "brief" | "post-meeting" | "financials" | "loi" | "documents" | "im-attachments" | "chat" | "notes";
 
