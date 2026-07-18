@@ -440,12 +440,21 @@ export async function deleteAdminDocument(documentId: string) {
   return api.del<Row>(`/api/documents/${encodeURIComponent(documentId)}`);
 }
 
-/** Direct browser → Cloudinary upload via a server-signed payload. */
+/** Direct browser → Cloudinary upload via a server-signed payload.
+ *  Accepts either a raw base64 string OR a full `data:<mime>;base64,…` URI —
+ *  FileReader.readAsDataURL produces the latter, and atob() would throw on the
+ *  `data:…;base64,` prefix, so we strip it here (this was breaking uploads). */
 async function uploadToCloudinary(fileName: string, fileType: string, fileDataBase64: string, folder: string) {
   const signed = await api.post<Row>("/api/documents/sign-upload", { folder });
+
+  // Cloudinary accepts a data-URI as the `file` param directly — simplest and
+  // avoids any client-side base64 decoding entirely.
+  const dataUri = fileDataBase64.startsWith("data:")
+    ? fileDataBase64
+    : `data:${fileType || "application/octet-stream"};base64,${fileDataBase64}`;
+
   const form = new FormData();
-  const bytes = Uint8Array.from(atob(fileDataBase64), (c) => c.charCodeAt(0));
-  form.append("file", new Blob([bytes], { type: fileType }), fileName);
+  form.append("file", dataUri);
   form.append("api_key", signed.apiKey);
   form.append("timestamp", String(signed.timestamp));
   form.append("signature", signed.signature);

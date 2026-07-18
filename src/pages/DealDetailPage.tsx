@@ -1221,7 +1221,6 @@ export function DealDetailPage() {
                         Replace
                         <input
                           type="file"
-                          accept=".pdf,.docx,.xlsx"
                           className="hidden"
                           onChange={async (e) => {
                             const file = e.target.files?.[0];
@@ -1268,9 +1267,7 @@ export function DealDetailPage() {
                 <Upload className="h-3.5 w-3.5 text-slate-500" />
                 <span>Upload New Attachment</span>
                 <input
-                  type="file"
-                  accept=".pdf,.docx,.xlsx"
-                  className="hidden"
+                  type="file"                  className="hidden"
                   onChange={async (e) => {
                     const file = e.target.files?.[0];
                     if (file) {
@@ -3279,9 +3276,7 @@ function PreCallBriefTab({ deal, openComposer }: { deal: any; openComposer: (opt
                   }`}
                 >
                   <input 
-                    type="file" 
-                    accept=".pdf"
-                    onChange={handleFileChange}
+                    type="file"                     onChange={handleFileChange}
                     className="absolute inset-0 opacity-0 cursor-pointer"
                   />
                   {uploadState === "idle" && (
@@ -5018,9 +5013,7 @@ function ImAttachmentsTab({
                     <label className="relative inline-flex h-7 items-center justify-center rounded-lg border border-white/[0.08] px-3 text-[10px] font-bold uppercase tracking-wider text-[#C6A66B] hover:text-white hover:bg-[#C6A66B]/10 transition cursor-pointer">
                       {isReplacing ? "Replacing..." : "Replace"}
                       <input
-                        type="file"
-                        accept=".pdf,.docx,.xlsx"
-                        disabled={isReplacing}
+                        type="file"                        disabled={isReplacing}
                         className="hidden"
                         onChange={(e) => {
                           const file = e.target.files?.[0];
@@ -5064,9 +5057,7 @@ function ImAttachmentsTab({
         >
           <input
             type="file"
-            id="im-attachment-file-upload"
-            accept=".pdf,.docx,.xlsx"
-            disabled={isUploading}
+            id="im-attachment-file-upload"            disabled={isUploading}
             onChange={(e) => {
               const file = e.target.files?.[0];
               if (file) handleUploadFile(file);
@@ -5215,7 +5206,7 @@ function DocumentsTab({ deal, documentState, setRefreshTrigger }: { deal: any; d
               <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest">Information Memorandums</span>
               <label className="text-[10px] uppercase font-bold text-[#C6A66B] cursor-pointer hover:text-white flex items-center gap-1">
                 {isUploadingIm ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />} Add IM
-                <input type="file" accept=".pdf,.doc,.docx" className="hidden" onChange={(e) => handleUploadCoreDoc(e, "IM_Review_Documents")} disabled={isUploadingIm} />
+                <input type="file" className="hidden" onChange={(e) => handleUploadCoreDoc(e, "IM_Review_Documents")} disabled={isUploadingIm} />
               </label>
             </div>
             {deal.rawFields?.IM_Review_Documents?.length ? (
@@ -5254,7 +5245,7 @@ function DocumentsTab({ deal, documentState, setRefreshTrigger }: { deal: any; d
               <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest">Financial Packs & Attachments</span>
               <label className="text-[10px] uppercase font-bold text-[#C6A66B] cursor-pointer hover:text-white flex items-center gap-1">
                 {isUploadingIm ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />} Add Pack
-                <input type="file" accept=".xlsx,.xls,.pdf" className="hidden" onChange={(e) => handleUploadCoreDoc(e, "Attachments")} disabled={isUploadingIm} />
+                <input type="file" className="hidden" onChange={(e) => handleUploadCoreDoc(e, "Attachments")} disabled={isUploadingIm} />
               </label>
             </div>
             {deal.rawFields?.Attachments?.length ? (
