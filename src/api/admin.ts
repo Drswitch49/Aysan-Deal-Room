@@ -112,7 +112,14 @@ function mapLenderLegacy(l: Row, assignments: Row[]): Row {
     Last_Contact_Date: l.last_contact_date ?? "",
     assignments: assignments
       .filter((a) => a.lender_id === l.id)
-      .map((a) => ({ id: a.id, dealRef: a.deal_id, Deal_Ref: [a.deal_id], ndaApproved: Boolean(a.nda_approved) })),
+      .map((a) => ({
+        id: a.id,
+        assignmentId: a.assignment_ref ?? a.id,
+        dealRef: a.deal_id,
+        Deal_Ref: [a.deal_id],
+        assignedAt: a.assigned_at ?? a.created_at ?? null,
+        ndaApproved: Boolean(a.nda_approved),
+      })),
   };
 }
 
@@ -557,6 +564,7 @@ export async function fetchHrRegistry(): Promise<{
       id: r.id,
       role: r.role ?? "",
       company: r.company ?? "",
+      status: r.status_text ?? "",
       statusText: r.status_text ?? "",
       accentColor: r.accent_color ?? "",
       createdAt: r.created_at ?? "",
@@ -698,13 +706,54 @@ export async function analyzeTranscript(dealId: string, text: string, fileName?:
 export async function fetchTranscriptAnalyses(dealId: string) {
   const id = await resolveDealId(dealId).catch(() => dealId);
   const page = await api.get<Paginated<Row>>(`/api/transcripts?deal_id=${encodeURIComponent(id)}`);
-  return page.rows;
+  // Content lives under `analysis` (jsonb); the tab reads flat fields and calls
+  // .discussionPoints.map — provide safe defaults so it never crashes.
+  return page.rows.map((r) => {
+    const a = r.analysis ?? {};
+    return {
+      id: r.id,
+      name: r.name ?? "",
+      timestamp: r.processed_at ?? r.created_at ?? "",
+      summary: a.summary ?? "",
+      sentiment: a.sentiment ?? "Neutral",
+      dealScore: typeof a.dealScore === "number" ? a.dealScore : 0,
+      discussionPoints: Array.isArray(a.discussionPoints) ? a.discussionPoints : [],
+      actionItems: Array.isArray(a.actionItems) ? a.actionItems : [],
+      risks: Array.isArray(a.risks) ? a.risks : [],
+      opportunities: Array.isArray(a.opportunities) ? a.opportunities : [],
+      processing_status: r.processing_status ?? "",
+    };
+  });
+}
+
+/** Flatten a brief row: the page reads brief content as top-level fields, but
+ *  the API stores the AI output under `brief_data`. Array fields are defaulted
+ *  so the page's unguarded `.map` calls never crash on legacy/migrated shapes. */
+function flattenBrief(r: Row): Row {
+  const data = (r.brief_data && typeof r.brief_data === "object") ? r.brief_data : {};
+  const arr = (v: unknown) => (Array.isArray(v) ? v : []);
+  return {
+    ...data,
+    criticalUnknowns: arr(data.criticalUnknowns),
+    dealKillers: arr(data.dealKillers),
+    teamDeploymentPlan: arr(data.teamDeploymentPlan),
+    callPhaseOwnership: arr(data.callPhaseOwnership),
+    participantQuestionBank: arr(data.participantQuestionBank),
+    internalWatchouts: arr(data.internalWatchouts),
+    recommendedNextActions: arr(data.recommendedNextActions),
+    scores: (data.scores && typeof data.scores === "object") ? data.scores : {},
+    id: r.id,
+    deal_id: r.deal_id,
+    name: r.name,
+    created_at: r.created_at,
+    processed_at: r.processed_at,
+  };
 }
 
 export async function fetchPrecallBriefs(dealId: string) {
   const id = await resolveDealId(dealId).catch(() => dealId);
   const page = await api.get<Paginated<Row>>(`/api/briefs/precall?deal_id=${encodeURIComponent(id)}`);
-  return page.rows;
+  return page.rows.map(flattenBrief);
 }
 
 export async function generatePrecallBrief(data: { dealId: string; [k: string]: any }): Promise<Row> {
@@ -747,7 +796,7 @@ export async function askPrecallBriefQuestion(data: {
 export async function fetchPostcallBriefs(dealId: string) {
   const id = await resolveDealId(dealId).catch(() => dealId);
   const page = await api.get<Paginated<Row>>(`/api/briefs/postcall?deal_id=${encodeURIComponent(id)}`);
-  return page.rows;
+  return page.rows.map(flattenBrief);
 }
 
 export async function generatePostcallBrief(data: { dealId: string; notes: string; schemaId?: string }): Promise<Row> {
