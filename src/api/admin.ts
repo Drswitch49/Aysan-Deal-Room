@@ -391,8 +391,8 @@ export async function fetchActivityFeed(options: { dealId?: string; limit?: numb
   }));
 }
 
-export async function fetchDashboardStats(_owner: string) {
-  return api.get<Row>("/api/deals/stats");
+export async function fetchDashboardStats(owner: string): Promise<Row> {
+  return api.get<Row>(`/api/dashboard?owner=${encodeURIComponent(owner || "All")}`);
 }
 
 // ─── Documents ──────────────────────────────────────────────────────────────
