@@ -3,7 +3,9 @@
  * Admin and lender both use the same authenticated endpoint now; the lender's
  * session (Supabase cookie) scopes what they can see.
  */
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import { api, type Paginated } from "./http";
+import { supabase, ensureRealtimeAuth } from "../lib/supabase";
 import { mapChatMessage } from "./mappers";
 import type { ChatMessage } from "../types/deal";
 
@@ -59,4 +61,71 @@ export async function sendAdminChatMessage(dealId: string, lenderRecordId: strin
 export async function fetchRecentAdminChat(): Promise<ChatMessage[]> {
   const page = await api.get<Paginated<Row>>("/api/chats?limit=100");
   return page.rows.map(mapChatMessage);
+}
+
+// ─── Realtime (replaces polling) ──────────────────────────────────────────────
+
+/**
+ * Subscribe to new messages for one deal. Returns an unsubscribe function.
+ * RLS scopes delivery server-side (staff see all; a lender sees only its thread);
+ * `lenderId` narrows an admin's view to the currently-open lender thread.
+ */
+export function subscribeDealChat(
+  dealId: string,
+  opts: { lenderId?: string; onInsert: (message: ChatMessage) => void },
+): () => void {
+  let channel: RealtimeChannel | null = null;
+  let cancelled = false;
+
+  (async () => {
+    await ensureRealtimeAuth();
+    const id = await resolveDealId(dealId);
+    if (!id || cancelled) return;
+
+    channel = supabase
+      .channel(`deal-chat:${id}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "chat_messages", filter: `deal_id=eq.${id}` },
+        (payload) => {
+          const row = payload.new as Row;
+          if (opts.lenderId && row.lender_id !== opts.lenderId) return;
+          opts.onInsert(mapChatMessage(row));
+        },
+      )
+      .subscribe();
+  })();
+
+  return () => {
+    cancelled = true;
+    if (channel) supabase.removeChannel(channel);
+  };
+}
+
+/**
+ * Subscribe to every new message the current user is allowed to see (RLS-scoped).
+ * Used by the global notification watcher. Returns an unsubscribe function.
+ */
+export function subscribeAllChat(onInsert: (message: ChatMessage) => void): () => void {
+  let channel: RealtimeChannel | null = null;
+  let cancelled = false;
+
+  (async () => {
+    await ensureRealtimeAuth();
+    if (cancelled) return;
+
+    channel = supabase
+      .channel("chat-all")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "chat_messages" },
+        (payload) => onInsert(mapChatMessage(payload.new as Row)),
+      )
+      .subscribe();
+  })();
+
+  return () => {
+    cancelled = true;
+    if (channel) supabase.removeChannel(channel);
+  };
 }

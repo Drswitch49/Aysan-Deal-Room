@@ -4,6 +4,7 @@ import { LoadingState } from "../components/ui/LoadingState";
 import { ErrorState } from "../components/ui/ErrorState";
 import { EmptyState } from "../components/ui/EmptyState";
 import { cx } from "../utils/cx";
+import { clearRealtimeAuth } from "../lib/supabase";
 
 export function ShareholderPortalPage() {
   // Session lives in httpOnly cookies now (no tokens in localStorage — XSS-safe).
@@ -85,6 +86,7 @@ export function ShareholderPortalPage() {
 
   const handleLogout = () => {
     fetch("/api/auth/logout", { method: "POST" }).catch(() => undefined);
+    void clearRealtimeAuth();
     setToken("");
     setDeals([]);
     setSelectedDeal(null);

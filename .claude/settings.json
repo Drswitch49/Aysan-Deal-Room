@@ -29,7 +29,11 @@
       "Bash(analysis)",
       "Bash(brief_data)",
       "Bash(status)",
-      "Bash(git commit -q -m 'fix: harden repointed pages against shape mismatches \\(click-through QA\\) *)"
+      "Bash(git commit -q -m 'fix: harden repointed pages against shape mismatches \\(click-through QA\\) *)",
+      "Bash(git commit -q -m 'fix\\(upload\\): deal-page document upload + allow all file types *)",
+      "Bash(rm src/api/admin.ts)",
+      "Bash(git status *)",
+      "Bash(git commit -m ' *)"
     ]
   }
 }

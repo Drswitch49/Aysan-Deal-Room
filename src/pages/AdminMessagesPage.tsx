@@ -7,7 +7,7 @@ import { EmptyState } from "../components/ui/EmptyState";
 import { DealChat } from "../components/deals/DealChat";
 import { fetchAdminLenders } from "../api/admin";
 import { getDeals } from "../api/airtable";
-import { fetchRecentAdminChat } from "../api/chat";
+import { fetchRecentAdminChat, subscribeAllChat } from "../api/chat";
 import type { PipelineDeal, ChatMessage } from "../types/deal";
 import { cx } from "../utils/cx";
 
@@ -45,17 +45,12 @@ export function AdminMessagesPage() {
     loadData();
   }, []);
 
-  // Poll for new messages every 8 seconds to update counters in real-time
+  // Keep counters live via Supabase Realtime (replaces the 8s poll).
   useEffect(() => {
-    const interval = setInterval(async () => {
-      try {
-        const messages = await fetchRecentAdminChat();
-        setRecentMessages(messages);
-      } catch (err) {
-        console.error("Admin messages page failed to poll recent chats:", err);
-      }
-    }, 8000);
-    return () => clearInterval(interval);
+    const unsubscribe = subscribeAllChat((msg) => {
+      setRecentMessages((prev) => (prev.some((m) => m.id === msg.id) ? prev : [msg, ...prev]));
+    });
+    return unsubscribe;
   }, []);
 
   async function loadData() {
