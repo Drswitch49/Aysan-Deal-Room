@@ -20,7 +20,20 @@ import { fetchPortfolioData, triggerPortfolioAnalysis, getJobStatus } from "../a
 import { StatCard } from "../components/ui/StatCard";
 import { Modal } from "../components/ui/Modal";
 import { FormField, inputClass, selectClass, textareaClass } from "../components/ui/FormField";
-import type { PortfolioMetricRecord, PortfolioAlertRecord, PortfolioHealthRecord } from "../../lib/portfolio/db";
+// Local record types (the legacy lib/portfolio module was removed with Airtable).
+type PortfolioMetricRecord = {
+  id?: string; companyId: string; companyName: string; reportingPeriod: string;
+  revenue: number; ebitda: number; dscr: number; leverage: number;
+  headcount: number; churnRate: number; recurringRevenue: number;
+};
+type PortfolioAlertRecord = {
+  id: string; companyId: string; companyName: string; alertType: string;
+  severity: string; explanation: string; triggeredAt: string; resolvedAt: string | null;
+};
+type PortfolioHealthRecord = {
+  id: string; companyId: string; companyName: string; portfolioScore: number;
+  riskLevel: string; activeAlerts: number; trendSummary: string; updatedAt: string;
+};
 
 // ─── Inline Premium Sparkline ──────────────────────────────────────────────────
 function Sparkline({

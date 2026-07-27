@@ -1,124 +1,59 @@
-# ACP Deal Room V1
+# ACP Deal Room
 
-Lightweight operational deal-room interface for Aysan Capital Partners.
-
-This app is a read-only React/Vite display layer over Airtable. It does not run a backend, write deal data, upload files, send email, authenticate users, or persist frontend state.
+Full-stack deal-room platform for Aysan Capital Partners: deal pipeline +
+kanban, document checklist, lender & shareholder portals, AI analysis
+(verdicts, transcripts, pre/post-call briefs, OSINT), portfolio monitoring,
+and HR/stakeholder registries.
 
 ## Stack
 
-- React + Vite + TypeScript
-- TailwindCSS
-- React Router
-- Airtable REST API
-- Google Drive links rendered from Airtable
-- Vercel hosting
+- **Frontend:** React 19 + Vite + TypeScript + TailwindCSS (SPA, React Router)
+- **API:** Vercel serverless functions (`api/`), typed handler pipeline
+  (`api/_lib/handler.ts`: method → zod validation → auth → RBAC → service)
+- **Database:** Supabase Postgres — schema in `supabase/migrations/`
+  (apply with `npm run db:migrate`)
+- **Auth:** Supabase Auth (staff, lenders, shareholders) with httpOnly session
+  cookies; per-handler default-deny authorization (`api/_lib/authz.ts`)
+- **Files:** Cloudinary (authenticated assets; browser uploads via
+  server-signed payloads; server reads via API-key-signed download URLs)
+- **Background jobs:** self-hosted queue (`jobs` table + `lib/jobs`), worker at
+  `/api/jobs/worker` driven by Vercel Cron
+- **AI:** Anthropic Claude via `@anthropic-ai/sdk` (`lib/ai`), zod-validated
+  outputs with repair retry
 
-## Airtable Tables
+## Development
 
-The app expects these read-only tables and field names:
-
-- `Active Pipeline`
-- `Documents`
-- `Submission_Log`
-
-`Documents` fields:
-
-- `Deal_Ref`
-- `Document_Name`
-- `Category`
-- `ABL_Critical`
-- `Status`
-- `Source`
-- `Date_Received`
-- `Drive_Link`
-- `Expected_Date`
-- `Internal_Notes`
-- `Date_Sent_To_Lender`
-- `Lender_Target`
-
-`Submission_Log` fields:
-
-- `Deal_Ref`
-- `Date`
-- `What_Was_Sent`
-- `Sent_To`
-- `Sent_Via`
-- `Response_Received`
-- `Flag`
-
-## Environment Variables
-
-Create `.env.local` from `.env.example`:
-
-```bash
-VITE_AIRTABLE_API_KEY=
-VITE_AIRTABLE_BASE_ID=
-VITE_AIRTABLE_PIPELINE_TABLE=Active Pipeline
-VITE_AIRTABLE_DOCUMENTS_TABLE=Documents
-VITE_AIRTABLE_SUBMISSION_TABLE=Submission_Log
-VITE_LENDER_ROOM_PASSWORD=
-```
-
-Use an Airtable personal access token scoped as narrowly as possible for read-only access to the required base.
-
-`VITE_LENDER_ROOM_PASSWORD` is a lightweight JavaScript gate for `/lender/:ref`. It is not a replacement for Drive permissions or Airtable token scoping.
-
-## Local Development
-
-```bash
+```sh
 npm install
-npm run dev
-```
-
-Open the Vite URL shown in the terminal.
-
-If you are using the project-local portable Node.js setup, use:
-
-```powershell
-.\npm-local.cmd install
-.\npm-local.cmd run dev
-```
-
-## Build
-
-```bash
+npm run dev        # frontend + API on one port (vite plugin emulates Vercel routes)
+npm run typecheck
+npm run test       # vitest (incl. financial-engine golden numbers)
 npm run build
 ```
 
-## Routes
+## Environment
 
-- `/deals` - internal deal list
-- `/deals/:ref` - internal deal detail with Cover Sheet, Document Checklist, and Submission Log tabs
-- `/lender/:ref` - password-gated lender view
+See `.env` locally (never committed). Required groups:
 
-## Data Rules
+- `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_ANON_KEY`,
+  `SUPABASE_DB_URL` (session-pooler URI; migrations only)
+- `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`
+- `ANTHROPIC_API_KEY`
+- `CRON_SECRET` (Vercel Cron → job worker auth)
+- Optional integrations: `NEWS_API_KEY`, `COMPANIES_HOUSE_API_KEY`
 
-- Airtable is the single source of truth.
-- The frontend reads Airtable and renders Google Drive links.
-- The frontend does not write Airtable data.
-- The frontend does not upload files.
-- The frontend does not store duplicate data locally.
-- Make.com is assumed to handle Drive monitoring, permissions, and Airtable record creation.
+## Architecture notes
 
-## Lender Filtering
+- All data access goes through typed repositories (`lib/data/supabase`) —
+  no handler or component talks to the database directly.
+- Zod schemas in `lib/core/schemas` are the single source of type truth.
+- Legacy-endpoint → REST mapping from the 2026 rewrite: `docs/api-migration-map.md`.
+- The one-time Airtable→Supabase ETL lives in `scripts/etl/` (historical;
+  Airtable is no longer used at runtime).
 
-The lender page only displays documents where:
+## Deployment (Vercel)
 
-```text
-Status == "Sent to Lender"
-```
-
-Internal notes, submission logs, lender strategy, other lenders, and in-review or rejected documents are not rendered in the lender UI.
-
-If a capital structure provider is present in lender view, the provider is displayed as `ACP Arranged`.
-
-## Vercel Deployment
-
-1. Push this project to the repository connected to Vercel.
-2. In Vercel, set the environment variables listed above.
-3. Use the default Vite settings:
-   - Build command: `npm run build`
-   - Output directory: `dist`
-4. Deploy.
-
-Because this is a static frontend, Airtable and Google Drive permissions must be configured outside the app.
+1. Set the environment variables above in Vercel.
+2. Default Vite settings — build `npm run build`, output `dist/`.
+3. `vercel.json` configures the SPA rewrite, the job worker's `maxDuration`,
+   and the every-minute cron for `/api/jobs/worker`.

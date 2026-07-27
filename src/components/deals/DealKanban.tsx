@@ -28,7 +28,7 @@ import { Link } from "react-router-dom";
 import { AlertTriangle, GripVertical, Building2, TrendingUp, Loader2, ChevronRight, Clock, Sparkles } from "lucide-react";
 import type { PipelineDeal } from "../../types/deal";
 import { transitionDealStage } from "../../api/admin";
-import { CANONICAL_STAGES, STAGE_LABELS, type DealStage } from "../../lib/airtable/schema";
+import { CANONICAL_STAGES, STAGE_LABELS, type DealStage } from "../../lib/stages";
 import { cx } from "../../utils/cx";
 
 // ─── Stage Color Config ───────────────────────────────────────────────────────

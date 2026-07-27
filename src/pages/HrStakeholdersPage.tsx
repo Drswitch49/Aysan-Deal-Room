@@ -2,7 +2,12 @@ import { useState, useEffect } from "react";
 import { Plus, Trash, Loader2, AlertCircle, UserPlus, X, Copy, ShieldCheck, KeyRound, Edit, UserCheck, UserX } from "lucide-react";
 import { cx } from "../utils/cx";
 import { HeaderMetrics } from "../components/ui/HeaderMetrics";
-import { fetchHrRegistry, addHiringBrief, deleteHiringBrief } from "../api/admin";
+import { fetchHrRegistry, addHiringBrief, deleteHiringBrief, createTeamMember, createStakeholder } from "../api/admin";
+import { api } from "../api/http";
+
+/** New REST endpoint per drawer-user type. */
+const hrEndpointFor = (type: string) =>
+  type === "team" ? "/api/team-members" : type === "shareholder" ? "/api/shareholders" : "/api/stakeholders";
 import { Modal } from "../components/ui/Modal";
 import { FormField, inputClass, selectClass } from "../components/ui/FormField";
 
@@ -151,17 +156,17 @@ export function HrStakeholdersPage() {
     if (!teamForm.name.trim() || !teamForm.email.trim()) { setTeamFormError("Name and Email are required."); return; }
     setIsTeamSaving(true); setTeamFormError("");
     try {
-      const res = await fetch("/api/team-members-crud", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(teamForm),
+      await createTeamMember({
+        name: teamForm.name,
+        role: teamForm.role,
+        email: teamForm.email,
+        phone: teamForm.phone,
+        status: teamForm.status,
       });
-      if (!res.ok) { const err = await res.json().catch(() => ({ error: `Server error (${res.status})` })); throw new Error(err.error || "Failed to add team member"); }
-      const data = await res.json();
       setCreatedCredentials({
         name: teamForm.name,
         email: teamForm.email,
-        pass: data.tempPassword || "",
+        pass: "Set via Supabase — ask an owner to invite this account.",
         type: "Team Member",
         role: teamForm.role,
         accessLevel: ["managing partner", "partner", "super admin", "owner", "admin"].includes((teamForm.role || "").toLowerCase()) ? "FULL ACCESS" : "WRITE ACCESS"
@@ -177,17 +182,18 @@ export function HrStakeholdersPage() {
     if (!stakeholderForm.name.trim() || !stakeholderForm.type) { setStakeholderFormError("Name and Type are required."); return; }
     setIsStakeholderSaving(true); setStakeholderFormError("");
     try {
-      const res = await fetch("/api/stakeholders-crud", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(stakeholderForm),
+      await createStakeholder({
+        name: stakeholderForm.name,
+        type: stakeholderForm.type,
+        email: stakeholderForm.email,
+        phone: stakeholderForm.phone,
+        organization: stakeholderForm.organization,
+        notes: stakeholderForm.notes,
       });
-      if (!res.ok) { const err = await res.json().catch(() => ({ error: `Server error (${res.status})` })); throw new Error(err.error || "Failed to add stakeholder"); }
-      const data = await res.json();
       setCreatedCredentials({
         name: stakeholderForm.name,
         email: stakeholderForm.email || "N/A",
-        pass: data.tempPassword || "",
+        pass: "No portal account — stakeholders are registry-only.",
         type: "External Stakeholder",
         role: "Stakeholder",
         accessLevel: "READ ONLY"
@@ -203,25 +209,14 @@ export function HrStakeholdersPage() {
     if (!shareholderForm.name.trim()) { setShareholderFormError("Name is required."); return; }
     setIsShareholderSaving(true); setShareholderFormError("");
     try {
-      const res = await fetch("/api/shareholders-crud", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...shareholderForm, status: "Active" }),
+      await api.post("/api/shareholders", {
+        name: shareholderForm.name,
+        email: shareholderForm.email,
+        phone: shareholderForm.phone,
+        notes: shareholderForm.notes,
+        status: "active",
       });
-      if (!res.ok) { const err = await res.json().catch(() => ({ error: `Server error (${res.status})` })); throw new Error(err.error || "Failed to add shareholder"); }
-      const data = await res.json();
-      
-      if (data.tempPassword) {
-        setCreatedCredentials({
-          name: shareholderForm.name,
-          email: shareholderForm.email || "N/A",
-          pass: data.tempPassword || "",
-          type: "Shareholder",
-          role: "Shareholder",
-          accessLevel: "READ ONLY"
-        });
-      }
-      
+
       setShareholderForm({ name: "", email: "", phone: "", notes: "" });
       setIsAddShareholderOpen(false);
       loadData();
@@ -261,9 +256,16 @@ export function HrStakeholdersPage() {
       .catch(console.error);
   }, []);
 
-  const canManageTeam = currentUser && ["admin", "managing partner", "partner", "hr", "super admin", "owner"].includes((currentUser.role || "").toLowerCase());
-  const canManageStakeholders = currentUser && ["admin", "managing partner", "partner", "hr", "super admin", "owner"].includes((currentUser.role || "").toLowerCase());
-  const isSuperAdmin = currentUser?.role?.toLowerCase() === "super admin";
+  // Canonicalize the role so both the normalized enum ("managing_partner") and
+  // any legacy spelling ("Managing Partner") resolve to the same key. Must mirror
+  // the backend PEOPLE_MANAGERS group so shown controls match what's permitted.
+  const canonRole = (currentUser?.role || "").toLowerCase().replace(/[\s_]+/g, "_");
+  const PEOPLE_MANAGERS = ["owner", "super_admin", "managing_partner", "partner", "admin", "hr"];
+  const canManageTeam = PEOPLE_MANAGERS.includes(canonRole);
+  const canManageStakeholders = PEOPLE_MANAGERS.includes(canonRole);
+  // These registry tables all soft-delete on the backend, so the delete action
+  // is never a permanent hard delete — keep the accurate "Soft Delete" copy.
+  const isSuperAdmin = false;
 
   // Configuration drawer triggers
   const openConfigDrawerForTeam = (member: TeamMember) => {
@@ -305,99 +307,23 @@ export function HrStakeholdersPage() {
   // Drawer action implementations
   const handleResetPassword = async () => {
     if (!drawerUser) return;
-    setIsSaving(true);
-    try {
-      const endpoint = drawerUser.type === "team" ? "/api/team-members-crud" : "/api/stakeholders-crud";
-      const payload = drawerUser.type === "team"
-        ? { action: "reset-password", memberId: drawerUser.id }
-        : { action: "reset-password", stakeholderId: drawerUser.id };
-        
-      const res = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: "Failed" }));
-        throw new Error(err.error || "Failed to reset password");
-      }
-      const data = await res.json();
-      setCreatedCredentials({
-        name: drawerUser.name,
-        email: drawerUser.email || "N/A",
-        pass: data.tempPassword || "",
-        type: drawerUser.type === "team" ? "Team Member" : "External Stakeholder"
-      });
-      setIsResetConfirmOpen(false);
-      setIsDrawerOpen(false);
-      setDrawerUser(null);
-    } catch (err: any) {
-      alert(err.message || "Failed to reset password");
-    } finally {
-      setIsSaving(false);
-    }
+    // Passwords live in Supabase Auth now — registry rows have no passcodes.
+    alert("Password resets happen in Supabase Auth. Ask an owner to reset this account.");
+    setIsResetConfirmOpen(false);
   };
 
   const handleGenerateLink = async () => {
     if (!drawerUser) return;
-    try {
-      let endpoint = "";
-      let payload: any = {};
-      let method = "POST";
-      
-      if (drawerUser.type === "team") {
-        endpoint = `/api/team-members-crud?id=${drawerUser.id}&action=generate-login-link`;
-        method = "PATCH";
-      } else if (drawerUser.type === "shareholder") {
-        endpoint = `/api/shareholders-crud`;
-        payload = { action: "generate-login-link", shareholderId: drawerUser.id };
-      } else {
-        endpoint = `/api/stakeholders-crud?id=${drawerUser.id}&action=generate-login-link`;
-        method = "PATCH";
-      }
-      
-      const res = await fetch(endpoint, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: Object.keys(payload).length > 0 ? JSON.stringify(payload) : undefined
-      });
-      if (!res.ok) {
-        throw new Error("Failed to generate login link");
-      }
-      const data = await res.json();
-      setDrawerUser(prev => prev ? { ...prev, loginLink: data.loginLink } : null);
-      alert("Login link generated successfully!");
-      loadData();
-    } catch (err: any) {
-      alert(err.message || "Failed to generate login link");
-    }
+    // Magic login links are issued through Supabase Auth invites now.
+    alert("Login links are issued via Supabase Auth invites — ask an owner to send one.");
   };
 
   const handleToggleStatus = async (newStatus: string) => {
     if (!drawerUser) return;
     try {
-      let endpoint = "";
-      let method = "PATCH";
-      let payload: any = { status: newStatus };
-      
-      if (drawerUser.type === "team") {
-        endpoint = `/api/team-members-crud?id=${drawerUser.id}`;
-      } else if (drawerUser.type === "shareholder") {
-        endpoint = `/api/shareholders-crud`;
-        method = "PUT";
-        payload = { id: drawerUser.id, status: newStatus };
-      } else {
-        endpoint = `/api/stakeholders-crud?id=${drawerUser.id}`;
-      }
-        
-      const res = await fetch(endpoint, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
+      await api.patch(`${hrEndpointFor(drawerUser.type)}/${encodeURIComponent(drawerUser.id)}`, {
+        status: newStatus.toLowerCase(),
       });
-      if (!res.ok) {
-        throw new Error("Failed to update status");
-      }
       setDrawerUser(prev => prev ? { ...prev, status: newStatus } : null);
       loadData();
     } catch (err: any) {
@@ -427,40 +353,23 @@ export function HrStakeholdersPage() {
     setIsEditSaving(true);
     setEditError("");
     try {
-      let endpoint = "";
-      let method = "PATCH";
-      let payload: Record<string, any> = {
+      const payload: Record<string, any> = {
         name: editForm.name,
         email: editForm.email,
         phone: editForm.phone,
-        status: editForm.status
+        status: (editForm.status || "active").toLowerCase(),
       };
-
       if (drawerUser.type === "team") {
-        endpoint = `/api/team-members-crud?id=${drawerUser.id}`;
         payload.role = editForm.role;
       } else if (drawerUser.type === "shareholder") {
-        endpoint = `/api/shareholders-crud`;
-        method = "PUT";
-        payload.id = drawerUser.id;
         payload.notes = editForm.notes;
       } else {
-        endpoint = `/api/stakeholders-crud?id=${drawerUser.id}`;
         payload.type = editForm.type;
         payload.organization = editForm.association;
         payload.notes = editForm.notes;
       }
 
-      const res = await fetch(endpoint, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: "Failed" }));
-        throw new Error(err.error || "Failed to save changes");
-      }
+      await api.patch(`${hrEndpointFor(drawerUser.type)}/${encodeURIComponent(drawerUser.id)}`, payload);
 
       // Update drawer state
       setDrawerUser(prev => {
@@ -491,27 +400,7 @@ export function HrStakeholdersPage() {
     if (!drawerUser) return;
     setIsSaving(true);
     try {
-      let endpoint = "";
-      let payload: any = undefined;
-      if (drawerUser.type === "team") {
-        endpoint = `/api/team-members-crud?id=${drawerUser.id}`;
-      } else if (drawerUser.type === "shareholder") {
-        endpoint = `/api/shareholders-crud`;
-        payload = { id: drawerUser.id };
-      } else {
-        endpoint = `/api/stakeholders-crud?id=${drawerUser.id}`;
-      }
-
-      const res = await fetch(endpoint, {
-        method: "DELETE",
-        headers: payload ? { "Content-Type": "application/json" } : undefined,
-        body: payload ? JSON.stringify(payload) : undefined
-      });
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: "Failed" }));
-        throw new Error(err.error || "Failed to deactivate user");
-      }
+      await api.del(`${hrEndpointFor(drawerUser.type)}/${encodeURIComponent(drawerUser.id)}`);
 
       setIsDeleteConfirmOpen(false);
       setIsDrawerOpen(false);

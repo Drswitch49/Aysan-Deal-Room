@@ -1,0 +1,39 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node --env-file=.env --import tsx scripts/etl/migrate.ts)",
+      "Bash(echo \"EXIT=$?\")",
+      "Bash(node --env-file=.env --import tsx -e ' *)",
+      "Bash(node --env-file=.env --import tsx scripts/etl/reset.ts)",
+      "Bash(npm run *)",
+      "Bash(node --env-file=.env --import tsx scripts/etl/rehost-files.ts)",
+      "Bash(git check-ignore *)",
+      "Bash(git add *)",
+      "Bash(git commit -q -m ' *)",
+      "Bash(git config *)",
+      "Bash(npx tsc *)",
+      "Bash(echo \"typecheck-exit=$?\")",
+      "Bash(grep -iE \"\\(^|/\\)\\\\.env\\($|[^.]\\)\")",
+      "Bash(node --env-file=.env --import tsx scripts/etl/import-auth-users.ts)",
+      "Bash(echo \"tc=$?\")",
+      "Skill(claude-api)",
+      "Skill(claude-api:*)",
+      "Bash(node --input-type=module -e ' *)",
+      "Bash(sort -t: -k2 -rn)",
+      "Bash(grep -rln \"fetch\\(\\\\\"/api\\\\|fetch\\(\\\\`/api\" src --include=\"*.ts*\")",
+      "Bash(grep -n 'fetch\\(\"/api\\\\|fetch\\(`/api' src/components/deals/DealForm.tsx src/components/deals/ManualNotesTab.tsx src/components/layout/AdminGuard.tsx src/components/layout/AppLayout.tsx src/pages/CreateDealPage.tsx src/pages/DealDetailPage.tsx src/pages/DealInboxPage.tsx src/pages/DealListPage.tsx src/pages/EditDealPage.tsx src/hooks/useJobStatus.ts)",
+      "Bash(break)",
+      "Bash(ping -n 2 127.0.0.1)",
+      "Bash(git rm *)",
+      "Bash(git commit -q -m 'fix\\(dashboard\\): real /api/dashboard endpoint matching the page'\\\\''s shape *)",
+      "Bash(analysis)",
+      "Bash(brief_data)",
+      "Bash(status)",
+      "Bash(git commit -q -m 'fix: harden repointed pages against shape mismatches \\(click-through QA\\) *)",
+      "Bash(git commit -q -m 'fix\\(upload\\): deal-page document upload + allow all file types *)",
+      "Bash(rm src/api/admin.ts)",
+      "Bash(git status *)",
+      "Bash(git commit -m ' *)"
+    ]
+  }
+}

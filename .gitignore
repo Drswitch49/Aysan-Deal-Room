@@ -23,3 +23,28 @@ git-local.ps1
 
 # SSH key overrides
 dealroom@aysancapital.com001*
+
+# Portable node helpers (do not commit)
+npm-local.cmd
+npm-local.ps1
+git-local.cmd
+git-local.ps1
+
+# Scratch / throwaway / one-off scripts and dumps
+tmp.txt
+tmp*.txt
+logs.txt
+*.log
+fix-*.js
+test-*.ts
+!src/**/*.test.ts
+!**/__tests__/**
+
+# Secrets / credentials (never commit)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+**/storageState.json
+**/*.session.json

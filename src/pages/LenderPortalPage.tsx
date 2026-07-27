@@ -7,7 +7,8 @@ import {
 import { 
   loginLender, fetchLenderDeals, fetchLenderDocuments, fetchLenderSubmissions 
 } from "../api/lender";
-import { fetchRecentLenderChat } from "../api/chat";
+import { fetchRecentLenderChat, subscribeAllChat } from "../api/chat";
+import { clearRealtimeAuth } from "../lib/supabase";
 import { CoverSheet } from "../components/deals/CoverSheet";
 import { DocumentChecklist } from "../components/deals/DocumentChecklist";
 import { SubmissionTimeline } from "../components/deals/SubmissionTimeline";
@@ -108,43 +109,54 @@ export function LenderPortalPage() {
     }
   }
 
+  // Lender "unread" badge — seeded once, then kept live via Supabase Realtime
+  // plus a local (no-network) re-derive so reads clear it promptly.
   useEffect(() => {
     if (!isAuthorized || !portalSlug || deals.length === 0) return;
 
-    const calculateLenderUnread = async () => {
-      try {
-        const messages = await fetchRecentLenderChat(portalSlug).catch(() => []);
-        if (!messages) return;
+    let messages: any[] = [];
 
-        let unread = 0;
-        const msgsByDeal: Record<string, any[]> = {};
-        messages.forEach((m) => {
-          if (m.sender === "Admin") {
-            if (!msgsByDeal[m.dealId]) msgsByDeal[m.dealId] = [];
-            msgsByDeal[m.dealId].push(m);
-          }
-        });
+    const recompute = () => {
+      let unread = 0;
+      const msgsByDeal: Record<string, any[]> = {};
+      messages.forEach((m) => {
+        if (m.sender === "Admin") {
+          if (!msgsByDeal[m.dealId]) msgsByDeal[m.dealId] = [];
+          msgsByDeal[m.dealId].push(m);
+        }
+      });
 
-        deals.forEach((deal) => {
-          const dealMsgs = msgsByDeal[deal.id] || [];
-          if (dealMsgs.length === 0) return;
+      deals.forEach((deal) => {
+        const dealMsgs = msgsByDeal[deal.id] || [];
+        if (dealMsgs.length === 0) return;
 
-          const lastReadTimeStr = localStorage.getItem(`lender_last_read_${deal.id}`);
-          const lastReadTime = lastReadTimeStr ? new Date(lastReadTimeStr).getTime() : 0;
+        const lastReadTimeStr = localStorage.getItem(`lender_last_read_${deal.id}`);
+        const lastReadTime = lastReadTimeStr ? new Date(lastReadTimeStr).getTime() : 0;
 
-          const hasUnread = dealMsgs.some((m) => new Date(m.timestamp).getTime() > lastReadTime);
-          if (hasUnread) unread++;
-        });
+        const hasUnread = dealMsgs.some((m) => new Date(m.timestamp).getTime() > lastReadTime);
+        if (hasUnread) unread++;
+      });
 
-        setUnreadChatsCount(unread);
-      } catch (err) {
-        console.error("Failed to fetch unread messages count for lender:", err);
-      }
+      setUnreadChatsCount(unread);
     };
 
-    calculateLenderUnread();
-    const interval = setInterval(calculateLenderUnread, 10000);
-    return () => clearInterval(interval);
+    fetchRecentLenderChat(portalSlug)
+      .catch(() => [])
+      .then((m) => {
+        messages = m || [];
+        recompute();
+      });
+
+    const unsubscribe = subscribeAllChat((msg) => {
+      messages.push(msg);
+      recompute();
+    });
+    const interval = setInterval(recompute, 5000);
+
+    return () => {
+      unsubscribe();
+      clearInterval(interval);
+    };
   }, [isAuthorized, portalSlug, deals]);
 
   // Handle Login submission
@@ -172,6 +184,7 @@ export function LenderPortalPage() {
     } catch (err) {
       console.error("Logout request failed:", err);
     }
+    await clearRealtimeAuth();
     setIsAuthorized(false);
     setLenderProfile(null);
     setDeals([]);

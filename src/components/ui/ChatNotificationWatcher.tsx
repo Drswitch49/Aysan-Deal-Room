@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from "react";
 import { MessageSquare, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { fetchRecentAdminChat, fetchRecentLenderChat } from "../../api/chat";
+import { subscribeAllChat } from "../../api/chat";
 import { getDeals } from "../../api/airtable";
 import { fetchAdminLenders } from "../../api/admin";
-import type { PipelineDeal, ChatMessage } from "../../types/deal";
+import type { PipelineDeal } from "../../types/deal";
 
 type ToastNotification = {
   id: string;
@@ -29,7 +29,6 @@ export function ChatNotificationWatcher({ mode, portalSlug, deals: lenderDeals }
   const [adminLenders, setAdminLenders] = useState<any[]>([]);
 
   const seenMessageIds = useRef<Set<string>>(new Set());
-  const isFirstFetch = useRef<boolean>(true);
 
   // Fetch admin metadata mapping cache on mount
   useEffect(() => {
@@ -39,70 +38,26 @@ export function ChatNotificationWatcher({ mode, portalSlug, deals: lenderDeals }
     }
   }, [mode]);
 
-  // Main polling effect
+  // Realtime notification subscription (replaces the 8s poll). RLS scopes which
+  // messages each account receives; realtime only pushes inserts that land after
+  // we subscribe, so there is no historic-message replay to guard against.
   useEffect(() => {
-    // If lender mode, only start polling once authenticated and portalSlug is available
+    // If lender mode, only start once authenticated and portalSlug is available.
     if (mode === "lender" && !portalSlug) return;
 
-    const pollInterval = setInterval(async () => {
-      try {
-        let messages: ChatMessage[] = [];
-        if (mode === "admin") {
-          messages = await fetchRecentAdminChat();
-        } else if (mode === "lender" && portalSlug) {
-          messages = await fetchRecentLenderChat(portalSlug);
-        }
+    const unsubscribe = subscribeAllChat((msg) => {
+      if (seenMessageIds.current.has(msg.id)) return;
+      seenMessageIds.current.add(msg.id);
 
-        if (!messages || messages.length === 0) return;
+      // Only notify when the message is from the other party.
+      const shouldNotify =
+        (mode === "admin" && msg.sender !== "Admin") ||
+        (mode === "lender" && msg.sender === "Admin");
 
-        // On first run, just populate the seen list without triggering toasts for historic messages
-        if (isFirstFetch.current) {
-          messages.forEach((msg: any) => seenMessageIds.current.add(msg.id));
-          isFirstFetch.current = false;
-          return;
-        }
+      if (shouldNotify) triggerToast(msg);
+    });
 
-        // Check for new messages
-        const newMessages = messages.filter((msg: any) => !seenMessageIds.current.has(msg.id));
-        if (newMessages.length === 0) return;
-
-        newMessages.forEach((msg: any) => {
-          seenMessageIds.current.add(msg.id);
-
-          // We only notify when the message is from the other party
-          const shouldNotify = 
-            (mode === "admin" && msg.sender !== "Admin") ||
-            (mode === "lender" && msg.sender === "Admin");
-
-          if (shouldNotify) {
-            triggerToast(msg);
-          }
-        });
-      } catch (err) {
-        console.error("Failed to poll chat messages in watcher:", err);
-      }
-    }, 8000);
-
-    // Initial run immediately
-    const runInitial = async () => {
-      try {
-        let messages: ChatMessage[] = [];
-        if (mode === "admin") {
-          messages = await fetchRecentAdminChat();
-        } else if (mode === "lender" && portalSlug) {
-          messages = await fetchRecentLenderChat(portalSlug);
-        }
-        if (messages && messages.length > 0) {
-          messages.forEach((msg: any) => seenMessageIds.current.add(msg.id));
-        }
-        isFirstFetch.current = false;
-      } catch (err) {
-        console.error("Watcher initial chat fetch failed:", err);
-      }
-    };
-    runInitial();
-
-    return () => clearInterval(pollInterval);
+    return unsubscribe;
   }, [mode, portalSlug, adminDeals, adminLenders, lenderDeals]);
 
   const triggerToast = (msg: any) => {

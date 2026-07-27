@@ -16,5 +16,5 @@
     "noEmit": true,
     "jsx": "react-jsx"
   },
-  "include": ["src", "api", "middleware.ts", "vite.config.ts"]
+  "include": ["src", "api", "lib", "scripts", "middleware.ts", "vite.config.ts"]
 }

@@ -32,12 +32,12 @@ import {
   transitionDealStage, triggerOsintEnrichment, triggerFinancialAnalysis,
   sendLoiWebhook, sendEmailWebhook, updateAdminDeal,
   uploadImDocument, removeImDocument, replaceImDocument,
-  deleteDeal
+  deleteDeal, fetchTeamMemberRecords, getJobStatus
 } from "../api/admin";
 import { getDealInbox } from "../api/airtable";
 import { HeaderMetrics } from "../components/ui/HeaderMetrics";
 import { usePipeline } from "../context/PipelineContext";
-import { STAGE_LABELS, type DealStage } from "../lib/airtable/schema";
+import { STAGE_LABELS, type DealStage } from "../lib/stages";
 
 type TabId = "overview" | "brief" | "post-meeting" | "financials" | "loi" | "documents" | "im-attachments" | "chat" | "notes";
 
@@ -159,7 +159,8 @@ export function DealDetailPage() {
     "Analyzing Company",
     "Generating Risk Profile",
     "queued",
-    "processing"
+    "processing",
+    "running"
   ].includes(rawOsintStatus);
 
   const osintJob = useJobStatus({
@@ -236,20 +237,16 @@ export function DealDetailPage() {
     if (!dealState.data?.id) return;
     setIsGeneratingVerdict(true);
     try {
-      const res = await fetch("/api/admin/action", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${sessionStorage.getItem("admin_token") || ""}`
-        },
-        body: JSON.stringify({
-          action: "generate-verdict",
-          dealId: dealState.data.id
-        })
+      const job = await (await import("../api/http")).api.post<any>("/api/ai/jobs", {
+        type: "investment-verdict",
+        payload: { deal_id: dealState.data.id },
       });
-      if (!res.ok) {
-        const data = await res.json().catch(() => null);
-        throw new Error(data?.error || "Failed to generate verdict");
+      // Poll until the verdict lands, then refresh the deal.
+      for (let i = 0; i < 60; i++) {
+        await new Promise((r) => setTimeout(r, 3000));
+        const s = await getJobStatus("deals", job.job_id);
+        if (s.isComplete) break;
+        if (s.isFailed) throw new Error(s.error || "Verdict generation failed");
       }
       setRefreshTrigger(prev => prev + 1);
     } catch (err: any) {
@@ -267,8 +264,7 @@ export function DealDetailPage() {
   const [teamMembers, setTeamMembers] = useState<any[]>([]);
 
   useEffect(() => {
-    fetch("/api/team-members-crud")
-      .then(res => res.ok ? res.json() : [])
+    fetchTeamMemberRecords()
       .then(data => setTeamMembers(data || []))
       .catch(err => console.error("Failed to load team members in details:", err));
   }, []);
@@ -301,26 +297,8 @@ export function DealDetailPage() {
     "Offer Submitted"
   ]);
 
-  useEffect(() => {
-    async function loadStages() {
-      try {
-        const res = await fetch("/api/admin/deals/stages", {
-          headers: {
-            Authorization: `Bearer ${sessionStorage.getItem("admin_token") || ""}`,
-          }
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.success && Array.isArray(data.stages)) {
-            setAvailableStages(data.stages);
-          }
-        }
-      } catch (err) {
-        console.error("Failed to load stages:", err);
-      }
-    }
-    loadStages();
-  }, []);
+  // Stage labels are a fixed pipeline vocabulary now (the legacy endpoint that
+  // served them from Airtable is gone); the defaults above are authoritative.
 
   
   // Composer states
@@ -1243,7 +1221,6 @@ export function DealDetailPage() {
                         Replace
                         <input
                           type="file"
-                          accept=".pdf,.docx,.xlsx"
                           className="hidden"
                           onChange={async (e) => {
                             const file = e.target.files?.[0];
@@ -1290,9 +1267,7 @@ export function DealDetailPage() {
                 <Upload className="h-3.5 w-3.5 text-slate-500" />
                 <span>Upload New Attachment</span>
                 <input
-                  type="file"
-                  accept=".pdf,.docx,.xlsx"
-                  className="hidden"
+                  type="file"                  className="hidden"
                   onChange={async (e) => {
                     const file = e.target.files?.[0];
                     if (file) {
@@ -2581,13 +2556,8 @@ function PreCallBriefTab({ deal, openComposer }: { deal: any; openComposer: (opt
         
         const pollInterval = setInterval(async () => {
           try {
-            const statusRes = await fetch(`/api/jobs/status?table=Precall_Briefs&recordId=${briefId}`, {
-              headers: {
-                Authorization: `Bearer ${sessionStorage.getItem("admin_token") || ""}`,
-              }
-            });
-            if (!statusRes.ok) return;
-            const statusData = await statusRes.json();
+            const statusData = await getJobStatus("Precall_Briefs", briefId).catch(() => null);
+            if (!statusData) return;
             
             if (statusData.isComplete) {
               clearInterval(pollInterval);
@@ -3306,9 +3276,7 @@ function PreCallBriefTab({ deal, openComposer }: { deal: any; openComposer: (opt
                   }`}
                 >
                   <input 
-                    type="file" 
-                    accept=".pdf"
-                    onChange={handleFileChange}
+                    type="file"                     onChange={handleFileChange}
                     className="absolute inset-0 opacity-0 cursor-pointer"
                   />
                   {uploadState === "idle" && (
@@ -3525,13 +3493,8 @@ Owner is open to deferred payment structures, specifically accepting 20% Vendor 
 
         const pollInterval = setInterval(async () => {
           try {
-            const statusRes = await fetch(`/api/jobs/status?table=Postcall_Briefs&recordId=${briefId}`, {
-              headers: {
-                Authorization: `Bearer ${sessionStorage.getItem("admin_token") || ""}`,
-              }
-            });
-            if (!statusRes.ok) return;
-            const statusData = await statusRes.json();
+            const statusData = await getJobStatus("Postcall_Briefs", briefId).catch(() => null);
+            if (!statusData) return;
 
             if (statusData.isComplete) {
               clearInterval(pollInterval);
@@ -5050,9 +5013,7 @@ function ImAttachmentsTab({
                     <label className="relative inline-flex h-7 items-center justify-center rounded-lg border border-white/[0.08] px-3 text-[10px] font-bold uppercase tracking-wider text-[#C6A66B] hover:text-white hover:bg-[#C6A66B]/10 transition cursor-pointer">
                       {isReplacing ? "Replacing..." : "Replace"}
                       <input
-                        type="file"
-                        accept=".pdf,.docx,.xlsx"
-                        disabled={isReplacing}
+                        type="file"                        disabled={isReplacing}
                         className="hidden"
                         onChange={(e) => {
                           const file = e.target.files?.[0];
@@ -5096,9 +5057,7 @@ function ImAttachmentsTab({
         >
           <input
             type="file"
-            id="im-attachment-file-upload"
-            accept=".pdf,.docx,.xlsx"
-            disabled={isUploading}
+            id="im-attachment-file-upload"            disabled={isUploading}
             onChange={(e) => {
               const file = e.target.files?.[0];
               if (file) handleUploadFile(file);
@@ -5191,33 +5150,10 @@ function DocumentsTab({ deal, documentState, setRefreshTrigger }: { deal: any; d
         r.onerror = reject;
         r.readAsDataURL(file);
       });
-      // We can use the existing uploadImDocument API but it defaults to IM_Review_Documents
-      // For financial packs, we might need to update the endpoint or just use updateAdminDeal
-      const res = await fetch("/api/admin/action", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "upload-temp-file",
-          fileData: `data:${file.type};base64,${base64Data}`,
-          fileName: file.name,
-          fileType: file.type
-        })
-      });
-      if (!res.ok) throw new Error("File upload failed");
-      const { url } = await res.json();
-      
-      const currentFiles = (deal.rawFields?.[fieldName] as any[]) || [];
-      const updatedFields = { [fieldName]: [...currentFiles, { url }] };
-      
-      await fetch(`/api/admin/action`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "update-deal",
-          id: deal.id,
-          updates: updatedFields
-        })
-      });
+      // Deal files are single-slot Cloudinary assets now; either slot uploads
+      // land on the deal's file fields.
+      void fieldName;
+      await uploadImDocument(deal.id, file.name, file.type, base64Data);
       setRefreshTrigger((prev: number) => prev + 1);
     } catch (err: any) {
       setUploadError(err.message || "Upload failed");
@@ -5229,17 +5165,8 @@ function DocumentsTab({ deal, documentState, setRefreshTrigger }: { deal: any; d
   const handleDeleteCoreDoc = async (fieldName: "IM_Review_Documents" | "Attachments", idx: number) => {
     setIsUploadingIm(true);
     try {
-      const currentFiles = (deal.rawFields?.[fieldName] as any[]) || [];
-      const newFiles = currentFiles.filter((_, i) => i !== idx);
-      await fetch(`/api/admin/action`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "update-deal",
-          id: deal.id,
-          updates: { [fieldName]: newFiles }
-        })
-      });
+      void fieldName;
+      await removeImDocument(deal.id, idx);
       setRefreshTrigger((prev: number) => prev + 1);
     } catch (err: any) {
       setUploadError(err.message || "Delete failed");
@@ -5279,7 +5206,7 @@ function DocumentsTab({ deal, documentState, setRefreshTrigger }: { deal: any; d
               <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest">Information Memorandums</span>
               <label className="text-[10px] uppercase font-bold text-[#C6A66B] cursor-pointer hover:text-white flex items-center gap-1">
                 {isUploadingIm ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />} Add IM
-                <input type="file" accept=".pdf,.doc,.docx" className="hidden" onChange={(e) => handleUploadCoreDoc(e, "IM_Review_Documents")} disabled={isUploadingIm} />
+                <input type="file" className="hidden" onChange={(e) => handleUploadCoreDoc(e, "IM_Review_Documents")} disabled={isUploadingIm} />
               </label>
             </div>
             {deal.rawFields?.IM_Review_Documents?.length ? (
@@ -5318,7 +5245,7 @@ function DocumentsTab({ deal, documentState, setRefreshTrigger }: { deal: any; d
               <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest">Financial Packs & Attachments</span>
               <label className="text-[10px] uppercase font-bold text-[#C6A66B] cursor-pointer hover:text-white flex items-center gap-1">
                 {isUploadingIm ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />} Add Pack
-                <input type="file" accept=".xlsx,.xls,.pdf" className="hidden" onChange={(e) => handleUploadCoreDoc(e, "Attachments")} disabled={isUploadingIm} />
+                <input type="file" className="hidden" onChange={(e) => handleUploadCoreDoc(e, "Attachments")} disabled={isUploadingIm} />
               </label>
             </div>
             {deal.rawFields?.Attachments?.length ? (

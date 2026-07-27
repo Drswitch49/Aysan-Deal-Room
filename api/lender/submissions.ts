@@ -1,93 +1,25 @@
-import { airtableFetch, TABLES, escapeFormulaString, getAssignmentFields } from "../_utils/airtable.js";
-import { authenticateLender } from "./deals.js";
+/**
+ * GET /api/lender/submissions — submission-log entries on the signed-in
+ * lender's assigned deals.
+ */
+import { createHandler } from "../_lib/handler.js";
+import { resolveLenderScope } from "../_lib/lender-context.js";
+import { adminClient } from "../../lib/data/supabase/client.js";
+import { InternalError } from "../../lib/core/errors.js";
 
-export default async function handler(req: any, res: any) {
-  if (req.method !== "GET") {
-    return res.status(455).json({ error: "Method not allowed" });
-  }
+export default createHandler({
+  methods: ["GET"],
+  requireAuth: true,
+  handle: async ({ query, user }) => {
+    const scope = await resolveLenderScope(user, (query as any)?.lender_id);
+    if (scope.dealIds.length === 0) return { rows: [] };
 
-  try {
-    // 1. Authenticate lender
-    const lender = await authenticateLender(req);
-    const lenderRecordId = lender.id;
-    const lenderIdText = lender.normalizedFields.Lender_ID;
-    const companyName = lender.normalizedFields.Company_Name || "";
-
-    // 2. Fetch lender assignments
-    const { lenderIdCol, lenderIdLookupCol, statusCol } = await getAssignmentFields();
-    let filterFormula = `OR({${lenderIdCol}} = '${lenderRecordId}', {${lenderIdCol}} = '${escapeFormulaString(lenderIdText)}')`;
-    if (lenderIdLookupCol) {
-      filterFormula = `OR(${filterFormula}, {${lenderIdLookupCol}} = '${escapeFormulaString(lenderIdText)}')`;
-    }
-    if (statusCol) {
-      filterFormula = `AND(${filterFormula}, {${statusCol}} = 'Active')`;
-    }
-
-    const assignmentsData = await airtableFetch(TABLES.ASSIGNMENTS, {
-      filterByFormula: filterFormula
-    });
-
-    if (!assignmentsData.records || assignmentsData.records.length === 0) {
-      return res.status(200).json([]);
-    }
-
-    // Resolve assigned deal IDs and deal references
-    const dealIds = new Set<string>();
-    const dealRefs = new Set<string>();
-
-    for (const record of assignmentsData.records) {
-      const dealRefVal = record.fields.Deal_Ref;
-      if (dealRefVal) {
-        if (Array.isArray(dealRefVal)) {
-          dealRefVal.forEach(id => dealIds.add(id));
-        } else {
-          dealRefs.add(String(dealRefVal).toLowerCase());
-        }
-      }
-    }
-
-    // Query active pipeline to match deal IDs to Deal_Ref values (e.g. "KBS 159237")
-    const pipelineData = await airtableFetch(TABLES.PIPELINE);
-    pipelineData.records.forEach((record: any) => {
-      if (dealIds.has(record.id)) {
-        const refNo = record.fields["REF No."] || record.fields.Deal_Ref || record.fields.dealRef || record.fields["Deal Name"];
-        if (refNo) dealRefs.add(String(refNo).toLowerCase());
-      }
-    });
-
-    // 3. Fetch submission logs
-    const submissionsData = await airtableFetch(TABLES.SUBMISSIONS);
-
-    // 4. Filter logs:
-    // - Must belong to one of the assigned deals (matching by Deal_Ref record ID or text reference)
-    // - Sent_To must be blank or match this lender's company name (so they don't see other lenders)
-    const logs = submissionsData.records.filter((entry: any) => {
-      const entryDealRefs = entry.fields.Deal_Ref || [];
-      const belongsToAssignedDeal = Array.isArray(entryDealRefs)
-        ? entryDealRefs.some(id => dealIds.has(id) || dealRefs.has(String(id).toLowerCase()))
-        : (dealIds.has(String(entryDealRefs)) || dealRefs.has(String(entryDealRefs).toLowerCase()));
-      
-      const sentToVal = String(entry.fields.Sent_To || "").trim();
-      const isLenderSpecific = !sentToVal || sentToVal.toLowerCase() === companyName.toLowerCase();
-
-      return belongsToAssignedDeal && isLenderSpecific;
-    });
-
-    const mappedLogs = logs.map((entry: any) => {
-      return {
-        id: entry.id,
-        dealRef: Array.isArray(entry.fields.Deal_Ref) ? entry.fields.Deal_Ref[0] : (entry.fields.Deal_Ref || ""),
-        date: entry.fields.Date || entry.createdTime || "",
-        whatWasSent: entry.fields.What_Was_Sent || "",
-        sentTo: entry.fields.Sent_To || "",
-        sentVia: entry.fields.Sent_Via || "",
-        responseReceived: entry.fields.Response_Received || "",
-        flag: entry.fields.Flag || ""
-      };
-    });
-
-    return res.status(200).json(mappedLogs);
-  } catch (err: any) {
-    return res.status(err.status || 401).json({ error: err.message, type: err.type });
-  }
-}
+    const { data, error } = await adminClient()
+      .from("submission_log")
+      .select("id, deal_id, submitted_on, what_was_sent, sent_to, sent_via, response_received, flag")
+      .in("deal_id", scope.dealIds)
+      .is("deleted_at", null);
+    if (error) throw new InternalError(`lender submissions: ${error.message}`);
+    return { rows: data ?? [] };
+  },
+});

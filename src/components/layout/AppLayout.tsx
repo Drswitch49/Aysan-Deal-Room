@@ -8,7 +8,8 @@ import {
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import { cx } from "../../utils/cx";
 import { changeAdminPassword, fetchAdminLenders } from "../../api/admin";
-import { fetchRecentAdminChat } from "../../api/chat";
+import { fetchRecentAdminChat, subscribeAllChat } from "../../api/chat";
+import { clearRealtimeAuth } from "../../lib/supabase";
 import { ChatNotificationWatcher } from "../ui/ChatNotificationWatcher";
 import { Modal } from "../ui/Modal";
 import { FormField, inputClass } from "../ui/FormField";
@@ -79,45 +80,68 @@ export function AppLayout() {
     return () => { document.body.style.overflow = ""; };
   }, [isMobileMenuOpen]);
 
+  // Admin "unread messages" badge. Seeded once, then kept current via Supabase
+  // Realtime — no periodic network polling. A tiny local timer re-derives the
+  // count from the in-memory cache so it also clears when the admin reads a
+  // thread (which updates the admin_last_read_* localStorage keys).
   useEffect(() => {
-    const calculateAdminUnread = async () => {
-      try {
-        const [lenders, messages] = await Promise.all([
-          fetchAdminLenders().catch(() => []),
-          fetchRecentAdminChat().catch(() => []),
-        ]);
+    let lenders: any[] = [];
+    let messages: any[] = [];
 
-        let unread = 0;
-        lenders.forEach((l: any) => {
-          const msgs = messages.filter((m: any) => m.lenderId === l.id && m.sender !== "Admin");
-          if (msgs.length === 0) return;
+    const recompute = () => {
+      let unread = 0;
+      lenders.forEach((l: any) => {
+        const msgs = messages.filter((m: any) => m.lenderId === l.id && m.sender !== "Admin");
+        if (msgs.length === 0) return;
 
-          const msgsByDeal: Record<string, any[]> = {};
-          msgs.forEach((m: any) => {
-            if (!msgsByDeal[m.dealId]) msgsByDeal[m.dealId] = [];
-            msgsByDeal[m.dealId].push(m);
-          });
-
-          const hasAnyUnreadDeal = Object.entries(msgsByDeal).some(([dealId, dealMsgs]) => {
-            const lastReadTimeStr =
-              localStorage.getItem(`admin_last_read_${l.id}_${dealId}`) ||
-              localStorage.getItem(`admin_last_read_${l.id}`);
-            const lastReadTime = lastReadTimeStr ? new Date(lastReadTimeStr).getTime() : 0;
-            return dealMsgs.some((m) => new Date(m.timestamp).getTime() > lastReadTime);
-          });
-
-          if (hasAnyUnreadDeal) unread++;
+        const msgsByDeal: Record<string, any[]> = {};
+        msgs.forEach((m: any) => {
+          if (!msgsByDeal[m.dealId]) msgsByDeal[m.dealId] = [];
+          msgsByDeal[m.dealId].push(m);
         });
 
-        setUnreadMessages(unread);
-      } catch (err) {
-        console.error("Failed to load layout unread count:", err);
-      }
+        const hasAnyUnreadDeal = Object.entries(msgsByDeal).some(([dealId, dealMsgs]) => {
+          const lastReadTimeStr =
+            localStorage.getItem(`admin_last_read_${l.id}_${dealId}`) ||
+            localStorage.getItem(`admin_last_read_${l.id}`);
+          const lastReadTime = lastReadTimeStr ? new Date(lastReadTimeStr).getTime() : 0;
+          return dealMsgs.some((m) => new Date(m.timestamp).getTime() > lastReadTime);
+        });
+
+        if (hasAnyUnreadDeal) unread++;
+      });
+      setUnreadMessages(unread);
     };
 
-    calculateAdminUnread();
-    const interval = setInterval(calculateAdminUnread, 10000);
-    return () => clearInterval(interval);
+    // Seed the caches once.
+    Promise.all([
+      fetchAdminLenders().catch(() => []),
+      fetchRecentAdminChat().catch(() => []),
+    ]).then(([l, m]) => {
+      lenders = l;
+      messages = m;
+      recompute();
+    });
+
+    // Append new messages as they arrive over realtime.
+    const unsubscribe = subscribeAllChat((msg) => {
+      messages.push({
+        id: msg.id,
+        lenderId: msg.lenderId,
+        dealId: msg.dealId,
+        sender: msg.sender,
+        timestamp: msg.timestamp,
+      });
+      recompute();
+    });
+
+    // Cheap local re-derive (no network) so reads clear the badge promptly.
+    const interval = setInterval(recompute, 5000);
+
+    return () => {
+      unsubscribe();
+      clearInterval(interval);
+    };
   }, []);
 
   const handleLogout = useCallback(async () => {
@@ -126,6 +150,7 @@ export function AppLayout() {
     } catch (err) {
       console.error("Logout request failed:", err);
     }
+    await clearRealtimeAuth();
     sessionStorage.removeItem("admin_authenticated");
     window.location.reload();
   }, []);

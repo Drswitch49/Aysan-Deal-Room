@@ -100,28 +100,45 @@ export function useJobStatus({
     if (!recordId || !table) return;
 
     try {
-      const url = `/api/jobs/status?table=${encodeURIComponent(table)}&recordId=${encodeURIComponent(recordId)}${
-        jobType ? `&jobType=${encodeURIComponent(jobType)}` : ""
-      }`;
-      const response = await fetch(
-        url,
-        {
-          headers: {
-            // Auth token from sessionStorage (matches existing auth pattern)
-            Authorization: `Bearer ${sessionStorage.getItem("admin_token") || ""}`,
-          },
+      // New system: deal-record watchers (OSINT etc.) read the deal row's
+      // osint_status; job-id watchers hit /api/jobs/status directly.
+      let data: any;
+      if (table === "Active_Pipeline" || table === "deals") {
+        const response = await fetch(`/api/deals/${encodeURIComponent(recordId)}`);
+        if (!response.ok) {
+          if (response.status === 404 || response.status === 401) stopPolling();
+          return;
         }
-      );
-
-      if (!response.ok) {
-        // Non-2xx — stop polling to avoid hammering a broken endpoint
-        if (response.status === 404 || response.status === 401) {
-          stopPolling();
+        const payload = await response.json();
+        const deal = payload?.data ?? payload;
+        const s = String(deal?.osint_status ?? "").toLowerCase();
+        data = {
+          status: s === "running" ? "processing" : s || "unknown",
+          error: null,
+          startedAt: null,
+          completedAt: deal?.osint_completed_at ?? null,
+          isComplete: s === "completed",
+          isFailed: s === "failed",
+        };
+      } else {
+        const response = await fetch(`/api/jobs/status?id=${encodeURIComponent(recordId)}`);
+        if (!response.ok) {
+          if (response.status === 404 || response.status === 401) stopPolling();
+          return;
         }
-        return;
+        const payload = await response.json();
+        const job = payload?.data ?? payload;
+        const s = String(job?.status ?? "");
+        data = {
+          status: s === "done" ? "completed" : s === "running" ? "processing" : s,
+          error: job?.error ?? null,
+          startedAt: job?.created_at ?? null,
+          completedAt: job?.finished_at ?? null,
+          isComplete: s === "done",
+          isFailed: s === "failed",
+        };
       }
 
-      const data = await response.json();
       const rawStatus = (data.status || "").toLowerCase();
       let newStatus: JobStatus = "unknown";
       if (rawStatus === "queued") newStatus = "queued";

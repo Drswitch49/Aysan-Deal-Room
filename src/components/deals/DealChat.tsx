@@ -4,7 +4,8 @@ import {
   fetchLenderChat,
   sendLenderChatMessage,
   fetchAdminChat,
-  sendAdminChatMessage
+  sendAdminChatMessage,
+  subscribeDealChat
 } from "../../api/chat";
 import type { ChatMessage } from "../../types/deal";
 import { formatDate } from "../../utils/fields";
@@ -66,19 +67,21 @@ export function DealChat({
     }
   };
 
-  // Poll for new messages every 15 seconds while window is active
+  // Initial history load (one shot — new messages arrive via realtime below).
   useEffect(() => {
     setLoading(true);
     loadChat();
+  }, [dealId, lenderRecordId, portalSlug, mode]);
 
-    const interval = setInterval(() => {
-      // Only poll silently if page is focused
-      if (document.visibilityState === "visible") {
-        loadChat();
-      }
-    }, 15000);
-
-    return () => clearInterval(interval);
+  // Subscribe to new messages over Supabase Realtime (replaces polling).
+  useEffect(() => {
+    if (!dealId) return;
+    const unsubscribe = subscribeDealChat(dealId, {
+      lenderId: mode === "admin" ? lenderRecordId : undefined,
+      onInsert: (msg) =>
+        setMessages((prev) => (prev.some((m) => m.id === msg.id) ? prev : [...prev, msg])),
+    });
+    return unsubscribe;
   }, [dealId, lenderRecordId, portalSlug, mode]);
 
   // Scroll to bottom when messages update
