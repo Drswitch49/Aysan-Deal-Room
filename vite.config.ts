@@ -66,9 +66,12 @@ function apiDevServerPlugin() {
             return;
           }
 
-          // Parse POST/PUT request bodies
+          // Parse request bodies for any method that carries one (POST/PUT/PATCH/DELETE).
+          // Handlers read req.body directly, so a missing parse makes PATCH updates
+          // arrive empty and fail with "Empty update".
           let body = "";
-          if (!pathname.startsWith("/api/inngest") && (req.method === "POST" || req.method === "PUT")) {
+          const methodHasBody = ["POST", "PUT", "PATCH", "DELETE"].includes(req.method);
+          if (!pathname.startsWith("/api/inngest") && methodHasBody) {
             await new Promise((resolve) => {
               req.on("data", (chunk: any) => {
                 body += chunk;

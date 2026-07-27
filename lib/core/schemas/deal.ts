@@ -10,7 +10,20 @@ export const dealStageSchema = z.enum(DEAL_STAGES);
 export type DealStage = z.infer<typeof dealStageSchema>;
 
 const nullableStr = z.string().nullable().optional();
-const nullableNum = z.number().nullable().optional();
+
+// Form fields left blank arrive as "" — but numeric/date Postgres columns reject
+// an empty string ("invalid input syntax for type ..."). Coerce blanks to null,
+// and accept numeric strings from <input> elements, so any client edit path is safe.
+const nullableNum = z.preprocess((v) => {
+  if (v === "") return null;
+  if (typeof v === "string") {
+    const n = Number(v);
+    return Number.isNaN(n) ? v : n;
+  }
+  return v;
+}, z.number().nullable().optional());
+
+const nullableDate = z.preprocess((v) => (v === "" ? null : v), z.string().nullable().optional());
 
 /** Full deal row as stored/returned. */
 export const dealSchema = z.object({
@@ -37,6 +50,7 @@ export const dealSchema = z.object({
   listing_link: nullableStr,
   deal_files_url: nullableStr,
   deal_files_secure_url: nullableStr,
+  deal_files_cloudinary_id: nullableStr,
   location: nullableStr,
 
   turnover: nullableNum,
@@ -59,7 +73,7 @@ export const dealSchema = z.object({
 
   pipeline_stage: nullableStr,
   next_action: nullableStr,
-  next_action_date: nullableStr,
+  next_action_date: nullableDate,
   owner: nullableStr,
   analyst: nullableStr,
   assigned_to: nullableStr,
@@ -68,7 +82,7 @@ export const dealSchema = z.object({
   kill_reason_select: nullableStr,
   kill_reason_text: nullableStr,
   killed_by: nullableStr,
-  kill_date: nullableStr,
+  kill_date: nullableDate,
 });
 export type Deal = z.infer<typeof dealSchema>;
 
@@ -80,8 +94,11 @@ export const createDealSchema = z.object({
   sector: z.string().optional(),
   broker: z.string().optional(),
   contact_email: z.string().email().optional(),
-  ebitda_gbp: z.number().optional(),
-  asking_price_gbp: z.number().optional(),
+  turnover: nullableNum,
+  ebitda_gbp: nullableNum,
+  asking_price_gbp: nullableNum,
+  enterprise_value: nullableNum,
+  next_action_date: nullableDate,
   executive_summary: z.string().optional(),
 }).passthrough();
 export type CreateDealInput = z.infer<typeof createDealSchema>;

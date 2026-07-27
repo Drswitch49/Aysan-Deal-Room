@@ -256,9 +256,16 @@ export function HrStakeholdersPage() {
       .catch(console.error);
   }, []);
 
-  const canManageTeam = currentUser && ["admin", "managing partner", "partner", "hr", "super admin", "owner"].includes((currentUser.role || "").toLowerCase());
-  const canManageStakeholders = currentUser && ["admin", "managing partner", "partner", "hr", "super admin", "owner"].includes((currentUser.role || "").toLowerCase());
-  const isSuperAdmin = currentUser?.role?.toLowerCase() === "super admin";
+  // Canonicalize the role so both the normalized enum ("managing_partner") and
+  // any legacy spelling ("Managing Partner") resolve to the same key. Must mirror
+  // the backend PEOPLE_MANAGERS group so shown controls match what's permitted.
+  const canonRole = (currentUser?.role || "").toLowerCase().replace(/[\s_]+/g, "_");
+  const PEOPLE_MANAGERS = ["owner", "super_admin", "managing_partner", "partner", "admin", "hr"];
+  const canManageTeam = PEOPLE_MANAGERS.includes(canonRole);
+  const canManageStakeholders = PEOPLE_MANAGERS.includes(canonRole);
+  // These registry tables all soft-delete on the backend, so the delete action
+  // is never a permanent hard delete — keep the accurate "Soft Delete" copy.
+  const isSuperAdmin = false;
 
   // Configuration drawer triggers
   const openConfigDrawerForTeam = (member: TeamMember) => {

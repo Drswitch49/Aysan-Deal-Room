@@ -1,5 +1,5 @@
 import { FormEvent, useState } from "react";
-import { LockKeyhole, ShieldCheck, Key, ArrowLeft, CheckCircle2, Mail, Loader2 } from "lucide-react";
+import { LockKeyhole, ShieldCheck, Key, ArrowLeft, CheckCircle2, Mail, Loader2, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 
 type AdminGuardProps = {
@@ -11,6 +11,7 @@ export function AdminGuard({ children }: AdminGuardProps) {
   
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [isVerifying, setIsVerifying] = useState(false);
 
@@ -329,16 +330,27 @@ export function AdminGuard({ children }: AdminGuardProps) {
                   Forgot Password?
                 </button>
               </div>
-              <input
-                id="admin-password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="h-11 w-full rounded-xl border border-white/[0.02] bg-white/[0.015] px-4 text-sm text-white placeholder-slate-650 outline-none transition-all duration-300 focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze"
-                autoComplete="current-password"
-                required
-              />
+              <div className="relative">
+                <input
+                  id="admin-password"
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="h-11 w-full rounded-xl border border-white/[0.02] bg-white/[0.015] pl-4 pr-11 text-sm text-white placeholder-slate-650 outline-none transition-all duration-300 focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze"
+                  autoComplete="current-password"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  title={showPassword ? "Hide password" : "Show password"}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-lg text-slate-500 hover:text-acp-bronze hover:bg-white/[0.03] transition cursor-pointer"
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
 
             {error ? (

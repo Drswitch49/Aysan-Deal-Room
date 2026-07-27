@@ -5,22 +5,23 @@
  * in the same commit; it no longer talks to Airtable. Renamed in the
  * decomposition pass.
  */
-import { api, type Paginated } from "./http";
+import { api, clearApiCache, type Paginated } from "./http";
 import { mapDeal, mapDocument, mapSubmission } from "./mappers";
+import { mapKeys, DEAL_KEY_MAP } from "./admin/_shared";
 import type { DealDocument, PipelineDeal, SubmissionLogEntry } from "../types/deal";
 
 export function clearAirtableCache() {
-  // No client cache; reads hit the API directly.
+  clearApiCache();
 }
 
 /** Active-pipeline deals (the main working set). */
-export async function getDeals(_forceRefresh: boolean = false): Promise<PipelineDeal[]> {
-  const page = await api.get<Paginated<any>>("/api/deals?stage=active&limit=200");
+export async function getDeals(forceRefresh: boolean = false): Promise<PipelineDeal[]> {
+  const page = await api.get<Paginated<any>>("/api/deals?stage=active&limit=200", { noCache: forceRefresh });
   return page.rows.map(mapDeal);
 }
 
-export async function getDealByRef(ref: string, _forceRefresh: boolean = false): Promise<PipelineDeal | null> {
-  const page = await api.get<Paginated<any>>(`/api/deals?ref=${encodeURIComponent(ref)}`);
+export async function getDealByRef(ref: string, forceRefresh: boolean = false): Promise<PipelineDeal | null> {
+  const page = await api.get<Paginated<any>>(`/api/deals?ref=${encodeURIComponent(ref)}`, { noCache: forceRefresh });
   return page.rows.length ? mapDeal(page.rows[0]) : null;
 }
 
@@ -119,11 +120,13 @@ export async function getDealInbox(): Promise<any[]> {
 }
 
 export async function createInboxDeal(fields: Record<string, any>) {
-  // Accepts either Supabase column names or the legacy field bag; the create
-  // schema passes through extra keys, so callers are migrated incrementally.
-  return api.post<any>("/api/deals", { stage: "inbox", ...fields });
+  // The inbox modal sends a legacy Airtable-style field bag ("Deal Name", "Sector"…);
+  // translate it to Supabase columns so the strict deal schema keeps the values
+  // instead of stripping every unknown key.
+  return api.post<any>("/api/deals", { stage: "inbox", ...mapKeys(fields, DEAL_KEY_MAP) });
 }
 
 export async function updateInboxDeal(id: string, fields: Record<string, any>) {
-  return api.patch<any>(`/api/deals/${encodeURIComponent(id)}`, fields);
+  // Without this mapping the PATCH body is all unknown keys → stripped → "Empty update".
+  return api.patch<any>(`/api/deals/${encodeURIComponent(id)}`, mapKeys(fields, DEAL_KEY_MAP));
 }

@@ -146,13 +146,14 @@ export function DealListPage() {
     return `£${num}`;
   };
 
-  const formatMultiplier = (val: any): string => {
-    if (val === undefined || val === null || val === "" || String(val).toLowerCase() === "tbc" || String(val) === "—") {
-      return "—";
-    }
-    const num = Number(val);
-    if (isNaN(num)) return String(val);
-    return `${num.toFixed(1)}x`;
+  // Next Action text can run to a full sentence in Airtable; cap it so one verbose
+  // row can't blow out the height of the whole table. Full text stays in the tooltip.
+  const NEXT_ACTION_MAX_CHARS = 64;
+
+  const truncateText = (val: any, max: number): string => {
+    const text = String(val ?? "").trim();
+    if (text.length <= max) return text;
+    return text.slice(0, max).trimEnd() + "…";
   };
 
   // Clean references and names helpers
@@ -291,21 +292,43 @@ export function DealListPage() {
     return activeJoinedDeals.filter((d: any) => (d.status || "").toLowerCase() === "im review").length;
   }, [activeJoinedDeals]);
 
-  // Handle Owner Avatars formatting to match high-fidelity circles
-  const getOwnerAvatar = (initials: string) => {
-    if (initials === "AY") {
-      return <div className="flex h-5.5 w-5.5 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-[#C6A66B] to-[#D4B06A] text-slate-950 text-[9px] font-bold border border-[#C6A66B]/10 shadow-inner select-none">AY</div>;
+  // Owner avatars — initials are derived from the assignee's real name (rather than a
+  // hardcoded shortlist) so every team member gets a legible chip, with a stable colour
+  // picked from the name itself.
+  const AVATAR_PALETTE = [
+    "from-[#C6A66B] to-[#D4B06A] text-slate-950 border-[#C6A66B]/20",
+    "from-blue-500/80 to-blue-400/80 text-white border-blue-500/20",
+    "from-purple-500/80 to-purple-400/80 text-white border-purple-500/20",
+    "from-emerald-500/80 to-emerald-400/80 text-slate-950 border-emerald-500/20",
+    "from-pink-500/80 to-pink-400/80 text-white border-pink-500/20",
+  ];
+
+  const getInitials = (name: string): string =>
+    (name || "")
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part: string) => part[0])
+      .join("")
+      .toUpperCase();
+
+  const getOwnerAvatar = (name: string) => {
+    const initials = getInitials(name);
+    if (!initials) {
+      return <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/[0.02] border border-white/[0.05] text-slate-500 text-[10px] font-bold select-none">?</div>;
     }
-    if (initials === "CH") {
-      return <div className="flex h-5.5 w-5.5 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-purple-500/80 to-purple-400/80 text-white text-[9px] font-bold border border-purple-500/10 shadow-inner select-none">CH</div>;
-    }
-    if (initials === "PR") {
-      return <div className="flex h-5.5 w-5.5 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-blue-500/80 to-blue-400/80 text-white text-[9px] font-bold border border-blue-500/10 shadow-inner select-none">PR</div>;
-    }
-    if (initials === "DA" || initials === "DM") {
-      return <div className="flex h-5.5 w-5.5 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-emerald-500/80 to-emerald-400/80 text-slate-950 text-[9px] font-bold border border-emerald-500/10 shadow-inner select-none">DM</div>;
-    }
-    return <div className="flex h-5.5 w-5.5 shrink-0 items-center justify-center rounded-full bg-white/[0.015] border border-white/[0.02] text-slate-400 text-[9px] font-bold shadow-sm select-none">?</div>;
+    const tone = AVATAR_PALETTE[
+      Array.from(name).reduce((sum: number, ch: string) => sum + ch.charCodeAt(0), 0) % AVATAR_PALETTE.length
+    ];
+    return (
+      <div className={cx(
+        "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-tr text-[10px] font-bold border shadow-inner select-none",
+        tone
+      )}>
+        {initials}
+      </div>
+    );
   };
 
   const handleCreateDeal = async (e: React.FormEvent) => {
@@ -606,91 +629,69 @@ export function DealListPage() {
             /* Structured Deal Table Container */
             <div className="rounded-2xl premium-card overflow-hidden">
               <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse table-fixed min-w-[950px]">
+                <table className="w-full text-left border-collapse table-fixed min-w-[1080px]">
                   <thead>
-                    <tr className="border-b border-white/[0.02] bg-white/[0.01] select-none text-slate-400">
-                      <th className="w-[200px] px-5 py-3.5 text-[10px] font-semibold tracking-wide uppercase">Deal</th>
-                      <th className="w-[85px] px-4 py-3.5 text-[10px] font-semibold tracking-wide uppercase">Ref</th>
-                      <th className="w-[100px] px-4 py-3.5 text-[10px] font-semibold tracking-wide uppercase">Sector</th>
-                      <th className="w-[80px] px-4 py-3.5 text-[10px] font-semibold tracking-wide uppercase">Revenue</th>
-                      <th className="w-[80px] px-4 py-3.5 text-[10px] font-semibold tracking-wide uppercase">Ebitda</th>
-                      <th className="w-[80px] px-4 py-3.5 text-[10px] font-semibold tracking-wide uppercase">EV Ask</th>
-                      <th className="w-[85px] px-4 py-3.5 text-[10px] font-semibold tracking-wide uppercase">Mult</th>
-                      <th className="w-[110px] px-4 py-3.5 text-[10px] font-semibold tracking-wide uppercase">Stage</th>
-                      <th className="w-[170px] px-4 py-3.5 text-[10px] font-semibold tracking-wide uppercase">Next Action</th>
-                      <th className="w-[110px] px-5 py-3.5 text-[10px] font-semibold tracking-wide uppercase">Assigned To</th>
+                    <tr className="border-b border-white/[0.05] bg-white/[0.02] select-none text-slate-400">
+                      <th className="w-[300px] px-5 py-3.5 text-[10px] font-bold tracking-[0.14em] uppercase">Deal</th>
+                      <th className="w-[130px] px-4 py-3.5 text-[10px] font-bold tracking-[0.14em] uppercase">Sector</th>
+                      <th className="w-[100px] px-4 py-3.5 text-[10px] font-bold tracking-[0.14em] uppercase text-right">Revenue</th>
+                      <th className="w-[100px] px-4 py-3.5 text-[10px] font-bold tracking-[0.14em] uppercase text-right">EBITDA</th>
+                      <th className="w-[120px] px-4 py-3.5 text-[10px] font-bold tracking-[0.14em] uppercase">Stage</th>
+                      <th className="w-[260px] px-4 py-3.5 text-[10px] font-bold tracking-[0.14em] uppercase">Next Action</th>
+                      <th className="w-[180px] px-5 py-3.5 text-[10px] font-bold tracking-[0.14em] uppercase">Assigned To</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/[0.04]">
                     {paginatedDeals.map((deal: any) => {
-                      const multVal = Number(deal.multiplier);
-                      const isHighMultiplier = !isNaN(multVal) && multVal > 6.0;
+                      const companyName = cleanCompanyName(deal.companyName);
+                      const ownerName = deal.ownerName && deal.ownerName !== "Unassigned" ? deal.ownerName : "";
 
                       return (
-                        <tr 
-                          key={deal.id} 
+                        <tr
+                          key={deal.id}
                           onClick={() => navigate(`/deals/${encodeURIComponent(deal.dealRef)}`)}
-                          className="table-row-hover border-b border-white/[0.02]"
+                          className="table-row-hover border-b border-white/[0.03] cursor-pointer transition-colors hover:bg-white/[0.02]"
                         >
                           {/* Company Details */}
-                          <td className="px-5 py-4 min-w-0">
-                            <Link 
-                              to={`/deals/${encodeURIComponent(deal.dealRef)}`}
-                              className="block font-sans font-semibold text-xs text-white hover:text-[#C6A66B] transition-colors truncate"
-                            >
-                              {cleanCompanyName(deal.companyName)}
-                            </Link>
-                            <p className="mt-1 text-[10px] text-slate-500 truncate leading-tight select-none">
-                              {deal.location} — Ref: {formatRefDisplay(deal.dealRef)}
-                            </p>
-                          </td>
-
-                          {/* Deal Ref */}
-                          <td className="px-4 py-4 select-none">
-                            <span className="inline-flex items-center rounded-lg bg-white/[0.02] border border-white/[0.02] px-2 py-0.5 text-[10px] font-medium text-slate-400 font-mono">
-                              {formatRefDisplay(deal.dealRef)}
-                            </span>
+                          <td className="px-5 py-4 align-middle">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-acp-bronze/10 border border-acp-bronze/20 text-[11px] font-bold uppercase text-acp-bronze">
+                                {companyName.slice(0, 2)}
+                              </div>
+                              <div className="min-w-0">
+                                <Link
+                                  to={`/deals/${encodeURIComponent(deal.dealRef)}`}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="block font-sans font-semibold text-[13px] leading-snug text-white hover:text-[#C6A66B] transition-colors break-words"
+                                >
+                                  {companyName}
+                                </Link>
+                                <p className="mt-1 text-[10px] text-slate-500 leading-tight select-none truncate">
+                                  {deal.location || "Location unknown"} · Ref: {formatRefDisplay(deal.dealRef)}
+                                </p>
+                              </div>
+                            </div>
                           </td>
 
                           {/* Sector Pill */}
-                          <td className="px-4 py-4 select-none">
-                            <span className="inline-flex items-center rounded-full bg-blue-500/5 border border-blue-500/10 px-2.5 py-0.5 text-[10px] font-semibold text-blue-400">
-                              {deal.sector}
+                          <td className="px-4 py-4 select-none align-middle">
+                            <span className="inline-flex items-center rounded-full bg-blue-500/5 border border-blue-500/10 px-2.5 py-0.5 text-[10px] font-semibold text-blue-400 max-w-full break-words text-left">
+                              {deal.sector || "General"}
                             </span>
                           </td>
 
                           {/* Revenue */}
-                          <td className="px-4 py-4 font-sans text-xs font-medium text-white">
+                          <td className="px-4 py-4 font-sans text-xs font-semibold text-white text-right tabular-nums align-middle">
                             {formatFinancial(deal.revenue)}
                           </td>
 
                           {/* EBITDA */}
-                          <td className="px-4 py-4 font-sans text-xs font-medium text-white">
+                          <td className="px-4 py-4 font-sans text-xs font-semibold text-white text-right tabular-nums align-middle">
                             {formatFinancial(deal.ebitda)}
                           </td>
 
-                          {/* EV Ask */}
-                          <td className="px-4 py-4 font-sans text-xs font-medium text-white">
-                            {formatFinancial(deal.evAsk)}
-                          </td>
-
-                          {/* Multipliers with Caution Alert */}
-                          <td className="px-4 py-4 font-sans text-xs font-medium">
-                            <span className={cx(
-                              "inline-flex items-center gap-1",
-                              isHighMultiplier ? "text-amber-500 font-semibold" : "text-emerald-400"
-                            )}>
-                              {formatMultiplier(deal.multiplier)}
-                              {isHighMultiplier && (
-                                <span title="Multiplier threshold breached">
-                                  <AlertTriangle className="h-3 w-3 text-amber-500 animate-pulse" />
-                                </span>
-                              )}
-                            </span>
-                          </td>
-
                           {/* Stage Badge */}
-                          <td className="px-4 py-4 select-none">
+                          <td className="px-4 py-4 select-none align-middle">
                             <span className={cx(
                               "inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-semibold tracking-normal border",
                               (() => {
@@ -715,7 +716,7 @@ export function DealListPage() {
                           </td>
 
                           {/* Next Action Text */}
-                          <td className="px-4 py-4 min-w-0">
+                          <td className="px-4 py-4 align-middle">
                             <div className="flex items-start gap-2 min-w-0 font-sans">
                               <span className={cx(
                                 "mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full",
@@ -723,26 +724,36 @@ export function DealListPage() {
                                 deal.nextActionColor === "yellow" ? "bg-amber-500" : "bg-blue-400"
                               )} />
                               <div className="min-w-0">
-                                <p className="text-[10px] font-semibold text-white leading-tight truncate">
-                                  {deal.nextActionTitle}
+                                <p
+                                  className="text-[11px] font-semibold text-white leading-snug break-words"
+                                  title={deal.nextActionTitle || undefined}
+                                >
+                                  {truncateText(deal.nextActionTitle, NEXT_ACTION_MAX_CHARS) || "No action set"}
                                 </p>
-                                <p className="mt-1 text-[10px] font-medium text-slate-500 truncate leading-none">
-                                  {deal.nextActionSub}
-                                </p>
+                                {deal.nextActionSub && (
+                                  <p
+                                    className="mt-1 text-[10px] font-medium text-slate-500 leading-tight break-words"
+                                    title={String(deal.nextActionSub)}
+                                  >
+                                    {truncateText(deal.nextActionSub, 40)}
+                                  </p>
+                                )}
                               </div>
                             </div>
                           </td>
 
                           {/* Owner Avatars */}
-                          <td className="px-5 py-4 select-none">
-                            {deal.ownerName === "Unassigned" ? (
-                              <span className="inline-flex items-center rounded-full bg-blue-500/5 border border-blue-500/25 px-2.5 py-1 text-[10px] font-bold text-blue-400">
+                          <td className="px-5 py-4 select-none align-middle">
+                            {!ownerName ? (
+                              <span className="inline-flex items-center rounded-full bg-slate-500/5 border border-slate-500/20 px-2.5 py-1 text-[10px] font-bold text-slate-500">
                                 Unassigned
                               </span>
                             ) : (
-                              <div className="flex items-center gap-2">
-                                {getOwnerAvatar(deal.ownerInitials || "")}
-                                <span className="text-[10px] font-medium text-slate-400">{deal.ownerName}</span>
+                              <div className="flex items-center gap-2 min-w-0">
+                                {getOwnerAvatar(ownerName)}
+                                <span className="text-[11px] font-medium text-slate-300 leading-snug break-words" title={ownerName}>
+                                  {ownerName}
+                                </span>
                               </div>
                             )}
                           </td>
@@ -752,7 +763,7 @@ export function DealListPage() {
 
                     {filteredDeals.length === 0 && (
                       <tr>
-                        <td colSpan={10} className="px-5 py-12 text-center text-xs font-bold text-slate-500">
+                        <td colSpan={7} className="px-5 py-12 text-center text-xs font-bold text-slate-500">
                           No deals found matching your filters.
                         </td>
                       </tr>

@@ -3,10 +3,11 @@ import { Link, useSearchParams } from "react-router-dom";
 import { 
   Search, AlertTriangle, ChevronLeft, ChevronRight, Inbox, Plus, RefreshCw,
   Building2, MapPin, Briefcase, Mail, Phone, ExternalLink, Sparkles, FileText, Trash2,
-  Upload
+  Upload, Star
 } from "lucide-react";
 import { getDealInbox, createInboxDeal, updateInboxDeal } from "../api/airtable";
-import { promoteDealFromInbox, updateInboxStatus, deleteInboxDeal, removeImDocument, fetchTeamMemberRecords, uploadTempFile } from "../api/admin";
+import { api } from "../api/http";
+import { promoteDealFromInbox, updateInboxStatus, deleteInboxDeal, fetchTeamMemberRecords, uploadTempFile, listImDocuments, createImDocument, deleteImDocumentRow } from "../api/admin";
 import { LoadingState } from "../components/ui/LoadingState";
 import { Modal } from "../components/ui/Modal";
 import { FormField } from "../components/ui/FormField";
@@ -50,18 +51,45 @@ export function DealInboxPage() {
   const [searchQuery, setSearchQuery] = useState("");
   
   const initialFilterParam = searchParams.get("filter");
-  const initialFilter = ["Inbox", "Active", "Kill", "Review", "All Deals"].includes(initialFilterParam || "") 
-    ? initialFilterParam! 
+  const initialFilter = ["Inbox", "Active", "Kill", "Review", "All Deals", "Watchlist"].includes(initialFilterParam || "")
+    ? initialFilterParam!
     : "All Deals";
 
   const [activeFilter, setActiveFilter] = useState(initialFilter);
 
   useEffect(() => {
     const filterParam = searchParams.get("filter");
-    if (filterParam && ["Inbox", "Active", "Kill", "Review", "All Deals"].includes(filterParam)) {
+    if (filterParam && ["Inbox", "Active", "Kill", "Review", "All Deals", "Watchlist"].includes(filterParam)) {
       setActiveFilter(filterParam);
     }
   }, [searchParams]);
+
+  // Watchlist ("starred" deals) — persisted per-browser in localStorage so a user's
+  // important deals survive reloads without a backend/schema change.
+  const WATCHLIST_KEY = "deal_inbox_watchlist";
+  const [watchlist, setWatchlist] = useState<Set<string>>(() => {
+    try {
+      const raw = localStorage.getItem(WATCHLIST_KEY);
+      return new Set<string>(raw ? JSON.parse(raw) : []);
+    } catch {
+      return new Set<string>();
+    }
+  });
+
+  const toggleWatchlist = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation(); // don't open the row's detail modal
+    setWatchlist((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      try {
+        localStorage.setItem(WATCHLIST_KEY, JSON.stringify([...next]));
+      } catch {
+        /* storage unavailable — keep in-memory only */
+      }
+      return next;
+    });
+  };
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
@@ -96,6 +124,10 @@ export function DealInboxPage() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingDeal, setEditingDeal] = useState<any | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  // IM/Review docs as loaded from the table when the edit modal opened — used to
+  // diff on save (delete rows the user removed, create rows they added).
+  const [editImDocsOriginal, setEditImDocsOriginal] = useState<any[]>([]);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
   
   const [formData, setFormData] = useState({
     refNo: "", dealName: "", companyName: "", sector: "", location: "", broker: "", status: "Inbox",
@@ -106,46 +138,24 @@ export function DealInboxPage() {
   const [submittingDeal, setSubmittingDeal] = useState(false);
 
   const openAddModal = () => {
-    setFormData({ 
+    setFormData({
       refNo: "", dealName: "", companyName: "", sector: "", location: "", broker: "", status: "Inbox",
       imReviewDocs: [],
       executiveSummary: "", businessDescription: "", ebitda: "", revenue: "", askingPrice: "", enterpriseValue: "", contactName: "", contactEmail: "", contactPhone: "",
       owner: ""
     });
+    setEditImDocsOriginal([]);
     setIsAddModalOpen(true);
   };
-  
-  const openEditModal = (deal: any, e: any) => {
+
+  const openEditModal = async (deal: any, e: any) => {
     e.stopPropagation();
     setEditingDeal(deal);
-    
-    // Resolve attachments array
-    let rawDocs = deal.fields["IM/Review"] || 
-                  deal.fields["IM_Review_Documents"] || 
-                  deal.fields["Attachments"] || 
-                  deal.fields["Deal Files"] || 
-                  deal.fields["Deal_Files"] || 
-                  deal.fields["Deal Link"] || 
-                  deal.fields["Drive_Link"] || 
-                  deal.fields["Drive Link"] || 
-                  deal.fields["Link"] || 
-                  deal.fields["link"] || 
-                  [];
-    if (typeof rawDocs === "string") {
-      rawDocs = [{ url: rawDocs, filename: "Document" }];
-    } else if (!Array.isArray(rawDocs)) {
-      rawDocs = [];
-    } else {
-      rawDocs = rawDocs.map((doc: any) => ({
-        id: doc.id,
-        url: doc.url || doc.File_Url || doc.fileUrl || "",
-        filename: doc.filename || doc.Document_Name || doc.documentName || "IM_Document"
-      })).filter((doc: any) => doc.url);
-    }
+    setEditImDocsOriginal([]);
 
     setFormData({
       refNo: deal.fields["REF. NO"] || "",
-      imReviewDocs: rawDocs,
+      imReviewDocs: [],
       dealName: deal.fields["Deal Name"] || "",
       companyName: deal.fields["Company Name"] || deal.fields["Company_Name"] || "",
       sector: deal.fields["Sector"] || "",
@@ -164,34 +174,71 @@ export function DealInboxPage() {
       owner: getOwnerName(deal.fields["Owner"]) || getOwnerName(deal.fields["Assigned To"]) || ""
     });
     setIsEditModalOpen(true);
+
+    // Load this deal's IM/Review files from the table so the full list (with each
+    // file's real name) shows, and we can diff against it on save.
+    try {
+      const docs = await listImDocuments(deal.id);
+      setFormData(prev => ({ ...prev, imReviewDocs: docs }));
+      setEditImDocsOriginal(docs);
+    } catch (err) {
+      console.error("Failed to load IM documents:", err);
+    }
   };
 
-  const handleRemoveAttachment = async (idx: number, filename: string) => {
+  const openDetailModal = async (item: any) => {
+    setSelectedDeal({ ...item, imDocs: [] });
+    setIsModalOpen(true);
+    try {
+      const docs = await listImDocuments(item.id);
+      setSelectedDeal((prev: any) => (prev && prev.id === item.id ? { ...prev, imDocs: docs } : prev));
+    } catch (err) {
+      console.error("Failed to load IM documents:", err);
+    }
+  };
+
+  const handleDownloadDoc = async (docId: string | undefined, name: string) => {
+    if (!docId) { alert("This file has no id and can't be downloaded."); return; }
+    setDownloadingId(docId);
+    // Open the tab synchronously (within the click gesture) so it isn't popup-blocked
+    // after the async fetch; then point it at the signed URL once we have it.
+    const win = window.open("", "_blank");
+    try {
+      // Authenticated Cloudinary assets need a short-lived signed URL — the server
+      // builds one (private_download_url) that forces an attachment download.
+      const res = await api.get<{ url: string }>(`/api/im-documents/download?id=${encodeURIComponent(docId)}`, { noCache: true });
+      const url = res?.url;
+      if (!url) throw new Error("No download URL returned.");
+      if (win) {
+        win.location.href = url;
+      } else {
+        // Popup blocked — fall back to a same-tab anchor click.
+        const a = document.createElement("a");
+        a.href = url;
+        a.rel = "noreferrer";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      }
+    } catch (err: any) {
+      if (win) win.close();
+      alert("Download failed: " + (err.message || "unknown error"));
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
+  const handleRemoveAttachment = async (docId: string | undefined, filename: string) => {
     if (!selectedDeal) return;
+    if (!docId) { alert("This attachment has no id and can't be removed here."); return; }
     if (!confirm(`Are you sure you want to delete ${filename}?`)) return;
     try {
-      await removeImDocument(selectedDeal.id, idx);
-      
-      // Update selectedDeal state locally so it updates immediately in the UI
-      const fieldsToUpdate = ["IM/Review", "IM_Review_Documents", "Attachments", "Deal Files", "Deal_Files", "Deal Link", "Drive_Link", "Drive Link", "Link", "link"];
-      const updatedFields = { ...selectedDeal.fields };
-      fieldsToUpdate.forEach(f => {
-        const val = updatedFields[f];
-        if (Array.isArray(val)) {
-          updatedFields[f] = val.filter((_: any, i: number) => i !== idx);
-        } else if (typeof val === "string" && idx === 0) {
-          updatedFields[f] = "";
-        }
-      });
-      
-      const updatedDeal = {
-        ...selectedDeal,
-        fields: updatedFields
-      };
+      await deleteImDocumentRow(docId);
+
+      // Update selectedDeal state locally so the list updates immediately.
+      const remaining = (selectedDeal.imDocs || []).filter((d: any) => d.id !== docId);
+      const updatedDeal = { ...selectedDeal, imDocs: remaining };
       setSelectedDeal(updatedDeal);
-      
-      // Also update the list in the background
-      setInboxItems(prev => prev.map(item => item.id === selectedDeal.id ? updatedDeal : item));
     } catch (err: any) {
       alert("Error deleting document: " + err.message);
     }
@@ -217,7 +264,7 @@ export function DealInboxPage() {
           const data = await uploadTempFile(file.name, file.type, raw);
           setFormData(prev => {
             const updated = [...prev.imReviewDocs];
-            updated[idx] = { url: data.url, filename: file.name };
+            updated[idx] = { url: data.url, filename: file.name, publicId: data.publicId };
             return { ...prev, imReviewDocs: updated };
           });
         } catch {
@@ -246,7 +293,7 @@ export function DealInboxPage() {
           const data = await uploadTempFile(file.name, file.type, raw);
           setFormData(prev => ({
             ...prev,
-            imReviewDocs: [...prev.imReviewDocs, { url: data.url, filename: file.name }]
+            imReviewDocs: [...prev.imReviewDocs, { url: data.url, filename: file.name, publicId: data.publicId }]
           }));
         } catch {
           alert("File upload failed.");
@@ -285,15 +332,31 @@ export function DealInboxPage() {
         "Contact_Phone": formData.contactPhone,
         "Owner": formData.owner,
         "Assigned To": formData.owner,
-        "IM_Review_Documents": formData.imReviewDocs.map(d => d.id ? { id: d.id } : { url: d.url, filename: d.filename }),
-        "IM/Review": formData.imReviewDocs.map(d => d.id ? { id: d.id } : { url: d.url, filename: d.filename }),
-        "Attachments": formData.imReviewDocs.map(d => d.id ? { id: d.id } : { url: d.url, filename: d.filename })
       };
+
+      // Save the deal fields, then resolve the deal id to sync IM/Review files.
+      let dealId: string | undefined = editingDeal?.id;
       if (isAddModalOpen) {
-        await createInboxDeal(payload);
+        const created = await createInboxDeal(payload);
+        dealId = created?.id ?? created?.deal?.id ?? created?.result?.id;
       } else if (isEditModalOpen && editingDeal) {
         await updateInboxDeal(editingDeal.id, payload);
+        dealId = editingDeal.id;
       }
+
+      // Sync IM/Review files to the im_review_documents table (multi-file):
+      // create the ones the user added, delete the ones they removed.
+      if (dealId) {
+        const current = formData.imReviewDocs || [];
+        const currentIds = new Set(current.filter((d: any) => d.id).map((d: any) => d.id));
+        const toDelete = editImDocsOriginal.filter((o: any) => o.id && !currentIds.has(o.id));
+        const toCreate = current.filter((d: any) => !d.id && d.url);
+        await Promise.all([
+          ...toDelete.map((o: any) => deleteImDocumentRow(o.id)),
+          ...toCreate.map((d: any) => createImDocument(dealId!, d)),
+        ]);
+      }
+
       setIsAddModalOpen(false);
       setIsEditModalOpen(false);
       fetchInbox();
@@ -390,8 +453,10 @@ export function DealInboxPage() {
   // Filter
   const filteredItems = inboxItems.filter((d: any) => {
     const fields = d.fields || {};
-    // Category Filter (based on status/stage)
-    if (activeFilter !== "All Deals") {
+    // Category Filter (based on status/stage, or the starred watchlist)
+    if (activeFilter === "Watchlist") {
+      if (!watchlist.has(d.id)) return false;
+    } else if (activeFilter !== "All Deals") {
       const rawStatus = fields["Status"];
       const groupedStatus = getGroupedStatus(rawStatus);
       if (groupedStatus !== activeFilter) return false;
@@ -431,10 +496,11 @@ export function DealInboxPage() {
     return raw.replace(/^[A-Z0-9]+\s*[—\-:]\s*/i, "").trim();
   };
 
-  const filters = ["All Deals", "Active", "Kill", "Review", "Inbox"];
+  const filters = ["All Deals", "Active", "Kill", "Review", "Inbox", "Watchlist"];
 
   const getFilterCount = (filterName: string) => {
     if (filterName === "All Deals") return inboxItems.length;
+    if (filterName === "Watchlist") return inboxItems.filter((item: any) => watchlist.has(item.id)).length;
     return inboxItems.filter((item: any) => getGroupedStatus(item.fields?.Status) === filterName).length;
   };
 
@@ -524,16 +590,16 @@ export function DealInboxPage() {
       {!loading && !error && (
         <div className="rounded-2xl premium-card overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse table-fixed min-w-[950px]">
+            <table className="w-full text-left border-collapse table-fixed min-w-[1080px]">
               <thead>
-                <tr className="border-b border-white/[0.02] bg-white/[0.01] select-none text-slate-400">
-                  <th className="w-[180px] px-5 py-3.5 text-[10px] font-semibold tracking-wide uppercase">Company</th>
-                  <th className="w-[100px] px-4 py-3.5 text-[10px] font-semibold tracking-wide uppercase">Sector</th>
-                  <th className="w-[80px] px-4 py-3.5 text-[10px] font-semibold tracking-wide uppercase">Turnover</th>
-                  <th className="w-[80px] px-4 py-3.5 text-[10px] font-semibold tracking-wide uppercase">EBITDA</th>
-                  <th className="w-[80px] px-4 py-3.5 text-[10px] font-semibold tracking-wide uppercase">Asking Price</th>
-                  <th className="w-[120px] px-4 py-3.5 text-[10px] font-semibold tracking-wide uppercase">Date Received</th>
-                  <th className="w-[160px] px-5 py-3.5 text-[10px] font-semibold tracking-wide uppercase text-right">Assigned To</th>
+                <tr className="border-b border-white/[0.05] bg-white/[0.02] select-none text-slate-450">
+                  <th className="w-[340px] px-5 py-3.5 text-[10px] font-bold tracking-[0.14em] uppercase">Company</th>
+                  <th className="w-[120px] px-4 py-3.5 text-[10px] font-bold tracking-[0.14em] uppercase">Sector</th>
+                  <th className="w-[100px] px-4 py-3.5 text-[10px] font-bold tracking-[0.14em] uppercase text-right">Turnover</th>
+                  <th className="w-[100px] px-4 py-3.5 text-[10px] font-bold tracking-[0.14em] uppercase text-right">EBITDA</th>
+                  <th className="w-[110px] px-4 py-3.5 text-[10px] font-bold tracking-[0.14em] uppercase text-right">Asking Price</th>
+                  <th className="w-[150px] px-5 py-3.5 text-[10px] font-bold tracking-[0.14em] uppercase text-right">Assigned To</th>
+                  <th className="w-[90px] px-4 py-3.5 text-[10px] font-bold tracking-[0.14em] uppercase text-center">Watchlist</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/[0.04]">
@@ -541,46 +607,74 @@ export function DealInboxPage() {
                   const fields = item.fields || {};
                   const isPromoting = promotingId === item.id;
                   const companyName = getCompanyName(fields);
+                  const assignee = getOwnerName(fields.Owner) || getOwnerName(fields["Assigned To"]) || "";
+                  const isStarred = watchlist.has(item.id);
 
                   return (
-                    <tr 
-                      key={item.id} 
-                      className="table-row-hover border-b border-white/[0.02] cursor-pointer"
-                      onClick={() => {
-                        setSelectedDeal(item);
-                        setIsModalOpen(true);
-                      }}
+                    <tr
+                      key={item.id}
+                      className="table-row-hover border-b border-white/[0.03] cursor-pointer transition-colors hover:bg-white/[0.02]"
+                      onClick={() => openDetailModal(item)}
                     >
-                      <td className="px-5 py-4 min-w-0">
-                        <div className="font-sans font-semibold text-xs text-white truncate flex items-center gap-2">
-                          {companyName}
-                          {fields["AI_Verdict"] && <span title="AI Reviewed"><Sparkles className="w-3 h-3 text-acp-bronze flex-shrink-0" /></span>}
+                      <td className="px-5 py-4 align-middle">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-acp-bronze/10 border border-acp-bronze/20 text-[11px] font-bold uppercase text-acp-bronze">
+                            {companyName.slice(0, 2)}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="font-sans font-semibold text-[13px] leading-snug text-white flex items-start gap-1.5">
+                              <span className="break-words">{companyName}</span>
+                              {fields["AI_Verdict"] && <span title="AI Reviewed" className="mt-0.5"><Sparkles className="w-3 h-3 text-acp-bronze flex-shrink-0" /></span>}
+                            </div>
+                            <p className="mt-1 text-[10px] text-slate-500 leading-tight flex items-center gap-1">
+                              <MapPin className="w-2.5 h-2.5 shrink-0 text-slate-600" />
+                              <span className="truncate">{fields["Location"] || "Unknown"} · Ref: {fields["REF. NO"] || "N/A"}</span>
+                            </p>
+                          </div>
                         </div>
-                        <p className="mt-1 text-[10px] text-slate-500 truncate leading-tight">
-                          {fields["Location"] || "Unknown"} — Ref: {fields["REF. NO"] || "N/A"}
-                        </p>
                       </td>
-                      <td className="px-4 py-4 select-none">
+                      <td className="px-4 py-4 select-none align-middle">
                         <span className="inline-flex items-center rounded-full bg-slate-500/10 border border-slate-500/20 px-2.5 py-0.5 text-[10px] font-semibold text-slate-300">
                           {fields["Sector"] || fields["Industry"] || "General"}
                         </span>
                       </td>
-                      <td className="px-4 py-4 font-sans text-xs font-medium text-white">
+                      <td className="px-4 py-4 font-sans text-xs font-semibold text-white text-right tabular-nums align-middle">
                         {formatFinancial(fields["Turnover"] || fields["Revenue"] || fields["Sales"])}
                       </td>
-                      <td className="px-4 py-4 font-sans text-xs font-medium text-white">
+                      <td className="px-4 py-4 font-sans text-xs font-semibold text-white text-right tabular-nums align-middle">
                         {formatFinancial(fields["EBITDA_GBP"] || fields["EBITDA"])}
                       </td>
-                      <td className="px-4 py-4 font-sans text-xs font-medium text-white">
+                      <td className="px-4 py-4 font-sans text-xs font-semibold text-white text-right tabular-nums align-middle">
                         {formatFinancial(fields["Asking_Price_GBP"] || fields["Asking Price"] || fields["EV Ask"] || fields["Enterprise_Value"])}
                       </td>
-                      <td className="px-4 py-4 font-sans text-xs font-medium text-slate-400">
-                        {fields["Date_Received"] || fields["Created Date"] || fields["Date Added"] || "N/A"}
-                      </td>
-                      <td className="px-5 py-4 text-right select-none">
-                        <span className="inline-flex items-center rounded-full bg-blue-500/5 border border-blue-500/25 px-2.5 py-1 text-[10px] font-bold text-blue-400">
-                          {getOwnerName(fields.Owner) || getOwnerName(fields["Assigned To"]) || "Unassigned"}
+                      <td className="px-5 py-4 text-right select-none align-middle">
+                        <span className={cx(
+                          "inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold border",
+                          assignee
+                            ? "bg-blue-500/5 border-blue-500/25 text-blue-400"
+                            : "bg-slate-500/5 border-slate-500/20 text-slate-500"
+                        )}>
+                          {assignee || "Unassigned"}
                         </span>
+                      </td>
+                      <td className="px-4 py-4 text-center select-none align-middle">
+                        <button
+                          type="button"
+                          onClick={(e) => toggleWatchlist(item.id, e)}
+                          title={isStarred ? "Remove from watchlist" : "Add to watchlist"}
+                          aria-pressed={isStarred}
+                          className={cx(
+                            "inline-flex h-8 w-8 items-center justify-center rounded-lg transition cursor-pointer",
+                            isStarred ? "bg-acp-bronze/10 hover:bg-acp-bronze/20" : "hover:bg-white/[0.05]"
+                          )}
+                        >
+                          <Star
+                            className={cx(
+                              "h-4 w-4 transition",
+                              isStarred ? "text-acp-bronze fill-acp-bronze" : "text-slate-500 hover:text-slate-300"
+                            )}
+                          />
+                        </button>
                       </td>
                     </tr>
                   );
@@ -806,40 +900,8 @@ export function DealInboxPage() {
               <div className="space-y-4 min-w-0 border-t border-white/[0.05] pt-6">
                 <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2">IM & Review Documents</h4>
                 {(() => {
-                  const attachments = selectedDeal.fields["IM/Review"] || 
-                                      selectedDeal.fields["IM_Review_Documents"] || 
-                                      selectedDeal.fields["Attachments"] || 
-                                      selectedDeal.fields["Deal Files"] || 
-                                      selectedDeal.fields["Deal_Files"] || 
-                                      selectedDeal.fields["Deal Link"] || 
-                                      selectedDeal.fields["Drive_Link"] || 
-                                      selectedDeal.fields["Drive Link"] || 
-                                      selectedDeal.fields["Link"] || 
-                                      selectedDeal.fields["link"] || 
-                                      [];
-                  const docsList = (Array.isArray(attachments) ? attachments : [attachments])
-                    .filter(Boolean)
-                    .map((att: any, idx: number) => {
-                      let url = "";
-                      let filename = `Document ${idx + 1}`;
-                      let id = undefined;
+                  const docsList = (selectedDeal.imDocs || []).filter((doc: any) => doc.url);
 
-                      if (typeof att === "string") {
-                        url = att;
-                      } else if (att && typeof att === "object") {
-                        url = att.url || att.File_Url || att.fileUrl || "";
-                        filename = att.filename || att.Document_Name || att.documentName || `Document ${idx + 1}`;
-                        id = att.id;
-                      }
-
-                      if (url && url.includes("tmpfiles.org/") && !url.includes("tmpfiles.org/dl/")) {
-                        url = url.replace("tmpfiles.org/", "tmpfiles.org/dl/");
-                      }
-
-                      return { id, url, filename };
-                    })
-                    .filter(doc => doc.url);
-                  
                   if (docsList.length === 0) {
                     return <p className="text-xs text-slate-500 italic">No IM documents attached to this deal.</p>;
                   }
@@ -857,26 +919,17 @@ export function DealInboxPage() {
                               </div>
                             </div>
                             <div className="flex items-center gap-3 flex-shrink-0">
-                              <a 
-                                href={att.url} 
-                                target="_blank" 
-                                rel="noreferrer" 
-                                className="text-xs text-slate-400 hover:text-white font-bold select-none"
-                              >
-                                View
-                              </a>
-                              <a 
-                                href={att.url} 
-                                download={name}
-                                target="_blank" 
-                                rel="noreferrer" 
-                                className="text-xs text-[#C6A66B] hover:text-white font-bold select-none"
-                              >
-                                Download
-                              </a>
                               <button
                                 type="button"
-                                onClick={() => handleRemoveAttachment(idx, name)}
+                                onClick={() => handleDownloadDoc(att.id, name)}
+                                disabled={downloadingId === att.id}
+                                className="text-xs text-[#C6A66B] hover:text-white font-bold select-none disabled:opacity-50 disabled:cursor-wait"
+                              >
+                                {downloadingId === att.id ? "Preparing…" : "Download"}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveAttachment(att.id, name)}
                                 className="text-xs text-rose-500 hover:text-rose-450 font-bold select-none"
                               >
                                 Delete

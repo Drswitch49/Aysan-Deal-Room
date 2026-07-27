@@ -108,6 +108,51 @@ export async function removeImDocument(dealId: string, _attachmentIndex?: number
   });
 }
 
+// ─── Multi-file IM/Review documents (im_review_documents table) ─────────────
+// Unlike the single deal_files_secure_url column above, these let a deal carry
+// any number of IM/Review files, each keeping its own uploaded document name.
+export interface ImDoc {
+  id?: string;
+  url: string;
+  filename: string;
+  publicId?: string | null;
+  fileType?: string | null;
+}
+
+export async function listImDocuments(dealId: string): Promise<ImDoc[]> {
+  const id = await resolveDealId(dealId);
+  const page = await api.get<{ rows: Row[] }>(`/api/im-documents?deal_id=${encodeURIComponent(id)}&limit=200`);
+  return (page.rows || [])
+    .map((r) => ({
+      id: r.id as string,
+      url: (r.file_url || r.legacy_file_url || "") as string,
+      filename: (r.document_name || "Document") as string,
+      publicId: (r.cloudinary_public_id ?? null) as string | null,
+      fileType: (r.file_type ?? null) as string | null,
+    }))
+    .filter((d) => d.url);
+}
+
+export async function createImDocument(dealId: string, doc: ImDoc): Promise<Row> {
+  const id = await resolveDealId(dealId);
+  const row = await api.post<Row>("/api/im-documents", {
+    deal_id: id,
+    document_name: doc.filename,
+    file_url: doc.url,
+    cloudinary_public_id: doc.publicId ?? null,
+    file_type: doc.fileType ?? null,
+    uploaded_at: new Date().toISOString(),
+  });
+  clearAirtableCache();
+  return row;
+}
+
+export async function deleteImDocumentRow(docId: string): Promise<Row> {
+  const row = await api.del<Row>(`/api/im-documents/${encodeURIComponent(docId)}`);
+  clearAirtableCache();
+  return row;
+}
+
 export async function replaceImDocument(dealId: string, _attachmentIndex: number, fileName: string, fileType: string, fileData: string) {
   return uploadImDocument(dealId, fileName, fileType, fileData);
 }

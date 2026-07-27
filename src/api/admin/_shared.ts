@@ -40,7 +40,9 @@ export const DEAL_KEY_MAP: Record<string, string> = {
   "Next_Action_Date": "next_action_date",
   "Internal_Notes": "internal_notes",
   "Executive_Summary": "executive_summary",
+  "Summary": "executive_summary",
   "Business_Description": "business_description",
+  "Description": "business_description",
   "Lender_Executive_Summary": "lender_executive_summary",
   "Investment_Highlights": "investment_highlights",
   "Acquisition_Rationale": "acquisition_rationale",
@@ -56,6 +58,20 @@ export const DEAL_KEY_MAP: Record<string, string> = {
   "ACP REF NO": "acp_ref_no",
   "REF No.": "ref_no",
   "REF. NO": "ref_no",
+  // camelCase keys used by the deal-detail edit modal (editFields). Without these
+  // mapKeys drops every field (camelCase fails its snake_case passthrough regex,
+  // and revenue/ebitda would map to non-existent columns) → empty PATCH.
+  "companyName": "company_name",
+  "projectName": "project_name",
+  "revenue": "turnover",
+  "ebitda": "ebitda_gbp",
+  "enterpriseValue": "enterprise_value",
+  "askingPrice": "asking_price_gbp",
+  "nextAction": "next_action",
+  "nextActionDate": "next_action_date",
+  "internalNotes": "internal_notes",
+  "businessDescription": "business_description",
+  "executiveSummary": "executive_summary",
 };
 
 export const DOC_KEY_MAP: Record<string, string> = {
