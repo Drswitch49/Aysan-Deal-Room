@@ -5,7 +5,7 @@
  */
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { api, type Paginated } from "./http";
-import { supabase, ensureRealtimeAuth } from "../lib/supabase";
+import { getSupabase, ensureRealtimeAuth } from "../lib/supabase";
 import { mapChatMessage } from "./mappers";
 import type { ChatMessage } from "../types/deal";
 
@@ -79,10 +79,11 @@ export function subscribeDealChat(
 
   (async () => {
     await ensureRealtimeAuth();
+    const sb = getSupabase();
     const id = await resolveDealId(dealId);
-    if (!id || cancelled) return;
+    if (!sb || !id || cancelled) return;
 
-    channel = supabase
+    channel = sb
       .channel(`deal-chat:${id}`)
       .on(
         "postgres_changes",
@@ -98,7 +99,7 @@ export function subscribeDealChat(
 
   return () => {
     cancelled = true;
-    if (channel) supabase.removeChannel(channel);
+    if (channel) getSupabase()?.removeChannel(channel);
   };
 }
 
@@ -112,9 +113,10 @@ export function subscribeAllChat(onInsert: (message: ChatMessage) => void): () =
 
   (async () => {
     await ensureRealtimeAuth();
-    if (cancelled) return;
+    const sb = getSupabase();
+    if (!sb || cancelled) return;
 
-    channel = supabase
+    channel = sb
       .channel("chat-all")
       .on(
         "postgres_changes",
@@ -126,6 +128,6 @@ export function subscribeAllChat(onInsert: (message: ChatMessage) => void): () =
 
   return () => {
     cancelled = true;
-    if (channel) supabase.removeChannel(channel);
+    if (channel) getSupabase()?.removeChannel(channel);
   };
 }

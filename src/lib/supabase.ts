@@ -11,29 +11,49 @@
  * itself is minted server-side (login sets httpOnly cookies); we hydrate the
  * browser session from those cookies via /api/auth/realtime-session.
  */
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 const url = import.meta.env.VITE_SUPABASE_URL;
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-if (!url || !anonKey) {
-  // Fail loud in dev; realtime chat simply won't connect without these.
-  console.error(
-    "[supabase] Missing VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY — realtime chat is disabled.",
-  );
-}
+let client: SupabaseClient | null = null;
+let warned = false;
 
-export const supabase = createClient(url ?? "", anonKey ?? "", {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    storageKey: "acp_sb_auth",
-  },
-  realtime: {
-    // Keep the socket calm; chat is low-frequency.
-    params: { eventsPerSecond: 5 },
-  },
-});
+/**
+ * The browser client, or null when the realtime env vars aren't configured.
+ *
+ * Built lazily and never at module scope: createClient() throws on an empty URL,
+ * and this module is imported by AppLayout, so constructing it eagerly puts that
+ * throw in the entry chunk — one missing build-time variable would white-screen
+ * the whole CRM (login included) over what is only a chat feature. Callers treat
+ * null as "realtime unavailable" and everything else keeps working.
+ */
+export function getSupabase(): SupabaseClient | null {
+  if (!url || !anonKey) {
+    if (!warned) {
+      warned = true;
+      console.error(
+        "[supabase] Missing VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY — realtime chat is disabled.",
+      );
+    }
+    return null;
+  }
+
+  if (!client) {
+    client = createClient(url, anonKey, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        storageKey: "acp_sb_auth",
+      },
+      realtime: {
+        // Keep the socket calm; chat is low-frequency.
+        params: { eventsPerSecond: 5 },
+      },
+    });
+  }
+  return client;
+}
 
 // De-dupe concurrent hydration attempts (many chat components can mount at once).
 let hydrating: Promise<void> | null = null;
@@ -43,9 +63,10 @@ let hydrating: Promise<void> | null = null;
  * Idempotent and safe to call before every subscribe.
  */
 export async function ensureRealtimeAuth(): Promise<void> {
-  if (!url || !anonKey) return;
+  const sb = getSupabase();
+  if (!sb) return;
 
-  const { data } = await supabase.auth.getSession();
+  const { data } = await sb.auth.getSession();
   if (data.session) return;
 
   if (!hydrating) {
@@ -55,7 +76,7 @@ export async function ensureRealtimeAuth(): Promise<void> {
         if (!res.ok) return;
         const tokens = await res.json();
         if (tokens?.access_token && tokens?.refresh_token) {
-          await supabase.auth.setSession({
+          await sb.auth.setSession({
             access_token: tokens.access_token,
             refresh_token: tokens.refresh_token,
           });
@@ -72,9 +93,10 @@ export async function ensureRealtimeAuth(): Promise<void> {
 
 /** Clear the persisted Supabase session (call on logout). */
 export async function clearRealtimeAuth(): Promise<void> {
-  if (!url || !anonKey) return;
+  const sb = getSupabase();
+  if (!sb) return;
   try {
-    await supabase.auth.signOut();
+    await sb.auth.signOut();
   } catch (err) {
     console.error("[supabase] signOut failed:", err);
   }
