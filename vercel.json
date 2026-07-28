@@ -12,9 +12,6 @@
   "functions": {
     "api/jobs/worker.ts": {
       "maxDuration": 300
-    },
-    "api/documents/upload.ts": {
-      "maxDuration": 300
     }
   },
   "crons": [
