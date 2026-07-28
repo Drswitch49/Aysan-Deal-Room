@@ -23,6 +23,47 @@ function initialsOf(name: string): string {
   return (name || "").split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase();
 }
 
+/**
+ * Readable actor name for an audit/history `changed_by`, which stores an email.
+ *
+ * Prefers the registered team member's name, then a profile's full name, and
+ * only falls back to prettifying the address' local part ("admin@yofy.org" →
+ * "Admin") — several historic operators have no matching team record at all.
+ */
+function makeNameResolver(pairs: Array<{ email?: string | null; name?: string | null }>) {
+  const byEmail = new Map<string, string>();
+  for (const p of pairs) {
+    const email = (p.email ?? "").trim().toLowerCase();
+    const name = (p.name ?? "").trim();
+    if (email && name && !byEmail.has(email)) byEmail.set(email, name);
+  }
+
+  return (operator: string | null | undefined): string => {
+    const raw = (operator ?? "").trim();
+    if (!raw) return "Unknown";
+    if (raw === "System") return "System";
+
+    const hit = byEmail.get(raw.toLowerCase());
+    if (hit) return hit;
+
+    const local = raw.includes("@") ? raw.split("@")[0] : raw;
+    return local
+      .split(/[._-]+/)
+      .filter(Boolean)
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(" ") || raw;
+  };
+}
+
+/** A stage-history row links to the deal by uuid, or by a plain legacy ref. */
+function movementLink(deal_id: string | null, legacyRef: string | null): string {
+  if (deal_id) return `/deals/${deal_id}`;
+  // Legacy refs are sometimes a whole descriptive title ("ACP-CFS-005 | Xoli…"),
+  // which resolves to nothing — only link when it looks like an actual ref.
+  if (legacyRef && /^[A-Za-z0-9-]+$/.test(legacyRef.trim())) return `/deals/${legacyRef.trim()}`;
+  return "";
+}
+
 export default createHandler({
   methods: ["GET"],
   requireAuth: true,
@@ -36,7 +77,14 @@ export default createHandler({
       if (error) throw new InternalError(`dashboard count(${stage}): ${error.message}`);
       return count ?? 0;
     };
-    const [inboxDealsCount, reviewDealsCount, activePipelineCount] = await Promise.all([
+    const allDealsCountQ = async () => {
+      const { count, error } = await db.from("deals").select("*", { count: "exact", head: true }).is("deleted_at", null);
+      if (error) throw new InternalError(`dashboard count(all): ${error.message}`);
+      return count ?? 0;
+    };
+
+    const [allDealsCount, inboxDealsCount, reviewDealsCount, activePipelineCount] = await Promise.all([
+      allDealsCountQ(),
       stageCount("inbox"),
       stageCount("review"),
       stageCount("active"),
@@ -75,11 +123,23 @@ export default createHandler({
       avgVelocityDays: 0, // requires stage-dwell history; surfaced as "—" until wired
     };
 
-    // Actions due (deals with a next_action on/before today).
+    // Actions due in a tight window around today — 3 days either side.
+    // Previously this took anything on/before today, so items weeks overdue
+    // crowded out what actually needs attention now.
+    const ACTION_WINDOW_DAYS = 3;
     const today = new Date().toISOString().slice(0, 10);
+    const dayOffset = (n: number) => new Date(Date.now() + n * 86_400_000).toISOString().slice(0, 10);
+    const windowStart = dayOffset(-ACTION_WINDOW_DAYS);
+    const windowEnd = dayOffset(ACTION_WINDOW_DAYS);
+
     const actionsDueToday = activeDeals
-      .filter((d) => d.next_action_date && String(d.next_action_date).slice(0, 10) <= today && d.next_action)
-      .slice(0, 12)
+      .filter((d) => {
+        if (!d.next_action || !d.next_action_date) return false;
+        const date = String(d.next_action_date).slice(0, 10);
+        return date >= windowStart && date <= windowEnd;
+      })
+      .sort((a, b) => String(a.next_action_date).localeCompare(String(b.next_action_date)))
+      .slice(0, 8)
       .map((d) => {
         const overdue = String(d.next_action_date).slice(0, 10) < today;
         return {
@@ -94,28 +154,61 @@ export default createHandler({
         };
       });
 
-    // Recent movements from the audit log.
-    const { data: audit } = await db
-      .from("audit_logs")
-      .select("id, action, event_type, entity_id, details, occurred_at, operator")
-      .order("occurred_at", { ascending: false })
-      .limit(12);
-    const recentMovements = (audit ?? []).map((a: Row) => {
-      const action = String(a.action ?? a.event_type ?? "").toUpperCase();
+    /**
+     * Recent movements from deal_stage_history.
+     *
+     * Not audit_logs: only 3 of ~305 audit rows carry a resolvable entity_id —
+     * the rest are Airtable-era records whose `target` holds a rec… id, and the
+     * deals table has no airtable_id column to join back on. So every one of
+     * those rendered with a blank company and a link to nowhere. Stage history
+     * stores deal_id AND company_name, and a transition writes to both tables,
+     * so nothing is lost by reading the richer one.
+     */
+    const RECENT_MOVEMENT_LIMIT = 5;
+    const [{ data: history }, { data: team }, { data: profiles }] = await Promise.all([
+      db
+        .from("deal_stage_history")
+        .select("id, deal_id, legacy_deal_ref, company_name, from_stage, to_stage, from_stage_label, to_stage_label, changed_by, changed_at, notes")
+        .order("changed_at", { ascending: false })
+        .limit(RECENT_MOVEMENT_LIMIT),
+      db.from("acp_team").select("name, email"),
+      db.from("profiles").select("email, full_name"),
+    ]);
+
+    const resolveName = makeNameResolver([
+      ...((team ?? []) as Row[]).map((t) => ({ email: t.email, name: t.name })),
+      ...((profiles ?? []) as Row[]).map((p) => ({ email: p.email, name: p.full_name })),
+    ]);
+
+    // Prefer the deal's current company name over the label frozen into history.
+    const historyRows = (history ?? []) as Row[];
+    const historyDealIds = historyRows.map((h) => h.deal_id).filter(Boolean) as string[];
+    const namesById = new Map<string, string>();
+    if (historyDealIds.length) {
+      const { data: named } = await db.from("deals").select("id, company_name, deal_name").in("id", historyDealIds);
+      for (const d of (named ?? []) as Row[]) namesById.set(d.id, d.company_name || d.deal_name || "");
+    }
+
+    const recentMovements = historyRows.map((h) => {
+      const to = String(h.to_stage_label || h.to_stage || "").toLowerCase();
       let type = "update";
-      if (action.includes("LOI")) type = "loi_sent";
-      else if (action.includes("DILIGENCE") || action.includes("DD")) type = "dd_started";
-      else if (action.includes("ARCHIVE") || action.includes("KILL")) type = "deal_archived";
-      else if (action.includes("LENDER") || action.includes("ASSIGN")) type = "lender_engaged";
-      else if (action.includes("DOCUMENT") || action.includes("UPLOAD")) type = "im_received";
+      if (/(kill|archiv|dead)/.test(to)) type = "deal_archived";
+      else if (/(diligence|dd)/.test(to)) type = "dd_started";
+      else if (/(loi|offer)/.test(to)) type = "loi_sent";
+      else if (/(active|closing)/.test(to)) type = "lender_engaged";
+      else if (/(review|im)/.test(to)) type = "im_received";
+
+      const from = h.from_stage_label || h.from_stage || "—";
+      const toLabel = h.to_stage_label || h.to_stage || "—";
+
       return {
-        id: a.id,
+        id: h.id,
         type,
-        title: a.details || action.toLowerCase() || "Activity",
-        detail: a.operator || "",
-        companyName: "",
-        timestamp: a.occurred_at || "",
-        link: a.entity_id ? `/deals/${a.entity_id}` : "",
+        title: `Stage ${from} → ${toLabel}`,
+        detail: resolveName(h.changed_by),
+        companyName: (h.deal_id ? namesById.get(h.deal_id) : "") || h.company_name || "",
+        timestamp: h.changed_at || "",
+        link: movementLink(h.deal_id ?? null, h.legacy_deal_ref ?? null),
       };
     });
 
@@ -125,6 +218,7 @@ export default createHandler({
     ) as string[];
 
     return {
+      allDealsCount,
       inboxDealsCount,
       reviewDealsCount,
       activePipelineCount,

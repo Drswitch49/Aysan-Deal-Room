@@ -14,6 +14,12 @@ import { LoadingState } from "../components/ui/LoadingState";
 import { SectionHeader } from "../components/ui/SectionHeader";
 import { cx } from "../utils/cx";
 
+/** Cap a label so one long entry can't stretch a row; full text stays in a tooltip. */
+function truncate(text: any, max: number): string {
+  const s = String(text ?? "").trim();
+  return s.length <= max ? s : s.slice(0, max).trimEnd() + "…";
+}
+
 export function DashboardPage() {
   const { refresh: refreshPipeline } = usePipeline();
   
@@ -178,10 +184,10 @@ export function DashboardPage() {
           {/* Row 1 — Operational Telemetry (KPI Strip) */}
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             <StatCard
-              label="Deal Inbox"
-              value={stats.inboxDealsCount ?? 0}
+              label="All Deals"
+              value={stats.allDealsCount ?? 0}
               tone="default"
-              to="/admin/inbox"
+              to="/admin/inbox?filter=All Deals"
             />
             <StatCard
               label="Reviewed Deals"
@@ -241,12 +247,16 @@ export function DashboardPage() {
                               {move.detail}
                             </p>
                           </div>
+
                         </div>
 
                         {/* Context link */}
                         <div className="flex items-center gap-3 shrink-0 select-none">
                           <div className="text-right">
-                            <p className="text-[10px] font-bold text-slate-400 leading-none truncate max-w-[120px] ml-auto">
+                            <p
+                              className="text-[10px] font-bold text-slate-400 leading-none truncate max-w-[160px] ml-auto"
+                              title={move.companyName}
+                            >
                               {move.companyName}
                             </p>
                             {move.timestamp && (
@@ -261,13 +271,17 @@ export function DashboardPage() {
                             )}
                           </div>
                           
-                          <Link 
-                            to={move.link}
-                            className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/[0.02] bg-white/[0.01] hover:bg-white/[0.03] text-slate-400 hover:text-white transition"
-                            title="Open Deal"
-                          >
-                            <ArrowRight className="h-3.5 w-3.5" />
-                          </Link>
+                          {/* Only render the jump-to-deal arrow when there's a deal
+                              to jump to — an empty `to` just reloads the dashboard. */}
+                          {move.link && (
+                            <Link
+                              to={move.link}
+                              className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/[0.02] bg-white/[0.01] hover:bg-white/[0.03] text-slate-400 hover:text-white transition"
+                              title="Open Deal"
+                            >
+                              <ArrowRight className="h-3.5 w-3.5" />
+                            </Link>
+                          )}
                         </div>
                       </div>
                     );
@@ -287,8 +301,9 @@ export function DashboardPage() {
 
               {/* Actions Due Today */}
               <div className="rounded-2xl p-6 pe-card">
-                <SectionHeader>Actions Due Today</SectionHeader>
-                
+                <SectionHeader>Actions Due</SectionHeader>
+                <p className="mt-1 text-[10px] text-slate-500 select-none">Within 3 days either side of today</p>
+
                 <div className="mt-4 divide-y divide-white/[0.02] font-sans">
                   {stats.actionsDueToday && stats.actionsDueToday.map((act: any) => (
                     <Link 
@@ -304,16 +319,25 @@ export function DashboardPage() {
 
                       {/* Action Detail */}
                       <div className="min-w-0 flex-1">
-                        <p className="text-xs font-medium text-white leading-tight group-hover/act:text-[#C6A66B] transition-colors truncate">
-                          {act.title}
+                        <p
+                          className="text-xs font-medium text-white leading-tight group-hover/act:text-[#C6A66B] transition-colors truncate"
+                          title={act.title}
+                        >
+                          {truncate(act.title, 58)}
                         </p>
-                        <div className="mt-1.5 flex items-center gap-1.5 flex-wrap select-none text-[9px] font-medium text-slate-500">
-                          <span className="font-mono">{act.dealRef}</span>
-                          <span className="text-slate-700">·</span>
-                          <span>{act.assignee}</span>
-                          <span className="text-slate-700">·</span>
+                        {/* One line, no wrapping — the meta used to wrap onto two
+                            or three lines and made every row a different height. */}
+                        <div className="mt-1.5 flex items-center gap-1.5 select-none text-[9px] font-medium text-slate-500 min-w-0">
+                          {act.dealRef && (
+                            <>
+                              <span className="font-mono shrink-0">{act.dealRef}</span>
+                              <span className="text-slate-700 shrink-0">·</span>
+                            </>
+                          )}
+                          <span className="truncate">{act.assignee}</span>
+                          <span className="text-slate-700 shrink-0">·</span>
                           <span className={cx(
-                            "font-bold uppercase tracking-wider",
+                            "font-bold uppercase tracking-wider shrink-0",
                             act.statusText === "OVERDUE" ? "text-rose-400" : "text-amber-450"
                           )}>
                             {act.statusText}
@@ -331,9 +355,9 @@ export function DashboardPage() {
                   {(!stats.actionsDueToday || stats.actionsDueToday.length === 0) && (
                     <div className="flex flex-col items-center justify-center py-8 text-center space-y-2 select-none">
                       <span className="h-1.5 w-1.5 rounded-full bg-slate-750" />
-                      <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">No actions due today</p>
+                      <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">No actions due this week</p>
                       <p className="text-[10px] text-slate-600">
-                        All scheduled milestones and tasks are up to date.
+                        Nothing scheduled within 3 days either side of today.
                       </p>
                     </div>
                   )}
