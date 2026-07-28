@@ -32,8 +32,13 @@ const EnvSchema = z.object({
   AIRTABLE_API_KEY: z.string().min(1).optional(),
   AIRTABLE_BASE_ID: z.string().min(1).optional(),
 
-  // Legacy custom-JWT auth (removed in Phase 4). Rejected if weak/compromised.
-  JWT_SECRET: z.string().min(32).optional(),
+  // NOTE: JWT_SECRET (legacy custom-JWT auth) was deliberately dropped from this
+  // schema. Phase 4 moved auth to Supabase and nothing reads it any more, but a
+  // stale short value left in the deployment env still failed the min(32) check —
+  // and because every route calls getServerEnv(), that one dead variable took the
+  // whole API down with "Authentication service is temporarily unavailable".
+  // Unknown keys are ignored by z.object, so leftovers are now harmless. Don't
+  // add validation for a variable no code reads.
 
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).optional(),
 });
