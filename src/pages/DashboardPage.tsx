@@ -142,14 +142,6 @@ export function DashboardPage() {
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5 shrink-0">
-          <Link
-            to="/deals"
-            className="inline-flex h-8 items-center gap-1.5 rounded-xl border border-white/[0.02] bg-white/[0.02] px-3.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-white transition cursor-pointer select-none"
-          >
-            View Pipeline
-          </Link>
-        </div>
       </div>
 
       {isLoading && <LoadingState variant="cards" label="Hydrating Command Centre Telemetry" />}

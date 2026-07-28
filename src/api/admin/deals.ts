@@ -13,6 +13,48 @@ export async function updateInboxStatus(inboxRecordId: string, status: string) {
   return api.patch<Row>(`/api/deals/${encodeURIComponent(inboxRecordId)}`, { status });
 }
 
+export type DealStage = "inbox" | "review" | "active" | "archived";
+
+/** The Deal Inbox's status labels map onto lifecycle stages one-for-one. */
+export const STATUS_TO_STAGE: Record<string, DealStage> = {
+  Inbox: "inbox",
+  Review: "review",
+  Active: "active",
+  Kill: "archived",
+};
+
+/**
+ * Move a deal to a lifecycle STAGE (inbox/review/active/archived), keeping the
+ * legacy `status` text in step. Distinct from transitionDealStage() below, which
+ * only relabels the Kanban's `pipeline_stage` column.
+ *
+ * The inbox filters and the dashboard both count the `stage` enum, so changing
+ * only `status` (as updateInboxStatus does) would leave a deal visually
+ * unchanged in every filter. Going through /api/deal-transitions also records
+ * stage history and kill metadata, which a bare PATCH does not.
+ */
+export async function transitionDealLifecycle(
+  dealId: string,
+  status: string,
+  opts: { currentStage?: string; killReason?: string } = {},
+): Promise<Row> {
+  const toStage = STATUS_TO_STAGE[status];
+  if (!toStage) throw new Error(`Unknown deal status "${status}"`);
+
+  // The server rejects a no-op transition; when the deal is already there, just
+  // reconcile the legacy status text.
+  if (opts.currentStage !== toStage) {
+    await api.post<Row>("/api/deal-transitions", {
+      deal_id: dealId,
+      to_stage: toStage,
+      ...(opts.killReason ? { kill_reason: opts.killReason } : {}),
+    });
+  }
+  const updated = await api.patch<Row>(`/api/deals/${encodeURIComponent(dealId)}`, { status });
+  clearAirtableCache();
+  return updated;
+}
+
 export async function deleteInboxDeal(dealId: string) {
   return api.del<Row>(`/api/deals/${encodeURIComponent(dealId)}`);
 }

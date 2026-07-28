@@ -17,6 +17,10 @@ const listSchema = listQuerySchema.extend({
   analyst: z.string().optional(),
   /** Lookup by human ref (ACP ref / listing ref / name) or uuid. */
   ref: z.string().optional(),
+  /** Case-insensitive search over company/deal name, ref and sector. */
+  q: z.string().optional(),
+  /** Comma-separated uuids — used by the inbox watchlist, whose membership is client-side. */
+  ids: z.string().optional(),
 });
 
 export default createHandler({
@@ -28,6 +32,22 @@ export default createHandler({
       if (q.ref) {
         const deal = await repositories.deals.findByRef(q.ref);
         return { rows: deal ? [deal] : [], total: deal ? 1 : 0, limit: 1, offset: 0 };
+      }
+      // Search / watchlist take the dedicated path; plain filtered lists keep
+      // using the generic repository list.
+      if (q.q || q.ids !== undefined) {
+        const ids = q.ids === undefined
+          ? undefined
+          : q.ids.split(",").map((s) => s.trim()).filter(Boolean);
+        return repositories.deals.search({
+          stage: q.stage,
+          search: q.q,
+          ids,
+          limit: q.limit,
+          offset: q.offset,
+          orderBy: q.orderBy,
+          ascending: q.ascending,
+        });
       }
       return repositories.deals.list(q);
     }

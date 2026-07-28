@@ -383,12 +383,12 @@ function NavContent({
   }).filter(section => section.items.length > 0);
 
   return (
-    <nav className={cx("space-y-5 pr-1 select-none", className)}>
+    <nav className={cx("space-y-6 pr-1 select-none", className)}>
       {filteredNav.map((section) => (
         <div key={section.group} className="space-y-1">
           {!isCollapsed ? (
-            <div className="flex items-center px-3.5 mb-2">
-              <p className="text-[8px] font-bold uppercase tracking-[0.15em] text-slate-500">
+            <div className="flex items-center px-4 mb-2.5">
+              <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-500">
                 {section.group}
               </p>
             </div>
@@ -454,11 +454,15 @@ function SideNavItem({
       className={({ isActive }) => {
         const isCurrentActive = activeOverride !== undefined ? activeOverride : isActive;
         return cx(
-          "flex h-9.5 items-center rounded-lg text-xs font-medium transition-all duration-200 ease-in-out relative group border select-none",
-          isCollapsed ? "justify-center px-0 w-9.5 mx-auto" : "gap-2.5 px-3.5",
+          // h-11 + text-[13px]: the old h-9.5/text-xs rows read as cramped fine print
+          // at desktop sizes. mb-1 separates rows so the active pill is legible.
+          "flex h-11 items-center rounded-lg text-[13px] font-medium transition-all duration-200 ease-in-out relative group border select-none mb-1",
+          isCollapsed ? "justify-center px-0 w-11 mx-auto" : "gap-3 px-4",
           isCurrentActive
-            ? "bg-white/[0.03] border-white/[0.04] text-white"
-            : "border-transparent text-slate-400 hover:bg-white/[0.015] hover:text-white hover:border-white/[0.02]"
+            ? "bg-white/[0.045] border-white/[0.06] text-white"
+            // Hover: lift + a bronze-tinted wash and border, matching the active
+            // treatment so hovering previews where you're about to land.
+            : "border-transparent text-slate-350 hover:bg-acp-bronze/[0.07] hover:text-white hover:border-acp-bronze/20 hover:translate-x-0.5"
         );
       }}
       aria-current={undefined}
@@ -473,7 +477,7 @@ function SideNavItem({
             {isCurrentActive && isCollapsed && (
               <span className="absolute left-1 top-2 bottom-2 w-[3px] rounded bg-[#C6A66B] shadow-[0_0_6px_rgba(198,166,107,0.4)]" />
             )}
-            <span className={cx("shrink-0 transition-all duration-250", isCurrentActive ? "text-[#C6A66B]" : "text-slate-500 group-hover:text-slate-350")}>
+            <span className={cx("shrink-0 transition-all duration-250", isCurrentActive ? "text-[#C6A66B]" : "text-slate-500 group-hover:text-[#C6A66B]")}>
               {icon}
             </span>
             {!isCollapsed && <span className="flex-1 truncate tracking-wide">{label}</span>}

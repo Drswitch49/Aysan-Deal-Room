@@ -62,11 +62,56 @@ export async function getDocumentsForLender(ref: string): Promise<DealDocument[]
     .map((doc) => (!doc.driveLink && deal.dealFiles ? { ...doc, driveLink: deal.dealFiles } : doc));
 }
 
-/** Inbox deals (lifecycle stage = inbox). Returns Airtable-style { id, fields }
- *  records — DealInboxPage/DealDetailPage read `record.fields["REF. NO"]` etc. */
-export async function getDealInbox(): Promise<any[]> {
-  const page = await api.get<Paginated<any>>("/api/deals?stage=inbox&limit=200&orderBy=date_added");
-  return page.rows.map((d) => {
+export interface DealInboxQuery {
+  /** Lifecycle stage; omit for every stage ("All Deals"). */
+  stage?: "inbox" | "review" | "active" | "archived";
+  search?: string;
+  /** Restrict to these deal ids (watchlist). */
+  ids?: string[];
+  limit?: number;
+  offset?: number;
+}
+
+/**
+ * Deal counts per lifecycle stage, plus how many deals in the current scope have
+ * no assignee. `stage`/`ids` scope the unassigned tally to the active filter.
+ */
+export async function getDealStageCounts(opts: {
+  search?: string;
+  stage?: "inbox" | "review" | "active" | "archived";
+  ids?: string[];
+} = {}): Promise<{
+  total: number;
+  byStage: { inbox: number; review: number; active: number; archived: number };
+  unassigned: number;
+}> {
+  const params = new URLSearchParams();
+  if (opts.search && opts.search.trim()) params.set("q", opts.search.trim());
+  if (opts.stage) params.set("stage", opts.stage);
+  if (opts.ids) params.set("ids", opts.ids.join(","));
+  const qs = params.toString();
+  return api.get(`/api/deals/stats${qs ? `?${qs}` : ""}`);
+}
+
+/**
+ * A page of deals as Airtable-style { id, fields } records —
+ * DealInboxPage/DealDetailPage read `record.fields["REF. NO"]` etc.
+ *
+ * Paged server-side: the Deal Inbox spans every lifecycle stage (~1.8k rows), so
+ * it can no longer pull one capped list and filter it in the browser.
+ */
+export async function getDealInbox(query: DealInboxQuery = {}): Promise<{ rows: any[]; total: number }> {
+  const params = new URLSearchParams({
+    limit: String(query.limit ?? 25),
+    offset: String(query.offset ?? 0),
+    orderBy: "date_added",
+  });
+  if (query.stage) params.set("stage", query.stage);
+  if (query.search && query.search.trim()) params.set("q", query.search.trim());
+  if (query.ids) params.set("ids", query.ids.join(","));
+
+  const page = await api.get<Paginated<any>>(`/api/deals?${params.toString()}`);
+  const rows = page.rows.map((d) => {
     const im = d.deal_files_secure_url ? [{ url: d.deal_files_secure_url, filename: "Deal file" }] : [];
     return {
       id: d.id,
@@ -82,6 +127,8 @@ export async function getDealInbox(): Promise<any[]> {
         BROKER: d.broker ?? "",
         Broker: d.broker ?? "",
         Status: d.status ?? "Inbox",
+        /** Authoritative lifecycle stage — what the inbox filters and dashboard count. */
+        Stage: d.stage ?? "",
         AI_Verdict: d.ai_verdict ?? "",
         Source: d.source ?? "",
         "One line reason": d.one_line_reason ?? "",
@@ -117,6 +164,7 @@ export async function getDealInbox(): Promise<any[]> {
       },
     };
   });
+  return { rows, total: page.total };
 }
 
 export async function createInboxDeal(fields: Record<string, any>) {

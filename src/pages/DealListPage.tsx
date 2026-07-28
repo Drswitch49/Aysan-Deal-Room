@@ -5,7 +5,6 @@ import {
   Kanban, Upload, FileText
 } from "lucide-react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { getDealInbox, getAllDocuments } from "../api/airtable";
 import { fetchAdminLenders, createAdminDeal, uploadImDocument, fetchTeamMemberRecords } from "../api/admin";
 import type { PipelineDeal, DealDocument } from "../types/deal";
 import { cx } from "../utils/cx";

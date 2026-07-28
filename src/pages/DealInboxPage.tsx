@@ -5,9 +5,9 @@ import {
   Building2, MapPin, Briefcase, Mail, Phone, ExternalLink, Sparkles, FileText, Trash2,
   Upload, Star
 } from "lucide-react";
-import { getDealInbox, createInboxDeal, updateInboxDeal } from "../api/airtable";
+import { getDealInbox, getDealStageCounts, createInboxDeal, updateInboxDeal } from "../api/airtable";
 import { api } from "../api/http";
-import { promoteDealFromInbox, updateInboxStatus, deleteInboxDeal, fetchTeamMemberRecords, uploadTempFile, listImDocuments, createImDocument, deleteImDocumentRow } from "../api/admin";
+import { promoteDealFromInbox, transitionDealLifecycle, STATUS_TO_STAGE, deleteInboxDeal, fetchTeamMemberRecords, uploadTempFile, listImDocuments, createImDocument, deleteImDocumentRow } from "../api/admin";
 import { LoadingState } from "../components/ui/LoadingState";
 import { Modal } from "../components/ui/Modal";
 import { FormField } from "../components/ui/FormField";
@@ -32,13 +32,21 @@ const getOwnerName = (ownerField: any) => {
   return String(ownerField).trim();
 };
 
-// Helper to map and group raw statuses
-const getGroupedStatus = (status: string) => {
-  const s = (status || "").trim();
-  if (s === "Active") return "Active";
-  if (s === "Kill") return "Kill";
-  if (s === "Review") return "Review";
-  return "Inbox";
+/**
+ * Filter pill → lifecycle stage.
+ *
+ * These used to bucket a client-held page by the legacy free-text `status`
+ * field, which is why the inbox reported "Review (10)" while the dashboard —
+ * counting the authoritative `stage` enum — reported 983. Both now read the
+ * same column, so the two screens agree by construction.
+ */
+const FILTER_STAGES: Record<string, "inbox" | "review" | "active" | "archived" | undefined> = {
+  "All Deals": undefined,
+  Active: "active",
+  Kill: "archived",
+  Review: "review",
+  Inbox: "inbox",
+  Watchlist: undefined, // resolved by id set, not stage
 };
 
 export function DealInboxPage() {
@@ -91,7 +99,14 @@ export function DealInboxPage() {
     });
   };
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const itemsPerPage = 25;
+  /** Total matching rows in the database, not just the loaded page. */
+  const [totalItems, setTotalItems] = useState(0);
+  const [stageCounts, setStageCounts] = useState<{
+    total: number;
+    byStage: { inbox: number; review: number; active: number; archived: number };
+    unassigned: number;
+  } | null>(null);
 
   const [promotingId, setPromotingId] = useState<string | null>(null);
 
@@ -359,7 +374,8 @@ export function DealInboxPage() {
 
       setIsAddModalOpen(false);
       setIsEditModalOpen(false);
-      fetchInbox();
+      await fetchInbox();
+      refreshCounts();
     } catch (err: any) {
       alert(err.message || "Error saving deal");
     } finally {
@@ -370,16 +386,28 @@ export function DealInboxPage() {
   // Specific status options for Deal Inbox
   const statusOptions = ["Active", "Kill", "Review", "Inbox"];
 
+  // Debounce typing so each keystroke doesn't fire a query against ~1.8k rows.
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   useEffect(() => {
-    fetchInbox();
-  }, []);
+    const t = setTimeout(() => setDebouncedSearch(searchQuery.trim()), 300);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
 
   const fetchInbox = async () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await getDealInbox();
-      setInboxItems(data || []);
+
+      const isWatchlist = activeFilter === "Watchlist";
+      const { rows, total } = await getDealInbox({
+        stage: FILTER_STAGES[activeFilter],
+        search: debouncedSearch || undefined,
+        ids: isWatchlist ? [...watchlist] : undefined,
+        limit: itemsPerPage,
+        offset: (currentPage - 1) * itemsPerPage,
+      });
+      setInboxItems(rows || []);
+      setTotalItems(total);
     } catch (err: any) {
       console.error("Failed to load deal inbox:", err);
       setError(err.message || "Failed to load deal inbox.");
@@ -388,14 +416,53 @@ export function DealInboxPage() {
     }
   };
 
+  // Starring changes which rows the Watchlist filter should return, but only
+  // matters while that filter is the active one.
+  const watchlistKey = activeFilter === "Watchlist" ? [...watchlist].sort().join(",") : "";
+
+  // Re-query whenever the filter, page or (debounced) search changes.
+  // Page resets live on the controls themselves (pill onClick / search onChange),
+  // so this doesn't also fire a redundant fetch for a stale page number.
+  useEffect(() => {
+    fetchInbox();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeFilter, currentPage, debouncedSearch, watchlistKey]);
+
+  const countsQuery = () => ({
+    search: debouncedSearch || undefined,
+    stage: FILTER_STAGES[activeFilter],
+    ids: activeFilter === "Watchlist" ? [...watchlist] : undefined,
+  });
+
+  const refreshCounts = () => {
+    getDealStageCounts(countsQuery())
+      .then(setStageCounts)
+      .catch((err) => console.error("Failed to load deal counts:", err));
+  };
+
+  // Pill counts and the unassigned tally come from the server so they describe
+  // the whole table rather than the current page, and follow the active
+  // search/filter so they always match the list beneath them.
+  useEffect(() => {
+    let alive = true;
+    getDealStageCounts(countsQuery())
+      .then((c) => { if (alive) setStageCounts(c); })
+      .catch((err) => console.error("Failed to load deal counts:", err));
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearch, activeFilter, watchlistKey]);
+
+
   const handlePromote = async (id: string) => {
     try {
       setPromotingId(id);
       const res = await promoteDealFromInbox(id);
       if (res.success) {
-        setInboxItems((prev) => prev.map((item) => item.id === id ? { ...item, fields: { ...item.fields, Status: "Active" } } : item));
         refreshPipeline();
         setIsModalOpen(false);
+        // The deal has left this stage — reload the page and pill counts.
+        await fetchInbox();
+        refreshCounts();
       } else {
         throw new Error(res.error || "Promotion failed.");
       }
@@ -409,7 +476,8 @@ export function DealInboxPage() {
   const handleStatusChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
     if (!selectedDeal) return;
     const newStatus = e.target.value;
-    
+    const currentStage = selectedDeal.fields?.Stage || "";
+
     if (newStatus === "Active") {
       // Promoting the deal to Active Pipeline
       if (confirm("Setting status to 'Active' will migrate this deal to the Active Pipeline. Continue?")) {
@@ -418,17 +486,27 @@ export function DealInboxPage() {
       return;
     }
 
+    if (newStatus === "Kill" && !confirm("Killing this deal moves it to the archive and records who killed it. Continue?")) {
+      return;
+    }
+
     try {
       setIsUpdatingStatus(true);
-      await updateInboxStatus(selectedDeal.id, newStatus);
-      
-      // Optimistic update locally
+      // Moves the lifecycle stage, not just the legacy status text — the filters
+      // and the dashboard both count `stage`, so a status-only write would leave
+      // the deal sitting in the wrong bucket.
+      await transitionDealLifecycle(selectedDeal.id, newStatus, { currentStage });
+
       const updatedItem = {
         ...selectedDeal,
-        fields: { ...selectedDeal.fields, Status: newStatus }
+        fields: { ...selectedDeal.fields, Status: newStatus, Stage: STATUS_TO_STAGE[newStatus] ?? currentStage },
       };
       setSelectedDeal(updatedItem);
-      setInboxItems((prev) => prev.map(item => item.id === selectedDeal.id ? updatedItem : item));
+
+      // The deal may no longer belong in the current filter — refresh the page
+      // and the pill counts rather than leaving a stale row behind.
+      await fetchInbox();
+      refreshCounts();
     } catch (err: any) {
       alert("Error updating status: " + err.message);
     } finally {
@@ -443,39 +521,25 @@ export function DealInboxPage() {
       setLoading(true);
       await deleteInboxDeal(selectedDeal.id);
       setIsModalOpen(false);
-      fetchInbox();
+      await fetchInbox();
+      refreshCounts();
     } catch (err: any) {
       alert("Error deleting deal: " + err.message);
       setLoading(false);
     }
   };
 
-  // Filter
-  const filteredItems = inboxItems.filter((d: any) => {
-    const fields = d.fields || {};
-    // Category Filter (based on status/stage, or the starred watchlist)
-    if (activeFilter === "Watchlist") {
-      if (!watchlist.has(d.id)) return false;
-    } else if (activeFilter !== "All Deals") {
-      const rawStatus = fields["Status"];
-      const groupedStatus = getGroupedStatus(rawStatus);
-      if (groupedStatus !== activeFilter) return false;
-    }
+  // Filtering, searching and paging all happen server-side now — the rows in
+  // state are exactly the page being displayed.
+  const paginatedItems = inboxItems;
 
-    // Search Query
-    if (!searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase().trim();
-    const name = (fields["Deal Name"] || fields["Company Name"] || fields["Company_Name"] || "").toLowerCase();
-    const ref = (fields["REF. NO"] || "").toLowerCase();
-    const sector = (fields["Sector"] || "").toLowerCase();
-    return name.includes(q) || ref.includes(q) || sector.includes(q);
-  });
+  // Deals in the current filter with nobody assigned. This was previously
+  // rendered as filteredItems.length — the total row count — so it always
+  // equalled the number of deals on screen no matter how many were assigned.
+  // Counted server-side, since the page holds only 25 of ~1.8k rows.
+  const unassignedCount = stageCounts?.unassigned ?? null;
 
-  const totalPages = Math.ceil(filteredItems.length / itemsPerPage) || 1;
-  const paginatedItems = filteredItems.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+  const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
 
   const formatFinancial = (val: any) => {
     if (val === null || val === undefined || val === "") return "TBC";
@@ -498,10 +562,12 @@ export function DealInboxPage() {
 
   const filters = ["All Deals", "Active", "Kill", "Review", "Inbox", "Watchlist"];
 
-  const getFilterCount = (filterName: string) => {
-    if (filterName === "All Deals") return inboxItems.length;
-    if (filterName === "Watchlist") return inboxItems.filter((item: any) => watchlist.has(item.id)).length;
-    return inboxItems.filter((item: any) => getGroupedStatus(item.fields?.Status) === filterName).length;
+  const getFilterCount = (filterName: string): number | null => {
+    if (filterName === "Watchlist") return watchlist.size;
+    if (!stageCounts) return null; // counts still loading — render the pill without a number
+    if (filterName === "All Deals") return stageCounts.total;
+    const stage = FILTER_STAGES[filterName];
+    return stage ? stageCounts.byStage[stage] ?? 0 : 0;
   };
 
   return (
@@ -544,7 +610,7 @@ export function DealInboxPage() {
                   : "bg-white/[0.02] text-slate-400 border-white/[0.05] hover:bg-white/[0.05] hover:text-white"
               )}
             >
-              {f} ({count})
+              {f}{count === null ? "" : ` (${count})`}
             </button>
           );
         })}
@@ -568,7 +634,11 @@ export function DealInboxPage() {
         
         <div className="flex flex-wrap items-center gap-4">
           <div className="text-xs text-slate-500 font-semibold tracking-wide">
-            Total Unassigned: {filteredItems.length}
+            Unassigned:{" "}
+            <span className="text-slate-300">
+              {unassignedCount === null ? "—" : unassignedCount.toLocaleString()}
+            </span>
+            <span className="text-slate-600"> of {totalItems.toLocaleString()}</span>
           </div>
           <button 
             onClick={openAddModal}
@@ -680,7 +750,7 @@ export function DealInboxPage() {
                   );
                 })}
 
-                {filteredItems.length === 0 && (
+                {inboxItems.length === 0 && (
                   <tr>
                     <td colSpan={7} className="px-5 py-12 text-center text-xs font-bold text-slate-500">
                       No items found in your Deal Inbox.
@@ -695,7 +765,7 @@ export function DealInboxPage() {
           {totalPages > 1 && (
             <div className="flex items-center justify-between border-t border-white/[0.02] bg-white/[0.01] px-5 py-3.5 select-none">
               <div className="text-[9px] font-bold uppercase tracking-wider text-slate-500">
-                Showing {(currentPage - 1) * itemsPerPage + 1}–{Math.min(currentPage * itemsPerPage, filteredItems.length)} of {filteredItems.length}
+                Showing {totalItems === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1}–{Math.min(currentPage * itemsPerPage, totalItems)} of {totalItems.toLocaleString()}
               </div>
               <div className="flex items-center gap-2">
                 <button

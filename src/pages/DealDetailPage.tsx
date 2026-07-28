@@ -444,8 +444,11 @@ export function DealDetailPage() {
 
   useEffect(() => {
     setIsLoadingInbox(true);
-    getDealInbox()
-      .then((data) => setInboxRecords(data))
+    // Explicitly the old query (inbox stage, 200 rows): this page joins legacy
+    // inbox fields onto the deal by ref, and getDealInbox now defaults to a
+    // 25-row page across every stage for the Deal Inbox screen.
+    getDealInbox({ stage: "inbox", limit: 200 })
+      .then(({ rows }) => setInboxRecords(rows))
       .catch((err) => console.error("Error loading deal inbox for details:", err))
       .finally(() => setIsLoadingInbox(false));
   }, []);
