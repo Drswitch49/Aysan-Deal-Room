@@ -79,9 +79,15 @@ const ShareholderPortalPage = lazy(() => import("./pages/ShareholderPortalPage")
 const router = createBrowserRouter([
   {
     path: "/",
+    // PipelineProvider sits INSIDE the guard on purpose. Mounted above it, it
+    // fired its deal fetch while the user was still on the login screen, took a
+    // 401, and then never retried — so after signing in every page that reads
+    // the pipeline showed "Failed to load deals" until a full page reload.
     element: (
       <AdminGuard>
-        <AppLayout />
+        <PipelineProvider>
+          <AppLayout />
+        </PipelineProvider>
       </AdminGuard>
     ),
     children: [
@@ -120,9 +126,7 @@ import { AuthProvider } from "./context/AuthContext";
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <AuthProvider>
-      <PipelineProvider>
-        <RouterProvider router={router} />
-      </PipelineProvider>
+      <RouterProvider router={router} />
     </AuthProvider>
   </StrictMode>,
 );

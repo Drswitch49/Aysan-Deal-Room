@@ -9,6 +9,7 @@ import { fetchAdminLenders } from "../api/admin";
 import { getDeals } from "../api/airtable";
 import { fetchRecentAdminChat, subscribeAllChat } from "../api/chat";
 import type { PipelineDeal, ChatMessage } from "../types/deal";
+import { isIncoming, isUnread, markAllRead, markThreadRead } from "../lib/messageReads";
 import { cx } from "../utils/cx";
 
 type DealConversation = {
@@ -41,6 +42,17 @@ export function AdminMessagesPage() {
   const activeLenderId = searchParams.get("lenderId") || "";
   const activeDealId = searchParams.get("dealId") || "";
 
+  /**
+   * Ids that were still unread when this inbox was opened.
+   *
+   * Opening the inbox IS reading it, so the page marks everything read as soon
+   * as it has the messages — that is what stops the same message reappearing on
+   * the sidebar badge after every sign-in. The snapshot is kept purely so the
+   * list can still highlight what was new when you arrived; it is view state,
+   * never persisted.
+   */
+  const [unreadOnArrival, setUnreadOnArrival] = useState<Set<string>>(() => new Set());
+
   useEffect(() => {
     loadData();
   }, []);
@@ -52,6 +64,15 @@ export function AdminMessagesPage() {
     });
     return unsubscribe;
   }, []);
+
+  // Anything on screen counts as read — including messages that land over
+  // realtime while the inbox is open. Flag them first so they still stand out.
+  useEffect(() => {
+    if (isLoading || recentMessages.length === 0) return;
+    const fresh = recentMessages.filter((m) => isIncoming(m) && isUnread(m)).map((m) => m.id);
+    if (fresh.length) setUnreadOnArrival((prev) => new Set([...prev, ...fresh]));
+    markAllRead();
+  }, [recentMessages, isLoading]);
 
   async function loadData() {
     setIsLoading(true);
@@ -106,14 +127,8 @@ export function AdminMessagesPage() {
         const dealRef = dealInfo ? dealInfo.dealRef : "";
         const companyName = dealInfo ? dealInfo.companyName : "Assigned Deal";
 
-        // Read status per deal-lender combo
-        const lastReadTimeStr = localStorage.getItem(`admin_last_read_${lender.id}_${dealId}`) || 
-                               localStorage.getItem(`admin_last_read_${lender.id}`);
-        const lastReadTime = lastReadTimeStr ? new Date(lastReadTimeStr).getTime() : 0;
-        
-        const dealUnreadCount = sortedDealMsgs.filter(
-          (m) => m.sender !== "Admin" && new Date(m.timestamp).getTime() > lastReadTime
-        ).length;
+        // "New since you opened the inbox" — see unreadOnArrival above.
+        const dealUnreadCount = sortedDealMsgs.filter((m) => unreadOnArrival.has(m.id)).length;
 
         return {
           dealId,
@@ -148,7 +163,7 @@ export function AdminMessagesPage() {
       const timeB = new Date(b.latestMsg.timestamp).getTime();
       return timeB - timeA;
     });
-  }, [lenders, recentMessages, deals]);
+  }, [lenders, recentMessages, deals, unreadOnArrival]);
 
   // Filter conversations by search query (Lender name or Deal name)
   const filteredConversations = useMemo(() => {
@@ -180,6 +195,10 @@ export function AdminMessagesPage() {
     } else {
       // If clicking a new lender, select their most recent active deal automatically
       const defaultDealId = conv.deals.length > 0 ? conv.deals[0].dealId : "";
+      // Opening a lender clears that lender's whole conversation, not just the
+      // thread we auto-select — otherwise their other deal threads kept the
+      // sidebar badge lit even though the operator had been through the inbox.
+      markThreadRead(conv.lender.id, defaultDealId);
       setSearchParams({
         lenderId: conv.lender.id,
         dealId: defaultDealId

@@ -1,10 +1,32 @@
 import { FormEvent, useState } from "react";
 import { LockKeyhole, ShieldCheck, Key, ArrowLeft, CheckCircle2, Mail, Loader2, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
+import { clearApiCache } from "../../api/http";
 
 type AdminGuardProps = {
   children: React.ReactNode;
 };
+
+/**
+ * Roles allowed into the internal CRM, matching the normalised role enum stored
+ * in app_metadata (api/_lib/authz.ts). The previous list spelled two of these
+ * with a space ("managing partner"), so owner and managing_partner accounts were
+ * told "Forbidden" even though login had already succeeded and set their
+ * cookies — and a manual page reload then let them straight in. Lender and
+ * read_only accounts stay out; they belong in the portal.
+ */
+const STAFF_ROLES = new Set([
+  "owner",
+  "managing_partner",
+  "partner",
+  "admin",
+  "analyst",
+  "hr",
+  "stakeholder",
+]);
+
+const normaliseRole = (role: unknown): string =>
+  String(role ?? "").trim().toLowerCase().replace(/[\s-]+/g, "_");
 
 export function AdminGuard({ children }: AdminGuardProps) {
   const { isAuthenticated, isLoading, checkSession } = useAuth();
@@ -41,10 +63,17 @@ export function AdminGuard({ children }: AdminGuardProps) {
       
       if (response.ok) {
         const data = await response.json();
-        if (["admin", "analyst", "hr", "stakeholder", "managing partner", "partner"].includes((data.user.role || "").toLowerCase())) {
+        if (STAFF_ROLES.has(normaliseRole(data?.user?.role))) {
+          // Drop anything the browser cached while signed out so the first
+          // read of every page comes from the freshly authenticated session.
+          clearApiCache();
           await checkSession();
           setError("");
         } else {
+          // Login succeeded server-side, so the session cookies are already set.
+          // Leaving them in place would let the next page load walk straight
+          // past this check — clear them before reporting the refusal.
+          await fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
           setError("Forbidden: Access restricted to authorized platform users.");
         }
       } else {

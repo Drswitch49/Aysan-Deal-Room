@@ -15,12 +15,46 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(method: string, url: string, body?: unknown): Promise<T> {
+/**
+ * Session re-validation, de-duplicated across concurrent callers.
+ *
+ * /api/auth/session verifies the access cookie and, when it has expired,
+ * transparently rotates the session off the refresh cookie and re-issues both.
+ * Hitting it is therefore the cheapest way to turn a 401 into a working
+ * session without bouncing the user back to the login screen.
+ */
+let sessionCheck: Promise<boolean> | null = null;
+
+function revalidateSession(): Promise<boolean> {
+  if (!sessionCheck) {
+    const pending = fetch("/api/auth/session", { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => Boolean(data?.authenticated))
+      .catch(() => false);
+    sessionCheck = pending;
+    void pending.finally(() => {
+      if (sessionCheck === pending) sessionCheck = null;
+    });
+  }
+  return sessionCheck;
+}
+
+async function request<T>(method: string, url: string, body?: unknown, allowRetry = true): Promise<T> {
   const res = await fetch(url, {
     method,
     headers: body !== undefined ? { "Content-Type": "application/json" } : undefined,
     body: body !== undefined ? JSON.stringify(body) : undefined,
+    // Never let a heuristically-cached response stand in for a live read — an
+    // API GET carries no cache headers, so browsers are free to reuse one.
+    cache: "no-store",
   });
+
+  // A 401 immediately after sign-in means this request raced the session (or
+  // the access token just aged out). Re-validate once and replay rather than
+  // surfacing "Failed to load …" and making the user reload the page.
+  if (res.status === 401 && allowRetry) {
+    if (await revalidateSession()) return request<T>(method, url, body, false);
+  }
 
   let payload: any = null;
   try {

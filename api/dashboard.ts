@@ -123,10 +123,11 @@ export default createHandler({
       avgVelocityDays: 0, // requires stage-dwell history; surfaced as "—" until wired
     };
 
-    // Actions due in a tight window around today — 3 days either side.
+    // Actions due in a window around today — 7 days either side.
     // Previously this took anything on/before today, so items weeks overdue
-    // crowded out what actually needs attention now.
-    const ACTION_WINDOW_DAYS = 3;
+    // crowded out what actually needs attention now; a week either way keeps
+    // the list to the current working horizon without hiding the near future.
+    const ACTION_WINDOW_DAYS = 7;
     const today = new Date().toISOString().slice(0, 10);
     const dayOffset = (n: number) => new Date(Date.now() + n * 86_400_000).toISOString().slice(0, 10);
     const windowStart = dayOffset(-ACTION_WINDOW_DAYS);
@@ -141,16 +142,19 @@ export default createHandler({
       .sort((a, b) => String(a.next_action_date).localeCompare(String(b.next_action_date)))
       .slice(0, 8)
       .map((d) => {
-        const overdue = String(d.next_action_date).slice(0, 10) < today;
+        // The window spans a fortnight now, so "DUE TODAY" can no longer stand
+        // in for everything that isn't overdue — label the three cases apart.
+        const date = String(d.next_action_date).slice(0, 10);
+        const statusText = date < today ? "OVERDUE" : date === today ? "DUE TODAY" : "UPCOMING";
         return {
           id: d.id,
           link: `/deals/${d.acp_ref_no || d.ref_no || d.id}`,
           title: d.next_action || "Follow up",
           dealRef: d.acp_ref_no || d.ref_no || "",
           assignee: d.owner || d.analyst || d.assigned_to || "Unassigned",
-          statusText: overdue ? "OVERDUE" : "DUE TODAY",
-          color: overdue ? "red" : "amber",
-          dateStr: String(d.next_action_date).slice(0, 10),
+          statusText,
+          color: statusText === "OVERDUE" ? "red" : "amber",
+          dateStr: date,
         };
       });
 

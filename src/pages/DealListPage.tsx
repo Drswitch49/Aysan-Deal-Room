@@ -616,9 +616,19 @@ export function DealListPage() {
 
       {isLoading && <LoadingState variant="table" label="Loading pipeline deals" />}
 
+      {/* A bare error bar was a dead end — reloading the whole page was the only
+          way out of it. Offer the retry directly. */}
       {error && (
-        <div className="rounded-2xl border border-rose-500/10 bg-rose-500/5 p-6 text-center text-xs font-semibold text-rose-400 border-l-4 border-l-rose-500">
-          {error}
+        <div className="rounded-2xl border border-rose-500/10 bg-rose-500/5 p-6 flex flex-col items-center gap-3 border-l-4 border-l-rose-500">
+          <p className="text-center text-xs font-semibold text-rose-400">{error}</p>
+          <button
+            type="button"
+            onClick={refreshPipeline}
+            className="inline-flex h-8 items-center gap-2 rounded-xl border border-white/[0.06] bg-white/[0.03] px-4 text-[10px] font-bold uppercase tracking-wider text-slate-200 hover:bg-white/[0.06] hover:text-white transition cursor-pointer"
+          >
+            <RefreshCw className="h-3 w-3" />
+            Retry
+          </button>
         </div>
       )}
 

@@ -8,6 +8,7 @@ import { Link } from "react-router-dom";
 import { fetchAdminLenders, fetchDashboardStats } from "../api/admin";
 import { fetchRecentAdminChat } from "../api/chat";
 import { usePipeline } from "../context/PipelineContext";
+import { countLendersWithUnread, onMessagesRead } from "../lib/messageReads";
 import { StatCard } from "../components/ui/StatCard";
 
 import { LoadingState } from "../components/ui/LoadingState";
@@ -86,29 +87,14 @@ export function DashboardPage() {
     };
   }, [selectedAssignee]);
 
-  // Client-side unread messages indicator based on local storage last reads
-  const unreadMessagesCount = useMemo(() => {
-    let unread = 0;
-    lenders.forEach((l: any) => {
-      const msgs = chats.filter((m) => m.lenderId === l.id && m.sender !== "Admin");
-      if (msgs.length === 0) return;
-
-      const msgsByDeal: Record<string, any[]> = {};
-      msgs.forEach((m) => {
-        if (!msgsByDeal[m.dealId]) msgsByDeal[m.dealId] = [];
-        msgsByDeal[m.dealId].push(m);
-      });
-
-      const hasAnyUnreadDeal = Object.entries(msgsByDeal).some(([dealId, dealMsgs]) => {
-        const lastReadTimeStr = localStorage.getItem(`admin_last_read_${l.id}_${dealId}`) || 
-                               localStorage.getItem(`admin_last_read_${l.id}`);
-        const lastReadTime = lastReadTimeStr ? new Date(lastReadTimeStr).getTime() : 0;
-        return dealMsgs.some((m) => new Date(m.timestamp).getTime() > lastReadTime);
-      });
-
-      if (hasAnyUnreadDeal) unread++;
-    });
-    return unread;
+  // Unread lender messages — same read-state source as the sidebar badge and
+  // the Messages inbox, so the three can't disagree. Recomputed on read events
+  // because the underlying watermarks live outside React state.
+  const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
+  useEffect(() => {
+    const recompute = () => setUnreadMessagesCount(countLendersWithUnread(lenders, chats));
+    recompute();
+    return onMessagesRead(recompute);
   }, [lenders, chats]);
 
   // Current Date nicely formatted
@@ -302,7 +288,7 @@ export function DashboardPage() {
               {/* Actions Due Today */}
               <div className="rounded-2xl p-6 pe-card">
                 <SectionHeader>Actions Due</SectionHeader>
-                <p className="mt-1 text-[10px] text-slate-500 select-none">Within 3 days either side of today</p>
+                <p className="mt-1 text-[10px] text-slate-500 select-none">Within 7 days either side of today</p>
 
                 <div className="mt-4 divide-y divide-white/[0.02] font-sans">
                   {stats.actionsDueToday && stats.actionsDueToday.map((act: any) => (
@@ -357,7 +343,7 @@ export function DashboardPage() {
                       <span className="h-1.5 w-1.5 rounded-full bg-slate-750" />
                       <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">No actions due this week</p>
                       <p className="text-[10px] text-slate-600">
-                        Nothing scheduled within 3 days either side of today.
+                        Nothing scheduled within 7 days either side of today.
                       </p>
                     </div>
                   )}

@@ -10,6 +10,7 @@ import { cx } from "../../utils/cx";
 import { changeAdminPassword, fetchAdminLenders } from "../../api/admin";
 import { fetchRecentAdminChat, subscribeAllChat } from "../../api/chat";
 import { clearRealtimeAuth } from "../../lib/supabase";
+import { countLendersWithUnread, onMessagesRead, type ReadableMessage } from "../../lib/messageReads";
 import { ChatNotificationWatcher } from "../ui/ChatNotificationWatcher";
 import { Modal } from "../ui/Modal";
 import { FormField, inputClass } from "../ui/FormField";
@@ -81,37 +82,13 @@ export function AppLayout() {
   }, [isMobileMenuOpen]);
 
   // Admin "unread messages" badge. Seeded once, then kept current via Supabase
-  // Realtime — no periodic network polling. A tiny local timer re-derives the
-  // count from the in-memory cache so it also clears when the admin reads a
-  // thread (which updates the admin_last_read_* localStorage keys).
+  // Realtime — no periodic network polling. Read state lives in messageReads,
+  // shared with the Messages inbox and the dashboard banner so all three agree.
   useEffect(() => {
     let lenders: any[] = [];
-    let messages: any[] = [];
+    let messages: ReadableMessage[] = [];
 
-    const recompute = () => {
-      let unread = 0;
-      lenders.forEach((l: any) => {
-        const msgs = messages.filter((m: any) => m.lenderId === l.id && m.sender !== "Admin");
-        if (msgs.length === 0) return;
-
-        const msgsByDeal: Record<string, any[]> = {};
-        msgs.forEach((m: any) => {
-          if (!msgsByDeal[m.dealId]) msgsByDeal[m.dealId] = [];
-          msgsByDeal[m.dealId].push(m);
-        });
-
-        const hasAnyUnreadDeal = Object.entries(msgsByDeal).some(([dealId, dealMsgs]) => {
-          const lastReadTimeStr =
-            localStorage.getItem(`admin_last_read_${l.id}_${dealId}`) ||
-            localStorage.getItem(`admin_last_read_${l.id}`);
-          const lastReadTime = lastReadTimeStr ? new Date(lastReadTimeStr).getTime() : 0;
-          return dealMsgs.some((m) => new Date(m.timestamp).getTime() > lastReadTime);
-        });
-
-        if (hasAnyUnreadDeal) unread++;
-      });
-      setUnreadMessages(unread);
-    };
+    const recompute = () => setUnreadMessages(countLendersWithUnread(lenders, messages));
 
     // Seed the caches once.
     Promise.all([
@@ -126,7 +103,6 @@ export function AppLayout() {
     // Append new messages as they arrive over realtime.
     const unsubscribe = subscribeAllChat((msg) => {
       messages.push({
-        id: msg.id,
         lenderId: msg.lenderId,
         dealId: msg.dealId,
         sender: msg.sender,
@@ -135,12 +111,12 @@ export function AppLayout() {
       recompute();
     });
 
-    // Cheap local re-derive (no network) so reads clear the badge promptly.
-    const interval = setInterval(recompute, 5000);
+    // Clear the badge the moment the inbox is read, without waiting on a timer.
+    const unwatchReads = onMessagesRead(recompute);
 
     return () => {
       unsubscribe();
-      clearInterval(interval);
+      unwatchReads();
     };
   }, []);
 

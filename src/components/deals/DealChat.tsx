@@ -8,6 +8,7 @@ import {
   subscribeDealChat
 } from "../../api/chat";
 import type { ChatMessage } from "../../types/deal";
+import { markThreadRead } from "../../lib/messageReads";
 import { formatDate } from "../../utils/fields";
 
 interface DealChatProps {
@@ -89,13 +90,11 @@ export function DealChat({
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
 
-  // Update last read state in local storage when messages are viewed or sent
+  // Viewing (or replying in) a thread marks it read.
   useEffect(() => {
     if (messages.length === 0) return;
     if (mode === "admin" && lenderRecordId) {
-      const nowStr = new Date().toISOString();
-      localStorage.setItem(`admin_last_read_${lenderRecordId}`, nowStr);
-      localStorage.setItem(`admin_last_read_${lenderRecordId}_${dealId}`, nowStr);
+      markThreadRead(lenderRecordId, dealId);
     } else if (mode === "lender" && dealId) {
       localStorage.setItem(`lender_last_read_${dealId}`, new Date().toISOString());
     }
