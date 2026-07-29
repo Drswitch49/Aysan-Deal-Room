@@ -361,6 +361,12 @@ export function DealDetailPage() {
       owner: eligibleUsers.includes(d.rawFields?.["Owner"]) ? d.rawFields?.["Owner"] : "",
       analyst: d.rawFields?.["Analyst"] || d.rawFields?.["analyst"] || "",
       source: d.rawFields?.["Source"] || d.rawFields?.["source"] || "",
+      // "Contact Name" is the broker column — the overview labels it Contact,
+      // so the editor does too rather than exposing the underlying name.
+      contactName: d.broker || d.rawFields?.["Contact Name"] || d.rawFields?.["Broker Name"] || d.rawFields?.["BROKER"] || "",
+      contactEmail: d.contactEmail || d.rawFields?.["Contact Email"] || d.rawFields?.["Contact_Email"] || d.rawFields?.["Contact E-mail"] || "",
+      contactPhone: d.contactPhone || d.rawFields?.["Contact_Phone"] || d.rawFields?.["Contact Phone"] || "",
+      listingLink: d.listingLink || d.rawFields?.["Listing Link"] || d.rawFields?.["Listing_Link"] || "",
       revenue: d.revenue || d.turnover || d.rawFields?.["Turnover"] || d.rawFields?.["Revenue"] || "",
       ebitda: d.ebitda || d.rawFields?.["EBITDA_GBP"] || d.rawFields?.["EBITDA"] || "",
       enterpriseValue: d.ev || d.rawFields?.["Enterprise_Value"] || d.rawFields?.["Enterprise Value"] || d.rawFields?.["EV"] || "",
@@ -1143,6 +1149,27 @@ export function DealDetailPage() {
                 <input id="edit-location" type="text" value={editFields.location || ""} onChange={e => setEditFields(f => ({...f, location: e.target.value}))} className={inputClass} />
               </FormField>
             </div>
+          </div>
+          {/* The Sourcing & Contact card on the overview reads these four, but
+              nothing here could set them — they were only ever populated by the
+              Airtable import, so a deal created in-app had no way to record a
+              broker at all. */}
+          <div className="space-y-3">
+            <p className="text-[9px] font-extrabold uppercase tracking-widest text-slate-500">Sourcing &amp; Contact</p>
+            <div className="grid grid-cols-3 gap-3">
+              <FormField label="Contact Name" id="edit-contact-name">
+                <input id="edit-contact-name" type="text" value={editFields.contactName || ""} onChange={e => setEditFields(f => ({...f, contactName: e.target.value}))} className={inputClass} />
+              </FormField>
+              <FormField label="Contact Email" id="edit-contact-email">
+                <input id="edit-contact-email" type="email" value={editFields.contactEmail || ""} onChange={e => setEditFields(f => ({...f, contactEmail: e.target.value}))} className={inputClass} />
+              </FormField>
+              <FormField label="Contact Phone" id="edit-contact-phone">
+                <input id="edit-contact-phone" type="tel" value={editFields.contactPhone || ""} onChange={e => setEditFields(f => ({...f, contactPhone: e.target.value}))} className={inputClass} />
+              </FormField>
+            </div>
+            <FormField label="Listing Link" id="edit-listing-link">
+              <input id="edit-listing-link" type="url" inputMode="url" placeholder="https://…" value={editFields.listingLink || ""} onChange={e => setEditFields(f => ({...f, listingLink: e.target.value}))} className={inputClass} />
+            </FormField>
           </div>
           <div className="space-y-3">
             <p className="text-[9px] font-extrabold uppercase tracking-widest text-slate-500">Ownership</p>

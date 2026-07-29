@@ -72,6 +72,12 @@ export const DEAL_KEY_MAP: Record<string, string> = {
   "internalNotes": "internal_notes",
   "businessDescription": "business_description",
   "executiveSummary": "executive_summary",
+  // Sourcing & contact. "contactName" is the broker column — the UI labels it
+  // Contact throughout, so the form key follows the label, not the column.
+  "contactName": "broker",
+  "contactEmail": "contact_email",
+  "contactPhone": "contact_phone",
+  "listingLink": "listing_link",
 };
 
 export const DOC_KEY_MAP: Record<string, string> = {

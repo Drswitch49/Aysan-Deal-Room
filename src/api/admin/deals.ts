@@ -77,9 +77,18 @@ export interface CreateDealPayload {
   nextAction?: string;
   nextActionDate?: string;
   internalNotes?: string;
+  /** Broker/seller contact — `contactName` is stored in the broker column. */
+  contactName?: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  listingLink?: string;
   // Legacy support
   dealName?: string;
 }
+
+/** Blank optional inputs must be omitted, not sent as "" — the create schema
+ *  validates contact_email as an address, and "" is not one. */
+const omitBlank = (v?: string) => (v && v.trim() ? v.trim() : undefined);
 
 export async function createAdminDeal(data: CreateDealPayload) {
   const row = await api.post<Row>("/api/deals", {
@@ -102,6 +111,10 @@ export async function createAdminDeal(data: CreateDealPayload) {
     next_action: data.nextAction,
     next_action_date: data.nextActionDate,
     internal_notes: data.internalNotes,
+    broker: omitBlank(data.contactName),
+    contact_email: omitBlank(data.contactEmail),
+    contact_phone: omitBlank(data.contactPhone),
+    listing_link: omitBlank(data.listingLink),
   });
   clearAirtableCache();
   return { success: true, deal: row, result: row, id: row.id } as Row;

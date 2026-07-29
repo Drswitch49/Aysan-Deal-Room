@@ -69,6 +69,11 @@ export function DealListPage() {
   const [newDealEV, setNewDealEV] = useState("");
   const [newDealAskingPrice, setNewDealAskingPrice] = useState("");
   const [newDealNotes, setNewDealNotes] = useState("");
+  // Sourcing & contact — the deal overview shows these, so creation must set them.
+  const [newDealContactName, setNewDealContactName] = useState("");
+  const [newDealContactEmail, setNewDealContactEmail] = useState("");
+  const [newDealContactPhone, setNewDealContactPhone] = useState("");
+  const [newDealListingLink, setNewDealListingLink] = useState("");
   
   // IM & Attachment upload states for new deal
   const [pendingFiles, setPendingFiles] = useState<Array<{ fileName: string; fileType: string; fileData: string }>>([]);
@@ -358,6 +363,10 @@ export function DealListPage() {
         nextAction: newDealNextAction.trim() || undefined,
         nextActionDate: newDealNextActionDate || undefined,
         internalNotes: newDealNotes.trim() || undefined,
+        contactName: newDealContactName.trim() || undefined,
+        contactEmail: newDealContactEmail.trim() || undefined,
+        contactPhone: newDealContactPhone.trim() || undefined,
+        listingLink: newDealListingLink.trim() || undefined,
       });
 
       // Sequentially upload all files in pendingFiles
@@ -380,6 +389,8 @@ export function DealListPage() {
       setNewDealLocation(""); setNewDealOwner(""); setNewDealAnalyst("");
       setNewDealSource(""); setNewDealRevenue(""); setNewDealEbitda("");
       setNewDealEV(""); setNewDealAskingPrice(""); setNewDealNotes("");
+      setNewDealContactName(""); setNewDealContactEmail("");
+      setNewDealContactPhone(""); setNewDealListingLink("");
       setPendingFiles([]);
       setIsModalOpen(false);
       
@@ -866,6 +877,26 @@ export function DealListPage() {
                 <input id="new-deal-location" type="text" value={newDealLocation} onChange={(e) => setNewDealLocation(e.target.value)} placeholder="e.g. London, UK" className={inputClass} />
               </FormField>
             </div>
+          </div>
+
+          {/* Sourcing & Contact — mirrors the card on the deal overview, which
+              had no way of being filled in for a deal created here. */}
+          <div className="space-y-3">
+            <p className="text-[9px] font-extrabold uppercase tracking-widest text-slate-500">Sourcing &amp; Contact</p>
+            <div className="grid grid-cols-3 gap-3">
+              <FormField label="Contact Name" id="new-deal-contact-name">
+                <input id="new-deal-contact-name" type="text" value={newDealContactName} onChange={(e) => setNewDealContactName(e.target.value)} placeholder="e.g. Broker or seller" className={inputClass} />
+              </FormField>
+              <FormField label="Contact Email" id="new-deal-contact-email">
+                <input id="new-deal-contact-email" type="email" value={newDealContactEmail} onChange={(e) => setNewDealContactEmail(e.target.value)} placeholder="name@example.com" className={inputClass} />
+              </FormField>
+              <FormField label="Contact Phone" id="new-deal-contact-phone">
+                <input id="new-deal-contact-phone" type="tel" value={newDealContactPhone} onChange={(e) => setNewDealContactPhone(e.target.value)} placeholder="e.g. +44 20 7000 0000" className={inputClass} />
+              </FormField>
+            </div>
+            <FormField label="Listing Link" id="new-deal-listing-link">
+              <input id="new-deal-listing-link" type="url" inputMode="url" value={newDealListingLink} onChange={(e) => setNewDealListingLink(e.target.value)} placeholder="https://…" className={inputClass} />
+            </FormField>
           </div>
 
           {/* Ownership */}
