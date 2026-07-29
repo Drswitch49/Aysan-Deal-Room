@@ -1,8 +1,7 @@
-import { Filter, Files, ShieldAlert, FileText, FileSpreadsheet, FileArchive, CheckCircle2, Search, X, Calendar, User, History, Download, ExternalLink, Plus, FileWarning, Loader2, Sparkles, BrainCircuit, Upload, Trash2 } from "lucide-react";
+import { Filter, Files, ShieldAlert, FileText, FileSpreadsheet, FileArchive, CheckCircle2, Search, X, Calendar, User, History, ExternalLink, Plus, FileWarning, Upload, Trash2 } from "lucide-react";
 import { useMemo, useState, useEffect, useCallback } from "react";
 import type { DealDocument } from "../../types/deal";
-import { updateAdminDocuments, createAdminDocument, uploadAdminDocument, analyzeAdminDocument, parseAdminDocument, getJobStatus, deleteAdminDocument } from "../../api/admin";
-import { getDriveDownloadUrl, getDriveViewUrl } from "../../utils/drive";
+import { updateAdminDocuments, createAdminDocument, uploadAdminDocument, parseAdminDocument, getJobStatus, deleteAdminDocument, getDocumentFileUrl } from "../../api/admin";
 import { formatDate, uniqueSorted } from "../../utils/fields";
 import { isSentToLender } from "../../utils/security";
 import { Badge, StatusBadge } from "../ui/Badge";
@@ -82,22 +81,18 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
   const [uploadMode, setUploadMode] = useState<"link" | "upload">("link");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedFileDataBase64, setSelectedFileDataBase64] = useState<string>("");
-  const [previewDoc, setPreviewDoc] = useState<DealDocument | null>(null);
-  const [previewText, setPreviewText] = useState<string>("");
-  const [loadingPreviewText, setLoadingPreviewText] = useState(false);
-  const [aiAnalysis, setAiAnalysis] = useState<any | null>(null);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  /** Surfaced inline when View/Download can't resolve a file. */
+  const [docActionError, setDocActionError] = useState<string>("");
 
-  // Parse (text extraction) states
+  // Text extraction, kicked off automatically after an upload. There is no
+  // manual trigger any more: it lived in the file-preview modal that used to
+  // intercept View/Download, and that modal is gone.
   const [isParsing, setIsParsing] = useState(false);
-  const [parseResult, setParseResult] = useState<{ characterCount: number; wordCount: number; fileType: string } | null>(null);
   const [parseError, setParseError] = useState<string>("");
 
-  // Async job polling — tracks in-flight QStash job IDs
+  // Async job polling — tracks the in-flight extraction job
   const [pendingParseJobId, setPendingParseJobId] = useState<{ recordId: string; table: string } | null>(null);
-  const [pendingAnalysisJobId, setPendingAnalysisJobId] = useState<{ recordId: string; table: string } | null>(null);
   const [parseJobStatus, setParseJobStatus] = useState<string>("");
-  const [analysisJobStatus, setAnalysisJobStatus] = useState<string>("");
 
   // Poll for parse job completion
   useEffect(() => {
@@ -115,7 +110,6 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
         };
         setParseJobStatus(label[s.status] ?? s.status);
         if (s.isComplete) {
-          setParseResult({ characterCount: 0, wordCount: 0, fileType: "extracted" });
           setIsParsing(false);
           setPendingParseJobId(null);
           clearInterval(interval);
@@ -132,81 +126,6 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
     }, 3000);
     return () => clearInterval(interval);
   }, [pendingParseJobId, onRefresh]);
-
-  // Poll for AI analysis job completion
-  useEffect(() => {
-    if (!pendingAnalysisJobId) return;
-    const { recordId, table } = pendingAnalysisJobId;
-    const interval = setInterval(async () => {
-      try {
-        const s = await getJobStatus(table, recordId);
-        const label: Record<string, string> = {
-          queued: "Queued…",
-          processing: "Analyzing…",
-          analyzing: "Analyzing…",
-          completed: "Analysis complete ✓",
-          failed: "Analysis failed",
-        };
-        setAnalysisJobStatus(label[s.status] ?? s.status);
-        if (s.isComplete) {
-          // Refresh to load the completed analysis result from Airtable
-          setIsAnalyzing(false);
-          setPendingAnalysisJobId(null);
-          clearInterval(interval);
-          if (onRefresh) onRefresh();
-        } else if (s.isFailed) {
-          setIsAnalyzing(false);
-          setPendingAnalysisJobId(null);
-          clearInterval(interval);
-          alert(s.error || "AI Analysis failed.");
-        }
-      } catch {
-        // Network glitch — keep polling
-      }
-    }, 3000);
-    return () => clearInterval(interval);
-  }, [pendingAnalysisJobId, onRefresh]);
-
-  // Fetch text preview content
-  useEffect(() => {
-    if (!previewDoc || !previewDoc.driveLink) {
-      setPreviewText("");
-      setAiAnalysis(null);
-      return;
-    }
-    // Clean query parameters and extract file extension from URL/pathname
-    let ext = "";
-    try {
-      const urlObj = new URL(previewDoc.driveLink);
-      ext = urlObj.pathname.split(".").pop()?.toLowerCase() || "";
-    } catch {
-      const cleanLink = previewDoc.driveLink.split("?")[0];
-      ext = cleanLink.split(".").pop()?.toLowerCase() || "";
-    }
-
-    const isHttpOrUpload = previewDoc.driveLink.startsWith("http://") || 
-                           previewDoc.driveLink.startsWith("https://") || 
-                           previewDoc.driveLink.startsWith("/uploads/");
-    const isTextDoc = ["txt", "csv", "json", "md"].includes(ext);
-
-    if (isHttpOrUpload && isTextDoc) {
-      setLoadingPreviewText(true);
-      fetch(previewDoc.driveLink)
-        .then(res => res.text())
-        .then(text => {
-          setPreviewText(text);
-          setLoadingPreviewText(false);
-        })
-        .catch(err => {
-          console.error("Failed to load text preview:", err);
-          setPreviewText("Failed to load file preview contents.");
-          setLoadingPreviewText(false);
-        });
-    } else {
-      setPreviewText("");
-    }
-    setAiAnalysis(null);
-  }, [previewDoc]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -226,22 +145,53 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
     }
   };
 
-  const handleViewClick = (e: React.MouseEvent, doc: DealDocument) => {
-    if (!doc.driveLink || doc.driveLink.trim() === "") {
-      handleDocActionClick(e, doc, "view");
-      return;
-    }
+  /**
+   * Open a document straight away — View in a new tab, Download to disk.
+   *
+   * Both used to route through a preview modal offering text extraction and AI
+   * analysis before you could get at the file. They now resolve a signed URL and
+   * go. The blank tab is opened synchronously, before the await, because a
+   * window.open() that happens after one is treated as a popup and blocked.
+   */
+  const openDocument = async (e: React.MouseEvent, doc: DealDocument, mode: "view" | "download") => {
     e.preventDefault();
     e.stopPropagation();
-    setPreviewDoc(doc);
+
+    if (!doc.driveLink || doc.driveLink.trim() === "") {
+      handleDocActionClick(e, doc);
+      return;
+    }
+
+    const tab = mode === "view" ? window.open("", "_blank", "noopener,noreferrer") : null;
+    setDocActionError("");
+    try {
+      const url = await getDocumentFileUrl(doc.id, mode);
+      if (mode === "view") {
+        if (tab) tab.location.href = url;
+        else window.open(url, "_blank", "noopener,noreferrer"); // popup blocked — try again directly
+        return;
+      }
+      // Cloudinary returns this one as an attachment, so navigating triggers the
+      // save dialog without leaving the page.
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = doc.documentName || "";
+      a.rel = "noreferrer";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } catch (err: any) {
+      tab?.close();
+      console.error("Document open failed:", err);
+      setDocActionError(err?.message || `Could not ${mode} "${doc.documentName || "this document"}".`);
+    }
   };
 
-  const handleParseDocument = async (docId?: string) => {
-    const id = docId || previewDoc?.id;
+  /** Queue text extraction for a document (run automatically after upload). */
+  const handleParseDocument = async (id: string) => {
     if (!id) return;
     setIsParsing(true);
     setParseError("");
-    setParseResult(null);
     setParseJobStatus("");
     try {
       const res = await parseAdminDocument(id);
@@ -252,7 +202,6 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
         // isParsing stays true until polling completes
       } else {
         // 200 — synchronous result (local dev, no QStash)
-        setParseResult({ characterCount: res.characterCount, wordCount: res.wordCount, fileType: res.fileType });
         setIsParsing(false);
         if (onRefresh) onRefresh();
       }
@@ -262,52 +211,6 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
       setIsParsing(false);
     }
   };
-
-  const handleRunAiAnalysis = async () => {
-    if (!previewDoc) return;
-    setIsAnalyzing(true);
-    setAiAnalysis(null);
-    setAnalysisJobStatus("");
-    try {
-      const res = await analyzeAdminDocument(previewDoc.id);
-      if (res.status === "queued") {
-        // 202 — job queued with QStash. Start polling.
-        setAnalysisJobStatus("Queued…");
-        setPendingAnalysisJobId({ recordId: previewDoc.id, table: "Documents" });
-        // isAnalyzing stays true until polling completes
-      } else {
-        // 200 — synchronous result (local dev)
-        setAiAnalysis(res);
-        setIsAnalyzing(false);
-      }
-    } catch (err: any) {
-      console.error("AI Analysis failed:", err);
-      if (err.message?.includes("parse") || err.message?.includes("No extracted text")) {
-        setParseError("This document must be parsed before AI analysis. Click \"Extract Text\" above.");
-      } else {
-        alert(err.message || "AI Analysis failed.");
-      }
-      setIsAnalyzing(false);
-    }
-  };
-
-
-  // Synchronise draft link when drawer selection changes
-  useEffect(() => {
-    if (selectedDoc) {
-      setDraftLink(selectedDoc.driveLink || "");
-    }
-  }, [selectedDoc]);
-
-  // Synchronise selectedDoc when documents prop updates
-  useEffect(() => {
-    if (selectedDoc) {
-      const updated = documents.find((d) => d.id === selectedDoc.id);
-      if (updated) {
-        setSelectedDoc((prev) => (prev ? { ...prev, ...updated } : null));
-      }
-    }
-  }, [documents, selectedDoc?.id]);
 
   const handleBatchStatusUpdate = async (status: string) => {
     if (selectedIds.size === 0) return;
@@ -394,8 +297,7 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
 
         // Automatically trigger text extraction after upload (fire-and-forget with status)
         if (uploadResult?.result?.id) {
-          // Don't await – let it run in background; user can see parse status in drawer
-          setParseResult(null);
+          // Don't await — status shows in the banner above the table.
           setParseError("");
           handleParseDocument(uploadResult.result.id).catch(() => {});
         }
@@ -430,20 +332,15 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
   };
 
 
-  const handleDocActionClick = (e: React.MouseEvent, doc: DealDocument, action: "view" | "download") => {
-    if (!doc.driveLink || doc.driveLink.trim() === "") {
-      e.preventDefault();
-      e.stopPropagation();
-      if (audience === "internal") {
-        alert(
-          `No link has been uploaded for "${doc.documentName || "this document"}" yet.\n\nPlease select the document row, then paste a Google Drive or file URL in the "Document Link Management" section in the right drawer.`
-        );
-      } else {
-        alert(
-          `The document "${doc.documentName || "this document"}" is not yet available for view or download.\n\nPlease contact your Deal Manager to request access.`
-        );
-      }
-    }
+  /** No file attached yet — explain rather than opening a dead link. */
+  const handleDocActionClick = (e: React.MouseEvent, doc: DealDocument) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDocActionError(
+      audience === "internal"
+        ? `No file has been uploaded for "${doc.documentName || "this document"}" yet. Open the document row and add a file or link under "Document Link Management".`
+        : `"${doc.documentName || "This document"}" is not yet available. Please contact your Deal Manager to request access.`,
+    );
   };
 
   const visibleDocuments = useMemo(
@@ -707,6 +604,34 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
         </div>
       )}
 
+      {/* Inline status for the document actions. These used to be an alert() or
+          a panel inside the file-preview modal; neither survives the modal's
+          removal, and a blocking alert was the wrong shape for both anyway. */}
+      {docActionError && (
+        <div className="rounded-xl border border-rose-500/20 bg-rose-500/5 px-4 py-3 flex items-start justify-between gap-3">
+          <span className="text-xs font-semibold text-rose-300 leading-relaxed">{docActionError}</span>
+          <button
+            type="button"
+            onClick={() => setDocActionError("")}
+            className="shrink-0 text-slate-400 hover:text-white transition-colors"
+            aria-label="Dismiss"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
+
+      {isParsing && (
+        <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-3 text-xs font-semibold text-slate-300">
+          {parseJobStatus || "Extracting document text…"}
+        </div>
+      )}
+      {!isParsing && parseError && (
+        <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-xs font-semibold text-amber-300">
+          {parseError}
+        </div>
+      )}
+
       {filteredDocuments.length > 0 ? (
         <Table className="max-h-[65vh]">
           <thead>
@@ -799,20 +724,19 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
                 <Td className="text-right" onClick={(e) => e.stopPropagation()}>
                   <div className="flex justify-end gap-2">
                     {audience === "internal" && (
-                      <ButtonLink 
-                        href={document.driveLink} 
+                      <ButtonLink
+                        href={document.driveLink}
                         icon="view"
-                        onClick={(e) => handleViewClick(e, document)}
+                        onClick={(e) => openDocument(e, document, "view")}
                       >
                         View
                       </ButtonLink>
                     )}
-                    <ButtonLink 
-                      href={getDriveDownloadUrl(document.driveLink)} 
-                      icon="download" 
+                    <ButtonLink
+                      href={document.driveLink}
+                      icon="download"
                       variant="purple"
-                      onClick={(e) => handleDocActionClick(e, document, "download")}
-                      download
+                      onClick={(e) => openDocument(e, document, "download")}
                     >
                       Download
                     </ButtonLink>
@@ -842,22 +766,21 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
         </>
       )}
 
-      {/* Right-Hand slide out drawer backdrop */}
+      {/* Document detail — a centred dialog. It used to fly out of the top-right
+          corner as a full-height drawer, which read as a stray notification
+          rather than the record you had just clicked. */}
       {selectedDoc && (
-        <div 
-          className="fixed inset-0 bg-slate-950/60 backdrop-blur-md z-40 transition-opacity duration-300"
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md"
           onClick={() => setSelectedDoc(null)}
-        />
-      )}
-
-      {/* Right-Hand slide out drawer */}
-      <div 
-        className={cx(
-          "fixed top-0 right-0 h-screen w-full sm:w-[480px] bg-acp-ink border-l border-white/[0.02] z-50 shadow-2xl transition-all duration-450 cubic-bezier(0.16, 1, 0.3, 1) flex flex-col transform",
-          selectedDoc ? "translate-x-0" : "translate-x-full"
-        )}
-      >
-        {selectedDoc && (
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Document ${selectedDoc.indexRef}`}
+        >
+          <div
+            className="w-full max-w-2xl max-h-[88vh] rounded-2xl border border-white/[0.06] bg-acp-ink shadow-2xl flex flex-col overflow-hidden animate-scale-in"
+            onClick={(e) => e.stopPropagation()}
+          >
           <>
             {/* Drawer Header */}
             <div className="flex items-center justify-between px-6 py-5 border-b border-white/5">
@@ -1003,25 +926,25 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
                   href={selectedDoc.driveLink}
                   icon="view"
                   className="h-11 w-full"
-                  onClick={(e) => handleViewClick(e, selectedDoc)}
+                  onClick={(e) => openDocument(e, selectedDoc, "view")}
                 >
                   View File
                 </ButtonLink>
               )}
               <ButtonLink
-                href={getDriveDownloadUrl(selectedDoc.driveLink)}
+                href={selectedDoc.driveLink}
                 icon="download"
                 variant="purple"
                 className="h-11 w-full"
-                onClick={(e) => handleDocActionClick(e, selectedDoc, "download")}
-                download
+                onClick={(e) => openDocument(e, selectedDoc, "download")}
               >
                 Download
               </ButtonLink>
             </div>
           </>
-        )}
-      </div>
+          </div>
+        </div>
+      )}
 
       {/* Add Document Modal Overlay */}
       {isAddDocOpen && (
@@ -1198,321 +1121,6 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
-
-      {/* Dynamic File Preview Overlay Modal */}
-      {audience === "internal" && previewDoc && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-5xl rounded-2xl border border-white/[0.02] bg-[#161B22] p-6 shadow-2xl relative flex flex-col h-[85vh] animate-scale-in">
-            {/* Header */}
-            <div className="flex items-center justify-between pb-4 border-b border-white/5">
-              <div>
-                <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#C6A66B]">
-                  Document Preview ({previewDoc.category})
-                </span>
-                <h3 className="text-sm font-bold text-white mt-0.5 truncate max-w-md">
-                  {previewDoc.documentName}
-                </h3>
-              </div>
-              <div className="flex items-center gap-3">
-                <a
-                  href={getDriveDownloadUrl(previewDoc.driveLink)}
-                  download
-                  className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-white/[0.02] bg-white/[0.015] px-3.5 text-[10px] font-extrabold uppercase tracking-wider text-slate-300 hover:text-white hover:bg-white/[0.02] transition"
-                >
-                  <Download className="h-3.5 w-3.5" />
-                  Download File
-                </a>
-                <button
-                  onClick={() => setPreviewDoc(null)}
-                  className="h-8 w-8 flex items-center justify-center rounded-lg border border-white/[0.02] bg-white/[0.015] text-slate-400 hover:text-white hover:border-white/20 transition cursor-pointer"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-
-            {/* Split Screen Body */}
-            <div className="flex-1 grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 overflow-hidden pt-4">
-              
-              {/* Left Pane: Preview Content */}
-              <div className="h-full overflow-hidden flex flex-col items-center justify-center bg-black/20 border border-white/5 rounded-xl p-4">
-                {(() => {
-                  const link = previewDoc.driveLink || "";
-                  const ext = link.split(".").pop()?.toLowerCase();
-                  
-                  if (ext === "pdf") {
-                    return (
-                      <iframe 
-                        src={link} 
-                        className="w-full h-full border-0 rounded-lg bg-[#161B22]/50" 
-                      />
-                    );
-                  }
-                  if (["png", "jpg", "jpeg", "gif"].includes(ext || "")) {
-                    return (
-                      <img 
-                        src={link} 
-                        alt={previewDoc.documentName}
-                        className="max-w-full max-h-full object-contain rounded-lg shadow-lg" 
-                      />
-                    );
-                  }
-                  if (["txt", "csv", "json", "md"].includes(ext || "")) {
-                    if (loadingPreviewText) {
-                      return (
-                        <div className="flex flex-col items-center gap-2">
-                          <Loader2 className="h-6 w-6 text-[#C6A66B] animate-spin" />
-                          <span className="text-[10px] text-slate-405">Loading file content...</span>
-                        </div>
-                      );
-                    }
-                    if (ext === "csv" && previewText) {
-                      // Parse CSV as table
-                      const rows = previewText.split("\n").map(r => r.split(","));
-                      return (
-                        <div className="w-full h-full overflow-auto text-[10px] font-sans p-2">
-                          <table className="min-w-full border-collapse divide-y divide-white/5 text-left">
-                            <tbody className="divide-y divide-white/5">
-                              {rows.map((row, rIdx) => (
-                                <tr key={rIdx} className={rIdx === 0 ? "bg-white/[0.015] font-bold text-white" : "text-slate-350"}>
-                                  {row.map((cell, cIdx) => (
-                                    <td key={cIdx} className="px-3 py-1.5 border border-white/5 truncate max-w-32">{cell}</td>
-                                  ))}
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      );
-                    }
-                    return (
-                      <pre className="w-full h-full overflow-auto rounded-lg p-4 bg-[#07090D] text-slate-350 font-mono text-[10px] text-left whitespace-pre-wrap leading-relaxed select-text">
-                        {previewText || "Empty file content."}
-                      </pre>
-                    );
-                  }
-                  
-                  // Default format warning
-                  return (
-                    <div className="text-center space-y-4 max-w-xs">
-                      <FileWarning className="h-10 w-10 text-slate-500 mx-auto" />
-                      <div>
-                        <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Preview Not Available</h4>
-                        <p className="text-[10px] text-slate-450 mt-1 leading-relaxed">
-                          Spreadsheets (.xlsx) and Word files (.docx) cannot be previewed natively in the browser without third-party integrations.
-                        </p>
-                      </div>
-                      <a
-                        href={getDriveDownloadUrl(previewDoc.driveLink)}
-                        download
-                        className="inline-flex h-8 items-center gap-1.5 bg-white text-slate-950 px-4 text-[10px] font-extrabold uppercase tracking-wider hover:bg-slate-100 transition shadow-md"
-                      >
-                        Download file to view
-                      </a>
-                    </div>
-                  );
-                })()}
-              </div>
-
-              {/* Right Pane: AI Analysis Sidebar */}
-              <div className="h-full flex flex-col justify-between overflow-y-auto space-y-5 border-l border-white/5 pl-4 pr-1">
-                <div className="space-y-4">
-                  <div>
-                    <h4 className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400">
-                      Document Metadata
-                    </h4>
-                    <div className="mt-2.5 space-y-2 text-[10px] font-medium text-slate-350">
-                      <div className="flex justify-between py-1 border-b border-white/5">
-                        <span className="text-slate-500">Review Status:</span>
-                        <span className="text-white font-bold">{previewDoc.status}</span>
-                      </div>
-                      <div className="flex justify-between py-1 border-b border-white/5">
-                        <span className="text-slate-500">Date Logged:</span>
-                        <span className="text-white font-bold">{formatDate(previewDoc.dateReceived) || "Not logged"}</span>
-                      </div>
-                      <div className="flex justify-between py-1 border-b border-white/5">
-                        <span className="text-slate-500">Priority Level:</span>
-                        <span className={previewDoc.ablCritical ? "text-amber-500 font-extrabold" : "text-white"}>
-                          {previewDoc.ablCritical ? "High Priority" : "Standard"}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="border-t border-white/5 pt-4 space-y-3.5">
-                    <h4 className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
-                      <BrainCircuit className="h-4 w-4 text-blue-450" />
-                      AI Document Analyst
-                    </h4>
-
-                    {/* Step 1: Text Extraction */}
-                    <div className="space-y-2">
-                      <span className="text-[9px] text-slate-500 uppercase font-bold tracking-widest">Step 1 — Extract Text</span>
-
-                      {/* Extraction in progress */}
-                      {isParsing && (
-                        <div className="flex items-center gap-2 p-3 bg-amber-500/5 border border-amber-500/10 rounded-xl">
-                          <Loader2 className="h-3.5 w-3.5 text-amber-400 animate-spin flex-shrink-0" />
-                          <span className="text-[9px] text-amber-300 font-bold uppercase tracking-widest">
-                            {parseJobStatus || "Extracting document text…"}
-                          </span>
-                        </div>
-                      )}
-
-                      {/* Extraction success */}
-                      {!isParsing && parseResult && (
-                        <div className="flex items-start gap-2 p-3 bg-emerald-500/5 border border-emerald-500/10 rounded-xl">
-                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 mt-0.5 flex-shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <span className="block text-[9px] text-emerald-400 font-bold uppercase tracking-widest">Text Extracted</span>
-                            <span className="block text-[9px] text-slate-400 mt-0.5">
-                              {parseResult.wordCount.toLocaleString()} words · {parseResult.characterCount.toLocaleString()} chars · {parseResult.fileType}
-                            </span>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => handleParseDocument()}
-                            className="text-[8px] text-slate-500 hover:text-slate-300 underline uppercase tracking-widest flex-shrink-0"
-                          >
-                            Re-extract
-                          </button>
-                        </div>
-                      )}
-
-                      {/* Extraction error */}
-                      {!isParsing && parseError && (
-                        <div className="p-3 bg-rose-500/5 border border-rose-500/10 rounded-xl space-y-2">
-                          <div className="flex items-start gap-2">
-                            <FileWarning className="h-3.5 w-3.5 text-rose-400 mt-0.5 flex-shrink-0" />
-                            <span className="text-[9px] text-rose-300 leading-relaxed">{parseError}</span>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => handleParseDocument()}
-                            className="w-full h-7 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 font-bold text-[9px] uppercase tracking-wider transition flex items-center justify-center gap-1"
-                          >
-                            <Loader2 className="h-3 w-3" />
-                            Retry Extraction
-                          </button>
-                        </div>
-                      )}
-
-                      {/* Idle state – no parse started */}
-                      {!isParsing && !parseResult && !parseError && (
-                        <div className="p-3 bg-[#0E1524] border border-white/5 rounded-xl space-y-2">
-                          <p className="text-[9px] leading-relaxed text-slate-400">
-                            Extract raw text from PDF, DOCX, or XLSX files before running AI analysis. Required for binary documents.
-                          </p>
-                          <button
-                            type="button"
-                            onClick={() => handleParseDocument()}
-                            disabled={!previewDoc?.driveLink}
-                            className="w-full h-7 rounded-lg bg-slate-600 hover:bg-slate-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold text-[9px] uppercase tracking-wider transition flex items-center justify-center gap-1"
-                          >
-                            <FileText className="h-3 w-3" />
-                            Extract Text
-                          </button>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Step 2: AI Analysis (only available after successful extraction) */}
-                    <div className="space-y-2">
-                      <span className={`text-[9px] uppercase font-bold tracking-widest ${parseResult ? "text-slate-500" : "text-slate-600"}`}>Step 2 — AI Analysis</span>
-
-                      {!aiAnalysis && !isAnalyzing && (
-                        <div className="space-y-2 bg-[#0E1524] border border-blue-500/10 rounded-xl p-3.5">
-                          <p className="text-[9px] leading-relaxed text-slate-400">
-                            Extract financial covenants, notice periods, TUPE transfer details, and operational risk metrics from real document content.
-                          </p>
-                          <button
-                            onClick={handleRunAiAnalysis}
-                            disabled={!parseResult || isParsing}
-                            className="w-full h-8 rounded-lg bg-blue-500 hover:bg-blue-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-extrabold text-[10px] uppercase tracking-wider transition cursor-pointer flex items-center justify-center gap-1"
-                          >
-                            <Sparkles className="h-3 w-3" />
-                            {parseResult ? "Extract Terms with AI" : "Extract Text First"}
-                          </button>
-                        </div>
-                      )}
-
-                    {isAnalyzing && (
-                      <div className="flex flex-col items-center justify-center py-6 space-y-2.5 bg-white/[0.01] border border-white/5 rounded-xl">
-                        <Loader2 className="h-5 w-5 text-blue-400 animate-spin" />
-                        <span className="text-[9px] text-slate-400 animate-pulse uppercase tracking-widest font-bold">
-                          {analysisJobStatus || "AI Analyzing…"}
-                        </span>
-                      </div>
-                    )}
-
-                    {aiAnalysis && (
-                      <div className="space-y-3 animate-fade-in-up">
-                        {/* Summary */}
-                        <div className="bg-[#0E1524] border border-blue-500/10 rounded-xl p-3 text-[10px] leading-relaxed text-slate-350">
-                          <p className="font-bold text-blue-400 mb-1">Executive Summary:</p>
-                          {aiAnalysis.summary}
-                        </div>
-
-                        {/* Extracted Ratios / Terms */}
-                        {aiAnalysis.keyClauses && aiAnalysis.keyClauses.length > 0 && (
-                          <div className="space-y-1.5">
-                            <span className="block text-[9px] uppercase font-bold text-slate-500">Key Clauses & Terms:</span>
-                            {aiAnalysis.keyClauses.map((c: any, cIdx: number) => (
-                              <div key={cIdx} className="p-2 bg-white/[0.02] border border-white/5 rounded-lg text-[9px] leading-relaxed">
-                                <span className="font-bold text-slate-200 block">{c.term}</span>
-                                <span className="text-slate-400">{c.details}</span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-
-                        {/* Risks & Covenants */}
-                        {aiAnalysis.risks && aiAnalysis.risks.length > 0 && (
-                          <div className="p-2.5 bg-rose-500/5 border border-rose-500/10 rounded-xl text-[9px] leading-relaxed text-rose-350">
-                            <span className="font-bold text-rose-400 block mb-0.5">Flagged Risks:</span>
-                            <ul className="list-disc pl-3 space-y-0.5">
-                              {aiAnalysis.risks.map((r: string, rIdx: number) => (
-                                <li key={rIdx}>{r}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-
-                        {aiAnalysis.covenants && aiAnalysis.covenants.length > 0 && (
-                          <div className="p-2.5 bg-emerald-500/5 border border-emerald-500/10 rounded-xl text-[9px] leading-relaxed text-emerald-350">
-                            <span className="font-bold text-emerald-400 block mb-0.5">Covenants & Rules:</span>
-                            <ul className="list-disc pl-3 space-y-0.5">
-                              {aiAnalysis.covenants.map((cov: string, covIdx: number) => (
-                                <li key={covIdx}>{cov}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-
-                        {/* Re-analyze button */}
-                        <button
-                          onClick={handleRunAiAnalysis}
-                          disabled={isAnalyzing}
-                          className="w-full h-7 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 font-bold text-[9px] uppercase tracking-wider transition flex items-center justify-center gap-1"
-                        >
-                          <Sparkles className="h-3 w-3" />
-                          Re-analyse
-                        </button>
-                      </div>
-                    )}
-                    </div>
-                  </div>
-
-                  <div className="pt-4 border-t border-white/5 text-[9px] text-slate-500 leading-relaxed italic">
-                    Analysis is grounded in real extracted document text. No content is fabricated.
-                  </div>
-                </div>
-              </div>
-
-            </div>
           </div>
         </div>
       )}

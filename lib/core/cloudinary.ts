@@ -66,20 +66,33 @@ export async function uploadFromUrl(
 }
 
 /**
- * API-key-signed download URL for server-side access to an authenticated asset.
+ * API-key-signed URL for an authenticated asset.
+ *
  * Works even while the account's "Allow delivery of PDF and ZIP files" security
- * toggle is off (which 401s normal delivery URLs for PDFs on new accounts).
- * Use THIS for backend fetches; `signedUrl` is for browser delivery and needs
- * that toggle enabled for PDFs.
+ * toggle is off — which is the case here, so ordinary delivery URLs (`signedUrl`
+ * below, and the stored secure_url) 401 for every PDF in the deal room. This is
+ * the only form that serves them, so it backs both browser actions:
+ *
+ *   attachment: false (default) → Content-Type only, so a browser tab renders
+ *                                 the file inline. Use for "View".
+ *   attachment: true            → Content-Disposition: attachment. Use for
+ *                                 "Download".
  */
 export function downloadUrl(
   publicId: string,
-  opts: { format?: string; resourceType?: "image" | "video" | "raw"; expiresInSeconds?: number } = {},
+  opts: {
+    format?: string;
+    resourceType?: "image" | "video" | "raw";
+    expiresInSeconds?: number;
+    /** Force a download rather than inline rendering. */
+    attachment?: boolean;
+  } = {},
 ): string {
   ensureConfigured();
   return cloudinary.utils.private_download_url(publicId, opts.format ?? "", {
     resource_type: opts.resourceType ?? "image",
     type: "authenticated",
+    attachment: opts.attachment ?? false,
     expires_at: Math.floor(Date.now() / 1000) + (opts.expiresInSeconds ?? 600),
   });
 }

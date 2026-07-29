@@ -1447,9 +1447,25 @@ function renderRichText(text: string) {
   );
 }
 
+/**
+ * Empty state for a narrative field the deal simply doesn't carry.
+ *
+ * Most deals that reached the active pipeline were advanced straight from an
+ * Airtable Active_Pipeline record, which has no summary/description fields at
+ * all — so these are blank for the majority of live deals. Say so, and point at
+ * the editor, rather than leaving a heading with nothing beneath it.
+ */
+function MissingNarrative({ field }: { field: string }) {
+  return (
+    <p className="text-xs leading-relaxed text-slate-500 italic select-text">
+      No {field} recorded for this deal yet — add one with <span className="not-italic font-semibold text-slate-400">Edit Deal</span>.
+    </p>
+  );
+}
+
 function SimpleMarkdown({ content }: { content: string }) {
-  if (!content) return <p className="text-xs text-slate-400 italic">No summary provided.</p>;
-  
+  if (!content) return <MissingNarrative field="summary" />;
+
   const blocks = content.split(/\n\n+/);
   return (
     <div className="space-y-4 select-text">
@@ -1687,9 +1703,13 @@ function OverviewTab({
                   <span className="text-xs font-semibold text-slate-500">{deal.sector || "Sector Fit"}</span>
                 </div>
               </div>
-              <p className="text-xs leading-relaxed text-slate-305 font-normal select-text">
-                {deal.businessDescription || "No business description provided."}
-              </p>
+              {deal.businessDescription ? (
+                <p className="text-xs leading-relaxed text-slate-305 font-normal select-text whitespace-pre-line">
+                  {deal.businessDescription}
+                </p>
+              ) : (
+                <MissingNarrative field="business description" />
+              )}
             </div>
           </div>
 
@@ -1705,7 +1725,14 @@ function OverviewTab({
                   <span className="text-xs font-semibold text-slate-500 font-sans">Transaction Highlights</span>
                 </div>
               </div>
-              <SimpleMarkdown content={deal.executiveSummary || ""} />
+              {deal.executiveSummary ? (
+                <SimpleMarkdown content={deal.executiveSummary} />
+              ) : (
+                // Was an empty <SimpleMarkdown>, which rendered a titled card with
+                // nothing under it and read as a loading failure rather than a
+                // field nobody has filled in.
+                <MissingNarrative field="executive summary" />
+              )}
             </div>
           </div>
           

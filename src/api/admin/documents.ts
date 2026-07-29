@@ -82,6 +82,25 @@ export async function parseAdminDocument(documentId: string): Promise<Row> {
   return analyzeAdminDocument(documentId);
 }
 
+/**
+ * Short-lived signed URL for opening a checklist document.
+ *
+ * The stored Cloudinary URL is an `authenticated` asset that 401s in the
+ * browser, so View/Download cannot link to it directly — they resolve through
+ * here first. `view` renders inline; `download` comes back as an attachment.
+ */
+export async function getDocumentFileUrl(
+  documentId: string,
+  mode: "view" | "download" = "view",
+): Promise<string> {
+  const r = await api.get<{ url: string }>(
+    `/api/documents/download?id=${encodeURIComponent(documentId)}&mode=${mode}`,
+    { noCache: true },
+  );
+  if (!r?.url) throw new Error("This document has no file attached.");
+  return r.url;
+}
+
 // ─── IM documents on a deal (Cloudinary-backed deal file) ──────────────────
 
 /** Upload a standalone file to Cloudinary and return its URL (replaces the
