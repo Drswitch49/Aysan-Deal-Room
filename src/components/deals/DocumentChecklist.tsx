@@ -1,4 +1,4 @@
-import { Filter, Files, ShieldAlert, FileText, FileSpreadsheet, FileArchive, CheckCircle2, Search, X, Download, Calendar, User, History, ExternalLink, Plus, FileWarning, Upload, Trash2 } from "lucide-react";
+import { Filter, Files, ShieldAlert, FileText, FileSpreadsheet, FileArchive, CheckCircle2, Search, X, Download, Plus, FileWarning, Upload, Trash2 } from "lucide-react";
 import { useMemo, useState, useEffect, useCallback } from "react";
 import type { DealDocument } from "../../types/deal";
 import { updateAdminDocuments, createAdminDocument, uploadAdminDocument, parseAdminDocument, getJobStatus, deleteAdminDocument, getDocumentFileUrl } from "../../api/admin";
@@ -9,6 +9,7 @@ import { ButtonLink } from "../ui/ButtonLink";
 import { EmptyState } from "../ui/EmptyState";
 import { ProgressBar, ProgressRing } from "../ui/ProgressBar";
 import { Table, Td, Th } from "../ui/Table";
+import { ModalPortal } from "../ui/ModalPortal";
 import { cx } from "../../utils/cx";
 
 type DocumentChecklistProps = {
@@ -34,6 +35,16 @@ function getDocIcon(name: string = "", category: string = "") {
 /** Whether a document actually has a file behind it (many rows are placeholders). */
 function hasFile(doc: DealDocument): boolean {
   return Boolean(doc.driveLink && doc.driveLink.trim());
+}
+
+/** One label/value pair in the document dialog's fact grid. */
+function Fact({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-2 min-w-0">
+      <dt className="text-slate-500 font-semibold shrink-0">{label}</dt>
+      <dd className="text-white font-bold truncate" title={value}>{value}</dd>
+    </div>
+  );
 }
 
 export function DocumentChecklist({ documents, audience, onRefresh, dealId }: DocumentChecklistProps) {
@@ -755,98 +766,90 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
         </>
       )}
 
-      {/* Document detail — a centred dialog. It used to fly out of the top-right
-          corner as a full-height drawer, which read as a stray notification
-          rather than the record you had just clicked. */}
+      {/* Document detail. Portalled to <body>: the Documents tab wraps its
+          content in .animate-fade-in-up, whose lingering transform made this
+          overlay position against the tab panel instead of the viewport, so it
+          rendered off-centre with its header cut off the top of the screen. */}
       {selectedDoc && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md"
-          onClick={() => setSelectedDoc(null)}
-          role="dialog"
-          aria-modal="true"
-          aria-label={`Document ${selectedDoc.indexRef}`}
-        >
+        <ModalPortal>
           <div
-            className="w-full max-w-2xl max-h-[88vh] rounded-2xl border border-white/[0.06] bg-acp-ink shadow-2xl flex flex-col overflow-hidden animate-scale-in"
-            onClick={(e) => e.stopPropagation()}
+            className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-sm"
+            onClick={() => setSelectedDoc(null)}
+            role="dialog"
+            aria-modal="true"
+            aria-label={"Document " + selectedDoc.indexRef}
           >
-          <>
-            {/* Drawer Header */}
-            <div className="flex items-center justify-between px-6 py-5 border-b border-white/5">
-              <div className="min-w-0">
-                <span className="font-mono text-xs font-bold text-slate-500 select-none">
-                  Document Index {selectedDoc.indexRef}
-                </span>
-                <h3 className="text-sm font-bold text-white truncate mt-1" title={selectedDoc.documentName}>
-                  {selectedDoc.documentName}
-                </h3>
-              </div>
-              <button 
-                type="button" 
-                onClick={() => setSelectedDoc(null)}
-                className="h-8 w-8 flex items-center justify-center rounded-xl border border-white/[0.02] text-slate-400 hover:text-white hover:border-white/20 transition-colors shadow-sm"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            {/* Drawer Body - Scrollable */}
-            <div className="flex-1 overflow-y-auto min-h-0 p-6 space-y-6">
-              {/* Core metrics */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="p-3 border border-white/[0.02] bg-white/[0.02] rounded-xl">
-                  <span className="block text-[9px] font-extrabold uppercase tracking-wider text-slate-400">File Category</span>
-                  <span className="block text-xs font-bold text-white mt-1.5">{selectedDoc.category || "Uncategorized"}</span>
-                </div>
-                <div className="p-3 border border-white/[0.02] bg-white/[0.02] rounded-xl">
-                  <span className="block text-[9px] font-extrabold uppercase tracking-wider text-slate-400">Review Status</span>
-                  <div className="mt-1.5">
-                    {audience === "internal" ? (
-                      <select
-                        value={selectedDoc.status || "Outstanding"}
-                        onChange={(e) => handleStatusChange(e.target.value)}
-                        className="text-[10px] bg-slate-900 border border-white/10 rounded px-2 py-1 text-white font-semibold cursor-pointer outline-none focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze transition"
-                      >
-                        <option value="Outstanding" className="bg-[#161B22] text-white">Outstanding</option>
-                        <option value="Sent to Lender" className="bg-[#161B22] text-white">Sent to Lender</option>
-                      </select>
-                    ) : (
-                      <StatusBadge status={selectedDoc.status} />
-                    )}
+            <div
+              className="w-full max-w-lg max-h-[85vh] rounded-2xl border border-white/[0.07] bg-[#12161C] shadow-2xl flex flex-col overflow-hidden animate-scale-in"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="flex items-start justify-between gap-3 px-5 py-3.5 border-b border-white/[0.06]">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <span className="shrink-0">{getDocIcon(selectedDoc.documentName, selectedDoc.category)}</span>
+                  <div className="min-w-0">
+                    <h3 className="text-[13px] font-bold text-white truncate leading-tight" title={selectedDoc.documentName}>
+                      {selectedDoc.documentName || "Untitled document"}
+                    </h3>
+                    <span className="font-mono text-[10px] font-bold text-slate-500 select-none">
+                      {selectedDoc.indexRef} · {selectedDoc.category || "Uncategorized"}
+                    </span>
                   </div>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedDoc(null)}
+                  className="shrink-0 h-7 w-7 flex items-center justify-center rounded-lg border border-white/[0.06] text-slate-400 hover:text-white hover:border-white/20 transition-colors"
+                  aria-label="Close"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
               </div>
 
-              {/* Detail fields */}
-              <div className="space-y-3.5">
-                <h4 className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-slate-455">Document Information</h4>
-                
-                {audience === "internal" && (
-                  <DetailRow icon={<Calendar className="h-4 w-4 text-acp-bronze" />} label="Date Received" value={formatDate(selectedDoc.dateReceived) || "Not logged"} />
-                )}
-                {selectedDoc.expectedDate && (
-                  <DetailRow icon={<Calendar className="h-4 w-4 text-acp-bronze" />} label="Expected Date" value={formatDate(selectedDoc.expectedDate)} />
-                )}
-                {audience === "internal" && (
-                  <DetailRow icon={<User className="h-4 w-4 text-indigo-400" />} label="Database Source" value={selectedDoc.source || "Active Pipeline"} />
-                )}
-                <DetailRow 
-                  icon={<ShieldAlert className="h-4 w-4 text-rose-500" />} 
-                  label="Priority Class" 
-                  value={selectedDoc.ablCritical ? "High Priority" : "Standard"} 
-                />
-              </div>
-
-              {/* Edit Document Link (Admin only) */}
-              {audience === "internal" && (
-                <div className="space-y-3.5 border-t border-white/5 pt-4">
-                  <div className="flex items-center gap-2 text-slate-400 font-medium text-xs">
-                    <ExternalLink className="h-4 w-4 text-acp-bronze" />
-                    <span>Document Link Management</span>
+              {/* Body */}
+              <div className="flex-1 overflow-y-auto min-h-0 px-5 py-4 space-y-4">
+                {/* Facts as a definition grid — each one used to be its own
+                    bordered box or full-width row, which is what made this
+                    scroll for content that fits in a third of the space. */}
+                <dl className="grid grid-cols-2 gap-x-4 gap-y-2.5 text-[11px]">
+                  <div className="col-span-2 flex items-center justify-between gap-3">
+                    <dt className="text-slate-500 font-semibold">Status</dt>
+                    <dd>
+                      {audience === "internal" ? (
+                        <select
+                          value={selectedDoc.status || "Outstanding"}
+                          onChange={(e) => handleStatusChange(e.target.value)}
+                          className="text-[11px] bg-slate-900 border border-white/10 rounded-lg px-2 py-1 text-white font-semibold cursor-pointer outline-none focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze transition"
+                        >
+                          <option value="Outstanding" className="bg-[#161B22] text-white">Outstanding</option>
+                          <option value="Sent to Lender" className="bg-[#161B22] text-white">Sent to Lender</option>
+                        </select>
+                      ) : (
+                        <StatusBadge status={selectedDoc.status} />
+                      )}
+                    </dd>
                   </div>
-                  <div className="space-y-2">
-                    <label className="block text-[9px] font-extrabold uppercase tracking-[0.12em] text-slate-450" htmlFor="document-link-input">
-                      Google Drive or File URL
+                  <Fact label="Priority" value={selectedDoc.ablCritical ? "High" : "Standard"} />
+                  <Fact label="File" value={hasFile(selectedDoc) ? "Attached" : "Not attached"} />
+                  {audience === "internal" && (
+                    <Fact label="Received" value={formatDate(selectedDoc.dateReceived) || "Not logged"} />
+                  )}
+                  {selectedDoc.expectedDate && (
+                    <Fact label="Expected" value={formatDate(selectedDoc.expectedDate)} />
+                  )}
+                  {audience === "internal" && (
+                    <Fact label="Source" value={selectedDoc.source || "Active Pipeline"} />
+                  )}
+                  {isSentToLender(selectedDoc.status) && selectedDoc.dateSentToLender && (
+                    <Fact label="Sent to lender" value={formatDate(selectedDoc.dateSentToLender)} />
+                  )}
+                </dl>
+
+                {/* Link management (staff only) */}
+                {audience === "internal" && (
+                  <div className="space-y-1.5 border-t border-white/[0.06] pt-3.5">
+                    <label className="block text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500" htmlFor="document-link-input">
+                      File URL
                     </label>
                     <div className="flex gap-2">
                       <input
@@ -854,80 +857,54 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
                         type="text"
                         value={draftLink}
                         onChange={(e) => setDraftLink(e.target.value)}
-                        placeholder="https://drive.google.com/..."
-                        className="h-9 flex-1 rounded-xl border border-white/[0.02] bg-white/[0.015] px-3 text-xs text-white placeholder-slate-600 outline-none focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze shadow-sm transition-colors duration-300"
+                        placeholder="https://…"
+                        className="h-8 flex-1 min-w-0 rounded-lg border border-white/[0.06] bg-white/[0.02] px-2.5 text-[11px] text-white placeholder-slate-600 outline-none focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze transition-colors"
                       />
                       <button
                         type="button"
                         onClick={handleSaveLink}
                         disabled={isSavingLink || draftLink === (selectedDoc.driveLink || "")}
-                        className="h-9 px-4 rounded-xl bg-gradient-to-r from-acp-bronze to-acp-bronze-dark text-white text-xs font-bold uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none hover:shadow-glow-bronze cursor-pointer shrink-0 transition-all duration-300"
+                        className="h-8 px-3 rounded-lg bg-gradient-to-r from-acp-bronze to-acp-bronze-dark text-white text-[10px] font-bold uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none hover:shadow-glow-bronze cursor-pointer shrink-0 transition-all"
                       >
-                        {isSavingLink ? "Saving..." : "Save"}
+                        {isSavingLink ? "Saving…" : "Save"}
                       </button>
                     </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {/* Internal notes */}
-              <div className="space-y-2">
-                <h4 className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-slate-455">Internal Notes & Description</h4>
-                <div className="p-4 border border-white/[0.02] bg-white/[0.02] rounded-2xl text-xs leading-relaxed text-slate-300 font-medium">
-                  {selectedDoc.internalNotes || "No internal notes recorded for this file. Click view to inspect the file directly."}
-                </div>
+                {/* Notes only when there are any — the "no notes recorded"
+                    placeholder took as much room as real notes usually do. */}
+                {selectedDoc.internalNotes && (
+                  <div className="space-y-1.5 border-t border-white/[0.06] pt-3.5">
+                    <h4 className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">Internal Notes</h4>
+                    <p className="text-[11px] leading-relaxed text-slate-300 whitespace-pre-line">
+                      {selectedDoc.internalNotes}
+                    </p>
+                  </div>
+                )}
               </div>
 
-              {/* Version History feed */}
-              <div className="space-y-3">
-                <h4 className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-slate-455 flex items-center gap-1.5">
-                  <History className="h-4 w-4 text-slate-400" />
-                  Document History Log
-                </h4>
-                <div className="relative border-l border-white/[0.02] pl-4 space-y-4 text-xs">
-                  <LogItem 
-                    date={selectedDoc.dateReceived || "2026-05-24"} 
-                    action="File received" 
-                    user="System Sync" 
-                  />
-                  {selectedDoc.ablCritical && (
-                    <LogItem 
-                      date={selectedDoc.dateReceived || "2026-05-24"} 
-                      action="Flagged as critical" 
-                      user="System Compliance" 
-                    />
-                  )}
-                  {isSentToLender(selectedDoc.status) && (
-                    <LogItem 
-                      date={selectedDoc.dateSentToLender || selectedDoc.dateReceived || "2026-05-25"} 
-                      action="Document approved for release" 
-                      user="Deal Manager" 
-                    />
-                  )}
-                </div>
+              {/* Action */}
+              <div className="px-5 py-3.5 border-t border-white/[0.06] bg-white/[0.01]">
+                <ButtonLink
+                  href={selectedDoc.driveLink}
+                  icon="download"
+                  variant="purple"
+                  className="h-10 w-full"
+                  onClick={(e) => downloadDocument(e, selectedDoc)}
+                >
+                  {hasFile(selectedDoc) ? "Download" : "No file attached"}
+                </ButtonLink>
               </div>
             </div>
-
-            {/* Dialog action — download only; there is no View anywhere now. */}
-            <div className="p-6 border-t border-white/5 bg-white/[0.01] grid grid-cols-1 gap-3.5">
-              <ButtonLink
-                href={selectedDoc.driveLink}
-                icon="download"
-                variant="purple"
-                className="h-11 w-full"
-                onClick={(e) => downloadDocument(e, selectedDoc)}
-              >
-                Download
-              </ButtonLink>
-            </div>
-          </>
           </div>
-        </div>
+        </ModalPortal>
       )}
 
       {/* Add Document Modal Overlay */}
       {isAddDocOpen && (
-        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
+        <ModalPortal>
+        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
           <div className="w-full max-w-sm rounded-2xl border border-white/[0.02] bg-[#161B22] p-6 shadow-2xl relative animate-scale-in max-h-[90vh] overflow-y-auto">
             <button
               onClick={() => setIsAddDocOpen(false)}
@@ -1102,11 +1079,13 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
             </form>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* Delete Confirmation Modal */}
       {docToDelete && (
-        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
+        <ModalPortal>
+        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
           <div className="w-full max-w-sm rounded-2xl border border-white/[0.02] bg-[#161B22] p-6 shadow-2xl relative animate-scale-in">
             <h3 className="text-base font-bold text-white uppercase tracking-wider mb-3">
               Delete Document
@@ -1134,6 +1113,7 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
     </div>
   );
@@ -1174,25 +1154,3 @@ function FilterPill({
   );
 }
 
-function DetailRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between py-2.5 border-b border-white/5">
-      <div className="flex items-center gap-2 text-slate-400 font-medium text-xs">
-        {icon}
-        <span>{label}</span>
-      </div>
-      <span className="text-xs font-bold text-white">{value}</span>
-    </div>
-  );
-}
-
-function LogItem({ date, action, user }: { date: string; action: string; user: string }) {
-  return (
-    <div className="relative">
-      <span className="absolute -left-6 top-1 h-2.5 w-2.5 rounded-full bg-acp-bronze border-2 border-acp-ink ring-1 ring-white/10" />
-      <p className="text-[10px] font-bold text-slate-500">{formatDate(date)}</p>
-      <p className="font-semibold text-slate-200 mt-0.5">{action}</p>
-      <p className="text-[10px] text-slate-450 font-medium mt-0.5">by {user}</p>
-    </div>
-  );
-}
