@@ -146,14 +146,16 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
   };
 
   /**
-   * Open a document straight away — View in a new tab, Download to disk.
+   * Download a document immediately — the only file action, for staff and
+   * lenders alike.
    *
-   * Both used to route through a preview modal offering text extraction and AI
-   * analysis before you could get at the file. They now resolve a signed URL and
-   * go. The blank tab is opened synchronously, before the await, because a
-   * window.open() that happens after one is treated as a popup and blocked.
+   * Deal files are Cloudinary `authenticated` assets whose stored URL 401s in a
+   * browser, so the button cannot link straight at it; this resolves a
+   * short-lived signed URL that comes back with an attachment disposition, then
+   * clicks it. Navigating to an attachment starts the save without leaving the
+   * page, so no new tab is involved.
    */
-  const openDocument = async (e: React.MouseEvent, doc: DealDocument, mode: "view" | "download") => {
+  const downloadDocument = async (e: React.MouseEvent, doc: DealDocument) => {
     e.preventDefault();
     e.stopPropagation();
 
@@ -162,17 +164,9 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
       return;
     }
 
-    const tab = mode === "view" ? window.open("", "_blank", "noopener,noreferrer") : null;
     setDocActionError("");
     try {
-      const url = await getDocumentFileUrl(doc.id, mode);
-      if (mode === "view") {
-        if (tab) tab.location.href = url;
-        else window.open(url, "_blank", "noopener,noreferrer"); // popup blocked — try again directly
-        return;
-      }
-      // Cloudinary returns this one as an attachment, so navigating triggers the
-      // save dialog without leaving the page.
+      const url = await getDocumentFileUrl(doc.id, "download");
       const a = document.createElement("a");
       a.href = url;
       a.download = doc.documentName || "";
@@ -181,9 +175,8 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
       a.click();
       a.remove();
     } catch (err: any) {
-      tab?.close();
-      console.error("Document open failed:", err);
-      setDocActionError(err?.message || `Could not ${mode} "${doc.documentName || "this document"}".`);
+      console.error("Document download failed:", err);
+      setDocActionError(err?.message || `Could not download "${doc.documentName || "this document"}".`);
     }
   };
 
@@ -723,20 +716,11 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
                 )}
                 <Td className="text-right" onClick={(e) => e.stopPropagation()}>
                   <div className="flex justify-end gap-2">
-                    {audience === "internal" && (
-                      <ButtonLink
-                        href={document.driveLink}
-                        icon="view"
-                        onClick={(e) => openDocument(e, document, "view")}
-                      >
-                        View
-                      </ButtonLink>
-                    )}
                     <ButtonLink
                       href={document.driveLink}
                       icon="download"
                       variant="purple"
-                      onClick={(e) => openDocument(e, document, "download")}
+                      onClick={(e) => downloadDocument(e, document)}
                     >
                       Download
                     </ButtonLink>
@@ -919,24 +903,14 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
               </div>
             </div>
 
-            {/* Drawer Actions */}
-            <div className={cx("p-6 border-t border-white/5 bg-white/[0.01] grid gap-3.5", audience === "internal" ? "grid-cols-2" : "grid-cols-1")}>
-              {audience === "internal" && (
-                <ButtonLink
-                  href={selectedDoc.driveLink}
-                  icon="view"
-                  className="h-11 w-full"
-                  onClick={(e) => openDocument(e, selectedDoc, "view")}
-                >
-                  View File
-                </ButtonLink>
-              )}
+            {/* Dialog action — download only; there is no View anywhere now. */}
+            <div className="p-6 border-t border-white/5 bg-white/[0.01] grid grid-cols-1 gap-3.5">
               <ButtonLink
                 href={selectedDoc.driveLink}
                 icon="download"
                 variant="purple"
                 className="h-11 w-full"
-                onClick={(e) => openDocument(e, selectedDoc, "download")}
+                onClick={(e) => downloadDocument(e, selectedDoc)}
               >
                 Download
               </ButtonLink>
