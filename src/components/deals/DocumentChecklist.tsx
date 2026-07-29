@@ -7,7 +7,6 @@ import { isSentToLender } from "../../utils/security";
 import { Badge, StatusBadge } from "../ui/Badge";
 import { ButtonLink } from "../ui/ButtonLink";
 import { EmptyState } from "../ui/EmptyState";
-import { ProgressBar, ProgressRing } from "../ui/ProgressBar";
 import { Table, Td, Th } from "../ui/Table";
 import { ModalPortal } from "../ui/ModalPortal";
 import { cx } from "../../utils/cx";
@@ -460,118 +459,106 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
 
       {!isEmpty && (
         <>
-          {audience === "internal" ? (
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] backdrop-blur-md p-5 shadow-premium-card card-sheen flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3.5">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/[0.015] border border-white/[0.02] text-acp-bronze shadow-sm">
-                <Files className="h-5 w-5" aria-hidden="true" />
-              </div>
-              <div>
-                <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-450">Total Approved</p>
-                <p className="mt-1 text-2xl font-display font-normal text-white italic">
-                  {releasedCount}
-                  <span className="text-xs font-semibold text-slate-400 font-sans not-italic"> / {visibleDocuments.length} released</span>
-                </p>
-              </div>
-            </div>
-            <div className="shrink-0">
-              <ProgressRing value={progress} size={54} strokeWidth={4.5} />
-            </div>
-          </div>
-          <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] backdrop-blur-md p-5 shadow-premium-card card-sheen flex items-center">
-            <ProgressBar value={progress} label="Progress sent to lender" />
-          </div>
-        </div>
-      ) : null}
-
-      {/* Interactive Filter Pills & Search Deck */}
-      <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] backdrop-blur-md p-6 shadow-premium-card card-sheen space-y-5">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between pb-3 border-b border-white/5">
-          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-400 select-none">
-            <Filter className="h-4 w-4 text-acp-bronze" aria-hidden="true" />
-            Document Filters
-          </div>
-          
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
-            {audience === "internal" && (
-              <button
-                type="button"
-                onClick={() => setIsAddDocOpen(true)}
-                className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-acp-bronze to-acp-bronze-dark px-4 text-xs font-bold uppercase tracking-wider text-white shadow-md hover:shadow-glow-bronze cursor-pointer transition-all duration-300 self-start sm:self-auto shrink-0"
-              >
-                <Plus className="h-4 w-4" />
-                Add Document
-              </button>
-            )}
-            
-            {/* Live Search Bar */}
-            <div className="relative w-full sm:max-w-xs">
-              <Search className="absolute left-3.5 top-2.5 h-4 w-4 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Search documents..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-10 w-full rounded-xl border border-white/[0.02] bg-white/[0.015] pl-10 pr-8 text-xs font-semibold text-white placeholder-slate-500 outline-none transition-all duration-300 focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze shadow-sm"
-              />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery("")}
-                  className="absolute right-2.5 top-2.5 text-slate-400 hover:text-white"
-                >
-                  <X className="h-4 w-4" />
-                </button>
+          {/* Toolbar. Progress, actions and both filter rows used to be three
+              stacked cards — two stat panels plus a p-6 filter deck — which
+              pushed the table itself below the fold. */}
+          <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] px-4 py-3 space-y-2.5">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2.5">
+              {audience === "internal" && (
+                <>
+                  <div className="flex items-center gap-2 shrink-0 select-none">
+                    <Files className="h-4 w-4 text-acp-bronze" aria-hidden="true" />
+                    <span className="text-[13px] font-bold text-white tabular-nums">
+                      {releasedCount}
+                      <span className="text-[11px] font-semibold text-slate-500"> / {visibleDocuments.length} released</span>
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 min-w-[120px] flex-1 max-w-xs">
+                    <div className="h-1.5 flex-1 rounded-full bg-white/[0.06] overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-acp-bronze to-emerald-500 transition-all duration-500"
+                        style={{ width: `${progress}%` }}
+                      />
+                    </div>
+                    <span className="text-[11px] font-bold text-slate-400 tabular-nums shrink-0">{Math.round(progress)}%</span>
+                  </div>
+                </>
               )}
+
+              <div className="ml-auto flex items-center gap-2">
+                {audience === "internal" && (
+                  <button
+                    type="button"
+                    onClick={() => setIsAddDocOpen(true)}
+                    className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-acp-bronze to-acp-bronze-dark px-3 text-[10px] font-bold uppercase tracking-wider text-white shadow-sm hover:shadow-glow-bronze cursor-pointer transition-all shrink-0"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Add
+                  </button>
+                )}
+                <div className="relative w-44 sm:w-56">
+                  <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-slate-500" />
+                  <input
+                    type="text"
+                    placeholder="Search documents…"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="h-8 w-full rounded-lg border border-white/[0.05] bg-white/[0.02] pl-8 pr-7 text-[11px] font-semibold text-white placeholder-slate-500 outline-none transition-colors focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze"
+                  />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery("")}
+                      className="absolute right-2 top-2 text-slate-500 hover:text-white"
+                      aria-label="Clear search"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Filters: label inline with its pills rather than stacked above. */}
+            <div className="flex flex-wrap items-center gap-1.5 border-t border-white/5 pt-2.5">
+              <Filter className="h-3.5 w-3.5 text-acp-bronze shrink-0" aria-hidden="true" />
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mr-0.5 select-none">Status</span>
+              <FilterPill
+                label="All"
+                active={statusFilter === "All"}
+                count={visibleDocuments.length}
+                onClick={() => setStatusFilter("All")}
+              />
+              {statuses.map((status) => (
+                <FilterPill
+                  key={status}
+                  label={status}
+                  active={statusFilter === status}
+                  count={visibleDocuments.filter((d) => d.status === status).length}
+                  onClick={() => setStatusFilter(status)}
+                />
+              ))}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mr-0.5 ml-[22px] select-none">Category</span>
+              <FilterPill
+                label="All"
+                active={categoryFilter === "All"}
+                count={visibleDocuments.length}
+                onClick={() => setCategoryFilter("All")}
+              />
+              {categories.map((cat) => (
+                <FilterPill
+                  key={cat}
+                  label={cat}
+                  active={categoryFilter === cat}
+                  count={visibleDocuments.filter((d) => d.category === cat).length}
+                  onClick={() => setCategoryFilter(cat)}
+                />
+              ))}
             </div>
           </div>
-        </div>
-        
-        {/* Status Filters */}
-        <div className="space-y-2">
-          <span className="block text-[10px] font-extrabold uppercase tracking-widest text-slate-400">Filter by status</span>
-          <div className="flex flex-wrap gap-1.5">
-            <FilterPill
-              label="All"
-              active={statusFilter === "All"}
-              count={visibleDocuments.length}
-              onClick={() => setStatusFilter("All")}
-            />
-            {statuses.map((status) => (
-              <FilterPill
-                key={status}
-                label={status}
-                active={statusFilter === status}
-                count={visibleDocuments.filter((d) => d.status === status).length}
-                onClick={() => setStatusFilter(status)}
-              />
-            ))}
-          </div>
-        </div>
-
-        {/* Category Filters */}
-        <div className="space-y-2 pt-1">
-          <span className="block text-[10px] font-extrabold uppercase tracking-widest text-slate-400">Filter by category</span>
-          <div className="flex flex-wrap gap-1.5">
-            <FilterPill
-              label="All"
-              active={categoryFilter === "All"}
-              count={visibleDocuments.length}
-              onClick={() => setCategoryFilter("All")}
-            />
-            {categories.map((cat) => (
-              <FilterPill
-                key={cat}
-                label={cat}
-                active={categoryFilter === cat}
-                count={visibleDocuments.filter((d) => d.category === cat).length}
-                onClick={() => setCategoryFilter(cat)}
-              />
-            ))}
-          </div>
-        </div>
-      </div>
 
       {/* Batch Approval Action Deck */}
       {audience === "internal" && selectedIds.size > 0 && (

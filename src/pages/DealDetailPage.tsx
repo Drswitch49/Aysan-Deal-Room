@@ -5246,133 +5246,139 @@ function DocumentsTab({ deal, documentState, setRefreshTrigger }: { deal: any; d
   }, [documentState.data]);
 
   return (
-    <div className="space-y-6 font-sans animate-fade-in-up">
+    <div className="space-y-4 font-sans animate-fade-in-up">
 
-      {/* Core Documents Management (IM & Financial Packs) */}
-      <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 space-y-4">
-        <h4 className="text-xs font-bold uppercase tracking-wider text-[#C6A66B] mb-4 border-b border-white/5 pb-2">
-          Core Documents (IM & Attachments)
-        </h4>
+      {/* Core documents and the folder index share one frame — they were two
+          separate cards whose padding and headers cost more height than their
+          contents, which are usually empty. */}
+      <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-4 space-y-3.5">
         {uploadError && (
-          <div className="text-xs text-rose-400 bg-rose-500/10 p-2 rounded border border-rose-500/20">{uploadError}</div>
+          <div className="text-[11px] text-rose-400 bg-rose-500/10 px-3 py-2 rounded-lg border border-rose-500/20">{uploadError}</div>
         )}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3">
           {/* IM Documents */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest">Information Memorandums</span>
-              <label className="text-[10px] uppercase font-bold text-[#C6A66B] cursor-pointer hover:text-white flex items-center gap-1">
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Information Memorandums</span>
+              <label className="text-[10px] uppercase font-bold text-[#C6A66B] cursor-pointer hover:text-white flex items-center gap-1 shrink-0">
                 {isUploadingIm ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />} Add IM
                 <input type="file" className="hidden" onChange={(e) => handleUploadCoreDoc(e, "IM_Review_Documents")} disabled={isUploadingIm} />
               </label>
             </div>
             {deal.rawFields?.IM_Review_Documents?.length ? (
-              <div className="space-y-2">
+              <div className="space-y-1">
                 {deal.rawFields.IM_Review_Documents.map((doc: any, idx: number) => (
-                  <div key={idx} className="flex items-center justify-between p-2.5 rounded-lg bg-white/[0.015] border border-white/5">
+                  <div key={idx} className="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg bg-white/[0.015] border border-white/5">
                     <div className="flex items-center gap-2 min-w-0">
-                      <FileText className="h-4 w-4 text-emerald-500 shrink-0" />
-                      <a 
-                        href={doc.url && doc.url.includes("tmpfiles.org/") && !doc.url.includes("tmpfiles.org/dl/") 
-                          ? doc.url.replace("tmpfiles.org/", "tmpfiles.org/dl/") 
-                          : doc.url} 
-                        target="_blank" 
-                        rel="noopener noreferrer" 
-                        className="text-xs text-white truncate hover:text-[#C6A66B] hover:underline"
+                      <FileText className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                      <a
+                        href={doc.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[11px] text-white truncate hover:text-[#C6A66B] hover:underline"
                       >
                         {doc.filename || `IM Document ${idx + 1}`}
                       </a>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <button type="button" onClick={() => handleDeleteCoreDoc("IM_Review_Documents", idx)} disabled={isUploadingIm} className="text-rose-500 hover:bg-rose-500/20 p-1.5 rounded transition">
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
+                    <button type="button" onClick={() => handleDeleteCoreDoc("IM_Review_Documents", idx)} disabled={isUploadingIm} className="text-rose-500 hover:bg-rose-500/20 p-1 rounded transition shrink-0">
+                      <Trash2 className="h-3 w-3" />
+                    </button>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="text-xs text-slate-500 italic p-3 bg-black/20 rounded-lg border border-white/[0.02]">No IM documents attached</div>
+              <p className="text-[11px] text-slate-600 italic">None attached</p>
             )}
           </div>
-          
+
           {/* Financial Packs */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest">Financial Packs & Attachments</span>
-              <label className="text-[10px] uppercase font-bold text-[#C6A66B] cursor-pointer hover:text-white flex items-center gap-1">
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Financial Packs &amp; Attachments</span>
+              <label className="text-[10px] uppercase font-bold text-[#C6A66B] cursor-pointer hover:text-white flex items-center gap-1 shrink-0">
                 {isUploadingIm ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />} Add Pack
                 <input type="file" className="hidden" onChange={(e) => handleUploadCoreDoc(e, "Attachments")} disabled={isUploadingIm} />
               </label>
             </div>
             {deal.rawFields?.Attachments?.length ? (
-              <div className="space-y-2">
+              <div className="space-y-1">
                 {deal.rawFields.Attachments.map((doc: any, idx: number) => (
-                  <div key={idx} className="flex items-center justify-between p-2.5 rounded-lg bg-white/[0.015] border border-white/5">
+                  <div key={idx} className="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg bg-white/[0.015] border border-white/5">
                     <div className="flex items-center gap-2 min-w-0">
-                      <FileSpreadsheet className="h-4 w-4 text-emerald-500 shrink-0" />
-                      <a 
-                        href={doc.url && doc.url.includes("tmpfiles.org/") && !doc.url.includes("tmpfiles.org/dl/") 
-                          ? doc.url.replace("tmpfiles.org/", "tmpfiles.org/dl/") 
-                          : doc.url} 
-                        target="_blank" 
-                        rel="noopener noreferrer" 
-                        className="text-xs text-white truncate hover:text-[#C6A66B] hover:underline"
+                      <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                      <a
+                        href={doc.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[11px] text-white truncate hover:text-[#C6A66B] hover:underline"
                       >
                         {doc.filename || `Attachment ${idx + 1}`}
                       </a>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <button type="button" onClick={() => handleDeleteCoreDoc("Attachments", idx)} disabled={isUploadingIm} className="text-rose-500 hover:bg-rose-500/20 p-1.5 rounded transition">
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
+                    <button type="button" onClick={() => handleDeleteCoreDoc("Attachments", idx)} disabled={isUploadingIm} className="text-rose-500 hover:bg-rose-500/20 p-1 rounded transition shrink-0">
+                      <Trash2 className="h-3 w-3" />
+                    </button>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="text-xs text-slate-500 italic p-3 bg-black/20 rounded-lg border border-white/[0.02]">No attachments</div>
+              <p className="text-[11px] text-slate-600 italic">None attached</p>
             )}
           </div>
         </div>
-      </div>
-      
-      {/* Folder selector grid */}
-      <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 space-y-4">
-        <span className="block text-[8px] font-extrabold text-slate-500 uppercase tracking-widest">
-          DEAL ROOM › GOOGLE DRIVE › {deal.dealRef || deal.id}
-        </span>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          {categories.map((cat, idx) => {
-            const isActive = selectedCategory === cat.id;
-            return (
-              <button
-                key={idx}
-                type="button"
-                onClick={() => setSelectedCategory(selectedCategory === cat.id ? null : cat.id)}
-                className={cx(
-                  "flex items-center gap-3.5 p-4 rounded-xl border text-left transition cursor-pointer",
-                  isActive 
-                    ? "bg-[#C6A66B]/10 border-[#C6A66B] text-white shadow-sm" 
-                    : "bg-white/[0.01] border-white/5 text-slate-350 hover:bg-white/[0.02]"
-                )}
-              >
-                <FolderClosed className={cx("h-5 w-5 shrink-0", isActive ? "text-[#C6A66B]" : "text-slate-500")} />
-                <div>
-                  <span className="block text-xs font-bold truncate leading-none">{cat.name}</span>
-                  <span className="block text-[9px] text-slate-500 mt-1 font-semibold">{cat.count} files</span>
-                </div>
-              </button>
-            );
-          })}
+        {/* Folder index — chips on one line instead of six padded tiles. */}
+        <div className="border-t border-white/5 pt-3 space-y-2">
+          <span className="block text-[9px] font-bold text-slate-600 uppercase tracking-widest">
+            Deal room › {deal.dealRef || deal.id}
+          </span>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-1.5">
+            {categories.map((cat, idx) => {
+              const isActive = selectedCategory === cat.id;
+              return (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => setSelectedCategory(selectedCategory === cat.id ? null : cat.id)}
+                  title={`${cat.name} — ${cat.count} file${cat.count === 1 ? "" : "s"}`}
+                  className={cx(
+                    "flex items-center gap-2 px-2.5 py-2 rounded-lg border text-left transition cursor-pointer min-w-0",
+                    isActive
+                      ? "bg-[#C6A66B]/10 border-[#C6A66B]/60 text-white"
+                      : "bg-white/[0.01] border-white/5 text-slate-350 hover:bg-white/[0.03]"
+                  )}
+                >
+                  <FolderClosed className={cx("h-3.5 w-3.5 shrink-0", isActive ? "text-[#C6A66B]" : "text-slate-500")} />
+                  <span className="min-w-0 flex-1 text-[10.5px] font-bold truncate leading-none">
+                    {cat.name.replace(/^\d+_/, "").replace(/_/g, " ")}
+                  </span>
+                  <span className={cx(
+                    "shrink-0 text-[9px] font-bold tabular-nums",
+                    cat.count > 0 ? "text-slate-300" : "text-slate-600"
+                  )}>
+                    {cat.count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 
       {/* checklist files listing */}
-      <div id="deal-section-tasks" className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5">
-        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-355 mb-4 border-b border-white/5 pb-2">
-          {selectedCategory ? `Document Checklist: Category ${selectedCategory}` : "All Document Checklists"}
+      <div id="deal-section-tasks" className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-4">
+        <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-2">
+          {selectedCategory ? `Checklist · ${selectedCategory}` : "All document checklists"}
+          {selectedCategory && (
+            <button
+              type="button"
+              onClick={() => setSelectedCategory(null)}
+              className="text-[9px] font-bold uppercase tracking-wider text-acp-bronze hover:text-white transition-colors"
+            >
+              Clear filter
+            </button>
+          )}
         </h4>
         <DocumentChecklist
           documents={(documentState.data ?? []).filter((doc: any) => {
