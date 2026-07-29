@@ -1,4 +1,4 @@
-import { Filter, Files, ShieldAlert, FileText, FileSpreadsheet, FileArchive, CheckCircle2, Search, X, Calendar, User, History, ExternalLink, Plus, FileWarning, Upload, Trash2 } from "lucide-react";
+import { Filter, Files, ShieldAlert, FileText, FileSpreadsheet, FileArchive, CheckCircle2, Search, X, Download, Calendar, User, History, ExternalLink, Plus, FileWarning, Upload, Trash2 } from "lucide-react";
 import { useMemo, useState, useEffect, useCallback } from "react";
 import type { DealDocument } from "../../types/deal";
 import { updateAdminDocuments, createAdminDocument, uploadAdminDocument, parseAdminDocument, getJobStatus, deleteAdminDocument, getDocumentFileUrl } from "../../api/admin";
@@ -29,6 +29,11 @@ function getDocIcon(name: string = "", category: string = "") {
     return <FileArchive className="h-4 w-4 text-amber-600" />;
   }
   return <FileText className="h-4 w-4 text-acp-bronze" />;
+}
+
+/** Whether a document actually has a file behind it (many rows are placeholders). */
+function hasFile(doc: DealDocument): boolean {
+  return Boolean(doc.driveLink && doc.driveLink.trim());
 }
 
 export function DocumentChecklist({ documents, audience, onRefresh, dealId }: DocumentChecklistProps) {
@@ -159,7 +164,7 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
     e.preventDefault();
     e.stopPropagation();
 
-    if (!doc.driveLink || doc.driveLink.trim() === "") {
+    if (!hasFile(doc)) {
       handleDocActionClick(e, doc);
       return;
     }
@@ -626,7 +631,12 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
       )}
 
       {filteredDocuments.length > 0 ? (
-        <Table className="max-h-[65vh]">
+        /* Compact rows, scoped to this table. The padding lives on Th/Td in the
+           shared Table component and is used app-wide, so it is overridden here
+           with descendant selectors rather than by editing the shared component
+           (a plain px-* class on Td would tie with the base class and lose or
+           win depending on stylesheet order). */
+        <Table className="max-h-[65vh] [&_th]:px-3 [&_th]:py-2.5 [&_td]:px-3 [&_td]:py-2 [&_td]:text-[13px]">
           <thead>
             <tr className="border-b border-white/5 bg-white/[0.01]">
               {audience === "internal" && (
@@ -639,13 +649,12 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
                   />
                 </Th>
               )}
-              <Th>Index</Th>
+              <Th className="w-12">#</Th>
               <Th className="w-full">Document Name</Th>
               <Th>Category</Th>
               <Th>Priority</Th>
               <Th>Status</Th>
-              {audience === "internal" && <Th>Date Received</Th>}
-              <Th className="text-right">Actions</Th>
+              <Th className="text-right w-24">Actions</Th>
             </tr>
           </thead>
           <tbody className="divide-y divide-white/5 bg-white/[0.01]">
@@ -671,59 +680,55 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
                     />
                   </Td>
                 )}
-                <Td className="font-mono text-xs font-bold text-slate-500 select-none">
+                <Td className="font-mono text-[11px] font-bold text-slate-500 select-none whitespace-nowrap">
                   {document.indexRef}
                 </Td>
-                <Td className="w-full min-w-64">
-                  <div className="flex items-start gap-3">
-                    <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/[0.015] border border-white/[0.02] shadow-sm">
-                      {getDocIcon(document.documentName, document.category)}
+                <Td className="w-full min-w-56">
+                  <div className="flex items-center gap-2.5">
+                    <span className="shrink-0">{getDocIcon(document.documentName, document.category)}</span>
+                    <span className="min-w-0 font-semibold text-white truncate" title={document.documentName}>
+                      {document.documentName || "Untitled document"}
                     </span>
-                    <div className="min-w-0">
-                      <div className="font-semibold text-white truncate" title={document.documentName}>
-                        {document.documentName || "Untitled document"}
-                      </div>
-                      {audience === "lender" ? (
-                        <div className="mt-0.5 flex items-center gap-1 text-[10px] font-bold text-acp-emerald uppercase tracking-wider">
-                          <CheckCircle2 className="h-3 w-3" /> Approved Release
-                        </div>
-                      ) : null}
-                    </div>
+                    {audience === "lender" && (
+                      <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-acp-emerald" aria-label="Approved for release" />
+                    )}
                   </div>
                 </Td>
-                <Td>
-                  <span className="rounded-full border border-white/[0.02] bg-white/[0.015] px-2.5 py-0.5 text-[10px] font-semibold text-slate-300 uppercase tracking-wide">
+                <Td className="whitespace-nowrap">
+                  <span className="rounded-full border border-white/[0.02] bg-white/[0.015] px-2 py-0.5 text-[9.5px] font-semibold text-slate-300 uppercase tracking-wide">
                     {document.category || "Uncategorized"}
                   </span>
                 </Td>
-                <Td>
+                <Td className="whitespace-nowrap">
                   {document.ablCritical ? (
-                    <Badge tone="amber">High Priority</Badge>
+                    <Badge tone="amber">High</Badge>
                   ) : (
-                    <span className="inline-flex items-center gap-1 text-xs font-semibold text-slate-400">
-                      <ShieldAlert className="h-3.5 w-3.5 text-slate-500" aria-hidden="true" />
+                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-500">
+                      <ShieldAlert className="h-3 w-3" aria-hidden="true" />
                       Standard
                     </span>
                   )}
                 </Td>
-                <Td>
+                <Td className="whitespace-nowrap">
                   <StatusBadge status={document.status} />
                 </Td>
-                {audience === "internal" && (
-                  <Td className="font-semibold text-slate-350">
-                    {formatDate(document.dateReceived) || "Not received"}
-                  </Td>
-                )}
                 <Td className="text-right" onClick={(e) => e.stopPropagation()}>
-                  <div className="flex justify-end gap-2">
-                    <ButtonLink
-                      href={document.driveLink}
-                      icon="download"
-                      variant="purple"
+                  {/* Icon-only: a full "Download" label pushed this column off the
+                      right edge of the table on normal viewports. */}
+                  <div className="flex justify-end gap-1.5">
+                    <button
                       onClick={(e) => downloadDocument(e, document)}
+                      className={cx(
+                        "inline-flex h-7 w-7 items-center justify-center rounded-lg border transition-all duration-200 cursor-pointer",
+                        hasFile(document)
+                          ? "border-acp-bronze/30 bg-acp-bronze/10 text-acp-bronze hover:bg-acp-bronze/20 hover:text-white"
+                          : "border-white/[0.04] bg-white/[0.02] text-slate-600 hover:text-slate-400",
+                      )}
+                      title={hasFile(document) ? `Download ${document.documentName || "document"}` : "No file attached yet"}
+                      type="button"
                     >
-                      Download
-                    </ButtonLink>
+                      <Download className="h-3.5 w-3.5" />
+                    </button>
                     {audience === "internal" && (
                       <button
                         onClick={(e) => {
@@ -732,10 +737,10 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
                           setDocToDelete(document);
                         }}
                         className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-red-500/25 bg-red-500/5 text-red-400 hover:bg-red-500/20 hover:text-red-300 transition-all duration-200 cursor-pointer"
-                        title="Delete Document"
+                        title="Delete document"
                         type="button"
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     )}
                   </div>
