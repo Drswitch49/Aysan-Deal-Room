@@ -1540,6 +1540,69 @@ function MissingNarrative({ field }: { field: string }) {
   );
 }
 
+/** One label/value line in the sidebar's contact list; blank reads as a dash. */
+function ContactRow({
+  icon,
+  label,
+  value,
+  href,
+  accent,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value?: string | null;
+  href?: string;
+  accent?: boolean;
+}) {
+  const text = String(value ?? "").trim();
+  return (
+    <div className="flex items-center gap-2.5 min-w-0">
+      <span className="text-slate-600 shrink-0" aria-hidden="true">{icon}</span>
+      <span className="text-[10px] uppercase tracking-wider text-slate-500 w-14 shrink-0">{label}</span>
+      {text ? (
+        href ? (
+          <a
+            href={href}
+            className={cx(
+              "text-[11px] font-semibold truncate hover:underline transition",
+              accent ? "text-[#C6A66B] hover:text-[#B8924F]" : "text-slate-200 hover:text-white",
+            )}
+            title={text}
+          >
+            {text}
+          </a>
+        ) : (
+          <span className="text-[11px] font-semibold text-slate-200 truncate" title={text}>{text}</span>
+        )
+      ) : (
+        <span className="text-[11px] text-slate-600">—</span>
+      )}
+    </div>
+  );
+}
+
+/**
+ * A labelled narrative section that collapses to a single muted line when the
+ * field is empty. Empty prose fields used to occupy a full card each, so a
+ * newly-intaken deal was mostly placeholder text.
+ */
+function NarrativeBlock({
+  label,
+  field,
+  children,
+}: {
+  label: string;
+  field: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <span className="block text-[9px] font-extrabold uppercase tracking-widest text-slate-500">{label}</span>
+      {children ?? <MissingNarrative field={field} />}
+    </div>
+  );
+}
+
 function SimpleMarkdown({ content }: { content: string }) {
   if (!content) return <MissingNarrative field="summary" />;
 
@@ -1757,89 +1820,77 @@ function OverviewTab({
   };
 
   return (
-    <div className="space-y-6 animate-fade-in-up font-sans text-slate-100">
-      {/* Transaction Snapshot Metric Row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="rounded-2xl border border-white/[0.04] bg-[#161B22] p-5 shadow-premium-card card-sheen relative overflow-hidden flex flex-col justify-between">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Location</span>
-          <span className="text-lg font-black text-white mt-2">{deal.location || "TBC"}</span>
-        </div>
-        <div className="rounded-2xl border border-white/[0.04] bg-[#161B22] p-5 shadow-premium-card card-sheen relative overflow-hidden flex flex-col justify-between">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Turnover</span>
-          <span className="text-lg font-black text-[#C6A66B] mt-2">{formatGBPVal(deal.turnover || deal.revenue)}</span>
-        </div>
-        <div className="rounded-2xl border border-white/[0.04] bg-[#161B22] p-5 shadow-premium-card card-sheen relative overflow-hidden flex flex-col justify-between">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">EBITDA</span>
-          <span className="text-lg font-black text-white mt-2">{formatGBPVal(deal.ebitda)}</span>
-        </div>
-        <div className="rounded-2xl border border-white/[0.04] bg-[#161B22] p-5 shadow-premium-card card-sheen relative overflow-hidden flex flex-col justify-between">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Asking Price</span>
-          <span className="text-lg font-black text-white mt-2">{formatGBPVal(deal.evAsk)}</span>
+    <div className="space-y-4 animate-fade-in-up font-sans text-slate-100">
+      {/* Transaction snapshot — one strip of divided cells rather than four tall
+          cards, so the numbers read as a single row of figures and the fold
+          arrives at the deal content instead of below it. */}
+      <div className="rounded-2xl border border-white/[0.04] bg-[#161B22] shadow-premium-card card-sheen overflow-hidden">
+        <div className="grid grid-cols-2 md:grid-cols-5 divide-x divide-white/[0.04]">
+          {[
+            { label: "Location", value: deal.location || "TBC", tone: "text-white" },
+            { label: "Turnover", value: formatGBPVal(deal.turnover || deal.revenue), tone: "text-[#C6A66B]" },
+            { label: "EBITDA", value: formatGBPVal(deal.ebitda), tone: "text-white" },
+            { label: "Asking Price", value: formatGBPVal(deal.evAsk), tone: "text-white" },
+            { label: "EV Multiple", value: multVal > 0 ? `${multVal.toFixed(1)}x` : "TBC", tone: multVal > 0 && multVal <= 9 ? "text-emerald-400" : "text-white" },
+          ].map((m) => (
+            <div key={m.label} className="px-4 py-3 min-w-0">
+              <span className="block text-[9px] font-bold uppercase tracking-widest text-slate-500 truncate">{m.label}</span>
+              <span className={cx("mt-1 block text-base font-black leading-tight truncate tabular-nums", m.tone)} title={String(m.value)}>
+                {m.value}
+              </span>
+            </div>
+          ))}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1.8fr_1.2fr] gap-8 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-[1.8fr_1.2fr] gap-5 items-start">
         
-        {/* LEFT COLUMN: Executive Summary & Collapsible Accordions */}
-        <div className="space-y-6">
+        {/* LEFT COLUMN: Company profile, AI verdict & collapsible accordions */}
+        <div className="space-y-4">
 
-          {/* Card: Business Description */}
-          <div className="rounded-2xl border border-white/[0.04] bg-[#161B22] p-6 shadow-premium-card card-sheen relative overflow-hidden">
+          {/* Company profile — Business Description and Executive Summary share
+              one card. As two cards they cost ~300px of chrome even when both
+              are empty, which is the common case on a freshly-intaken deal. */}
+          <div className="rounded-2xl border border-white/[0.04] bg-[#161B22] p-5 shadow-premium-card card-sheen relative overflow-hidden">
             <div className="relative z-10 space-y-4">
-              <div className="flex items-center gap-2.5 pb-3 border-b border-white/5">
-                <div className="h-8 w-8 rounded-lg bg-[#C6A66B]/10 border border-[#C6A66B]/20 flex items-center justify-center">
-                  <Building2 className="h-4.5 w-4.5 text-[#C6A66B]" />
-                </div>
-                <div>
-                  <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-350">Business Description</h4>
-                  <span className="text-xs font-semibold text-slate-500">{deal.sector || "Sector Fit"}</span>
-                </div>
-              </div>
-              {deal.businessDescription ? (
-                <p className="text-xs leading-relaxed text-slate-305 font-normal select-text whitespace-pre-line">
-                  {deal.businessDescription}
-                </p>
-              ) : (
-                <MissingNarrative field="business description" />
-              )}
-            </div>
-          </div>
-
-          {/* Card: Executive Summary */}
-          <div className="rounded-2xl border border-white/[0.04] bg-[#161B22] p-6 shadow-premium-card card-sheen relative overflow-hidden">
-            <div className="relative z-10 space-y-4">
-              <div className="flex items-center gap-2.5 pb-3 border-b border-white/5">
-                <div className="h-8 w-8 rounded-lg bg-[#C6A66B]/10 border border-[#C6A66B]/20 flex items-center justify-center">
-                  <FileText className="h-4.5 w-4.5 text-[#C6A66B]" />
-                </div>
-                <div>
-                  <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-350">Executive Summary</h4>
-                  <span className="text-xs font-semibold text-slate-500 font-sans">Transaction Highlights</span>
-                </div>
-              </div>
-              {deal.executiveSummary ? (
-                <SimpleMarkdown content={deal.executiveSummary} />
-              ) : (
-                // Was an empty <SimpleMarkdown>, which rendered a titled card with
-                // nothing under it and read as a loading failure rather than a
-                // field nobody has filled in.
-                <MissingNarrative field="executive summary" />
-              )}
-            </div>
-          </div>
-          
-          {/* Card 1: Claude AI Verdict & Key Risks (Visible by default) */}
-          <div className="rounded-2xl border border-white/[0.04] bg-[#161B22] p-6 shadow-premium-card card-sheen relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-[#C6A66B]/5 blur-3xl pointer-events-none" />
-            <div className="relative z-10 space-y-5">
-              
-              <div className="flex items-center justify-between pb-3.5 border-b border-white/5">
-                <div className="flex items-center gap-2.5">
-                  <div className="h-8 w-8 rounded-lg bg-[#C6A66B]/10 border border-[#C6A66B]/20 flex items-center justify-center">
-                    <BrainCircuit className="h-4.5 w-4.5 text-[#C6A66B]" />
+              <div className="flex items-center justify-between gap-3 pb-3 border-b border-white/5">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="h-7 w-7 shrink-0 rounded-lg bg-[#C6A66B]/10 border border-[#C6A66B]/20 flex items-center justify-center">
+                    <Building2 className="h-4 w-4 text-[#C6A66B]" />
                   </div>
-                  <div>
-                    <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-350">Claude AI Investment Verdict</h4>
+                  <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-350 truncate">Company Profile</h4>
+                </div>
+                <span className="shrink-0 inline-flex items-center rounded-full bg-blue-500/5 border border-blue-500/10 px-2.5 py-0.5 text-[10px] font-semibold text-blue-400">
+                  {deal.sector || "Sector TBC"}
+                </span>
+              </div>
+
+              <NarrativeBlock label="Business Description" field="business description">
+                {deal.businessDescription ? (
+                  <p className="text-xs leading-relaxed text-slate-305 font-normal select-text whitespace-pre-line">
+                    {deal.businessDescription}
+                  </p>
+                ) : null}
+              </NarrativeBlock>
+
+              <NarrativeBlock label="Executive Summary" field="executive summary">
+                {deal.executiveSummary ? <SimpleMarkdown content={deal.executiveSummary} /> : null}
+              </NarrativeBlock>
+            </div>
+          </div>
+
+          {/* Card 1: Claude AI Verdict & Key Risks (Visible by default) */}
+          <div className="rounded-2xl border border-white/[0.04] bg-[#161B22] p-5 shadow-premium-card card-sheen relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-[#C6A66B]/5 blur-3xl pointer-events-none" />
+            <div className="relative z-10 space-y-4">
+
+              <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-white/5">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="h-7 w-7 shrink-0 rounded-lg bg-[#C6A66B]/10 border border-[#C6A66B]/20 flex items-center justify-center">
+                    <BrainCircuit className="h-4 w-4 text-[#C6A66B]" />
+                  </div>
+                  <div className="min-w-0">
+                    <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-350 truncate">Claude AI Investment Verdict</h4>
                     <div className="flex items-center gap-2 mt-1">
                       <span className={cx(
                         "inline-flex rounded px-1.5 py-0.2 text-[8px] font-black uppercase tracking-widest border select-none",
@@ -1861,12 +1912,12 @@ function OverviewTab({
                   </div>
                 </div>
                 
-                <div className="flex items-center gap-4 text-right select-none">
+                <div className="flex items-center gap-3 text-right select-none shrink-0">
                   {handleGenerateVerdict && (
                     <button
                       onClick={handleGenerateVerdict}
                       disabled={isGeneratingVerdict}
-                      className="px-3 py-1.5 rounded-lg border border-[#C6A66B]/30 bg-[#C6A66B]/10 hover:bg-[#C6A66B]/20 text-[#C6A66B] text-[9px] font-black uppercase tracking-widest transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                      className="h-7 px-2.5 rounded-lg border border-[#C6A66B]/30 bg-[#C6A66B]/10 hover:bg-[#C6A66B]/20 text-[#C6A66B] text-[9px] font-black uppercase tracking-widest transition-colors inline-flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
                     >
                       {isGeneratingVerdict ? (
                         <>
@@ -1876,14 +1927,14 @@ function OverviewTab({
                       ) : (
                         <>
                           <BrainCircuit className="h-3 w-3" />
-                          Generate Verdict
+                          Generate
                         </>
                       )}
                     </button>
                   )}
-                  <div>
-                    <span className="block text-[8px] font-bold text-slate-500 uppercase tracking-wider">Acquisition Score</span>
-                    <span className="text-lg font-black text-[#C6A66B] font-mono tracking-tight mt-0.5 block">
+                  <div className="pl-3 border-l border-white/[0.06]">
+                    <span className="block text-[8px] font-bold text-slate-500 uppercase tracking-wider">Score</span>
+                    <span className="text-base font-black text-[#C6A66B] font-mono tracking-tight block leading-tight">
                       {overallDisplayScore}
                     </span>
                   </div>
@@ -1901,18 +1952,12 @@ function OverviewTab({
                 }
 
                 if (!parsedVerdict) {
+                  // One line, not a paragraph plus an empty "Key Risks" section
+                  // — nothing has been analysed, so there is nothing to head up.
                   return (
-                    <>
-                      <p className="text-xs leading-relaxed text-slate-300 font-normal">
-                        No structured AI investment verdict generated yet. Click "Generate Verdict" to run the Claude AI analysis based on the latest deal data and IM documents.
-                      </p>
-                      <div className="space-y-3 pt-2.5 border-t border-white/[0.02]">
-                        <span className="block text-[9px] font-extrabold uppercase tracking-widest text-slate-400">Key Risks & Viability Concerns</span>
-                        <div className="flex items-start gap-2.5 text-xs text-slate-400 font-normal">
-                          <span>No risks extracted.</span>
-                        </div>
-                      </div>
-                    </>
+                    <p className="text-xs leading-relaxed text-slate-400 font-normal">
+                      Not analysed yet. Run <span className="font-semibold text-[#C6A66B]">Generate Verdict</span> to score this deal against ACP's criteria using the latest deal data, documents and SOPs.
+                    </p>
                   );
                 }
 
@@ -2254,73 +2299,61 @@ function OverviewTab({
         </div>
 
         {/* RIGHT COLUMN: Operational Guidance Sidebar */}
-        <div className="space-y-6 lg:sticky lg:top-24">
+        <div className="space-y-4 lg:sticky lg:top-24">
 
-          {/* Sourcing & Contact Information Card */}
-          <div className="rounded-2xl border border-white/[0.04] bg-[#161B22] p-5 space-y-4 shadow-premium-card card-sheen relative overflow-hidden">
-            <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 select-none block font-sans">Sourcing & Contact</span>
-            <div className="space-y-3">
-              {deal.contactEmail ? (
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-[8px] text-slate-500 uppercase tracking-wider">Contact Email</span>
-                  <a 
-                    href={`mailto:${deal.contactEmail}`}
-                    className="text-xs font-bold text-[#C6A66B] hover:text-[#B8924F] hover:underline transition flex items-center gap-1.5"
-                  >
-                    {deal.contactEmail}
-                  </a>
-                </div>
-              ) : (
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-[8px] text-slate-500 uppercase tracking-wider">Contact Email</span>
-                  <span className="text-xs font-medium text-slate-400 italic">No email provided</span>
-                </div>
-              )}
-
-              {deal.contactPhone ? (
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-[8px] text-slate-500 uppercase tracking-wider">Contact Phone</span>
-                  <a 
-                    href={`tel:${deal.contactPhone}`}
-                    className="text-xs font-bold text-slate-200 hover:text-white hover:underline transition flex items-center gap-1.5"
-                  >
-                    {deal.contactPhone}
-                  </a>
-                </div>
-              ) : (
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-[8px] text-slate-500 uppercase tracking-wider">Contact Phone</span>
-                  <span className="text-xs font-medium text-slate-400 italic">No phone provided</span>
-                </div>
-              )}
-
-              {deal.listingLink ? (
-                <div className="pt-2 border-t border-white/5">
-                  <a 
-                    href={deal.listingLink}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-450 hover:underline"
-                  >
-                    View Original Listing <ExternalLink className="h-3.5 w-3.5" />
-                  </a>
-                </div>
-              ) : (
-                <div className="pt-2 border-t border-white/5">
-                  <span className="text-xs text-slate-500 italic">No listing link available</span>
-                </div>
-              )}
+          {/* Sourcing & Contact — a label/value list with icons. Empty fields
+              show a dash on one line instead of a stacked "No … provided". */}
+          <div className="rounded-2xl border border-white/[0.04] bg-[#161B22] p-5 space-y-3 shadow-premium-card card-sheen relative overflow-hidden">
+            <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 select-none block font-sans">Sourcing &amp; Contact</span>
+            <div className="space-y-2">
+              <ContactRow icon={<User className="h-3.5 w-3.5" />} label="Contact" value={deal.broker || deal.rawFields?.["Contact Name"]} />
+              <ContactRow
+                icon={<MessageSquare className="h-3.5 w-3.5" />}
+                label="Email"
+                value={deal.contactEmail}
+                href={deal.contactEmail ? `mailto:${deal.contactEmail}` : undefined}
+                accent
+              />
+              <ContactRow
+                icon={<Send className="h-3.5 w-3.5" />}
+                label="Phone"
+                value={deal.contactPhone}
+                href={deal.contactPhone ? `tel:${deal.contactPhone}` : undefined}
+              />
             </div>
+            {deal.listingLink && (
+              <a
+                href={deal.listingLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-1 inline-flex items-center gap-1.5 text-[11px] font-bold text-blue-450 hover:underline pt-2 border-t border-white/5 w-full"
+              >
+                View original listing <ExternalLink className="h-3 w-3" />
+              </a>
+            )}
           </div>
-          
-          {/* Section 0: Deal Owner Profile */}
-          <div className="rounded-2xl border border-white/[0.04] bg-[#161B22] p-5 space-y-3 shadow-premium-card card-sheen">
-            <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 select-none block font-sans">Assigned To</span>
+
+          {/* Kill Reason — recorded whenever the deal is killed, from either the
+              Active Pipeline or the Deal Inbox. */}
+          {isKilled && (
+            <KillReasonCard
+              reason={killReason}
+              killedBy={killedBy}
+              killDate={killDate}
+              className="shadow-premium-card"
+              onSave={onUpdateDeal ? (next) => onUpdateDeal({ kill_reason_text: next }) : undefined}
+            />
+          )}
+
+          {/* Ownership + stage — the two controls that actually get changed,
+              in one card rather than two stacked headers. */}
+          <div className="rounded-2xl border border-white/[0.04] bg-[#161B22] p-5 space-y-4 shadow-premium-card card-sheen">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-[#C6A66B]/10 border border-[#C6A66B]/20 flex items-center justify-center text-[#C6A66B] font-bold text-sm tracking-wide font-mono select-none">
+              <div className="h-9 w-9 shrink-0 rounded-xl bg-[#C6A66B]/10 border border-[#C6A66B]/20 flex items-center justify-center text-[#C6A66B] font-bold text-xs tracking-wide font-mono select-none">
                 {ownerInitials}
               </div>
               <div className="flex-1 min-w-0">
+                <span className="block text-[9px] font-black uppercase tracking-widest text-slate-500 select-none">Assigned To</span>
                 <select
                   value={eligibleUsers.includes(deal.rawFields?.["Owner"]) ? deal.rawFields?.["Owner"] : ""}
                   onChange={async (e) => {
@@ -2342,23 +2375,8 @@ function OverviewTab({
                 </select>
               </div>
             </div>
-          </div>
 
-          {/* Kill Reason — recorded whenever the deal is killed, from either the
-              Active Pipeline or the Deal Inbox. */}
-          {isKilled && (
-            <KillReasonCard
-              reason={killReason}
-              killedBy={killedBy}
-              killDate={killDate}
-              className="shadow-premium-card"
-              onSave={onUpdateDeal ? (next) => onUpdateDeal({ kill_reason_text: next }) : undefined}
-            />
-          )}
-
-          {/* Section 1: Deal Stage & Transition Dropdown */}
-          <div className="rounded-2xl border border-white/[0.04] bg-[#161B22] p-5 space-y-4 shadow-premium-card card-sheen">
-            <div className="flex flex-col gap-1.5">
+            <div className="flex flex-col gap-1.5 pt-3 border-t border-white/5">
               <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 select-none">Current Deal Stage</span>
               <select
                 value={currentStage}
@@ -2372,7 +2390,7 @@ function OverviewTab({
                   }
                 }}
                 className={cx(
-                  "w-full h-10 rounded-xl border px-3 text-xs font-bold uppercase tracking-wider outline-none cursor-pointer transition shadow-sm",
+                  "w-full h-9 rounded-xl border px-3 text-xs font-bold uppercase tracking-wider outline-none cursor-pointer transition shadow-sm",
                   getStageBadgeColor(currentStage)
                 )}
               >
@@ -2390,37 +2408,39 @@ function OverviewTab({
           {/* Section 2: Essential Actions */}
           <div className="rounded-2xl border border-white/[0.04] bg-[#161B22] p-5 space-y-4 shadow-premium-card card-sheen">
             <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 select-none block font-sans">Essential Actions</span>
-            
-            <div className="space-y-3">
-              <button
-                onClick={() => openComposer({
-                  type: "loi",
-                  recipientName: deal.rawFields?.["Contact Name"] || deal.rawFields?.["Broker Name"] || "",
-                  recipientEmail: deal.rawFields?.["Contact Email"] || deal.rawFields?.["Broker Email"] || "",
-                  subject: `Letter of Intent (LOI) - ${deal.companyName || deal.dealRef || "Project"}`,
-                  body: deal.rawFields?.["LOI Draft"] || `Dear ${deal.rawFields?.["Contact Name"] || "Sir/Madam"},\n\nWe are pleased to submit this Letter of Intent for the acquisition of ${deal.companyName || "the company"}.\n\nKind regards,\n${ownerName}`,
-                  generatedBy: "precall_brief_engine"
-                })}
-                className="w-full h-10 rounded-xl bg-[#C6A66B] hover:bg-[#B8924F] text-slate-950 font-black text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 cursor-pointer shadow-glow-bronze/10"
-              >
-                <Send className="h-3.5 w-3.5" />
-                Send LOI
-              </button>
 
-              <button
-                onClick={() => openComposer({
-                  type: "email",
-                  recipientName: deal.rawFields?.["Broker Name"] || deal.rawFields?.["Contact Name"] || "",
-                  recipientEmail: deal.rawFields?.["Broker Email"] || deal.rawFields?.["Contact Email"] || deal.rawFields?.["Contact_Email"] || "",
-                  subject: `Regarding ${deal.companyName || deal.dealRef || "Project"}`,
-                  body: `Hi ${deal.rawFields?.["Broker Name"] || deal.rawFields?.["Contact Name"] || ""},\n\nFollowing up on our review of ${deal.companyName || "the company"}.\n\nKind regards,\n${ownerName}`,
-                  generatedBy: "admin"
-                })}
-                className="w-full h-10 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs transition flex items-center justify-center gap-2 border border-white/10"
-              >
-                <MessageSquare className="h-3.5 w-3.5" />
-                Draft Broker Email
-              </button>
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => openComposer({
+                    type: "loi",
+                    recipientName: deal.rawFields?.["Contact Name"] || deal.rawFields?.["Broker Name"] || "",
+                    recipientEmail: deal.rawFields?.["Contact Email"] || deal.rawFields?.["Broker Email"] || "",
+                    subject: `Letter of Intent (LOI) - ${deal.companyName || deal.dealRef || "Project"}`,
+                    body: deal.rawFields?.["LOI Draft"] || `Dear ${deal.rawFields?.["Contact Name"] || "Sir/Madam"},\n\nWe are pleased to submit this Letter of Intent for the acquisition of ${deal.companyName || "the company"}.\n\nKind regards,\n${ownerName}`,
+                    generatedBy: "precall_brief_engine"
+                  })}
+                  className="h-9 rounded-xl bg-[#C6A66B] hover:bg-[#B8924F] text-slate-950 font-black text-[10px] uppercase tracking-wider transition flex items-center justify-center gap-1.5 cursor-pointer shadow-glow-bronze/10"
+                >
+                  <Send className="h-3.5 w-3.5" />
+                  Send LOI
+                </button>
+
+                <button
+                  onClick={() => openComposer({
+                    type: "email",
+                    recipientName: deal.rawFields?.["Broker Name"] || deal.rawFields?.["Contact Name"] || "",
+                    recipientEmail: deal.rawFields?.["Broker Email"] || deal.rawFields?.["Contact Email"] || deal.rawFields?.["Contact_Email"] || "",
+                    subject: `Regarding ${deal.companyName || deal.dealRef || "Project"}`,
+                    body: `Hi ${deal.rawFields?.["Broker Name"] || deal.rawFields?.["Contact Name"] || ""},\n\nFollowing up on our review of ${deal.companyName || "the company"}.\n\nKind regards,\n${ownerName}`,
+                    generatedBy: "admin"
+                  })}
+                  className="h-9 rounded-xl bg-white/[0.03] hover:bg-white/[0.07] text-slate-200 font-bold text-[10px] uppercase tracking-wider transition flex items-center justify-center gap-1.5 border border-white/10 cursor-pointer"
+                >
+                  <MessageSquare className="h-3.5 w-3.5" />
+                  Email
+                </button>
+              </div>
 
               <div className="pt-2.5 border-t border-white/5">
                 <div className="flex items-center justify-between text-[10px] text-slate-400 font-semibold select-none pb-2">
