@@ -50,7 +50,6 @@ export function DealListPage() {
   // New deal modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newDealName, setNewDealName] = useState("");
-  const [newDealRef, setNewDealRef] = useState("");
   const [newDealStage, setNewDealStage] = useState("Intro");
   const [newDealNextAction, setNewDealNextAction] = useState("");
   const [newDealNextActionDate, setNewDealNextActionDate] = useState("");
@@ -161,10 +160,12 @@ export function DealListPage() {
   };
 
   // Clean references and names helpers
+  // Some legacy refs carry a trailing description ("ACP-002 | McNicol Ltd"), so
+  // take the first token. Splitting on hyphens as well — as this used to — turned
+  // every ACP-002 into a bare "ACP".
   const formatRefDisplay = (ref: string): string => {
-    if (!ref) return "";
-    const clean = ref.split(/[—\-\s]+/)[0].trim();
-    return clean || ref;
+    const first = String(ref ?? "").trim().split(/\s+/)[0];
+    return first.replace(/[—|,]+$/, "") || String(ref ?? "");
   };
 
   const cleanCompanyName = (name: string): string => {
@@ -358,7 +359,8 @@ export function DealListPage() {
         ebitda: newDealEbitda ? Number(newDealEbitda) : undefined,
         enterpriseValue: newDealEV ? Number(newDealEV) : undefined,
         askingPrice: newDealAskingPrice ? Number(newDealAskingPrice) : undefined,
-        acpRefNo: newDealRef.trim() || undefined,
+        // acpRefNo is deliberately omitted — the server issues it from the
+        // sequence when the deal is created into the active pipeline.
         stage: newDealStage,
         nextAction: newDealNextAction.trim() || undefined,
         nextActionDate: newDealNextActionDate || undefined,
@@ -383,7 +385,7 @@ export function DealListPage() {
       }
 
       // Reset state and close modal
-      setNewDealName(""); setNewDealRef(""); setNewDealStage("Intro");
+      setNewDealName(""); setNewDealStage("Intro");
       setNewDealNextAction(""); setNewDealNextActionDate("");
       setNewDealProject(""); setNewDealIndustry(""); setNewDealWebsite("");
       setNewDealLocation(""); setNewDealOwner(""); setNewDealAnalyst("");
@@ -956,8 +958,18 @@ export function DealListPage() {
                   <option value="Due Diligence">Due Diligence</option>
                 </select>
               </FormField>
-              <FormField label="ACP Reference" id="new-deal-ref">
-                <input id="new-deal-ref" type="text" value={newDealRef} onChange={(e) => setNewDealRef(e.target.value)} placeholder="Auto-generated" className={inputClass} />
+              {/* The ACP reference is issued by the server from a sequence when
+                  the deal enters the active pipeline. Leaving it editable invited
+                  hand-typed refs that duplicate or break the ACP-NNN format. */}
+              <FormField label="ACP Reference" id="new-deal-ref" hint="Assigned automatically (ACP-001, ACP-002, …)">
+                <input
+                  id="new-deal-ref"
+                  type="text"
+                  readOnly
+                  disabled
+                  value="Auto-assigned on creation"
+                  className={cx(inputClass, "cursor-not-allowed text-slate-500")}
+                />
               </FormField>
               <FormField label="Target Date" id="new-deal-target-date">
                 <input id="new-deal-target-date" type="date" value={newDealNextActionDate} onChange={(e) => setNewDealNextActionDate(e.target.value)} className={inputClass} />

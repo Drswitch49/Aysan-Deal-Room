@@ -28,21 +28,19 @@ const ALLOWED: Record<DealStage, DealStage[]> = {
   archived: ["inbox", "review", "active"], // revive
 };
 
-/** Next ACP-CFS-NNN reference (max existing + 1). */
-async function nextAcpRef(): Promise<string> {
+/**
+ * Next ACP-NNN reference, issued by a Postgres sequence (migration 0012).
+ *
+ * Previously this read max(acp_ref_no) + 1 in the client, so two deals created
+ * in the same moment both read the same max and were handed the same reference.
+ * nextval() is atomic, so each caller gets a distinct number.
+ */
+export async function nextAcpRef(): Promise<string> {
   const db = adminClient();
-  const { data, error } = await db
-    .from("deals")
-    .select("acp_ref_no")
-    .not("acp_ref_no", "is", null)
-    .like("acp_ref_no", "ACP-CFS-%");
+  const { data, error } = await db.rpc("next_acp_ref");
   if (error) throw new Error(`nextAcpRef: ${error.message}`);
-  let max = 0;
-  for (const r of data ?? []) {
-    const m = String((r as { acp_ref_no: string }).acp_ref_no).match(/ACP-CFS-(\d+)/i);
-    if (m) max = Math.max(max, parseInt(m[1], 10));
-  }
-  return `ACP-CFS-${String(max + 1).padStart(3, "0")}`;
+  if (!data) throw new Error("nextAcpRef: sequence returned no reference");
+  return data as unknown as string;
 }
 
 export async function transitionDeal(

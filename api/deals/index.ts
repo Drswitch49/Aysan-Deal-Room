@@ -9,6 +9,7 @@ import { ForbiddenError } from "../../lib/core/errors.js";
 import { repositories } from "../../lib/data/supabase/repositories.js";
 import { listQuerySchema } from "../../lib/core/schemas/common.js";
 import { createDealSchema } from "../../lib/core/schemas/deal.js";
+import { nextAcpRef } from "../_services/deals.js";
 
 const listSchema = listQuerySchema.extend({
   stage: z.enum(["inbox", "review", "active", "archived"]).optional(),
@@ -55,6 +56,13 @@ export default createHandler({
     if (!user || !WRITERS.includes(user.role)) {
       throw new ForbiddenError("Creating deals requires an analyst/partner/admin role");
     }
-    return repositories.deals.create(createDealSchema.parse(body));
+    const input = createDealSchema.parse(body);
+    // A deal created straight into the active pipeline gets its ACP reference
+    // here. Promotion from the inbox is handled by the stage transition; without
+    // this, a manually-created active deal was the one path that never got one.
+    if (input.stage === "active" && !input.acp_ref_no) {
+      input.acp_ref_no = await nextAcpRef();
+    }
+    return repositories.deals.create(input);
   },
 });

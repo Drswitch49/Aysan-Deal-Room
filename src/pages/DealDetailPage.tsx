@@ -690,9 +690,16 @@ export function DealDetailPage() {
                 {joinedDeal.companyName || joinedDeal.dealRef}
               </h1>
               <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 mt-1.5 text-[9px] font-bold text-slate-450 select-none uppercase tracking-wider">
-                <span className="font-mono text-slate-350">ACP-{joinedDeal.dealRef}</span>
-                <span className="text-slate-700 font-bold">·</span>
-                <span>KBS: {joinedDeal.dealRef ? String(joinedDeal.dealRef).replace(/[^0-9]/g, "") || joinedDeal.dealRef : "—"}</span>
+                {/* The ref already starts with "ACP-", so prefixing it here
+                    rendered "ACP-ACP-008". Listing refs (KBS numbers) keep the
+                    label they came in with. */}
+                <span className="font-mono text-slate-350">{joinedDeal.dealRef || "—"}</span>
+                {joinedDeal.rawFields?.["REF No."] && (
+                  <>
+                    <span className="text-slate-700 font-bold">·</span>
+                    <span>KBS: {String(joinedDeal.rawFields["REF No."])}</span>
+                  </>
+                )}
                 <span className="text-slate-700 font-bold">·</span>
                 <span>{joinedDeal.sector}</span>
                 <span className="text-slate-700 font-bold">·</span>
