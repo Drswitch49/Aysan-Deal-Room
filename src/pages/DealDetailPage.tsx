@@ -33,7 +33,7 @@ import {
   transitionDealStage, transitionDealLifecycle, triggerOsintEnrichment, triggerFinancialAnalysis,
   sendLoiWebhook, sendEmailWebhook, updateAdminDeal,
   uploadImDocument, removeImDocument, replaceImDocument,
-  deleteDeal, fetchTeamMemberRecords, getJobStatus
+  deleteDeal, fetchTeamMemberRecords, getJobStatus, enqueueAiJob
 } from "../api/admin";
 import { getDealInbox } from "../api/airtable";
 import { HeaderMetrics } from "../components/ui/HeaderMetrics";
@@ -238,10 +238,9 @@ export function DealDetailPage() {
     if (!dealState.data?.id) return;
     setIsGeneratingVerdict(true);
     try {
-      const job = await (await import("../api/http")).api.post<any>("/api/ai/jobs", {
-        type: "investment-verdict",
-        payload: { deal_id: dealState.data.id },
-      });
+      // enqueueAiJob also kicks the worker — posting to /api/ai/jobs alone only
+      // queues the job and leaves it for a cron tick that may never come.
+      const job = await enqueueAiJob("investment-verdict", { deal_id: dealState.data.id });
       // Poll until the verdict lands, then refresh the deal.
       for (let i = 0; i < 60; i++) {
         await new Promise((r) => setTimeout(r, 3000));
@@ -2574,7 +2573,7 @@ function PreCallBriefTab({ deal, openComposer }: { deal: any; openComposer: (opt
   const [dataSources, setDataSources] = useState<Record<string, boolean>>({
     companiesHouse: true,
     notionSops: true,
-    airtable: true,
+    supabase: true,
   });
 
   const [uploadState, setUploadState] = useState<"idle" | "dragging" | "uploading" | "analyzed">("idle");
@@ -2588,9 +2587,10 @@ function PreCallBriefTab({ deal, openComposer }: { deal: any; openComposer: (opt
   // Loading animation step
   const [loadingStep, setLoadingStep] = useState(0);
   const steps = [
-    "Scraping Companies House data...",
-    "Ingesting Airtable records...",
-    "Querying Claude 3.5 Sonnet...",
+    "Pulling Companies House data...",
+    "Reading ACP SOPs from Notion...",
+    "Loading the deal record, documents and notes...",
+    "Querying Claude Opus 5...",
     "Formatting intelligence brief..."
   ];
 
@@ -2910,7 +2910,7 @@ function PreCallBriefTab({ deal, openComposer }: { deal: any; openComposer: (opt
                   {[
                     { id: "companiesHouse", label: "Companies House" },
                     { id: "notionSops", label: "Notion SOPs" },
-                    { id: "airtable", label: "Airtable record" },
+                    { id: "supabase", label: "Deal record" },
                   ].map((src) => {
                     const isConnected = selectedBrief.dataSources?.[src.id] !== false;
                     return (
@@ -3467,7 +3467,7 @@ function PreCallBriefTab({ deal, openComposer }: { deal: any; openComposer: (opt
                   {[
                     { id: "companiesHouse", label: "Companies House" },
                     { id: "notionSops", label: "Notion SOPs" },
-                    { id: "airtable", label: "Airtable record" },
+                    { id: "supabase", label: "Deal record" },
                   ].map((src) => {
                     const isConnected = dataSources[src.id];
                     return (

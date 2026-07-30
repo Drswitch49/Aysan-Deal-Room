@@ -2,6 +2,7 @@
 import { api } from "../http";
 import { clearAirtableCache } from "../airtable";
 import { type Row, mapKeys, resolveDealId, DOC_KEY_MAP, uploadToCloudinary } from "./_shared";
+import { enqueueAiJob } from "./ai";
 
 export async function updateAdminDocuments(updates: Array<{ id: string; fields: Row }>) {
   const results = [];
@@ -73,7 +74,7 @@ export async function uploadAdminDocument(data: {
 }
 
 export async function analyzeAdminDocument(documentId: string): Promise<Row> {
-  const r = await api.post<Row>("/api/ai/jobs", { type: "document-analysis", payload: { document_id: documentId } });
+  const r = await enqueueAiJob("document-analysis", { document_id: documentId });
   // Legacy shape: 202-style { status, id } + sync-parse fields left undefined.
   return { success: true, status: "queued", id: r.job_id, jobId: r.job_id, documentId };
 }

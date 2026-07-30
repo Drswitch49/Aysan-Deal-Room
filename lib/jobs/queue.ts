@@ -66,7 +66,15 @@ export async function getJob(id: string): Promise<Record<string, unknown> | null
   return data;
 }
 
-/** Claim and run due jobs until none remain or the time budget is spent. */
+/**
+ * Claim and run due jobs until none remain or the time budget is spent.
+ *
+ * Claims ONE job at a time by default. A single AI job can run 150s+, so
+ * claiming a batch of three marks all three `running` and then gets the worker
+ * killed by the function timeout partway through the second — stranding the
+ * rest. One at a time means an over-run costs at most one job, and that one is
+ * reclaimed by its lease (migration 0009).
+ */
 export async function runDueJobs(opts: { batch?: number; timeBudgetMs?: number } = {}): Promise<{
   ran: number;
   failed: number;
@@ -76,7 +84,7 @@ export async function runDueJobs(opts: { batch?: number; timeBudgetMs?: number }
   let ran = 0, failed = 0;
 
   while (Date.now() < deadline) {
-    const { data: claimed, error } = await db.rpc("claim_jobs", { batch: opts.batch ?? 3 });
+    const { data: claimed, error } = await db.rpc("claim_jobs", { batch: opts.batch ?? 1 });
     if (error) throw new Error(`claim_jobs: ${error.message}`);
     if (!claimed || claimed.length === 0) break;
 

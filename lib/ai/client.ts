@@ -1,23 +1,47 @@
 /**
- * Shared Anthropic Claude client (Phase 5b).
+ * Shared Anthropic Claude client.
  *
- * Replaces the duplicated raw-fetch blocks in the legacy api/_services/ai.ts,
- * api/_utils/document-processor.ts and api/_services/portfolio.ts with one
- * @anthropic-ai/sdk client. Same provider, same models — no behavior change by
- * design; this only centralizes transport, error handling, and JSON validation.
+ * One @anthropic-ai/sdk client for every AI task in the app (verdicts, briefs,
+ * OSINT synthesis, transcript and document analysis). Centralizes transport,
+ * the output budget, refusal handling, and JSON validation.
+ *
+ * Model: Claude Opus 5 with adaptive thinking. Two consequences worth knowing
+ * before changing anything here:
+ *   - Thinking is ON by default and shares `max_tokens` with the response text,
+ *     so the caller's text budget alone would truncate answers mid-sentence.
+ *     THINKING_HEADROOM is added on top of it.
+ *   - Requests are streamed. A large budget on a non-streaming request runs into
+ *     the SDK's HTTP timeout; streaming and reading the final message avoids it
+ *     without changing the call shape for callers.
  */
 import Anthropic from "@anthropic-ai/sdk";
 import type { ZodType } from "zod";
 import { getServerEnv } from "../core/env.js";
 import { logger } from "../core/logger.js";
 
-/** Model used by the app's AI tasks (unchanged from the legacy implementation). */
-export const AI_MODEL = "claude-sonnet-4-6";
+/** Model used by every AI task in the app. */
+export const AI_MODEL = "claude-opus-5";
+
+/** Reasoning depth. `high` is the API default; raise per-call for hard analysis. */
+export type AiEffort = "low" | "medium" | "high" | "xhigh" | "max";
+
+/** Adaptive thinking is billed against `max_tokens` alongside the visible text. */
+const THINKING_HEADROOM = 12_000;
+const MAX_OUTPUT_TOKENS = 64_000;
 
 export class AiUnavailableError extends Error {
   constructor() {
     super("AI is not configured (ANTHROPIC_API_KEY missing). Feature degrades gracefully.");
     this.name = "AiUnavailableError";
+  }
+}
+
+/** Claude declined the request (safety classifiers). Not a transport failure —
+ *  retrying the same prompt will decline again, so jobs surface it verbatim. */
+export class AiRefusedError extends Error {
+  constructor(readonly category: string | null) {
+    super(`Claude declined this request${category ? ` (${category})` : ""}.`);
+    this.name = "AiRefusedError";
   }
 }
 
@@ -37,23 +61,46 @@ function getClient(): Anthropic {
 export interface AskOptions {
   system: string;
   messages: Array<{ role: "user" | "assistant"; content: string }>;
+  /** Budget for the *visible* answer; thinking headroom is added on top. */
   maxTokens?: number;
   model?: string;
+  effort?: AiEffort;
 }
 
 /** Plain-text completion. */
 export async function askClaude(opts: AskOptions): Promise<string> {
-  const response = await getClient().messages.create({
-    model: opts.model ?? AI_MODEL,
-    max_tokens: opts.maxTokens ?? 4000,
-    system: opts.system,
-    messages: opts.messages,
-  });
+  const maxTokens = Math.min((opts.maxTokens ?? 4000) + THINKING_HEADROOM, MAX_OUTPUT_TOKENS);
+
+  const response = await getClient().messages
+    .stream({
+      model: opts.model ?? AI_MODEL,
+      max_tokens: maxTokens,
+      thinking: { type: "adaptive" },
+      output_config: { effort: opts.effort ?? "high" },
+      system: opts.system,
+      messages: opts.messages,
+    })
+    .finalMessage();
+
+  // Check the stop reason before reading content: a refusal returns HTTP 200
+  // with empty (or partial) content, so reading blindly yields a silent blank.
+  if (response.stop_reason === "refusal") {
+    const category = (response as { stop_details?: { category?: string | null } }).stop_details?.category ?? null;
+    throw new AiRefusedError(category);
+  }
+
   const text = response.content
     .filter((b): b is Anthropic.TextBlock => b.type === "text")
     .map((b) => b.text)
     .join("");
-  if (!text) throw new Error("No content returned from Claude.");
+
+  if (!text) {
+    throw new Error(
+      response.stop_reason === "max_tokens"
+        ? "Claude hit the output limit before producing an answer — raise maxTokens for this task."
+        : "No content returned from Claude.",
+    );
+  }
   return text.trim();
 }
 

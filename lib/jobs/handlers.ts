@@ -84,6 +84,9 @@ registerHandler("precall-brief", async (payload: any) => {
 
   const brief = await generatePrecallBrief(
     {
+      // The id is what lets the brief pull the deal's own Supabase context
+      // (documents, notes) rather than working from these six fields alone.
+      id: deal.id,
       companyName: deal.company_name,
       dealRef: deal.ref_no ?? deal.acp_ref_no,
       sector: deal.sector ?? deal.industry,
@@ -165,7 +168,9 @@ registerHandler("osint-scan", async (payload: any) => {
   await db().from("deals").update({ osint_status: "running" }).eq("id", dealId);
   try {
     const { runOsintScan } = await import("../osint/scan.js");
-    const result = await runOsintScan(companyName, deal.website);
+    // The deal id is a source, not just a key: the scan pulls the deal row,
+    // document summaries and team notes back out of Supabase as context.
+    const result = await runOsintScan(companyName, deal.website, dealId);
     await db().from("deals").update({
       osint: result,
       osint_status: "completed",

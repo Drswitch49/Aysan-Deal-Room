@@ -2,6 +2,29 @@
 import { api, type Paginated } from "../http";
 import { type Row, resolveDealId } from "./_shared";
 
+/**
+ * Start the queued job now instead of waiting for the cron tick.
+ *
+ * Enqueueing alone left every AI job sitting in `queued` — the Vercel cron that
+ * drains the queue was rejected for want of a CRON_SECRET, so nothing ever ran.
+ * The worker also accepts an admin session, so the app kicks it directly. Fire
+ * and forget: the drain outlives this request, and the UI already polls the job
+ * for its result.
+ */
+export function kickWorker(): void {
+  api.post("/api/jobs/worker", {}).catch(() => {
+    /* cron remains the backstop — a failed kick must not fail the enqueue */
+  });
+}
+
+/** Enqueue an AI job and immediately start draining the queue. Every enqueue
+ *  site must go through this — an enqueue without a kick just waits for cron. */
+export async function enqueueAiJob(type: string, payload: Row): Promise<Row> {
+  const job = await api.post<Row>("/api/ai/jobs", { type, payload });
+  kickWorker();
+  return job;
+}
+
 export async function analyzeTranscript(dealId: string, text: string, fileName?: string) {
   const id = await resolveDealId(dealId);
   const row = await api.post<Row>("/api/transcripts", {
@@ -10,7 +33,7 @@ export async function analyzeTranscript(dealId: string, text: string, fileName?:
     name: fileName ?? `Transcript ${new Date().toISOString().slice(0, 10)}`,
     processing_status: "queued",
   });
-  const job = await api.post<Row>("/api/ai/jobs", { type: "transcript-analysis", payload: { transcript_analysis_id: row.id } });
+  const job = await enqueueAiJob("transcript-analysis", { transcript_analysis_id: row.id });
   return { success: true, jobId: job.job_id, transcriptId: row.id, recordId: row.id };
 }
 
@@ -70,7 +93,7 @@ export async function fetchPrecallBriefs(dealId: string) {
 export async function generatePrecallBrief(data: { dealId: string; [k: string]: any }): Promise<Row> {
   const { dealId, ...params } = data;
   const id = await resolveDealId(dealId);
-  const job = await api.post<Row>("/api/ai/jobs", { type: "precall-brief", payload: { deal_id: id, params } });
+  const job = await enqueueAiJob("precall-brief", { deal_id: id, params });
   return { success: true, status: "queued", id: job.job_id, jobId: job.job_id };
 }
 
@@ -112,10 +135,7 @@ export async function fetchPostcallBriefs(dealId: string) {
 
 export async function generatePostcallBrief(data: { dealId: string; notes: string; schemaId?: string }): Promise<Row> {
   const id = await resolveDealId(data.dealId);
-  const job = await api.post<Row>("/api/ai/jobs", {
-    type: "postcall-brief",
-    payload: { deal_id: id, notes: data.notes, schema_id: data.schemaId },
-  });
+  const job = await enqueueAiJob("postcall-brief", { deal_id: id, notes: data.notes, schema_id: data.schemaId });
   return { success: true, status: "queued", id: job.job_id, jobId: job.job_id };
 }
 
@@ -139,8 +159,8 @@ export async function overridePostcallScores(data: {
 
 export async function triggerOsintEnrichment(dealId: string): Promise<{ success: boolean; message: string }> {
   const id = await resolveDealId(dealId);
-  await api.post<Row>("/api/ai/jobs", { type: "osint-scan", payload: { deal_id: id } });
-  return { success: true, message: "OSINT enrichment queued." };
+  await enqueueAiJob("osint-scan", { deal_id: id });
+  return { success: true, message: "OSINT enrichment started." };
 }
 
 export async function triggerFinancialAnalysis(_dealId: string, _documentId?: string): Promise<{ success: boolean; message: string }> {

@@ -76,6 +76,7 @@ export type InvestmentVerdict = z.infer<typeof investmentVerdictSchema>;
 const VERDICT_SYSTEM = `You are the Lead Investment Director at Aysan Capital Partners.
 Your job is to provide a decisive, structured Investment Verdict on an incoming deal.
 You will be given the company's financials, executive summary, business description, and available IM content.
+Where ACP's own Standard Operating Procedures are supplied, judge the deal against THOSE criteria — the thresholds and red lines in our SOPs override generic private-equity heuristics. Never invent an SOP rule that was not supplied.
 
 Analyze the data and output ONLY a valid JSON object matching exactly this schema:
 {
@@ -108,8 +109,13 @@ export interface VerdictDealInput {
   hasImAttached?: boolean;
 }
 
-export function generateInvestmentVerdict(deal: VerdictDealInput): Promise<InvestmentVerdict> {
-  const userContent = `Here is the deal information:
+export async function generateInvestmentVerdict(deal: VerdictDealInput): Promise<InvestmentVerdict> {
+  // ACP's acquisition criteria live in Notion, not in this prompt — pull them in
+  // so the verdict is scored against our mandate. Absent/unconfigured is fine.
+  const { fetchNotionSops, formatSopsForPrompt } = await import("../osint/providers/notionSops.js");
+  const sopText = formatSopsForPrompt(await fetchNotionSops());
+
+  const userContent = `${sopText ? `ACP STANDARD OPERATING PROCEDURES (apply these criteria):\n${sopText}\n\n═══\n\n` : ""}Here is the deal information:
 - Company Name: ${deal.companyName || deal.dealRef}
 - Sector: ${deal.sector}
 - Location: ${deal.location}
@@ -130,7 +136,8 @@ ${deal.hasImAttached ? "Has IM attached." : "No IM attached."}`;
 
   return askClaudeJson(investmentVerdictSchema, {
     system: VERDICT_SYSTEM,
-    maxTokens: 2000,
+    maxTokens: 3000,
+    effort: "high",
     messages: [{ role: "user", content: userContent }],
   });
 }
@@ -162,11 +169,64 @@ export interface PrecallParams {
   selectedCallType: string;
   selectedPersonas: string[];
   selectedScenario: string;
-  dataSources: string[];
+  /** The brief form sends a toggle map ({companiesHouse: true, …}); older
+   *  callers send a plain list. Both are accepted — assuming an array here is
+   *  what made every pre-call brief fail with ".join is not a function". */
+  dataSources: string[] | Record<string, boolean>;
   pastedText?: string;
 }
 
-export function generatePrecallBrief(dealData: any, params: PrecallParams): Promise<PrecallBrief> {
+/** Normalize either dataSources shape to the list of enabled source names. */
+function enabledSources(sources: PrecallParams["dataSources"]): string[] {
+  if (Array.isArray(sources)) return sources.map(String);
+  if (sources && typeof sources === "object") {
+    return Object.entries(sources).filter(([, on]) => on).map(([name]) => name);
+  }
+  return [];
+}
+
+/**
+ * Gather the source material the brief form's toggles ask for.
+ *
+ * The toggles used to be decorative — the brief named its "sources" in a header
+ * line and was then written from the deal's six summary fields alone. Each
+ * enabled source now actually contributes text.
+ */
+async function collectBriefSources(
+  dealId: string | undefined,
+  companyName: string,
+  sources: string[],
+): Promise<string> {
+  const want = (name: string) => sources.length === 0 || sources.includes(name);
+  const blocks: string[] = [];
+
+  const [sops, dealCtx, ch] = await Promise.all([
+    want("notionSops")
+      ? import("../osint/providers/notionSops.js")
+          .then(async (m) => m.formatSopsForPrompt(await m.fetchNotionSops()))
+          .catch(() => "")
+      : Promise.resolve(""),
+    want("supabase") && dealId
+      ? import("../osint/providers/dealContext.js")
+          .then(async (m) => m.formatDealContextForPrompt(await m.loadDealContext(dealId)))
+          .catch(() => "")
+      : Promise.resolve(""),
+    want("companiesHouse")
+      ? import("../../api/_osint/providers/companiesHouse.js")
+          .then((m) => m.searchCompaniesHouse(companyName))
+          .catch(() => null)
+      : Promise.resolve(null),
+  ]);
+
+  if (sops) blocks.push(`═══ ACP SOPs (Notion) ═══\n${sops}`);
+  if (dealCtx) blocks.push(`═══ ACP DEAL RECORD (Supabase) ═══\n${dealCtx}`);
+  if (ch && (ch as { found?: boolean }).found) {
+    blocks.push(`═══ COMPANIES HOUSE ═══\n${JSON.stringify(ch, null, 1).slice(0, 4000)}`);
+  }
+  return blocks.join("\n\n");
+}
+
+export async function generatePrecallBrief(dealData: any, params: PrecallParams): Promise<PrecallBrief> {
   const callTypeLabel =
     params.selectedCallType === "1st" ? "1st Seller Call"
     : params.selectedCallType === "2nd" ? "2nd Follow-up Call"
@@ -275,6 +335,13 @@ BREVITY AND LIMITS (CRITICAL):
 - Limit 'participantResponsibilities' to a brief 2-3 sentence overview.
 - If many participants are selected, compress their data into tight summaries rather than writing essays.`;
 
+  const sources = enabledSources(params.dataSources);
+  const sourceMaterial = await collectBriefSources(
+    dealData.id,
+    dealData.companyName || dealData.dealRef || "",
+    sources,
+  );
+
   const userContent = `Company: ${dealData.companyName || dealData.dealRef}
 Sector: ${dealData.sector} | Location: ${dealData.location}
 EV: ${dealData.evAsk ? `£${dealData.evAsk}` : "TBC"}
@@ -283,12 +350,14 @@ EBITDA: ${dealData.ebitda ? `£${dealData.ebitda}` : "TBC"}
 EV Multiple: ${dealData.multiplier || "TBC"}
 Call Type: ${callTypeLabel}
 Selected Participants: ${activePersonas.map((p: any) => p.name).join(", ") || "None"}
-Sources: ${(params.dataSources || []).join(", ")}
-${params.pastedText ? `\nIM Text:\n${params.pastedText.substring(0, 3000)}` : ""}`;
+Sources: ${sources.join(", ") || "None selected"}
+${params.pastedText ? `\nIM Text:\n${params.pastedText.substring(0, 3000)}` : ""}
+${sourceMaterial ? `\n${sourceMaterial}` : "\nNo external source material was available — work from the fields above and say so where the brief is thin."}`;
 
   return askClaudeJson(precallBriefSchema, {
     system: systemPrompt,
     maxTokens: 8000,
+    effort: "high",
     messages: [{ role: "user", content: userContent }],
   });
 }

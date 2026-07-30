@@ -1,6 +1,7 @@
 /** Admin client — Portfolio companies, metrics, alerts, health. */
 import { api, type Paginated } from "../http";
 import { type Row, mapKeys } from "./_shared";
+import { enqueueAiJob } from "./ai";
 
 export async function fetchPortfolioData(): Promise<Row> {
   const s = await api.get<Row>("/api/portfolio/summary");
@@ -53,7 +54,7 @@ export async function fetchPortfolioData(): Promise<Row> {
 }
 
 export async function triggerPortfolioAnalysis() {
-  const job = await api.post<Row>("/api/ai/jobs", { type: "portfolio-briefing", payload: {} });
+  const job = await enqueueAiJob("portfolio-briefing", {});
   return { success: true, jobId: job.job_id };
 }
 

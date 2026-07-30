@@ -28,6 +28,22 @@ const EnvSchema = z.object({
   // AI — feature degrades gracefully when absent.
   ANTHROPIC_API_KEY: z.string().min(1).optional(),
 
+  // OSINT sources. Each provider is skipped (not fatal) when its key is absent,
+  // so a scan still runs on whatever sources are configured.
+  COMPANIES_HOUSE_API_KEY: z.string().min(1).optional(),
+  /** Notion internal-integration token (ntn_…) used to read the ACP SOPs. */
+  NOTION_API_KEY: z.string().min(1).optional(),
+  /** Comma-separated Notion page ids to treat as SOPs; omit to search by name. */
+  NOTION_SOP_PAGE_IDS: z.string().min(1).optional(),
+  /** Search phrase used to find SOP pages when NOTION_SOP_PAGE_IDS is unset. */
+  NOTION_SOP_QUERY: z.string().min(1).optional(),
+  /** Optional extra source — news is not part of the default OSINT pipeline. */
+  NEWS_API_KEY: z.string().min(1).optional(),
+
+  /** Shared secret Vercel Cron sends to /api/jobs/worker. Without it the cron
+   *  request is unauthenticated and every queued AI job stays queued forever. */
+  CRON_SECRET: z.string().min(1).optional(),
+
   // Airtable — used ONLY by the one-time ETL scripts, never by the app.
   AIRTABLE_API_KEY: z.string().min(1).optional(),
   AIRTABLE_BASE_ID: z.string().min(1).optional(),
