@@ -198,12 +198,38 @@ All tables include:
 
 ## Environment Variables
 
-Required (already configured):
-- `AIRTABLE_API_KEY` or `VITE_AIRTABLE_API_KEY`
-- `AIRTABLE_BASE_ID` or `VITE_AIRTABLE_BASE_ID`
+Set these in **Vercel → Project → Settings → Environment Variables** (Production,
+Preview and Development), and mirror them in a local `.env` for scripts and
+`npm run dev`. `.env` is gitignored — never commit real values.
 
-Optional:
-- `ENABLE_SCHEMA_AUTO_CREATE` (default: true)
+### Required
+
+| Variable | Used for |
+|---|---|
+| `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_ANON_KEY` | Server-side data access |
+| `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` | Browser auth client |
+| `SUPABASE_DB_URL` | `npm run db:migrate` only (not needed at runtime) |
+| `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | Document storage |
+| `ANTHROPIC_API_KEY` | Every AI feature (verdicts, briefs, OSINT, document analysis) |
+| `CRON_SECRET` | Authenticates the Vercel Cron that drains the job queue. Any long random string; set the **same** value in Vercel. Without it the cron falls back to the `x-vercel-cron` header — the in-app worker kick still runs jobs, but set this so the backstop is authenticated. |
+
+### OSINT sources (optional — each degrades gracefully)
+
+A scan runs on whatever is configured and reports the rest as unavailable; it
+never fabricates a source it could not read.
+
+| Variable | Source | Where to get it |
+|---|---|---|
+| `COMPANIES_HOUSE_API_KEY` | UK registry: status, officers, SIC codes, filings | Free — register an application at <https://developer.company-information.service.gov.uk/>, then create a REST API key |
+| `NOTION_API_KEY` | ACP SOPs — the acquisition criteria the verdict and briefs are judged against | Notion → Settings → Connections → **Develop or manage integrations** → New internal integration → copy the `ntn_…` secret. **Then open each SOP page → ⋯ → Connections → add the integration**, or it returns nothing. |
+| `NOTION_SOP_PAGE_IDS` | Pin exact SOP pages instead of searching | Comma-separated page ids (the 32-char hex in a Notion page URL). Omit to search the workspace. |
+| `NOTION_SOP_QUERY` | Search phrase when no page ids are set | Defaults to `SOP` — the 5 most recently edited matches are used |
+| `NEWS_API_KEY` | Optional press coverage; off unless set | <https://newsapi.org/> |
+
+### Legacy
+
+`AIRTABLE_API_KEY` / `AIRTABLE_BASE_ID` are used **only** by the one-time ETL
+scripts in `scripts/etl/`. No runtime code path reads Airtable.
 
 ## Troubleshooting
 
