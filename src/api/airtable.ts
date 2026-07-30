@@ -7,7 +7,7 @@
  */
 import { api, clearApiCache, type Paginated } from "./http";
 import { mapDeal, mapDocument, mapSubmission } from "./mappers";
-import { mapKeys, DEAL_KEY_MAP } from "./admin/_shared";
+import { mapKeys, DEAL_KEY_MAP, STAGE_TO_STATUS } from "./admin/_shared";
 import type { DealDocument, PipelineDeal, SubmissionLogEntry } from "../types/deal";
 
 export function clearAirtableCache() {
@@ -126,7 +126,15 @@ export async function getDealInbox(query: DealInboxQuery = {}): Promise<{ rows: 
         Location: d.location ?? "",
         BROKER: d.broker ?? "",
         Broker: d.broker ?? "",
-        Status: d.status ?? "Inbox",
+        /**
+         * Derived from the authoritative lifecycle stage, NOT the legacy
+         * `status` text. That text is null on ~1.6k of 1.8k migrated rows — so
+         * defaulting it to "Inbox" made the detail modal report almost every
+         * deal as Inbox — and where it is set it often contradicts the stage.
+         */
+        Status: STAGE_TO_STATUS[d.stage as string] ?? d.status ?? "Inbox",
+        /** The raw legacy value, kept for reference/debugging only. */
+        Legacy_Status: d.status ?? "",
         /** Authoritative lifecycle stage — what the inbox filters and dashboard count. */
         Stage: d.stage ?? "",
         /** Kanban/pipeline label — free text, distinct from the lifecycle stage. */

@@ -348,7 +348,11 @@ export function DealInboxPage() {
         "Sector": formData.sector,
         "Location": formData.location,
         "BROKER": formData.broker,
-        "Status": formData.status,
+        // "Status" is deliberately NOT written here. It is a lifecycle move,
+        // not a text field: writing it alone left `stage` untouched, so the
+        // deal kept its old stage while the stored text claimed otherwise —
+        // which is how ~30 deals ended up sitting in `inbox` labelled "Active".
+        // The transition below does it properly.
         "Summary": formData.executiveSummary,
         "Description": formData.businessDescription,
         "EBITDA_GBP": Number(formData.ebitda) || undefined,
@@ -370,6 +374,27 @@ export function DealInboxPage() {
       } else if (isEditModalOpen && editingDeal) {
         await updateInboxDeal(editingDeal.id, payload);
         dealId = editingDeal.id;
+      }
+
+      // Apply the chosen status as a real lifecycle transition, so the deal
+      // actually moves stage (and shows the right one afterwards).
+      const targetStage = STATUS_TO_STAGE[formData.status];
+      const currentStage = editingDeal?.fields?.Stage ?? (isAddModalOpen ? "inbox" : undefined);
+      if (dealId && targetStage && targetStage !== currentStage) {
+        let killReason: string | undefined;
+        if (formData.status === "Kill") {
+          const entered = prompt(
+            "Why is this deal being killed? The reason is stored on the deal and shown in its details.",
+            String(editingDeal?.fields?.Kill_Reason ?? ""),
+          );
+          // Cancelling the reason cancels only the status change — the field
+          // edits the user already made are saved above and stay saved.
+          if (entered !== null && entered.trim()) killReason = entered.trim();
+        }
+        if (formData.status !== "Kill" || killReason) {
+          await transitionDealLifecycle(dealId, formData.status, { currentStage, killReason });
+          refreshPipeline(); // the Active Deals page counts the same stage
+        }
       }
 
       // Sync IM/Review files to the im_review_documents table (multi-file):

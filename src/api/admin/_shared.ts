@@ -9,6 +9,22 @@ import { api, type Paginated } from "../http";
 
 export type Row = Record<string, any>;
 
+/**
+ * Lifecycle stage → the status label the UI shows.
+ *
+ * `stage` is authoritative — it is what the inbox filters, the pill counts and
+ * the dashboard all count, and what a transition writes. The legacy `status`
+ * text is unreliable: it is null on most migrated rows and frequently
+ * contradicts the stage (deals sitting in `inbox` whose status text says
+ * "Active"). Display derives from this map; `status` is only a fallback.
+ */
+export const STAGE_TO_STATUS: Record<string, string> = {
+  inbox: "Inbox",
+  review: "Review",
+  active: "Active",
+  archived: "Kill",
+};
+
 // ─── Field-name mapping (legacy Airtable keys → Supabase columns) ───────────
 
 export const DEAL_KEY_MAP: Record<string, string> = {
