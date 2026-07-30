@@ -511,18 +511,14 @@ export function DealListPage() {
               }).length})
             </button>
 
-            {/* Killed */}
-            <button
-              onClick={() => { setSelectedStageFilter("Killed"); setCurrentPage(1); }}
-              className={cx(
-                "px-3.5 py-1.5 rounded-full border transition cursor-pointer font-bold",
-                selectedStageFilter === "Killed"
-                  ? "border-rose-500 bg-rose-500/5 text-rose-500"
-                  : "border-rose-500/10 bg-white/[0.01] text-rose-400 hover:text-rose-300"
-              )}
+            {/* Killed deals leave the active pipeline for the Deal Inbox's Kill
+                bucket, so there is no killed filter here — just a way through. */}
+            <Link
+              to="/admin/inbox?filter=Kill"
+              className="px-3.5 py-1.5 rounded-full border border-rose-500/10 bg-white/[0.01] text-rose-400 hover:text-rose-300 transition cursor-pointer font-bold"
             >
-              Killed ({baseFilteredDeals.filter((d: any) => (d.status || "").toLowerCase() === "killed").length})
-            </button>
+              Killed Deals →
+            </Link>
           </div>
         ) : (
           <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider select-none bg-white/[0.02] border border-white/[0.02] px-3.5 py-2 rounded-xl">

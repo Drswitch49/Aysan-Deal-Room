@@ -14,6 +14,7 @@ import { FormField } from "../components/ui/FormField";
 import { cx } from "../utils/cx";
 import { usePipeline } from "../context/PipelineContext";
 import { ManualNotesTab } from "../components/deals/ManualNotesTab";
+import { KillReasonCard } from "../components/deals/KillReasonCard";
 
 // Helper to parse collaborator email or name safely
 const getOwnerName = (ownerField: any) => {
@@ -40,6 +41,18 @@ const getOwnerName = (ownerField: any) => {
  * counting the authoritative `stage` enum — reported 983. Both now read the
  * same column, so the two screens agree by construction.
  */
+/**
+ * Every way a deal row can read as killed — the lifecycle stage, the legacy
+ * status text, the pipeline label, or a reason already on record. Deals killed
+ * before the lifecycle fix only carry the pipeline label, so a stage-only test
+ * would hide their kill reason.
+ */
+const isDealKilled = (fields: Record<string, any> = {}): boolean =>
+  fields["Stage"] === "archived" ||
+  String(fields["Status"] || "").toLowerCase() === "kill" ||
+  String(fields["Pipeline_Stage"] || "").toLowerCase() === "killed" ||
+  Boolean(fields["Kill_Reason"]);
+
 const FILTER_STAGES: Record<string, "inbox" | "review" | "active" | "archived" | undefined> = {
   "All Deals": undefined,
   Active: "active",
@@ -486,8 +499,20 @@ export function DealInboxPage() {
       return;
     }
 
-    if (newStatus === "Kill" && !confirm("Killing this deal moves it to the archive and records who killed it. Continue?")) {
-      return;
+    // The kill reason is shown back on the deal's detail page, so it is
+    // collected here rather than being left blank for inbox-side kills.
+    let killReason: string | undefined;
+    if (newStatus === "Kill") {
+      const entered = prompt(
+        "Why is this deal being killed? The reason is stored on the deal and shown in its details.",
+        selectedDeal.fields?.Kill_Reason || "",
+      );
+      if (entered === null) return; // cancelled
+      killReason = entered.trim();
+      if (!killReason) {
+        alert("A kill reason is required.");
+        return;
+      }
     }
 
     try {
@@ -495,11 +520,16 @@ export function DealInboxPage() {
       // Moves the lifecycle stage, not just the legacy status text — the filters
       // and the dashboard both count `stage`, so a status-only write would leave
       // the deal sitting in the wrong bucket.
-      await transitionDealLifecycle(selectedDeal.id, newStatus, { currentStage });
+      await transitionDealLifecycle(selectedDeal.id, newStatus, { currentStage, killReason });
 
       const updatedItem = {
         ...selectedDeal,
-        fields: { ...selectedDeal.fields, Status: newStatus, Stage: STATUS_TO_STAGE[newStatus] ?? currentStage },
+        fields: {
+          ...selectedDeal.fields,
+          Status: newStatus,
+          Stage: STATUS_TO_STAGE[newStatus] ?? currentStage,
+          ...(killReason ? { Kill_Reason: killReason } : {}),
+        },
       };
       setSelectedDeal(updatedItem);
 
@@ -850,6 +880,24 @@ export function DealInboxPage() {
       >
         {selectedDeal && (
           <div className="space-y-6 min-w-0">
+
+            {/* Kill Reason — always shown for a killed deal, wherever it was
+                killed (inbox or Active Pipeline), blank reason included. */}
+            {isDealKilled(selectedDeal.fields) && (
+              <KillReasonCard
+                reason={String(selectedDeal.fields["Kill_Reason"] || "")}
+                killedBy={String(selectedDeal.fields["Killed_By"] || "")}
+                killDate={String(selectedDeal.fields["Kill_Date"] || "")}
+                onSave={async (next) => {
+                  await updateInboxDeal(selectedDeal.id, { kill_reason_text: next });
+                  setSelectedDeal({
+                    ...selectedDeal,
+                    fields: { ...selectedDeal.fields, Kill_Reason: next },
+                  });
+                  await fetchInbox();
+                }}
+              />
+            )}
 
             {/* AI Verdict Premium Card */}
             {selectedDeal.fields["AI_Verdict"] && (

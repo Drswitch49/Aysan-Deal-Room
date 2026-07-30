@@ -41,16 +41,27 @@ export async function transitionDealLifecycle(
   const toStage = STATUS_TO_STAGE[status];
   if (!toStage) throw new Error(`Unknown deal status "${status}"`);
 
+  const killReason = opts.killReason?.trim() || undefined;
+
   // The server rejects a no-op transition; when the deal is already there, just
   // reconcile the legacy status text.
   if (opts.currentStage !== toStage) {
     await api.post<Row>("/api/deal-transitions", {
       deal_id: dealId,
       to_stage: toStage,
-      ...(opts.killReason ? { kill_reason: opts.killReason } : {}),
+      ...(killReason ? { kill_reason: killReason, notes: killReason } : {}),
     });
   }
-  const updated = await api.patch<Row>(`/api/deals/${encodeURIComponent(dealId)}`, { status });
+  const patch: Row = { status };
+  if (toStage === "archived") {
+    // Keep the Kanban/table label in step with the lifecycle move, so a killed
+    // deal reads as "Killed" wherever the pipeline label is displayed.
+    patch.pipeline_stage = "Killed";
+    // Also written by the transition endpoint; repeated here so a re-kill of an
+    // already-archived deal still records the reason.
+    if (killReason) patch.kill_reason_text = killReason;
+  }
+  const updated = await api.patch<Row>(`/api/deals/${encodeURIComponent(dealId)}`, patch);
   clearAirtableCache();
   return updated;
 }

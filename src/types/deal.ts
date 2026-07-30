@@ -37,6 +37,13 @@ export type PipelineDeal = {
   processingStatusText?: string;
   stageAgeDays?: number;
   archived?: boolean;
+  /** Lifecycle stage (inbox/review/active/archived) — distinct from `status`,
+   *  which is the free-text pipeline label. */
+  lifecycleStage?: string;
+  /** Why the deal was killed, recorded at the archive transition. */
+  killReason?: string;
+  killedBy?: string;
+  killDate?: string;
   readiness?: number;
   missingItems?: string[];
 

@@ -35,17 +35,27 @@ export function EditDealPage() {
   const handleSubmit = async (data: CreateDealInput) => {
     if (!id) return;
     
+    // The kill reason is displayed on the deal's detail page, so it is captured
+    // here too — a kill from any screen records one.
+    let killReason: string | undefined;
     if (data.stage === "Killed") {
       const confirmed = window.confirm(
         "Are you sure you want to kill this deal? It will be moved to the Deal Inbox under 'Kill' and permanently removed from the Active Pipeline."
       );
       if (!confirmed) return;
+      const entered = window.prompt("Kill reason — why is this deal being killed?", "");
+      if (entered === null) return;
+      killReason = entered.trim();
+      if (!killReason) {
+        setError("A kill reason is required.");
+        return;
+      }
     }
 
     setIsLoading(true);
     setError(null);
     try {
-      await updateDeal(id, data);
+      await updateDeal(id, data, { killReason });
       navigate(-1); // Go back to where we came from
     } catch (err: any) {
       setError(err.message || "An unexpected error occurred");

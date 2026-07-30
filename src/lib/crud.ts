@@ -7,6 +7,7 @@
  * same row (stage → archived) — no cross-table copy/delete dance.
  */
 import { api, type Paginated } from "../api/http";
+import { transitionDealLifecycle } from "../api/admin/deals";
 import type { Deal, CreateDealInput, PortfolioCompany, CreatePortfolioCompanyInput } from "../types/entities.js";
 
 type Row = Record<string, any>;
@@ -73,13 +74,16 @@ export async function getDeal(dealId: string): Promise<Deal | null> {
   return row ? mapDealEntity(row) : null;
 }
 
-export async function updateDeal(dealId: string, updates: Partial<CreateDealInput>): Promise<Deal> {
-  // Killing a deal → lifecycle transition (records stage history + audit).
+export async function updateDeal(
+  dealId: string,
+  updates: Partial<CreateDealInput>,
+  opts: { killReason?: string } = {},
+): Promise<Deal> {
+  // Killing a deal → lifecycle transition (archived), which also drops it out of
+  // the active pipeline and records stage history, audit and the kill reason.
   if (updates.stage && String(updates.stage).toLowerCase() === "killed") {
-    const row = await api.post<Row>("/api/deal-transitions", {
-      deal_id: dealId,
-      to_stage: "archived",
-      kill_reason: updates.internalNotes || undefined,
+    const row = await transitionDealLifecycle(dealId, "Kill", {
+      killReason: opts.killReason || updates.internalNotes || undefined,
     });
     return mapDealEntity(row);
   }

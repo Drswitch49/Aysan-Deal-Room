@@ -129,8 +129,14 @@ export async function getDealInbox(query: DealInboxQuery = {}): Promise<{ rows: 
         Status: d.status ?? "Inbox",
         /** Authoritative lifecycle stage — what the inbox filters and dashboard count. */
         Stage: d.stage ?? "",
+        /** Kanban/pipeline label — free text, distinct from the lifecycle stage. */
+        Pipeline_Stage: d.pipeline_stage ?? "",
         AI_Verdict: d.ai_verdict ?? "",
         Source: d.source ?? "",
+        /** Kill metadata — recorded on the archive transition. */
+        Kill_Reason: d.kill_reason_text ?? d.kill_reason_select ?? "",
+        Killed_By: d.killed_by ?? "",
+        Kill_Date: d.kill_date ?? "",
         "One line reason": d.one_line_reason ?? "",
         One_Line_Reason: d.one_line_reason ?? "",
         Summary: d.executive_summary ?? "",

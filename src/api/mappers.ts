@@ -22,6 +22,7 @@ function compatRawFields(d: Row): Record<string, any> {
     Company_Name: d.company_name ?? d.deal_name ?? "",
     "Deal Name": d.deal_name ?? "",
     Stage: d.pipeline_stage ?? d.stage ?? "",
+    Status: d.status ?? "",
     // financials
     EV: d.enterprise_value ?? "",
     Enterprise_Value: d.enterprise_value ?? "",
@@ -42,6 +43,10 @@ function compatRawFields(d: Row): Record<string, any> {
     "Next Action": d.next_action ?? "",
     "Next Action Date": d.next_action_date ?? "",
     Internal_Notes: d.internal_notes ?? "",
+    // Kill metadata — surfaced on the deal detail overview.
+    Kill_Reason: d.kill_reason_text ?? d.kill_reason_select ?? "",
+    Killed_By: d.killed_by ?? "",
+    Kill_Date: d.kill_date ?? "",
     Executive_Summary: d.executive_summary ?? "",
     Business_Description: d.business_description ?? "",
     // AI / enrichment
@@ -94,6 +99,10 @@ export function mapDeal(d: Row): PipelineDeal {
     nextActionTitle: d.next_action || "",
     actionDate: d.next_action_date || "",
     archived: d.stage === "archived",
+    lifecycleStage: d.stage || "",
+    killReason: d.kill_reason_text || d.kill_reason_select || "",
+    killedBy: d.killed_by || "",
+    killDate: d.kill_date || "",
     // overview / portal fields
     listingLink: d.listing_link || "",
     contactEmail: d.contact_email || "",

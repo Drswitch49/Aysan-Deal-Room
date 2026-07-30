@@ -15,6 +15,7 @@ import { DocumentChecklist } from "../components/deals/DocumentChecklist";
 import { SubmissionTimeline } from "../components/deals/SubmissionTimeline";
 import { DealChat } from "../components/deals/DealChat";
 import { ManualNotesTab } from "../components/deals/ManualNotesTab";
+import { KillReasonCard } from "../components/deals/KillReasonCard";
 import { ErrorState } from "../components/ui/ErrorState";
 import { LoadingState } from "../components/ui/LoadingState";
 import { PageHeader } from "../components/ui/PageHeader";
@@ -29,7 +30,7 @@ import {
   fetchAdminLenders, createLender, assignDealToLender,
   fetchPrecallBriefs, generatePrecallBrief, askPrecallBriefQuestion,
   fetchPostcallBriefs, generatePostcallBrief, overridePostcallScores,
-  transitionDealStage, triggerOsintEnrichment, triggerFinancialAnalysis,
+  transitionDealStage, transitionDealLifecycle, triggerOsintEnrichment, triggerFinancialAnalysis,
   sendLoiWebhook, sendEmailWebhook, updateAdminDeal,
   uploadImDocument, removeImDocument, replaceImDocument,
   deleteDeal, fetchTeamMemberRecords, getJobStatus
@@ -422,7 +423,15 @@ export function DealDetailPage() {
     e.preventDefault();
     if (!targetStage || !joinedDeal) return;
 
-    if (targetStage === "Killed") {
+    const isKill = targetStage === "Killed";
+
+    if (isKill) {
+      // The reason is the only record of *why* the deal died — the deal detail
+      // overview renders it back, so an empty one leaves a blank field forever.
+      if (!transitionNotes.trim()) {
+        setTransitionError("A kill reason is required before killing this deal.");
+        return;
+      }
       const confirmed = window.confirm(
         "Are you sure you want to kill this deal? It will be moved to the Deal Inbox under 'Kill' and permanently removed from the Active Pipeline."
       );
@@ -432,11 +441,28 @@ export function DealDetailPage() {
     setIsTransitioning(true);
     setTransitionError(null);
     try {
-      await transitionDealStage(joinedDeal.id, targetStage, {
-        notes: transitionNotes,
-        changedBy: "Admin",
-        role: "admin",
-      });
+      if (isKill) {
+        // A kill is a LIFECYCLE move (active → archived), not just a relabel of
+        // the Kanban stage: relabelling alone left the deal sitting in the
+        // active pipeline with a "Killed" badge instead of moving it to the
+        // Deal Inbox's Kill bucket.
+        await transitionDealLifecycle(joinedDeal.id, "Kill", {
+          currentStage: joinedDeal.lifecycleStage,
+          killReason: transitionNotes.trim(),
+        });
+      } else {
+        // Moving a killed deal to any live stage is a revive: without the
+        // lifecycle move it would keep the new label while staying archived,
+        // i.e. invisible to the Active Pipeline.
+        if (joinedDeal.lifecycleStage === "archived") {
+          await transitionDealLifecycle(joinedDeal.id, "Active", { currentStage: "archived" });
+        }
+        await transitionDealStage(joinedDeal.id, targetStage, {
+          notes: transitionNotes,
+          changedBy: "Admin",
+          role: "admin",
+        });
+      }
       setIsTransitionModalOpen(false);
       setRefreshTrigger((prev) => prev + 1);
       refreshPipeline();
@@ -1057,7 +1083,7 @@ export function DealDetailPage() {
           setIsTransitionModalOpen(false);
           setTargetStage(null);
         }}
-        title="Confirm Stage Transition"
+        title={targetStage === "Killed" ? "Kill Deal" : "Confirm Stage Transition"}
       >
         <form onSubmit={handleTransitionSubmit} className="space-y-4 font-sans">
           {transitionError && (
@@ -1068,17 +1094,35 @@ export function DealDetailPage() {
           )}
 
           <div className="text-xs text-slate-355 leading-relaxed select-none">
-            You are changing the deal stage from <span className="font-bold text-white">{currentStage}</span> to <span className="font-bold text-[#C6A66B]">{targetStage || ""}</span>.
-            This action will record an entry in the immutable audit trail and trigger downstream workflows.
+            {targetStage === "Killed" ? (
+              <>
+                This deal will leave the Active Pipeline and move to the Deal Inbox under <span className="font-bold text-rose-400">Kill</span>.
+                The reason below is stored on the deal and shown on its detail page.
+              </>
+            ) : (
+              <>
+                You are changing the deal stage from <span className="font-bold text-white">{currentStage}</span> to <span className="font-bold text-[#C6A66B]">{targetStage || ""}</span>.
+                This action will record an entry in the immutable audit trail and trigger downstream workflows.
+              </>
+            )}
           </div>
 
 
-          <FormField label="Reason / Notes for this transition" id="transition-notes">
+          <FormField
+            label={targetStage === "Killed" ? "Kill Reason" : "Reason / Notes for this transition"}
+            id="transition-notes"
+            required={targetStage === "Killed"}
+          >
             <textarea
               id="transition-notes"
               value={transitionNotes}
               onChange={(e) => setTransitionNotes(e.target.value)}
-              placeholder="Provide a brief explanation for this stage transition..."
+              required={targetStage === "Killed"}
+              placeholder={
+                targetStage === "Killed"
+                  ? "Why is this deal being killed? e.g. Seller withdrew, EBITDA below threshold…"
+                  : "Provide a brief explanation for this stage transition..."
+              }
               className={textareaClass}
               rows={3}
             />
@@ -1098,9 +1142,16 @@ export function DealDetailPage() {
             <button
               type="submit"
               disabled={isTransitioning}
-              className="h-9 px-4 rounded-xl bg-gradient-to-r from-[#C6A66B] to-[#B8924F] text-slate-950 text-xs font-bold uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none hover:shadow-glow-bronze transition cursor-pointer"
+              className={cx(
+                "h-9 px-4 rounded-xl text-xs font-bold uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none transition cursor-pointer",
+                targetStage === "Killed"
+                  ? "border border-rose-500/30 bg-rose-500/15 text-rose-300 hover:bg-rose-500/25"
+                  : "bg-gradient-to-r from-[#C6A66B] to-[#B8924F] text-slate-950 hover:shadow-glow-bronze"
+              )}
             >
-              {isTransitioning ? "Transitioning..." : "Confirm Move"}
+              {isTransitioning
+                ? (targetStage === "Killed" ? "Killing..." : "Transitioning...")
+                : (targetStage === "Killed" ? "Kill Deal" : "Confirm Move")}
             </button>
           </div>
         </form>
@@ -1609,6 +1660,21 @@ function OverviewTab({
 
   const ebitdaVal = Number(deal.ebitda) || 0;
   const multVal = Number(deal.multiplier) || 0;
+
+  // Kill metadata — populated by the archive transition, wherever it was fired from.
+  const killReason = String(deal.killReason || deal.rawFields?.["Kill_Reason"] || "").trim();
+  const killedBy = String(deal.killedBy || deal.rawFields?.["Killed_By"] || "").trim();
+  const killDate = String(deal.killDate || deal.rawFields?.["Kill_Date"] || "").trim();
+  // Every way a deal can read as killed — lifecycle stage, pipeline label, the
+  // legacy status text, or a reason already on record. Any one of them shows the
+  // Kill Reason field, so it can't go missing on a deal killed before the
+  // lifecycle fix (or by an older client).
+  const isKilled =
+    deal.lifecycleStage === "archived" ||
+    deal.archived === true ||
+    currentStage.toLowerCase() === "killed" ||
+    String(deal.rawFields?.["Status"] || "").toLowerCase() === "kill" ||
+    Boolean(killReason);
 
   let ownerName = deal.ownerName || deal.rawFields?.["Owner"] || deal.rawFields?.Collaborator?.[0]?.name || "";
   if (!ownerName || ownerName === "Unassigned" || (eligibleUsers && eligibleUsers.length > 0 && !eligibleUsers.includes(ownerName))) {
@@ -2278,6 +2344,18 @@ function OverviewTab({
               </div>
             </div>
           </div>
+
+          {/* Kill Reason — recorded whenever the deal is killed, from either the
+              Active Pipeline or the Deal Inbox. */}
+          {isKilled && (
+            <KillReasonCard
+              reason={killReason}
+              killedBy={killedBy}
+              killDate={killDate}
+              className="shadow-premium-card"
+              onSave={onUpdateDeal ? (next) => onUpdateDeal({ kill_reason_text: next }) : undefined}
+            />
+          )}
 
           {/* Section 1: Deal Stage & Transition Dropdown */}
           <div className="rounded-2xl border border-white/[0.04] bg-[#161B22] p-5 space-y-4 shadow-premium-card card-sheen">
