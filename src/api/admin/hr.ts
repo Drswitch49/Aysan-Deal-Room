@@ -124,6 +124,33 @@ export async function updateTeamMember(memberId: string, fields: Row) {
   return api.patch<Row>(`/api/team-members/${encodeURIComponent(memberId)}`, mapKeys(fields, map));
 }
 
+/** Portal access management (owner/admin/HR only — enforced server-side). */
+export type AccessMode = "link" | "password" | "credentials" | "enable" | "disable";
+
+export interface AccessGrant {
+  mode: AccessMode;
+  email?: string;
+  name?: string;
+  role?: string;
+  /** True when the Supabase Auth account was created by this call. */
+  created?: boolean;
+  /** Single-use sign-in URL (mode: "link"). */
+  loginLink?: string;
+  expiresInMinutes?: number;
+  /** One-time password (mode: "password") — never retrievable again. */
+  tempPassword?: string;
+  /** enable/disable only: false when the person has no auth account yet. */
+  changed?: boolean;
+}
+
+export async function provisionAccess(
+  type: "team" | "shareholder",
+  id: string,
+  mode: AccessMode,
+): Promise<AccessGrant> {
+  return api.post<AccessGrant>("/api/auth/provision", { type, id, mode });
+}
+
 export interface StakeholderPayload {
   name: string;
   association?: string;

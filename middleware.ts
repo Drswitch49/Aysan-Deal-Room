@@ -14,6 +14,7 @@ const PUBLIC_PREFIXES = [
   "/api/auth/login",
   "/api/auth/logout",
   "/api/auth/session",
+  "/api/auth/callback", // redeeming a provisioned login link — no session yet
   "/api/lender/auth", // lender portal login (Supabase-backed)
   "/api/health",
 ];

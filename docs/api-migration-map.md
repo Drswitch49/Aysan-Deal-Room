@@ -44,6 +44,12 @@ Temporary aliases keeping old URLs alive until the frontend repoint:
 `reset-password`, `get-lender-passcode`, `regenerate-portal`, `change-admin-password`
 — legacy portal credentials are replaced by Supabase Auth accounts (invite/magic-link).
 
+Landed as `POST /api/auth/provision` (`mode: link | password | enable | disable`,
+PEOPLE_MANAGERS only) which creates/re-syncs the auth account behind an
+`acp_team` or `shareholders` row, plus `GET /api/auth/callback` which redeems a
+provisioned single-use link into httpOnly session cookies. `change-admin-password`
+remains served by `POST /api/auth/change-password` (self-service).
+
 ### Deferred to Phase 5 (job system + AI/OSINT/financial redesign)
 `generate-verdict`, `trigger-osint`, `trigger-financial` — become enqueued jobs.
 `send-loi`, `send-email`, `verify-integration` — integrations service.

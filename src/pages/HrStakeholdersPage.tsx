@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Plus, Trash, Loader2, AlertCircle, UserPlus, X, Copy, ShieldCheck, KeyRound, Edit, UserCheck, UserX } from "lucide-react";
 import { cx } from "../utils/cx";
 import { HeaderMetrics } from "../components/ui/HeaderMetrics";
-import { fetchHrRegistry, addHiringBrief, deleteHiringBrief, createTeamMember, createStakeholder } from "../api/admin";
+import { fetchHrRegistry, addHiringBrief, deleteHiringBrief, createTeamMember, createStakeholder, provisionAccess } from "../api/admin";
 import { api } from "../api/http";
 
 /** New REST endpoint per drawer-user type. */
@@ -132,7 +132,11 @@ export function HrStakeholdersPage() {
   const [modalError, setModalError] = useState<{ title: string; message: string } | null>(null);
 
   // Credentials display modal state
-  const [createdCredentials, setCreatedCredentials] = useState<{ name: string; email: string; pass: string; type: string; role?: string; accessLevel?: string } | null>(null);
+  const [createdCredentials, setCreatedCredentials] = useState<{ name: string; email: string; pass: string; type: string; role?: string; accessLevel?: string; loginLink?: string; expiresInMinutes?: number } | null>(null);
+
+  // Access provisioning (drawer): in-flight flag + inline result/error banner.
+  const [isProvisioning, setIsProvisioning] = useState(false);
+  const [accessNotice, setAccessNotice] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
 
   // Add Team Member modal states
   const [isAddTeamMemberOpen, setIsAddTeamMemberOpen] = useState(false);
@@ -156,17 +160,35 @@ export function HrStakeholdersPage() {
     if (!teamForm.name.trim() || !teamForm.email.trim()) { setTeamFormError("Name and Email are required."); return; }
     setIsTeamSaving(true); setTeamFormError("");
     try {
-      await createTeamMember({
+      const created = await createTeamMember({
         name: teamForm.name,
         role: teamForm.role,
         email: teamForm.email,
         phone: teamForm.phone,
         status: teamForm.status,
       });
+
+      // Create the sign-in account straight away — a roster row on its own
+      // gives nobody access. A provisioning failure must not lose the profile
+      // we just saved, so it degrades into an explanatory note.
+      let pass = "";
+      let loginLink: string | undefined;
+      let expiresInMinutes: number | undefined;
+      try {
+        const grant = await provisionAccess("team", String((created as any).id), "credentials");
+        pass = grant.tempPassword || "";
+        loginLink = grant.loginLink;
+        expiresInMinutes = grant.expiresInMinutes;
+      } catch (provisionErr: any) {
+        pass = `Profile saved, but the login account was not created: ${provisionErr.message}`;
+      }
+
       setCreatedCredentials({
         name: teamForm.name,
         email: teamForm.email,
-        pass: "Set via Supabase — ask an owner to invite this account.",
+        pass,
+        loginLink,
+        expiresInMinutes,
         type: "Team Member",
         role: teamForm.role,
         accessLevel: ["managing partner", "partner", "super admin", "owner", "admin"].includes((teamForm.role || "").toLowerCase()) ? "FULL ACCESS" : "WRITE ACCESS"
@@ -263,12 +285,15 @@ export function HrStakeholdersPage() {
   const PEOPLE_MANAGERS = ["owner", "super_admin", "managing_partner", "partner", "admin", "hr"];
   const canManageTeam = PEOPLE_MANAGERS.includes(canonRole);
   const canManageStakeholders = PEOPLE_MANAGERS.includes(canonRole);
+  // One gate for every drawer action, whichever registry the drawer is showing.
+  const canManageDrawer = drawerUser?.type === "team" ? canManageTeam : canManageStakeholders;
   // These registry tables all soft-delete on the backend, so the delete action
   // is never a permanent hard delete — keep the accurate "Soft Delete" copy.
   const isSuperAdmin = false;
 
   // Configuration drawer triggers
   const openConfigDrawerForTeam = (member: TeamMember) => {
+    setAccessNotice(null);
     setDrawerUser({
       id: member.id,
       name: member.name,
@@ -285,7 +310,11 @@ export function HrStakeholdersPage() {
     setIsDrawerOpen(true);
   };
 
-  const openConfigDrawerForStakeholder = (sh: ExternalStakeholder) => {
+  // `kind` distinguishes the two registries that share this drawer — shareholders
+  // were previously opened as "stakeholder", pointing every drawer action
+  // (edit/status/delete/access) at the wrong table.
+  const openConfigDrawerForStakeholder = (sh: ExternalStakeholder, kind: "stakeholder" | "shareholder" = "stakeholder") => {
+    setAccessNotice(null);
     setDrawerUser({
       id: sh.id,
       name: sh.name,
@@ -296,7 +325,7 @@ export function HrStakeholdersPage() {
       loginLink: sh.loginLink,
       createdAt: sh.createdAt,
       lastLogin: sh.lastLogin,
-      type: "stakeholder",
+      type: kind,
       association: sh.association,
       notes: sh.description,
       stakeholderType: sh.type
@@ -305,26 +334,88 @@ export function HrStakeholdersPage() {
   };
 
   // Drawer action implementations
+  //
+  // Access lives in Supabase Auth; /api/auth/provision creates or re-syncs the
+  // auth account behind a registry row. It is open to every people-manager
+  // role, and refuses server-side to mint an account outranking the caller —
+  // so no one has to "ask an owner" any more.
+  const PORTAL_TYPES = ["team", "shareholder"] as const;
+  const isPortalType = (t: string): t is "team" | "shareholder" => PORTAL_TYPES.includes(t as any);
+
   const handleResetPassword = async () => {
     if (!drawerUser) return;
-    // Passwords live in Supabase Auth now — registry rows have no passcodes.
-    alert("Password resets happen in Supabase Auth. Ask an owner to reset this account.");
-    setIsResetConfirmOpen(false);
+    if (!isPortalType(drawerUser.type)) {
+      setIsResetConfirmOpen(false);
+      setAccessNotice({ tone: "error", text: "External stakeholders have no portal account to reset." });
+      return;
+    }
+    setIsProvisioning(true);
+    try {
+      const grant = await provisionAccess(drawerUser.type, drawerUser.id, "password");
+      setIsResetConfirmOpen(false);
+      setAccessNotice(null);
+      setCreatedCredentials({
+        name: drawerUser.name,
+        email: grant.email || drawerUser.email,
+        pass: grant.tempPassword || "",
+        type: drawerUser.type === "team" ? "Team Member" : "Shareholder",
+        role: drawerUser.role,
+        accessLevel: grant.role,
+      });
+    } catch (err: any) {
+      setIsResetConfirmOpen(false);
+      setAccessNotice({ tone: "error", text: err.message || "Could not reset this password." });
+    } finally {
+      setIsProvisioning(false);
+    }
   };
 
   const handleGenerateLink = async () => {
     if (!drawerUser) return;
-    // Magic login links are issued through Supabase Auth invites now.
-    alert("Login links are issued via Supabase Auth invites — ask an owner to send one.");
+    if (!isPortalType(drawerUser.type)) {
+      setAccessNotice({ tone: "error", text: "External stakeholders are registry-only — there is no portal for them to sign in to." });
+      return;
+    }
+    setIsProvisioning(true);
+    setAccessNotice(null);
+    try {
+      const grant = await provisionAccess(drawerUser.type, drawerUser.id, "link");
+      setDrawerUser(prev => (prev ? { ...prev, loginLink: grant.loginLink || "" } : null));
+      setAccessNotice({
+        tone: "ok",
+        text: `${grant.created ? "Account created" : "Account re-synced"} for ${grant.email} (${grant.role}). This single-use link expires in ${grant.expiresInMinutes ?? 60} minutes — copy it now, it is not stored.`,
+      });
+    } catch (err: any) {
+      setAccessNotice({ tone: "error", text: err.message || "Could not issue a login link." });
+    } finally {
+      setIsProvisioning(false);
+    }
   };
 
   const handleToggleStatus = async (newStatus: string) => {
     if (!drawerUser) return;
+    const activating = newStatus === "Active";
     try {
       await api.patch(`${hrEndpointFor(drawerUser.type)}/${encodeURIComponent(drawerUser.id)}`, {
         status: newStatus.toLowerCase(),
       });
       setDrawerUser(prev => prev ? { ...prev, status: newStatus } : null);
+
+      // Keep sign-in rights in step with the registry status, otherwise a
+      // "deactivated" person keeps a working login. Best-effort: the profile
+      // change already succeeded, so surface a warning rather than failing it.
+      if (isPortalType(drawerUser.type)) {
+        try {
+          const res = await provisionAccess(drawerUser.type, drawerUser.id, activating ? "enable" : "disable");
+          setAccessNotice(
+            res.changed
+              ? { tone: "ok", text: activating ? "Sign-in restored for this account." : "Sign-in revoked — existing sessions are blocked." }
+              : { tone: "ok", text: "Profile updated. No portal account exists yet — use Generate Link to create one." },
+          );
+        } catch (authErr: any) {
+          setAccessNotice({ tone: "error", text: `Profile updated, but sign-in access was not changed: ${authErr.message}` });
+        }
+      }
       loadData();
     } catch (err: any) {
       alert(err.message || "Failed to update status");
@@ -784,12 +875,11 @@ export function HrStakeholdersPage() {
                       key={sh.id || idx} 
                       onClick={() => openConfigDrawerForStakeholder({
                         ...sh,
-                        type: "shareholder",
+                        type: "Shareholder",
                         association: "Shareholder",
                         accentColor: "slate",
                         description: sh.notes || "",
-                        stakeholderType: "Shareholder"
-                      } as unknown as ExternalStakeholder)}
+                      } as unknown as ExternalStakeholder, "shareholder")}
                       className={cx(
                         "rounded-xl border border-white/[0.02] bg-white/[0.01] p-3.5 border-l-4 flex flex-col justify-center transition hover:bg-white/[0.02] duration-300 cursor-pointer relative",
                         "border-l-slate-500/60",
@@ -882,9 +972,9 @@ export function HrStakeholdersPage() {
                   <label className="block text-[8px] font-extrabold uppercase tracking-wider text-slate-550">Secure Access Login Link</label>
                   <div className="flex items-center gap-2 mt-1">
                     <span className="text-[10px] font-mono text-slate-400 truncate flex-1 bg-[#0F1115] border border-white/5 rounded-xl px-3 py-2.5 select-all">
-                      {drawerUser.loginLink || "Awaiting Setup"}
+                      {drawerUser.loginLink || (isPortalType(drawerUser.type) ? "Awaiting Setup" : "Registry-only — no portal account")}
                     </span>
-                    {drawerUser.loginLink ? (
+                    {drawerUser.loginLink && (
                       <button
                         onClick={() => {
                           navigator.clipboard.writeText(drawerUser.loginLink);
@@ -895,22 +985,36 @@ export function HrStakeholdersPage() {
                       >
                         <Copy className="h-4 w-4" />
                       </button>
-                    ) : (
+                    )}
+                    {canManageDrawer && isPortalType(drawerUser.type) && (
                       <button
                         onClick={handleGenerateLink}
-                        className="h-10 px-4 rounded-xl bg-[#C6A66B]/10 border border-[#C6A66B]/20 text-[10px] font-extrabold text-[#C6A66B] hover:bg-[#C6A66B]/20 transition cursor-pointer shrink-0"
+                        disabled={isProvisioning || !drawerUser.email}
+                        title={drawerUser.email ? "Create or re-sync this portal account and issue a single-use sign-in link" : "Add an email address first"}
+                        className="h-10 px-4 rounded-xl bg-[#C6A66B]/10 border border-[#C6A66B]/20 text-[10px] font-extrabold text-[#C6A66B] hover:bg-[#C6A66B]/20 transition cursor-pointer shrink-0 disabled:opacity-40 disabled:pointer-events-none inline-flex items-center gap-1.5"
                       >
-                        Generate Link
+                        {isProvisioning && <Loader2 className="h-3 w-3 animate-spin" />}
+                        {drawerUser.loginLink ? "New Link" : "Generate Link"}
                       </button>
                     )}
                   </div>
+                  {accessNotice && (
+                    <p className={cx(
+                      "text-[10px] leading-relaxed font-semibold rounded-lg p-2.5 border mt-1.5",
+                      accessNotice.tone === "ok"
+                        ? "text-emerald-300 bg-emerald-500/5 border-emerald-500/20"
+                        : "text-rose-300 bg-rose-500/5 border-rose-500/20"
+                    )}>
+                      {accessNotice.text}
+                    </p>
+                  )}
                 </div>
 
                 {/* Actions Grid */}
                 <div className="space-y-3 pt-4 border-t border-white/5">
                   <label className="block text-[8px] font-extrabold uppercase tracking-wider text-slate-550">Administration Panel</label>
                   <div className="flex flex-wrap gap-2">
-                    {((drawerUser.type === "team" && canManageTeam) || (drawerUser.type === "stakeholder" && canManageStakeholders)) && (
+                    {canManageDrawer && (
                       <button
                         onClick={handleOpenEdit}
                         className="inline-flex h-8.5 items-center gap-1.5 rounded-xl border border-white/[0.02] bg-white/[0.015] px-3.5 text-[10px] font-extrabold uppercase tracking-wider text-slate-300 hover:bg-white/[0.02] transition cursor-pointer"
@@ -919,7 +1023,7 @@ export function HrStakeholdersPage() {
                       </button>
                     )}
 
-                    {((drawerUser.type === "team" && canManageTeam) || (drawerUser.type === "stakeholder" && canManageStakeholders)) && drawerUser.email && (
+                    {canManageDrawer && drawerUser.email && isPortalType(drawerUser.type) && (
                       <button
                         onClick={() => setIsResetConfirmOpen(true)}
                         className="inline-flex h-8.5 items-center gap-1.5 rounded-xl border border-amber-500/20 bg-amber-500/5 px-3.5 text-[10px] font-extrabold uppercase tracking-wider text-amber-400 hover:bg-amber-500/10 transition cursor-pointer"
@@ -928,7 +1032,7 @@ export function HrStakeholdersPage() {
                       </button>
                     )}
 
-                    {((drawerUser.type === "team" && canManageTeam) || (drawerUser.type === "stakeholder" && canManageStakeholders)) && (
+                    {canManageDrawer && (
                       <button
                         onClick={() => handleToggleStatus(drawerUser.status === "Active" ? "Inactive" : "Active")}
                         className={cx(
@@ -943,7 +1047,7 @@ export function HrStakeholdersPage() {
                       </button>
                     )}
 
-                    {((drawerUser.type === "team" && canManageTeam) || (drawerUser.type === "stakeholder" && canManageStakeholders)) && (
+                    {canManageDrawer && (
                       <button
                         onClick={() => setIsDeleteConfirmOpen(true)}
                         className="inline-flex h-8.5 items-center gap-1.5 rounded-xl border border-rose-500/20 bg-rose-500/5 px-3.5 text-[10px] font-extrabold uppercase tracking-wider text-rose-500 hover:bg-rose-500/10 transition cursor-pointer"
@@ -1052,8 +1156,8 @@ export function HrStakeholdersPage() {
           </p>
           <div className="flex justify-end gap-2.5 pt-2 select-none">
             <button type="button" onClick={() => setIsResetConfirmOpen(false)} className="h-9 px-4 rounded-xl border border-white/[0.02] text-slate-450 hover:text-white transition cursor-pointer">Cancel</button>
-            <button type="button" onClick={handleResetPassword} className="h-9 px-5 rounded-xl bg-amber-500 text-slate-950 font-bold hover:shadow-glow-bronze transition cursor-pointer">
-              Reset Password
+            <button type="button" onClick={handleResetPassword} disabled={isProvisioning} className="h-9 px-5 rounded-xl bg-amber-500 text-slate-950 font-bold hover:shadow-glow-bronze transition cursor-pointer disabled:opacity-50 disabled:pointer-events-none">
+              {isProvisioning ? "Resetting..." : "Reset Password"}
             </button>
           </div>
         </div>
@@ -1340,19 +1444,21 @@ export function HrStakeholdersPage() {
 
               <div>
                 <label className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-555 mb-1">
-                  Login URL
+                  {createdCredentials.loginLink
+                    ? `One-Time Sign-In Link (expires in ${createdCredentials.expiresInMinutes ?? 60} min)`
+                    : "Login URL"}
                 </label>
                 <div className="flex gap-2">
                   <input
                     type="text"
                     readOnly
-                    value={`${window.location.origin}/login`}
+                    value={createdCredentials.loginLink || `${window.location.origin}/login`}
                     className="flex-1 h-9 rounded-xl border border-white/[0.02] bg-[#161B22] px-3 text-xs text-slate-400 outline-none"
                   />
                   <button
                     type="button"
                     onClick={() => {
-                      navigator.clipboard.writeText(`${window.location.origin}/login`);
+                      navigator.clipboard.writeText(createdCredentials.loginLink || `${window.location.origin}/login`);
                       alert("Login link copied!");
                     }}
                     className="h-9 px-3 rounded-xl bg-white/[0.015] border border-white/[0.02] hover:bg-white/[0.03] text-xs font-bold text-slate-350 transition cursor-pointer"
