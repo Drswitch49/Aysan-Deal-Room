@@ -1,14 +1,48 @@
-import { useState } from "react";
-import { 
-  Key, RefreshCw, Check, Database, Server, CheckCircle2, Zap, Bell, AlertTriangle, ShieldAlert
+import { useState, useEffect } from "react";
+import {
+  Key, RefreshCw, Check, Database, Server, CheckCircle2, Zap, Bell, AlertTriangle, ShieldAlert, UserRound
 } from "lucide-react";
-import { changeAdminPassword } from "../api/admin";
+import { changeAdminPassword, updateDisplayName } from "../api/admin";
+import { useAuth } from "../context/AuthContext";
 import { clearAirtableCache } from "../api/airtable";
 import { cx } from "../utils/cx";
 import { HeaderMetrics } from "../components/ui/HeaderMetrics";
 import { FormField, inputClass } from "../components/ui/FormField";
 
 export function SettingsPage() {
+  const { user, checkSession } = useAuth();
+
+  // Display name — what the sidebar shows above your role.
+  const [displayName, setDisplayName] = useState("");
+  const [nameError, setNameError] = useState("");
+  const [nameSaved, setNameSaved] = useState(false);
+  const [isSavingName, setIsSavingName] = useState(false);
+
+  useEffect(() => {
+    if (user?.name) setDisplayName(user.name);
+  }, [user?.name]);
+
+  const handleSaveName = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setNameError("");
+    setNameSaved(false);
+    if (!displayName.trim()) {
+      setNameError("Enter the name you want shown in the sidebar.");
+      return;
+    }
+    setIsSavingName(true);
+    try {
+      await updateDisplayName(displayName.trim());
+      await checkSession(); // refresh the footer immediately
+      setNameSaved(true);
+      setTimeout(() => setNameSaved(false), 3000);
+    } catch (err: any) {
+      setNameError(err.message || "Failed to save your name.");
+    } finally {
+      setIsSavingName(false);
+    }
+  };
+
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -104,6 +138,78 @@ export function SettingsPage() {
         {/* Left Column: Workspace Configuration & Diagnostics */}
         <div className="col-span-12 lg:col-span-6 space-y-6">
           
+          {/* YOUR PROFILE — drives the name shown in the sidebar footer */}
+          <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-6 shadow-premium-card card-sheen">
+            <h3 className="text-xs font-extrabold uppercase tracking-[0.2em] text-slate-400 border-b border-white/[0.02] pb-4 mb-5 select-none flex items-center gap-2">
+              <UserRound className="h-4 w-4 text-[#C6A66B]" />
+              <span>Your Profile</span>
+            </h3>
+
+            <form onSubmit={handleSaveName} className="space-y-4">
+              <FormField label="Display Name" id="display-name">
+                <input
+                  id="display-name"
+                  type="text"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  placeholder="e.g. Ayodeji Oyesanya"
+                  maxLength={80}
+                  className={inputClass}
+                />
+              </FormField>
+              <p className="text-[10px] text-slate-500 leading-relaxed -mt-2">
+                Shown above your role in the sidebar and used to sign your notes and activity.
+              </p>
+
+              <div className="grid grid-cols-2 gap-4">
+                <FormField label="Email" id="profile-email">
+                  <input
+                    id="profile-email"
+                    type="text"
+                    readOnly
+                    value={user?.email || "—"}
+                    className={cx(inputClass, "opacity-75 cursor-not-allowed bg-white/[0.01]")}
+                  />
+                </FormField>
+                <FormField label="Role" id="profile-role">
+                  <input
+                    id="profile-role"
+                    type="text"
+                    readOnly
+                    value={(user?.role || "—").replace(/_/g, " ").toUpperCase()}
+                    className={cx(inputClass, "opacity-75 cursor-not-allowed bg-white/[0.01]")}
+                  />
+                </FormField>
+              </div>
+
+              {nameError && (
+                <div className="rounded-lg border border-rose-500/20 bg-rose-500/5 p-3 text-[11px] font-semibold text-rose-300">
+                  {nameError}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={isSavingName}
+                className={cx(
+                  "w-full inline-flex h-10 items-center justify-center gap-2 rounded-xl border transition-all duration-200 text-xs font-bold uppercase tracking-widest select-none cursor-pointer disabled:opacity-50 disabled:pointer-events-none",
+                  nameSaved
+                    ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
+                    : "border-[#C6A66B]/30 bg-[#C6A66B]/10 text-[#C6A66B] hover:bg-[#C6A66B]/20"
+                )}
+              >
+                {nameSaved ? (
+                  <>
+                    <Check className="h-4 w-4" />
+                    <span>Name Updated</span>
+                  </>
+                ) : (
+                  <span>{isSavingName ? "Saving..." : "Save Name"}</span>
+                )}
+              </button>
+            </form>
+          </div>
+
           {/* BRANDING & ORGANIZATION CONFIGURATION */}
           <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-6 shadow-premium-card card-sheen">
             <h3 className="text-xs font-extrabold uppercase tracking-[0.2em] text-slate-400 border-b border-white/[0.02] pb-4 mb-5 select-none flex items-center gap-2">

@@ -7,15 +7,18 @@
  * banned auth user fails verification immediately.
  */
 import { getTokens, verifyAccessToken, refreshSession, setSessionCookies, type SessionUser } from "../_lib/session.js";
+import { resolveDisplayName } from "../_lib/display-name.js";
 
-function shape(user: SessionUser) {
+async function shape(user: SessionUser) {
   return {
     authenticated: true,
     user: {
       id: user.id,
       email: user.email,
       role: user.role,
-      name: user.fullName ?? user.email,
+      // Resolved from the registry when the auth account carries no name, so
+      // the sidebar shows a person rather than their email address.
+      name: await resolveDisplayName(user),
       lenderId: user.lenderId,
       shareholderId: user.shareholderId,
     },
@@ -28,13 +31,13 @@ export default async function handler(req: any, res: any) {
 
     if (access) {
       const user = await verifyAccessToken(access);
-      if (user) return res.status(200).json(shape(user));
+      if (user) return res.status(200).json(await shape(user));
     }
     if (refresh) {
       const rotated = await refreshSession(refresh);
       if (rotated) {
         setSessionCookies(res, rotated.tokens);
-        return res.status(200).json(shape(rotated.user));
+        return res.status(200).json(await shape(rotated.user));
       }
     }
     return res.status(200).json({ authenticated: false });

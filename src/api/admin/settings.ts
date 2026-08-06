@@ -12,6 +12,18 @@ export async function changeAdminPassword(currentPassword: string, newPassword: 
   return payload;
 }
 
+/** Set your own display name — what the sidebar shows above your role. */
+export async function updateDisplayName(name: string): Promise<{ name: string }> {
+  const res = await fetch("/api/auth/profile", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  });
+  const payload = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(payload?.error?.message || payload.error || "Failed to save your name");
+  return payload.data ?? payload;
+}
+
 export async function resetAdminPassword(_masterPasscode: string, _newPassword: string): Promise<Row> {
   throw new Error("Master-passcode resets were removed. Ask an owner to reset your account in Supabase.");
 }

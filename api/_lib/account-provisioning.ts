@@ -202,6 +202,35 @@ export async function issueTemporaryPassword(authUserId: string): Promise<string
 }
 
 /**
+ * Push a registry row's current name and role onto an existing auth account,
+ * so renaming someone on the HR page also fixes the name their sidebar shows.
+ * Never creates an account — editing a profile must not silently grant access.
+ */
+export async function syncAccountDetails(
+  type: RegistryType,
+  id: string,
+  actorRole: string,
+): Promise<{ changed: boolean; name?: string; role?: string }> {
+  const row = await loadRegistryRow(type, id);
+  const email = String(row.email ?? "").trim();
+  if (!email) return { changed: false };
+
+  const existing = await findAuthUserByEmail(email);
+  if (!existing) return { changed: false };
+
+  const role = type === "team" ? staffRoleFor(row.role, row.access_level) : "shareholder";
+  assertCanGrant(actorRole, role);
+  const name = String(row.name ?? "").trim();
+
+  const { error } = await adminClient().auth.admin.updateUserById(existing.id, {
+    app_metadata: { ...(existing.app_metadata ?? {}), role },
+    ...(name ? { user_metadata: { ...(existing.user_metadata ?? {}), full_name: name } } : {}),
+  });
+  if (error) throw new InternalError(`Could not sync the account: ${error.message}`);
+  return { changed: true, name, role };
+}
+
+/**
  * Ban/unban the auth account behind a registry row so a deactivated profile
  * actually loses its session. Never creates an account — if none exists there
  * is nothing to revoke, and `changed: false` says so.

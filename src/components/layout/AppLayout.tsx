@@ -474,6 +474,19 @@ function SideNavItem({
 }
 
 // ─── User Footer ──────────────────────────────────────────────────────────────
+
+/** "lee.coutanche@acp.com" → "Lee Coutanche". Mirrors the server-side fallback. */
+function displayNameOf(user: { name?: string; email?: string } | null | undefined): string {
+  const name = (user?.name || "").trim();
+  if (name && !name.includes("@")) return name;
+  const local = String(user?.email || name).split("@")[0];
+  const words = local
+    .split(/[._\-+]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1));
+  return words.join(" ") || "User";
+}
+
 function UserFooter({
   user,
   onLogout,
@@ -485,7 +498,10 @@ function UserFooter({
   onChangePassword: () => void;
   isCollapsed?: boolean;
 }) {
-  const name = user?.name || user?.email || "User";
+  // The footer shows a person, never an address. The session already resolves a
+  // name from the registry, but an email is possible from a stale cached
+  // session, so fall back to a formatted local-part rather than rendering it.
+  const name = displayNameOf(user);
   const initials = name
     .split(" ")
     .map((n: string) => n[0])
@@ -508,7 +524,7 @@ function UserFooter({
         <div className="absolute bottom-10 left-full ml-3 opacity-0 scale-95 pointer-events-none group-hover/footer:opacity-100 group-hover/footer:scale-100 group-hover/footer:pointer-events-auto transition-all duration-150 origin-bottom-left z-50 bg-[#161B22]/95 border border-white/[0.08] p-3.5 rounded-xl shadow-[0_6px_24px_rgba(0,0,0,0.7)] backdrop-blur-md min-w-[170px] space-y-3">
           <div className="border-b border-white/5 pb-2">
             <p className="text-xs font-bold text-white tracking-wide leading-none">{name}</p>
-            <p className="text-[9px] font-extrabold uppercase tracking-wider text-[#C6A66B]/80 leading-none mt-1">{user?.role || "User"}</p>
+            <p className="text-[9px] font-extrabold uppercase tracking-wider text-[#C6A66B]/80 leading-none mt-1">{(user?.role || "member").replace(/_/g, " ")}</p>
           </div>
           <div className="flex flex-col gap-1.5 pt-0.5">
             <button
@@ -545,7 +561,7 @@ function UserFooter({
               {name}
             </p>
             <p className="truncate text-[9px] font-bold uppercase tracking-wider text-[#C6A66B]/80 leading-none">
-              {user?.role || "User"}
+              {(user?.role || "member").replace(/_/g, " ")}
             </p>
           </div>
         </div>

@@ -86,6 +86,11 @@ function toSessionUser(u: {
 const cache = new Map<string, { user: SessionUser; until: number }>();
 const CACHE_TTL_MS = 30_000;
 
+/** Drop a token's cached user so the next request re-reads it from Supabase. */
+export function invalidateAccessToken(access: string): void {
+  cache.delete(access);
+}
+
 /** Verify an access token with Supabase and return the session user, or null. */
 export async function verifyAccessToken(access: string): Promise<SessionUser | null> {
   const hit = cache.get(access);

@@ -125,7 +125,7 @@ export async function updateTeamMember(memberId: string, fields: Row) {
 }
 
 /** Portal access management (owner/admin/HR only — enforced server-side). */
-export type AccessMode = "link" | "password" | "credentials" | "enable" | "disable";
+export type AccessMode = "link" | "password" | "credentials" | "sync" | "enable" | "disable";
 
 export interface AccessGrant {
   mode: AccessMode;
@@ -139,7 +139,7 @@ export interface AccessGrant {
   expiresInMinutes?: number;
   /** One-time password (mode: "password") — never retrievable again. */
   tempPassword?: string;
-  /** enable/disable only: false when the person has no auth account yet. */
+  /** sync/enable/disable only: false when the person has no auth account yet. */
   changed?: boolean;
 }
 

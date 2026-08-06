@@ -462,6 +462,16 @@ export function HrStakeholdersPage() {
 
       await api.patch(`${hrEndpointFor(drawerUser.type)}/${encodeURIComponent(drawerUser.id)}`, payload);
 
+      // Push the new name/role onto their auth account so the sidebar they see
+      // updates too. Best-effort: no account yet simply means nothing to sync.
+      if (isPortalType(drawerUser.type)) {
+        try {
+          await provisionAccess(drawerUser.type, drawerUser.id, "sync");
+        } catch (syncErr) {
+          console.warn("Profile saved; auth account not synced:", syncErr);
+        }
+      }
+
       // Update drawer state
       setDrawerUser(prev => {
         if (!prev) return null;

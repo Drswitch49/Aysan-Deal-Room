@@ -10,6 +10,7 @@
  *   link        — create/sync the account and return a single-use login link
  *   password    — create/sync the account and return a fresh temporary password
  *   credentials — both of the above in one call (used when adding a person)
+ *   sync        — push the row's current name/role onto an existing account
  *   enable      — lift a previous deactivation (no-op when no account exists)
  *   disable     — ban the account so a deactivated profile can no longer sign in
  */
@@ -21,6 +22,7 @@ import {
   issueLoginLink,
   issueTemporaryPassword,
   setAccountEnabled,
+  syncAccountDetails,
   originFrom,
   LINK_TTL_MINUTES,
 } from "../_lib/account-provisioning.js";
@@ -28,7 +30,7 @@ import {
 const bodySchema = z.object({
   type: z.enum(["team", "shareholder"]),
   id: z.string().uuid("A registry row id (uuid) is required"),
-  mode: z.enum(["link", "password", "credentials", "enable", "disable"]).default("link"),
+  mode: z.enum(["link", "password", "credentials", "sync", "enable", "disable"]).default("link"),
 });
 
 export default createHandler({
@@ -43,6 +45,10 @@ export default createHandler({
     if (mode === "enable" || mode === "disable") {
       const result = await setAccountEnabled(type, id, mode === "enable", actorRole);
       return { mode, ...result };
+    }
+
+    if (mode === "sync") {
+      return { mode, ...(await syncAccountDetails(type, id, actorRole)) };
     }
 
     const account = await provisionAccount(type, id, actorRole);

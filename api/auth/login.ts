@@ -11,6 +11,7 @@
  */
 import { userClient } from "../../lib/data/supabase/client.js";
 import { setSessionCookies } from "../_lib/session.js";
+import { resolveDisplayName } from "../_lib/display-name.js";
 import { logger } from "../../lib/core/logger.js";
 
 export default async function handler(req: any, res: any) {
@@ -38,14 +39,28 @@ export default async function handler(req: any, res: any) {
     });
 
     const app = data.user.app_metadata ?? {};
+    const meta = data.user.user_metadata ?? {};
+    const role = typeof app.role === "string" ? app.role : "read_only";
     return res.status(200).json({
       success: true,
       authenticated: true,
       user: {
         id: data.user.id,
         email: data.user.email,
-        role: typeof app.role === "string" ? app.role : "read_only",
-        name: data.user.user_metadata?.full_name ?? data.user.user_metadata?.contact_name ?? null,
+        role,
+        // Same resolution as /api/auth/session, so the name shown right after
+        // sign-in matches the one shown on every later page load.
+        name: await resolveDisplayName({
+          id: data.user.id,
+          email: data.user.email ?? null,
+          role,
+          lenderId: null,
+          shareholderId: null,
+          fullName:
+            (typeof meta.full_name === "string" && meta.full_name) ||
+            (typeof meta.contact_name === "string" && meta.contact_name) ||
+            null,
+        }),
       },
     });
   } catch (err) {
