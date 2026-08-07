@@ -32,9 +32,9 @@ import {
   fetchPostcallBriefs, generatePostcallBrief, overridePostcallScores,
   transitionDealStage, transitionDealLifecycle, triggerOsintEnrichment, triggerFinancialAnalysis,
   sendLoiWebhook, sendEmailWebhook, updateAdminDeal,
-  uploadImDocument, removeImDocument, replaceImDocument,
   deleteDeal, fetchTeamMemberRecords, getJobStatus, enqueueAiJob
 } from "../api/admin";
+import { useImDocuments, isExternalDoc, type ImDoc } from "../hooks/useImDocuments";
 import { getDealInbox } from "../api/airtable";
 import { HeaderMetrics } from "../components/ui/HeaderMetrics";
 import { usePipeline } from "../context/PipelineContext";
@@ -346,8 +346,9 @@ export function DealDetailPage() {
   const [editFields, setEditFields] = useState<Record<string, any>>({});
   const [isEditSaving, setIsEditSaving] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
-  const [editImToDeleteIdx, setEditImToDeleteIdx] = useState<number | null>(null);
+  const [editImToDelete, setEditImToDelete] = useState<ImDoc | null>(null);
   const [isEditImDeleting, setIsEditImDeleting] = useState(false);
+  const editImDocs = useImDocuments(dealState.data?.id, () => setRefreshTrigger(prev => prev + 1));
 
   const openEditDeal = () => {
     const d = dealState.data;
@@ -382,13 +383,12 @@ export function DealDetailPage() {
   };
 
   const handleDeleteEditImConfirm = async () => {
-    if (editImToDeleteIdx === null || !dealState.data) return;
+    if (!editImToDelete) return;
     setIsEditImDeleting(true);
     setEditError(null);
     try {
-      await removeImDocument(dealState.data.id, editImToDeleteIdx);
-      setRefreshTrigger(prev => prev + 1);
-      setEditImToDeleteIdx(null);
+      await editImDocs.remove(editImToDelete);
+      setEditImToDelete(null);
     } catch (err: any) {
       setEditError(err.message || "Failed to remove file");
     } finally {
@@ -1295,49 +1295,30 @@ export function DealDetailPage() {
             <p className="text-[9px] font-extrabold uppercase tracking-widest text-slate-500">IM & Attachments</p>
             
             {/* List of existing files */}
-            {dealState.data?.rawFields?.IM_Review_Documents && (dealState.data.rawFields.IM_Review_Documents as any).length > 0 && (
+            {editImDocs.docs.length > 0 && (
               <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-                {(dealState.data.rawFields.IM_Review_Documents as any[]).map((att: any, idx: number) => (
+                {editImDocs.docs.map((att, idx) => (
                   <div key={att.id || idx} className="flex items-center justify-between p-2 rounded-lg bg-white/[0.015] border border-white/5 text-[11px]">
                     <div className="flex items-center gap-2 min-w-0">
                       <FileText className="h-3.5 w-3.5 text-[#C6A66B] shrink-0" />
-                      <span className="text-white truncate font-medium">{att.filename || "IM_Document"}</span>
+                      <span className="text-white truncate font-medium">{att.filename}</span>
                     </div>
                     <div className="flex items-center gap-3">
                       <label className="text-[10px] font-bold text-[#C6A66B] hover:text-white cursor-pointer select-none">
-                        Replace
+                        {editImDocs.busyId === att.id ? "Working…" : "Replace"}
                         <input
                           type="file"
                           className="hidden"
-                          onChange={async (e) => {
+                          onChange={(e) => {
                             const file = e.target.files?.[0];
-                            if (file) {
-                              setIsEditSaving(true);
-                              try {
-                                const base64Data = await new Promise<string>((resolve, reject) => {
-                                  const r = new FileReader();
-                                  r.onload = () => resolve((r.result as string).split(",")[1]);
-                                  r.onerror = reject;
-                                  r.readAsDataURL(file);
-                                });
-                                if (dealState.data) {
-                                  await replaceImDocument(dealState.data.id, idx, file.name, file.type, base64Data);
-                                }
-                                setRefreshTrigger(prev => prev + 1);
-                              } catch (err: any) {
-                                setEditError(err.message || "Failed to replace file");
-                              } finally {
-                                setIsEditSaving(false);
-                              }
-                            }
+                            if (file) editImDocs.replace(att, file);
+                            e.target.value = "";
                           }}
                         />
                       </label>
                       <button
                         type="button"
-                        onClick={() => {
-                          setEditImToDeleteIdx(idx);
-                        }}
+                        onClick={() => setEditImToDelete(att)}
                         className="text-[10px] font-bold text-rose-450 hover:text-rose-400 select-none"
                       >
                         Remove
@@ -1352,30 +1333,14 @@ export function DealDetailPage() {
             <div className="flex items-center gap-2">
               <label className="flex-1 h-9 rounded-xl border border-dashed border-white/10 hover:border-white/20 bg-white/[0.005] flex items-center justify-center gap-2 text-xs text-slate-450 cursor-pointer select-none">
                 <Upload className="h-3.5 w-3.5 text-slate-500" />
-                <span>Upload New Attachment</span>
+                <span>{editImDocs.isUploading ? "Uploading…" : "Upload New Attachment"}</span>
                 <input
                   type="file"                  className="hidden"
-                  onChange={async (e) => {
+                  disabled={editImDocs.isUploading}
+                  onChange={(e) => {
                     const file = e.target.files?.[0];
-                    if (file) {
-                      setIsEditSaving(true);
-                      try {
-                        const base64Data = await new Promise<string>((resolve, reject) => {
-                          const r = new FileReader();
-                          r.onload = () => resolve((r.result as string).split(",")[1]);
-                          r.onerror = reject;
-                          r.readAsDataURL(file);
-                        });
-                        if (dealState.data) {
-                          await uploadImDocument(dealState.data.id, file.name, file.type, base64Data);
-                        }
-                        setRefreshTrigger(prev => prev + 1);
-                      } catch (err: any) {
-                        setEditError(err.message || "Failed to upload file");
-                      } finally {
-                        setIsEditSaving(false);
-                      }
-                    }
+                    if (file) editImDocs.upload(file);
+                    e.target.value = "";
                   }}
                 />
               </label>
@@ -1386,19 +1351,19 @@ export function DealDetailPage() {
       </Modal>
 
       {/* Delete Confirmation Modal for Edit Modal IM Attachment */}
-      {editImToDeleteIdx !== null && (
+      {editImToDelete !== null && (
         <div className="fixed inset-0 bg-slate-950/65 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div className="w-full max-w-sm rounded-2xl border border-white/[0.02] bg-[#161B22] p-6 shadow-2xl relative animate-scale-in">
             <h3 className="text-base font-bold text-white uppercase tracking-wider mb-3">
               Delete Attachment
             </h3>
             <p className="text-xs text-slate-350 leading-relaxed mb-6">
-              Are you sure you want to permanently remove this attachment?
+              Are you sure you want to permanently remove <span className="font-semibold text-white">{editImToDelete.filename}</span>?
             </p>
             <div className="flex justify-end gap-3">
               <button
                 type="button"
-                onClick={() => setEditImToDeleteIdx(null)}
+                onClick={() => setEditImToDelete(null)}
                 disabled={isEditImDeleting}
                 className="h-10 px-4 rounded-xl border border-white/[0.02] text-slate-300 text-xs font-bold uppercase tracking-wider hover:bg-white/[0.015] cursor-pointer transition-colors"
               >
@@ -2601,12 +2566,16 @@ function PreCallBriefTab({ deal, openComposer }: { deal: any; openComposer: (opt
     companiesHouse: true,
     notionSops: true,
     supabase: true,
+    imFiles: true,
   });
 
-  const [uploadState, setUploadState] = useState<"idle" | "dragging" | "uploading" | "analyzed">("idle");
-  const [uploadedFileName, setUploadedFileName] = useState("");
+  const [isDragging, setIsDragging] = useState(false);
   const [pastedText, setPastedText] = useState("");
-  const [progress, setProgress] = useState(0);
+
+  // Dropping a file here attaches it to the deal, same as the IM & Attachments
+  // tab — the brief reads the deal's attachments, so an upload that lived only
+  // in this panel's state (as the old mock progress bar did) told it nothing.
+  const imDocs = useImDocuments(deal?.id);
 
   const [chatQuestion, setChatQuestion] = useState("");
   const [isAsking, setIsAsking] = useState(false);
@@ -2617,6 +2586,7 @@ function PreCallBriefTab({ deal, openComposer }: { deal: any; openComposer: (opt
     "Pulling Companies House data...",
     "Reading ACP SOPs from Notion...",
     "Loading the deal record, documents and notes...",
+    "Reading the deal's IM and attachments...",
     "Querying Claude Opus 5...",
     "Formatting intelligence brief..."
   ];
@@ -2657,45 +2627,24 @@ function PreCallBriefTab({ deal, openComposer }: { deal: any; openComposer: (opt
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
-    setUploadState("dragging");
+    setIsDragging(true);
   };
 
   const handleDragLeave = () => {
-    setUploadState("idle");
-  };
-
-  const startMockUpload = (fileName: string) => {
-    setUploadedFileName(fileName);
-    setUploadState("uploading");
-    setProgress(15);
-    
-    const interval = setInterval(() => {
-      setProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setTimeout(() => {
-            setUploadState("analyzed");
-          }, 300);
-          return 100;
-        }
-        return prev + 15;
-      });
-    }, 120);
+    setIsDragging(false);
   };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
-    const files = e.dataTransfer.files;
-    if (files.length > 0) {
-      startMockUpload(files[0].name);
-    }
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) imDocs.upload(file);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (files && files.length > 0) {
-      startMockUpload(files[0].name);
-    }
+    const file = e.target.files?.[0];
+    if (file) imDocs.upload(file);
+    e.target.value = "";
   };
 
   const triggerGeneration = async () => {
@@ -2709,7 +2658,7 @@ function PreCallBriefTab({ deal, openComposer }: { deal: any; openComposer: (opt
         selectedScenario,
         selectedCallType,
         dataSources,
-        pastedText: uploadedFileName ? `Dropped file: ${uploadedFileName}. ` + pastedText : pastedText
+        pastedText
       });
 
       if (result?.status === "queued" && result?.id) {
@@ -2747,9 +2696,8 @@ function PreCallBriefTab({ deal, openComposer }: { deal: any; openComposer: (opt
         setIsGenerating(false);
       }
 
-      // Reset inputs
-      setUploadState("idle");
-      setUploadedFileName("");
+      // Reset inputs. Attached IM files are deliberately left in place — they
+      // belong to the deal now, not to this one generation.
       setPastedText("");
     } catch (err: any) {
       console.error(err);
@@ -2935,11 +2883,14 @@ function PreCallBriefTab({ deal, openComposer }: { deal: any; openComposer: (opt
                 <span className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-500 font-sans">OSINT SOURCES INGESTED</span>
                 <div className="grid grid-cols-2 gap-2">
                   {[
-                    { id: "companiesHouse", label: "Companies House" },
-                    { id: "notionSops", label: "Notion SOPs" },
-                    { id: "supabase", label: "Deal record" },
+                    // legacyDefault: what a brief generated before this source
+                    // existed used, since its params won't mention the source.
+                    { id: "companiesHouse", label: "Companies House", legacyDefault: true },
+                    { id: "notionSops", label: "Notion SOPs", legacyDefault: true },
+                    { id: "supabase", label: "Deal record", legacyDefault: true },
+                    { id: "imFiles", label: "IM & attachments", legacyDefault: false },
                   ].map((src) => {
-                    const isConnected = selectedBrief.dataSources?.[src.id] !== false;
+                    const isConnected = selectedBrief.dataSources?.[src.id] ?? src.legacyDefault;
                     return (
                       <div
                         key={src.id}
@@ -3427,21 +3378,33 @@ function PreCallBriefTab({ deal, openComposer }: { deal: any; openComposer: (opt
               {/* Upload IM */}
               <div className="space-y-2">
                 <span className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-500">UPLOAD IM (OPTIONAL)</span>
-                <div 
+                <div
                   onDragOver={handleDragOver}
                   onDragLeave={handleDragLeave}
                   onDrop={handleDrop}
                   className={`border border-dashed rounded-xl p-6 text-center transition cursor-pointer relative ${
-                    uploadState === "dragging" 
-                      ? "border-[#10B981] bg-[#10B981]/5" 
+                    isDragging
+                      ? "border-[#10B981] bg-[#10B981]/5"
                       : "border-white/[0.02] hover:border-white/20 bg-white/[0.01]"
                   }`}
                 >
-                  <input 
-                    type="file"                     onChange={handleFileChange}
+                  <input
+                    type="file"
+                    onChange={handleFileChange}
+                    disabled={imDocs.isUploading}
                     className="absolute inset-0 opacity-0 cursor-pointer"
                   />
-                  {uploadState === "idle" && (
+                  {imDocs.isUploading ? (
+                    <div className="space-y-2">
+                      <RefreshCw className="h-4 w-4 text-[#10B981] mx-auto animate-spin" />
+                      <p className="text-[10px] text-slate-400 font-semibold">Attaching to the deal…</p>
+                    </div>
+                  ) : isDragging ? (
+                    <div className="space-y-1">
+                      <Upload className="h-5 w-5 text-[#10B981] mx-auto animate-bounce" />
+                      <p className="text-[10px] text-[#10B981] font-bold">Drop to attach</p>
+                    </div>
+                  ) : (
                     <div className="space-y-2 py-2">
                       <Upload className="h-5 w-5 text-slate-500 mx-auto" />
                       <p className="text-[9px] text-slate-405 uppercase tracking-wider font-extrabold">
@@ -3449,33 +3412,32 @@ function PreCallBriefTab({ deal, openComposer }: { deal: any; openComposer: (opt
                       </p>
                     </div>
                   )}
-                  {uploadState === "dragging" && (
-                    <div className="space-y-1">
-                      <Upload className="h-5 w-5 text-[#10B981] mx-auto animate-bounce" />
-                      <p className="text-[10px] text-[#10B981] font-bold">Drop PDF to ingest</p>
-                    </div>
-                  )}
-                  {uploadState === "uploading" && (
-                    <div className="space-y-2">
-                      <RefreshCw className="h-4 w-4 text-[#10B981] mx-auto animate-spin" />
-                      <p className="text-[10px] text-slate-400 font-semibold">Analyzing PDF ({progress}%)</p>
-                      <div className="h-1 w-full bg-white/[0.015] rounded-full overflow-hidden">
-                        <div className="h-full bg-[#10B981]" style={{ width: `${progress}%` }} />
-                      </div>
-                    </div>
-                  )}
-                  {uploadState === "analyzed" && (
-                    <div className="space-y-1.5">
-                      <Check className="h-5 w-5 text-emerald-450 mx-auto animate-pulse" />
-                      <p className="text-[10px] text-slate-200 font-bold truncate px-2">{uploadedFileName}</p>
-                      <p className="text-[9px] text-emerald-405 font-bold uppercase tracking-widest">IM Ingested & Analyzed</p>
-                    </div>
-                  )}
                 </div>
+                {imDocs.error && (
+                  <p className="text-[10px] text-rose-400 font-semibold">{imDocs.error}</p>
+                )}
+                {imDocs.docs.length > 0 && (
+                  <div className="space-y-1">
+                    {imDocs.docs.map((doc, idx) => (
+                      <div key={doc.id || idx} className="flex items-center gap-1.5 min-w-0">
+                        <Check className="h-3 w-3 text-emerald-450 shrink-0" />
+                        <span className="text-[10px] text-slate-300 font-semibold truncate">{doc.filename}</span>
+                      </div>
+                    ))}
+                    <p className={cx(
+                      "text-[9px] font-bold uppercase tracking-widest pt-0.5",
+                      dataSources.imFiles ? "text-emerald-405" : "text-slate-500",
+                    )}>
+                      {dataSources.imFiles
+                        ? "Read in full as brief source material"
+                        : "Attached — switch on IM & attachments to use"}
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Paste IM alternative text (Optional) */}
-              {!uploadedFileName && (
+              {imDocs.docs.length === 0 && (
                 <div className="space-y-2">
                   <span className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-500">PASTE IM TEXT (OPTIONAL)</span>
                   <textarea
@@ -3495,6 +3457,7 @@ function PreCallBriefTab({ deal, openComposer }: { deal: any; openComposer: (opt
                     { id: "companiesHouse", label: "Companies House" },
                     { id: "notionSops", label: "Notion SOPs" },
                     { id: "supabase", label: "Deal record" },
+                    { id: "imFiles", label: "IM & attachments" },
                   ].map((src) => {
                     const isConnected = dataSources[src.id];
                     return (
@@ -5054,72 +5017,30 @@ We look forward to your positive response.
   );
 }
 
-function ImAttachmentsTab({ 
-  deal, 
-  onRefresh 
-}: { 
-  deal: any; 
-  onRefresh: () => void; 
+function ImAttachmentsTab({
+  deal,
+  onRefresh
+}: {
+  deal: any;
+  onRefresh: () => void;
 }) {
-  const [isUploading, setIsUploading] = useState(false);
-  const [isReplacingIdx, setIsReplacingIdx] = useState<number | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [dragActive, setDragActive] = useState(false);
-
-  const [imToDeleteIdx, setImToDeleteIdx] = useState<number | null>(null);
+  const [imToDelete, setImToDelete] = useState<ImDoc | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const attachments = deal.rawFields?.IM_Review_Documents || [];
-
-  const handleUploadFile = async (file: File, replaceIndex?: number) => {
-    setError(null);
-    if (replaceIndex !== undefined) {
-      setIsReplacingIdx(replaceIndex);
-    } else {
-      setIsUploading(true);
-    }
-
-    try {
-      const base64Data = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => {
-          const res = reader.result as string;
-          resolve(res.split(",")[1]);
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-
-      if (replaceIndex !== undefined) {
-        await replaceImDocument(deal.id, replaceIndex, file.name, file.type, base64Data);
-      } else {
-        await uploadImDocument(deal.id, file.name, file.type, base64Data);
-      }
-      onRefresh();
-    } catch (err: any) {
-      console.error(err);
-      setError(err.message || "Failed to process file upload.");
-    } finally {
-      setIsUploading(false);
-      setIsReplacingIdx(null);
-    }
-  };
-
-  const handleDeleteFile = (idx: number) => {
-    setImToDeleteIdx(idx);
-  };
+  const {
+    docs: attachments, isLoading, isUploading, busyId, downloadingId,
+    error, upload, replace, remove, download,
+  } = useImDocuments(deal.id, onRefresh);
 
   const handleDeleteFileConfirm = async () => {
-    if (imToDeleteIdx === null) return;
+    if (!imToDelete) return;
     setIsDeleting(true);
-    setError(null);
     try {
-      await removeImDocument(deal.id, imToDeleteIdx);
-      onRefresh();
-      setImToDeleteIdx(null);
-    } catch (err: any) {
-      console.error(err);
-      setError(err.message || "Failed to delete file.");
+      await remove(imToDelete);
+      setImToDelete(null);
+    } catch {
+      /* the hook surfaces the message */
     } finally {
       setIsDeleting(false);
     }
@@ -5142,52 +5063,66 @@ function ImAttachmentsTab({
           </div>
         )}
 
-        {attachments.length === 0 ? (
+        {isLoading ? (
+          <div className="flex items-center justify-center gap-2 py-8 text-xs text-slate-500">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading attachments…
+          </div>
+        ) : attachments.length === 0 ? (
           <div className="text-center py-8 text-xs text-slate-500 border border-dashed border-white/10 rounded-xl">
             No IM or attachments uploaded yet. Use the upload area below to add documents.
           </div>
         ) : (
           <div className="space-y-2">
-            {attachments.map((att: any, idx: number) => {
-              const isReplacing = isReplacingIdx === idx;
+            {attachments.map((att, idx) => {
+              const isBusy = Boolean(att.id) && busyId === att.id;
+              const isDownloading = Boolean(att.id) && downloadingId === att.id;
+              // A link to someone else's drive can only be opened, not streamed.
+              const isLink = isExternalDoc(att);
               return (
                 <div key={att.id || idx} className="flex items-center justify-between p-3.5 rounded-xl border border-white/5 bg-white/[0.01] hover:bg-white/[0.02] transition">
                   <div className="flex items-center gap-3 min-w-0">
-                    <FileText className="h-4 w-4 text-[#C6A66B] shrink-0" />
+                    {isLink
+                      ? <ExternalLink className="h-4 w-4 text-[#C6A66B] shrink-0" />
+                      : <FileText className="h-4 w-4 text-[#C6A66B] shrink-0" />}
                     <div className="min-w-0">
-                      <span className="block text-xs font-semibold text-white truncate">{att.filename || "IM_Document"}</span>
-                      {att.size && (
-                        <span className="block text-[9px] text-slate-500 mt-0.5">{(att.size / 1024).toFixed(0)} KB</span>
+                      <span className="block text-xs font-semibold text-white truncate">{att.filename}</span>
+                      {isLink && (
+                        <span className="block text-[9px] text-slate-500 mt-0.5">External link — not stored in the deal room</span>
                       )}
                     </div>
                   </div>
 
                   <div className="flex items-center gap-2.5">
-                    <a
-                      href={att.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex h-7 items-center justify-center rounded-lg border border-white/[0.08] px-3 text-[10px] font-bold uppercase tracking-wider text-slate-350 hover:text-white hover:bg-white/[0.03] transition"
+                    <button
+                      type="button"
+                      onClick={() => download(att)}
+                      disabled={isDownloading}
+                      className="inline-flex h-7 items-center justify-center rounded-lg border border-white/[0.08] px-3 text-[10px] font-bold uppercase tracking-wider text-slate-350 hover:text-white hover:bg-white/[0.03] transition cursor-pointer disabled:opacity-50"
                     >
-                      View
-                    </a>
+                      {isDownloading ? (isLink ? "Opening…" : "Downloading…") : isLink ? "Open" : "Download"}
+                    </button>
 
-                    <label className="relative inline-flex h-7 items-center justify-center rounded-lg border border-white/[0.08] px-3 text-[10px] font-bold uppercase tracking-wider text-[#C6A66B] hover:text-white hover:bg-[#C6A66B]/10 transition cursor-pointer">
-                      {isReplacing ? "Replacing..." : "Replace"}
+                    <label className={cx(
+                      "relative inline-flex h-7 items-center justify-center rounded-lg border border-white/[0.08] px-3 text-[10px] font-bold uppercase tracking-wider text-[#C6A66B] hover:text-white hover:bg-[#C6A66B]/10 transition",
+                      isBusy ? "opacity-50 pointer-events-none" : "cursor-pointer",
+                    )}>
+                      {isBusy ? "Working…" : "Replace"}
                       <input
-                        type="file"                        disabled={isReplacing}
+                        type="file"                        disabled={isBusy}
                         className="hidden"
                         onChange={(e) => {
                           const file = e.target.files?.[0];
-                          if (file) handleUploadFile(file, idx);
+                          if (file) replace(att, file);
+                          e.target.value = "";
                         }}
                       />
                     </label>
 
                     <button
                       type="button"
-                      onClick={() => handleDeleteFile(idx)}
-                      className="inline-flex h-7 items-center justify-center rounded-lg border border-rose-500/20 bg-rose-500/5 hover:bg-rose-500/10 px-3 text-[10px] font-bold uppercase tracking-wider text-rose-450 hover:text-rose-400 transition cursor-pointer"
+                      onClick={() => setImToDelete(att)}
+                      disabled={isBusy}
+                      className="inline-flex h-7 items-center justify-center rounded-lg border border-rose-500/20 bg-rose-500/5 hover:bg-rose-500/10 px-3 text-[10px] font-bold uppercase tracking-wider text-rose-450 hover:text-rose-400 transition cursor-pointer disabled:opacity-50"
                     >
                       Delete
                     </button>
@@ -5207,7 +5142,7 @@ function ImAttachmentsTab({
             setDragActive(false);
             const files = e.dataTransfer.files;
             if (files.length > 0) {
-              handleUploadFile(files[0]);
+              upload(files[0]);
             }
           }}
           className={cx(
@@ -5222,7 +5157,8 @@ function ImAttachmentsTab({
             id="im-attachment-file-upload"            disabled={isUploading}
             onChange={(e) => {
               const file = e.target.files?.[0];
-              if (file) handleUploadFile(file);
+              if (file) upload(file);
+              e.target.value = "";
             }}
             className="hidden"
           />
@@ -5245,19 +5181,19 @@ function ImAttachmentsTab({
       </div>
 
       {/* Delete Confirmation Modal */}
-      {imToDeleteIdx !== null && (
+      {imToDelete !== null && (
         <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div className="w-full max-w-sm rounded-2xl border border-white/[0.02] bg-[#161B22] p-6 shadow-2xl relative animate-scale-in">
             <h3 className="text-base font-bold text-white uppercase tracking-wider mb-3">
               Delete Attachment
             </h3>
             <p className="text-xs text-slate-350 leading-relaxed mb-6">
-              Are you sure you want to permanently remove this attachment?
+              Are you sure you want to permanently remove <span className="font-semibold text-white">{imToDelete.filename}</span>?
             </p>
             <div className="flex justify-end gap-3">
               <button
                 type="button"
-                onClick={() => setImToDeleteIdx(null)}
+                onClick={() => setImToDelete(null)}
                 disabled={isDeleting}
                 className="h-10 px-4 rounded-xl border border-white/[0.02] text-slate-300 text-xs font-bold uppercase tracking-wider hover:bg-white/[0.015] cursor-pointer transition-colors"
               >
@@ -5296,45 +5232,16 @@ function DocumentsTab({ deal, documentState, setRefreshTrigger }: { deal: any; d
     }
   }, [sectionParam]);
 
-  const [isUploadingIm, setIsUploadingIm] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
+  // The IM card and the attachments card write to the same place — a deal's
+  // attachments are one list, not two typed slots.
+  const imDocs = useImDocuments(deal.id, () => setRefreshTrigger((prev: number) => prev + 1));
+  const isUploadingIm = imDocs.isUploading || imDocs.busyId !== null;
+  const uploadError = imDocs.error;
 
-  // Helper functions for IM upload/replace/delete
-  const handleUploadCoreDoc = async (e: React.ChangeEvent<HTMLInputElement>, fieldName: "IM_Review_Documents" | "Attachments") => {
+  const handleUploadCoreDoc = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
-    setIsUploadingIm(true);
-    setUploadError(null);
-    try {
-      const base64Data = await new Promise<string>((resolve, reject) => {
-        const r = new FileReader();
-        r.onload = () => resolve((r.result as string).split(",")[1]);
-        r.onerror = reject;
-        r.readAsDataURL(file);
-      });
-      // Deal files are single-slot Cloudinary assets now; either slot uploads
-      // land on the deal's file fields.
-      void fieldName;
-      await uploadImDocument(deal.id, file.name, file.type, base64Data);
-      setRefreshTrigger((prev: number) => prev + 1);
-    } catch (err: any) {
-      setUploadError(err.message || "Upload failed");
-    } finally {
-      setIsUploadingIm(false);
-    }
-  };
-
-  const handleDeleteCoreDoc = async (fieldName: "IM_Review_Documents" | "Attachments", idx: number) => {
-    setIsUploadingIm(true);
-    try {
-      void fieldName;
-      await removeImDocument(deal.id, idx);
-      setRefreshTrigger((prev: number) => prev + 1);
-    } catch (err: any) {
-      setUploadError(err.message || "Delete failed");
-    } finally {
-      setIsUploadingIm(false);
-    }
+    if (file) imDocs.upload(file);
+    e.target.value = "";
   };
 
   // Map files dynamically to categorizations
@@ -5368,25 +5275,26 @@ function DocumentsTab({ deal, documentState, setRefreshTrigger }: { deal: any; d
               <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Information Memorandums</span>
               <label className="text-[10px] uppercase font-bold text-[#C6A66B] cursor-pointer hover:text-white flex items-center gap-1 shrink-0">
                 {isUploadingIm ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />} Add IM
-                <input type="file" className="hidden" onChange={(e) => handleUploadCoreDoc(e, "IM_Review_Documents")} disabled={isUploadingIm} />
+                <input type="file" className="hidden" onChange={handleUploadCoreDoc} disabled={isUploadingIm} />
               </label>
             </div>
-            {deal.rawFields?.IM_Review_Documents?.length ? (
+            {imDocs.docs.length ? (
               <div className="space-y-1">
-                {deal.rawFields.IM_Review_Documents.map((doc: any, idx: number) => (
-                  <div key={idx} className="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg bg-white/[0.015] border border-white/5">
+                {imDocs.docs.map((doc, idx) => (
+                  <div key={doc.id || idx} className="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg bg-white/[0.015] border border-white/5">
                     <div className="flex items-center gap-2 min-w-0">
                       <FileText className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
-                      <a
-                        href={doc.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-[11px] text-white truncate hover:text-[#C6A66B] hover:underline"
+                      <button
+                        type="button"
+                        onClick={() => imDocs.download(doc)}
+                        disabled={imDocs.downloadingId === doc.id}
+                        title="Download"
+                        className="text-[11px] text-white truncate hover:text-[#C6A66B] hover:underline cursor-pointer disabled:opacity-50"
                       >
-                        {doc.filename || `IM Document ${idx + 1}`}
-                      </a>
+                        {doc.filename}
+                      </button>
                     </div>
-                    <button type="button" onClick={() => handleDeleteCoreDoc("IM_Review_Documents", idx)} disabled={isUploadingIm} className="text-rose-500 hover:bg-rose-500/20 p-1 rounded transition shrink-0">
+                    <button type="button" onClick={() => imDocs.remove(doc).catch(() => undefined)} disabled={isUploadingIm} className="text-rose-500 hover:bg-rose-500/20 p-1 rounded transition shrink-0">
                       <Trash2 className="h-3 w-3" />
                     </button>
                   </div>
@@ -5403,33 +5311,15 @@ function DocumentsTab({ deal, documentState, setRefreshTrigger }: { deal: any; d
               <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Financial Packs &amp; Attachments</span>
               <label className="text-[10px] uppercase font-bold text-[#C6A66B] cursor-pointer hover:text-white flex items-center gap-1 shrink-0">
                 {isUploadingIm ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />} Add Pack
-                <input type="file" className="hidden" onChange={(e) => handleUploadCoreDoc(e, "Attachments")} disabled={isUploadingIm} />
+                <input type="file" className="hidden" onChange={handleUploadCoreDoc} disabled={isUploadingIm} />
               </label>
             </div>
-            {deal.rawFields?.Attachments?.length ? (
-              <div className="space-y-1">
-                {deal.rawFields.Attachments.map((doc: any, idx: number) => (
-                  <div key={idx} className="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg bg-white/[0.015] border border-white/5">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
-                      <a
-                        href={doc.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-[11px] text-white truncate hover:text-[#C6A66B] hover:underline"
-                      >
-                        {doc.filename || `Attachment ${idx + 1}`}
-                      </a>
-                    </div>
-                    <button type="button" onClick={() => handleDeleteCoreDoc("Attachments", idx)} disabled={isUploadingIm} className="text-rose-500 hover:bg-rose-500/20 p-1 rounded transition shrink-0">
-                      <Trash2 className="h-3 w-3" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-[11px] text-slate-600 italic">None attached</p>
-            )}
+            {/* Packs share the deal's one attachment list, so they are listed
+                under Information Memorandums rather than duplicated here. */}
+            <p className="text-[11px] text-slate-600 italic flex items-center gap-1.5">
+              <FileSpreadsheet className="h-3 w-3 shrink-0" />
+              Uploads are listed alongside the IMs
+            </p>
           </div>
         </div>
 

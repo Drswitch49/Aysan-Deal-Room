@@ -190,7 +190,8 @@ function enabledSources(sources: PrecallParams["dataSources"]): string[] {
  *
  * The toggles used to be decorative — the brief named its "sources" in a header
  * line and was then written from the deal's six summary fields alone. Each
- * enabled source now actually contributes text.
+ * enabled source now actually contributes text, including `imFiles`: the text
+ * of the deal's own IM and attachments, not just their names.
  */
 async function collectBriefSources(
   dealId: string | undefined,
@@ -200,7 +201,7 @@ async function collectBriefSources(
   const want = (name: string) => sources.length === 0 || sources.includes(name);
   const blocks: string[] = [];
 
-  const [sops, dealCtx, ch] = await Promise.all([
+  const [sops, dealCtx, imText, ch] = await Promise.all([
     want("notionSops")
       ? import("../osint/providers/notionSops.js")
           .then(async (m) => m.formatSopsForPrompt(await m.fetchNotionSops()))
@@ -209,6 +210,11 @@ async function collectBriefSources(
     want("supabase") && dealId
       ? import("../osint/providers/dealContext.js")
           .then(async (m) => m.formatDealContextForPrompt(await m.loadDealContext(dealId)))
+          .catch(() => "")
+      : Promise.resolve(""),
+    want("imFiles") && dealId
+      ? import("../osint/providers/imDocuments.js")
+          .then(async (m) => m.formatImDocumentsForPrompt(await m.loadImDocumentText(dealId)))
           .catch(() => "")
       : Promise.resolve(""),
     want("companiesHouse")
@@ -223,6 +229,9 @@ async function collectBriefSources(
   if (ch && (ch as { found?: boolean }).found) {
     blocks.push(`═══ COMPANIES HOUSE ═══\n${JSON.stringify(ch, null, 1).slice(0, 4000)}`);
   }
+  // The IM goes last, closest to the ask — it is the source the brief should
+  // lean on hardest, and recency in the prompt is the cheapest way to say so.
+  if (imText) blocks.push(`═══ DEAL IM & ATTACHMENTS (primary source) ═══\n${imText}`);
   return blocks.join("\n\n");
 }
 
@@ -327,6 +336,7 @@ STYLE RULES (MANDATORY):
 - STRICTLY ENFORCE ALL HARD GUARDRAILS.
 - Assign ownership for every section based strictly on the selected personas and their partner-down rules.
 - Never fabricate facts; clearly label assumptions.
+- When a "DEAL IM & ATTACHMENTS" block is supplied, treat it as the primary source: take figures, customer/contract detail and seller language from it in preference to any other block, and say which claims the IM does NOT support. If a file in it could not be read, flag that as an unknown rather than filling the gap.
 
 BREVITY AND LIMITS (CRITICAL):
 - You MUST be extremely concise. Keep your total JSON output under 15,000 characters.

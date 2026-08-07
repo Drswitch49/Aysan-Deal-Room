@@ -12,6 +12,7 @@ import { LoadingState } from "../components/ui/LoadingState";
 import { Modal } from "../components/ui/Modal";
 import { FormField } from "../components/ui/FormField";
 import { cx } from "../utils/cx";
+import { fileNameFromUrl } from "../utils/fileName";
 import { usePipeline } from "../context/PipelineContext";
 import { ManualNotesTab } from "../components/deals/ManualNotesTab";
 import { KillReasonCard } from "../components/deals/KillReasonCard";
@@ -1245,7 +1246,7 @@ export function DealInboxPage() {
                           new URL(val);
                           setFormData(prev => ({
                             ...prev,
-                            imReviewDocs: [...prev.imReviewDocs, { url: val, filename: val.split("/").pop() || "Document" }]
+                            imReviewDocs: [...prev.imReviewDocs, { url: val, filename: fileNameFromUrl(val) }]
                           }));
                           input.value = "";
                         } catch {

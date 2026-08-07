@@ -56,6 +56,10 @@ function compatRawFields(d: Row): Record<string, any> {
     Financial_Analysis_Status: d.financial_analysis_status ?? "",
     Financial_Anomalies: d.financial_anomalies ?? "",
     // files (Cloudinary-backed now)
+    // The real attachment list, with each file's own name, lives in
+    // `im_review_documents` — read it with useImDocuments/listImDocuments. This
+    // single-slot column has nowhere to hold a name, so it survives only as a
+    // "this deal has an IM attached" signal for the checklist and inbox list.
     IM_Review_Documents: d.deal_files_secure_url ? [{ url: d.deal_files_secure_url, filename: "Deal file" }] : [],
     "Deal Files": d.deal_files_secure_url ?? d.deal_files_url ?? "",
     // raw row for anything else
