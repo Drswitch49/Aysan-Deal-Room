@@ -40,7 +40,7 @@ export default createHandler<unknown, z.infer<typeof querySchema>>({
     if (!ALL_STAFF.includes(user.role)) {
       const scope = await resolveLenderScope(user, undefined);
       const shared =
-        scope.dealIds.includes(row.deal_id) &&
+        scope.approvedDealIds.includes(row.deal_id) &&
         String(row.status ?? "").trim().toLowerCase() === "sent to lender";
       if (!shared) throw new ForbiddenError("This document has not been shared with you");
     }

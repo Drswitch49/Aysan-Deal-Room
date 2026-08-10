@@ -229,12 +229,20 @@ export function LenderManagementPage() {
     }
   }
 
-  // Toggle NDA Approval Handler
-  async function handleToggleLenderNda(lenderId: string, currentNdaState: boolean) {
+  // Toggle NDA Approval Handler — the select is controlled off `ndaApproved`,
+  // so move it locally first; the reload confirms it against the database.
+  async function handleToggleLenderNda(lenderId: string, ndaApproved: boolean) {
+    const applyLocally = (value: boolean) => {
+      setLenders(prev => prev.map(l => (l.id === lenderId ? { ...l, ndaApproved: value } : l)));
+      setDrawerLender(prev => (prev && prev.id === lenderId ? { ...prev, ndaApproved: value } : prev));
+    };
+
+    applyLocally(ndaApproved);
     try {
-      await toggleLenderNda(lenderId, currentNdaState);
+      await toggleLenderNda(lenderId, ndaApproved);
       await loadData();
     } catch (err: any) {
+      applyLocally(!ndaApproved);
       alert(err.message || "Error toggling NDA status");
     }
   }

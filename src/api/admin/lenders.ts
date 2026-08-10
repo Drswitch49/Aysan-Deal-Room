@@ -14,8 +14,10 @@ function mapLenderLegacy(l: Row, assignments: Row[]): Row {
     Phone: l.phone ?? "",
     Portal_Slug: l.portal_slug ?? "",
     NDA_Approved: Boolean(l.nda_approved),
+    ndaApproved: Boolean(l.nda_approved),
     Criteria_Pills: l.criteria_pills ?? "",
     Status: l.deleted_at ? "Inactive" : "Active",
+    Created_At: l.created_at ?? "",
     Last_Contact_Date: l.last_contact_date ?? "",
     assignments: assignments
       .filter((a) => a.lender_id === l.id)

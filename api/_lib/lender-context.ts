@@ -11,6 +11,14 @@ import { repositories } from "../../lib/data/supabase/repositories.js";
 export interface LenderScope {
   lenderId: string;
   dealIds: string[];
+  /** Lender-level NDA compliance (the "NDA Compliance" switch in portal admin). */
+  ndaApproved: boolean;
+  /**
+   * Deals whose materials the lender may actually see: NDA approved either on
+   * the lender record or on the individual assignment. Everything gated behind
+   * the NDA (documents, submission log, downloads) scopes to this, not dealIds.
+   */
+  approvedDealIds: string[];
 }
 
 export async function resolveLenderScope(user: UserContext | null, requestedLenderId?: string): Promise<LenderScope> {
@@ -24,7 +32,17 @@ export async function resolveLenderScope(user: UserContext | null, requestedLend
   }
   if (!lenderId) throw new ForbiddenError("No lender scope available for this session");
 
-  const assignments = await repositories.lenderDealAssignments.list({ lender_id: lenderId, limit: 200 });
-  const dealIds = assignments.rows.map((a: any) => a.deal_id).filter(Boolean);
-  return { lenderId, dealIds };
+  const [lender, assignments] = await Promise.all([
+    repositories.lenders.findById(lenderId),
+    repositories.lenderDealAssignments.list({ lender_id: lenderId, limit: 200 }),
+  ]);
+
+  const ndaApproved = Boolean((lender as any)?.nda_approved);
+  const rows = assignments.rows.filter((a: any) => a.deal_id);
+  const dealIds = rows.map((a: any) => a.deal_id);
+  const approvedDealIds = rows
+    .filter((a: any) => ndaApproved || Boolean(a.nda_approved))
+    .map((a: any) => a.deal_id);
+
+  return { lenderId, dealIds, ndaApproved, approvedDealIds };
 }

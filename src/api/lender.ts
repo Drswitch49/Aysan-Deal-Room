@@ -50,6 +50,7 @@ export async function fetchLenderDeals(_portalSlug: string): Promise<PipelineDea
     capitalStructure: [],
     rawFields: d as PipelineDeal["rawFields"],
     dealFiles: d.deal_files_secure_url || "",
+    ndaApproved: Boolean(d.nda_approved),
   }));
 }
 

@@ -19,6 +19,8 @@ const idSchema = z.object({ id: z.string().uuid("A resource id (uuid) is require
 interface CrudOptions {
   writeRoles?: string[];
   deleteRoles?: string[];
+  /** Runs after a successful PATCH — e.g. to cascade a flag onto child rows. */
+  onUpdated?: (row: any, patch: Record<string, unknown>) => Promise<void>;
 }
 
 export function collectionHandler(
@@ -56,7 +58,9 @@ export function itemHandler(
       if (req.method === "PATCH") {
         if (!user || !writeRoles.includes(user.role)) throw new ForbiddenError("Insufficient role to edit");
         if (!body || Object.keys(body).length === 0) throw new BadRequestError("Empty update");
-        return repo.update(id, body);
+        const updated = await repo.update(id, body);
+        if (opts.onUpdated) await opts.onUpdated(updated, body as Record<string, unknown>);
+        return updated;
       }
       if (!user || !deleteRoles.includes(user.role)) throw new ForbiddenError("Insufficient role to delete");
       await repo.remove(id);

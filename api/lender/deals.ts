@@ -29,6 +29,10 @@ export default createHandler({
       .in("id", scope.dealIds)
       .is("deleted_at", null);
     if (error) throw new InternalError(`lender deals: ${error.message}`);
-    return { rows: data ?? [] };
+
+    // NDA state travels with the deal so the portal knows which rooms are
+    // unlocked — documents and the submission log stay hidden until it is true.
+    const approved = new Set(scope.approvedDealIds);
+    return { rows: (data ?? []).map((d: any) => ({ ...d, nda_approved: approved.has(d.id) })) };
   },
 });

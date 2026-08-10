@@ -1,6 +1,6 @@
 /**
  * GET /api/lender/documents — documents shared with the signed-in lender
- * (status "Sent to Lender" on their assigned deals). Internal notes and
+ * (status "Sent to Lender" on their NDA-approved deals). Internal notes and
  * lender-target fields are never selected.
  */
 import { createHandler } from "../_lib/handler.js";
@@ -18,12 +18,13 @@ export default createHandler({
   requireAuth: true,
   handle: async ({ query, user }) => {
     const scope = await resolveLenderScope(user, (query as any)?.lender_id);
-    if (scope.dealIds.length === 0) return { rows: [] };
+    // No NDA, no documents — enforced here, not just hidden in the portal UI.
+    if (scope.approvedDealIds.length === 0) return { rows: [] };
 
     const { data, error } = await adminClient()
       .from("documents")
       .select(LENDER_SAFE_DOC_COLUMNS)
-      .in("deal_id", scope.dealIds)
+      .in("deal_id", scope.approvedDealIds)
       .ilike("status", "sent to lender")
       .is("deleted_at", null);
     if (error) throw new InternalError(`lender documents: ${error.message}`);
