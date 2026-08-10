@@ -1,4 +1,5 @@
-/** Admin client — auth / settings + legacy webhooks (not yet ported). */
+/** Admin client — auth / settings + outbound email webhooks. */
+import { api } from "../http";
 import { type Row } from "./_shared";
 
 export async function changeAdminPassword(currentPassword: string, newPassword: string) {
@@ -32,12 +33,37 @@ export async function verifyIntegration(_integrationId: string): Promise<Row> {
   throw new Error("Integration checks are being rebuilt and are not available yet.");
 }
 
-// ─── Legacy webhooks (not yet ported) ───────────────────────────────────────
+// ─── Outbound email (Make.com delivery scenario) ────────────────────────────
 
-export async function sendLoiWebhook(_data: Row): Promise<Row> {
-  throw new Error("LOI sending is being rebuilt and is not available yet.");
+/**
+ * Hand a composed email to the server, which forwards it to Make.
+ *
+ * The composer speaks in lender terms (lenderEmail/body); the webhook contract
+ * is recipient/subject/content/type, so the translation happens here — one
+ * place, rather than in each caller.
+ */
+async function sendComposedEmail(type: "LOI" | "Post_meeting_email", data: Row): Promise<Row> {
+  const email = String(data.lenderEmail ?? data.email ?? "").trim();
+  const content = String(data.body ?? data.content ?? "").trim();
+  const subject = String(data.subject ?? "").trim();
+
+  if (!email) throw new Error("A recipient email address is required.");
+  if (!subject) throw new Error("A subject is required.");
+  if (!content) throw new Error("The email content is empty.");
+
+  return api.post<Row>("/api/webhooks/send-email", {
+    email,
+    subject,
+    content,
+    type,
+    ...(data.dealId ? { deal_id: String(data.dealId) } : {}),
+  });
 }
 
-export async function sendEmailWebhook(_data: Row): Promise<Row> {
-  throw new Error("Email sending is being rebuilt and is not available yet.");
+export async function sendLoiWebhook(data: Row): Promise<Row> {
+  return sendComposedEmail("LOI", data);
+}
+
+export async function sendEmailWebhook(data: Row): Promise<Row> {
+  return sendComposedEmail("Post_meeting_email", data);
 }
