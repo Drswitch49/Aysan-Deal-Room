@@ -2838,11 +2838,16 @@ function PreCallBriefTab({ deal, openComposer }: { deal: any; openComposer: (opt
           </div>
         </div>
       ) : selectedBrief ? (
-        /* Display Generated Brief */
-        <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-6 items-stretch font-sans animate-fade-in-up">
-          {/* Left Pane: Config used */}
-          <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 space-y-6 flex flex-col justify-between">
-            <div className="space-y-5">
+        /* Display Generated Brief.
+           `items-start` keeps the parameters column its own height instead of
+           stretching to match the brief — a stretched grid item has nothing to
+           stick against, so the panel (and its button) scrolled away with the
+           brief text. */
+        <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-6 items-start font-sans animate-fade-in-up">
+          {/* Left Pane: Config used — pinned below the header, its own scroll
+              area, so "Generate new brief" stays reachable at the footer. */}
+          <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 space-y-6 flex flex-col justify-between lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)]">
+            <div className="space-y-5 flex-1 min-h-0 overflow-y-auto pr-1">
               <h3 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 pb-2 border-b border-white/5">
                 BRIEF PARAMETERS
               </h3>
@@ -2920,7 +2925,7 @@ function PreCallBriefTab({ deal, openComposer }: { deal: any; openComposer: (opt
 
             <button
               onClick={() => setSelectedBrief(null)}
-              className="w-full h-10 rounded-xl bg-white/[0.015] hover:bg-white/[0.02] border border-white/[0.02] text-white font-bold text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 cursor-pointer mt-6"
+              className="w-full shrink-0 h-10 rounded-xl bg-white/[0.015] hover:bg-white/[0.02] border border-white/[0.02] text-white font-bold text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 cursor-pointer mt-6"
             >
               <Plus className="h-4 w-4" />
               Generate new brief
@@ -3281,12 +3286,14 @@ function PreCallBriefTab({ deal, openComposer }: { deal: any; openComposer: (opt
           </div>
         </div>
       ) : (
-        /* Configuration and Generation screen */
-        <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-6 items-stretch font-sans animate-fade-in-up">
-          
+        /* Configuration and Generation screen. Same pinning as the generated
+           view: the column keeps its own height and scrolls internally, so the
+           generate button never drifts off with the panel beside it. */
+        <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-6 items-start font-sans animate-fade-in-up">
+
           {/* Left Pane: Configuration */}
-          <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 space-y-6 flex flex-col justify-between">
-            <div className="space-y-5">
+          <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 space-y-6 flex flex-col justify-between lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)]">
+            <div className="space-y-5 flex-1 min-h-0 overflow-y-auto pr-1">
               <h3 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 pb-2 border-b border-white/5">
                 PRE-CALL CONFIGURATION
               </h3>
@@ -3493,7 +3500,7 @@ function PreCallBriefTab({ deal, openComposer }: { deal: any; openComposer: (opt
               type="button"
               onClick={triggerGeneration}
               disabled={isGenerating}
-              className="w-full h-10 rounded-xl bg-slate-100 text-slate-950 font-black text-xs uppercase tracking-wider transition hover:bg-white disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer mt-6"
+              className="w-full shrink-0 h-10 rounded-xl bg-slate-100 text-slate-950 font-black text-xs uppercase tracking-wider transition hover:bg-white disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer mt-6"
             >
               <Sparkles className="h-4 w-4" />
               {generatingStatus || "Generate pre-call brief"}
