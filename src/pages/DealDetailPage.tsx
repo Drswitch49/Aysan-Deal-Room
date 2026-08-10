@@ -4888,6 +4888,29 @@ function buildLoiLetter(deal: any, terms: {
   };
 }
 
+/**
+ * The message alone, for sending.
+ *
+ * The letterhead belongs to the document, not to an email: the recipient is
+ * already the To: address, and the mail service stamps sender and date. Pasting
+ * all three at the top of the body just repeats them back at the reader.
+ */
+function loiEmailBody(deal: any, terms: Parameters<typeof buildLoiLetter>[1]) {
+  const l = buildLoiLetter(deal, terms);
+  return `${l.intent}
+
+Consideration: ${l.consideration}
+
+${l.diligence}
+
+${l.closing}
+
+${l.signoff}
+`;
+}
+
+/** The full letter, letterhead and all — what the preview shows and the
+ *  download writes to disk. */
 function loiPlainText(deal: any, terms: Parameters<typeof buildLoiLetter>[1]) {
   const l = buildLoiLetter(deal, terms);
   return `LETTER OF INTENT
@@ -5104,7 +5127,7 @@ function LOIStructureTab({ deal, openComposer, onSaved }: { deal: any; openCompo
               recipientName: deal.rawFields?.["Contact Name"] || deal.rawFields?.["Broker Name"] || "",
               recipientEmail: deal.rawFields?.["Contact Email"] || deal.rawFields?.["Broker Email"] || "",
               subject: `Letter of Intent (LOI) - ${deal.companyName || deal.dealRef || "Project"}`,
-              body: loiPlainText(deal, terms),
+              body: loiEmailBody(deal, terms),
               generatedBy: "precall_brief_engine"
             })}
             className="flex-1 h-10 rounded-xl bg-[#C6A66B] hover:bg-[#B8924F] text-slate-950 font-black text-xs uppercase tracking-wider transition flex items-center justify-center gap-1.5 cursor-pointer shadow-glow-bronze/10"

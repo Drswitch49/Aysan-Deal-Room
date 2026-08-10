@@ -35,6 +35,34 @@ export async function verifyIntegration(_integrationId: string): Promise<Row> {
 
 // ─── Outbound email (Make.com delivery scenario) ────────────────────────────
 
+const HEADER_LINE = /^(from|to|date|subject)\s*:/i;
+const DOCUMENT_TITLE = /^letter of intent$/i;
+
+/**
+ * Drop a letterhead block if one reached the body.
+ *
+ * `content` is the message, not the document — Make already has the recipient,
+ * and the mail service stamps sender and date, so From:/To:/Date: lines at the
+ * top are duplicated envelope data. The LOI composer is seeded without them
+ * now; the post-meeting follow-up is model-written and can still open with one.
+ *
+ * Only the contiguous run of header-shaped lines at the very top is removed —
+ * scanning stops at the first line that is not one, so a message that mentions
+ * "To: …" further down keeps it.
+ */
+export function stripLetterhead(text: string): string {
+  const lines = text.split(/\r?\n/);
+  let i = 0;
+  let removed = 0;
+  while (i < lines.length) {
+    const line = lines[i].trim();
+    if (line === "") { i++; continue; }
+    if (HEADER_LINE.test(line) || DOCUMENT_TITLE.test(line)) { i++; removed++; continue; }
+    break;
+  }
+  return removed > 0 ? lines.slice(i).join("\n").trim() : text.trim();
+}
+
 /**
  * Hand a composed email to the server, which forwards it to Make.
  *
@@ -44,7 +72,7 @@ export async function verifyIntegration(_integrationId: string): Promise<Row> {
  */
 async function sendComposedEmail(type: "LOI" | "Post_meeting_email", data: Row): Promise<Row> {
   const email = String(data.lenderEmail ?? data.email ?? "").trim();
-  const content = String(data.body ?? data.content ?? "").trim();
+  const content = stripLetterhead(String(data.body ?? data.content ?? ""));
   const subject = String(data.subject ?? "").trim();
 
   if (!email) throw new Error("A recipient email address is required.");
