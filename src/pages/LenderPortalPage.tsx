@@ -1,23 +1,20 @@
 import { useState, useEffect, useMemo } from "react";
 import { useParams, Navigate, useSearchParams } from "react-router-dom";
-import { 
-  Building2, Database, ShieldCheck, LockKeyhole, Landmark, 
-  LogOut, Files, History, Menu, X, MessageSquare, Eye, EyeOff
+import {
+  Building2, Database, ShieldCheck, LockKeyhole, Landmark,
+  LogOut, Files, Menu, X, MessageSquare, Eye, EyeOff
 } from "lucide-react";
-import { 
-  loginLender, fetchLenderDeals, fetchLenderDocuments, fetchLenderSubmissions 
-} from "../api/lender";
+import { loginLender, fetchLenderDeals, fetchLenderDocuments } from "../api/lender";
 import { fetchRecentLenderChat, subscribeAllChat } from "../api/chat";
 import { clearRealtimeAuth } from "../lib/supabase";
 import { CoverSheet } from "../components/deals/CoverSheet";
 import { DocumentChecklist } from "../components/deals/DocumentChecklist";
-import { SubmissionTimeline } from "../components/deals/SubmissionTimeline";
 import { DealChat } from "../components/deals/DealChat";
 import { LoadingState } from "../components/ui/LoadingState";
 import { ErrorState } from "../components/ui/ErrorState";
 import { EmptyState } from "../components/ui/EmptyState";
 import { ChatNotificationWatcher } from "../components/ui/ChatNotificationWatcher";
-import type { PipelineDeal, DealDocument, SubmissionLogEntry } from "../types/deal";
+import type { PipelineDeal, DealDocument } from "../types/deal";
 import { cx } from "../utils/cx";
 
 type LenderTabId = "overview" | "chat";
@@ -35,7 +32,6 @@ export function LenderPortalPage() {
   // Loaded data
   const [deals, setDeals] = useState<PipelineDeal[]>([]);
   const [documents, setDocuments] = useState<DealDocument[]>([]);
-  const [logs, setLogs] = useState<SubmissionLogEntry[]>([]);
   const [selectedDeal, setSelectedDeal] = useState<PipelineDeal | null>(null);
   const [lenderProfile, setLenderProfile] = useState<any>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -89,15 +85,13 @@ export function LenderPortalPage() {
     setLoadingData(true);
     setError("");
     try {
-      const [assignedDeals, approvedDocs, activityLogs] = await Promise.all([
+      const [assignedDeals, approvedDocs] = await Promise.all([
         fetchLenderDeals(portalSlug),
-        fetchLenderDocuments(portalSlug),
-        fetchLenderSubmissions(portalSlug)
+        fetchLenderDocuments(portalSlug)
       ]);
       setDeals(assignedDeals);
       setDocuments(approvedDocs);
-      setLogs(activityLogs);
-      
+
       if (assignedDeals.length > 0) {
         setSelectedDeal(assignedDeals[0]);
       }
@@ -202,16 +196,6 @@ export function LenderPortalPage() {
     });
   }, [selectedDeal, documents]);
 
-  const activeLogs = useMemo(() => {
-    if (!selectedDeal) return [];
-    const sid = selectedDeal.id.toLowerCase();
-    const sref = (selectedDeal.dealRef || "").toLowerCase();
-    return logs.filter(log => {
-      const lref = String(log.dealRef || "").toLowerCase();
-      return lref === sid || (sref && lref === sref);
-    });
-  }, [selectedDeal, logs]);
-
   // Safe helper properties with optional chaining & fallbacks to prevent crashes
   const companyName = lenderProfile?.Company_Name || lenderProfile?.Email?.split("@")[0] || portalSlug || "Lender";
   const contactName = lenderProfile?.Contact_Name || "";
@@ -307,12 +291,15 @@ export function LenderPortalPage() {
   // Dashboard View
   return (
     <div className="min-h-screen text-slate-100 lg:grid lg:grid-cols-[284px_minmax(0,1fr)] bg-acp-ink">
-      {/* Lender Portal Sidebar */}
-      <aside className="hidden min-h-screen border-r border-white/[0.02] bg-[#161B22] text-white lg:block relative overflow-hidden">
+      {/* Lender Portal Sidebar — `sticky` lives on the <aside> itself (same as
+          the staff AppLayout). On the inner div it never pinned: this column's
+          own `overflow-hidden` made it the scroll container, so the panel just
+          rode the page down. */}
+      <aside className="hidden h-screen sticky top-0 border-r border-white/[0.02] bg-[#161B22] text-white lg:block relative overflow-hidden">
         <div className="absolute -left-12 -top-12 h-48 w-48 rounded-full bg-acp-bronze/5 blur-3xl pointer-events-none" />
         <div className="absolute -right-20 bottom-10 h-64 w-64 rounded-full bg-acp-bronze/5 blur-3xl pointer-events-none" />
 
-        <div className="sticky top-0 flex h-screen flex-col px-6 py-7 z-10">
+        <div className="relative flex h-full flex-col px-6 py-7 z-10">
           {/* Logo */}
           <div className="flex min-w-0 items-center gap-3">
             <div className="flex shrink-0 h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-[#C6A66B]/20 to-[#C6A66B]/20 text-white shadow-md border border-[#C6A66B]/30">
@@ -516,7 +503,7 @@ export function LenderPortalPage() {
                   <div>
                     <span className="text-[10px] font-extrabold uppercase tracking-widest text-acp-bronze">Deal Room Review</span>
                     <h1 className="text-xl font-bold text-white mt-1 leading-none">
-                      {selectedDeal.companyName || selectedDeal.dealRef}
+                      {selectedDeal.dealRef}
                     </h1>
                   </div>
 
@@ -535,7 +522,7 @@ export function LenderPortalPage() {
                     >
                       {deals.map(deal => (
                         <option key={deal.id} value={deal.id}>
-                          {deal.dealRef} — {deal.companyName}
+                          {deal.dealRef}
                         </option>
                       ))}
                     </select>
@@ -631,18 +618,6 @@ export function LenderPortalPage() {
                       )}
                     </section>
 
-                    {/* Timeline History */}
-                    {selectedDeal.ndaApproved && (
-                      <section className="space-y-4 animate-fade-in">
-                        <div className="flex items-center gap-3">
-                          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/[0.015] border border-white/[0.02] text-acp-bronze shadow-sm">
-                            <History className="h-5 w-5" />
-                          </span>
-                          <h2 className="text-sm font-bold uppercase tracking-wider text-white">Submission Timeline</h2>
-                        </div>
-                        <SubmissionTimeline entries={activeLogs} />
-                      </section>
-                    )}
                   </div>
                 ) : (
                   <div className="w-full">

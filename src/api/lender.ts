@@ -25,33 +25,38 @@ export async function loginLender(portalSlug: string, passcode: string) {
 
 export async function fetchLenderDeals(_portalSlug: string): Promise<PipelineDeal[]> {
   const { rows } = await api.get<{ rows: Row[] }>("/api/lender/deals");
-  return rows.map((d) => ({
-    id: d.id,
-    dealRef: d.acp_ref_no || d.ref_no || d.id,
-    companyName: "Undisclosed Company", // masked for lender-portal privacy
-    status: d.pipeline_stage || d.stage || "",
-    location: d.location || "",
-    sector: d.sector || d.industry || "",
-    ev: String(d.enterprise_value ?? ""),
-    dscrBase: String(d.dscr_proxy ?? ""),
-    dscrStress: String(d.dscr_score ?? ""),
-    broker: "",
-    lenderAssigned: "",
-    vendorNames: "",
-    postCompletionRoles: "",
-    lenderExecutiveSummary: d.lender_executive_summary || "",
-    businessDescription: d.business_description || "",
-    investmentHighlights: d.investment_highlights || "",
-    acquisitionRationale: d.acquisition_rationale || "",
-    dealType: d.deal_type || "",
-    turnover: String(d.turnover ?? ""),
-    ebitda: String(d.ebitda_gbp ?? ""),
-    evAsk: String(d.asking_price_gbp ?? d.enterprise_value ?? ""),
-    capitalStructure: [],
-    rawFields: d as PipelineDeal["rawFields"],
-    dealFiles: d.deal_files_secure_url || "",
-    ndaApproved: Boolean(d.nda_approved),
-  }));
+  return rows.map((d) => {
+    // Identity stays masked in the portal, but the reference is what lenders
+    // actually quote back to us — so it stands in for the name everywhere.
+    const ref = d.acp_ref_no || d.ref_no || d.id;
+    return {
+      id: d.id,
+      dealRef: ref,
+      companyName: ref,
+      status: d.pipeline_stage || d.stage || "",
+      location: d.location || "",
+      sector: d.sector || d.industry || "",
+      ev: String(d.enterprise_value ?? ""),
+      dscrBase: String(d.dscr_proxy ?? ""),
+      dscrStress: String(d.dscr_score ?? ""),
+      broker: "",
+      lenderAssigned: "",
+      vendorNames: "",
+      postCompletionRoles: "",
+      lenderExecutiveSummary: d.lender_executive_summary || "",
+      businessDescription: d.business_description || "",
+      investmentHighlights: d.investment_highlights || "",
+      acquisitionRationale: d.acquisition_rationale || "",
+      dealType: d.deal_type || "",
+      turnover: String(d.turnover ?? ""),
+      ebitda: String(d.ebitda_gbp ?? ""),
+      evAsk: String(d.asking_price_gbp ?? d.enterprise_value ?? ""),
+      capitalStructure: [],
+      rawFields: d as PipelineDeal["rawFields"],
+      dealFiles: d.deal_files_secure_url || "",
+      ndaApproved: Boolean(d.nda_approved),
+    };
+  });
 }
 
 export async function fetchLenderDocuments(_portalSlug: string): Promise<DealDocument[]> {
