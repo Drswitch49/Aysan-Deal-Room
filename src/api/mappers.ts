@@ -30,6 +30,12 @@ function compatRawFields(d: Row): Record<string, any> {
     EBITDA_GBP: d.ebitda_gbp ?? "",
     Asking_Price_GBP: d.asking_price_gbp ?? "",
     Turnover: d.turnover ?? "",
+    // LOI structure terms (migration 0015) — the LOI tab drafts from these.
+    LOI_Cash_At_Close: d.loi_cash_at_close ?? "",
+    LOI_VLN_Amount: d.loi_vln_amount ?? "",
+    LOI_Deferred_Consideration: d.loi_deferred_consideration ?? "",
+    LOI_Target_Completion: d.loi_target_completion ?? "",
+    LOI_Exclusivity_Period: d.loi_exclusivity_period ?? "",
     // contacts / people
     Owner: d.owner ?? "",
     "Contact Name": d.broker ?? "",

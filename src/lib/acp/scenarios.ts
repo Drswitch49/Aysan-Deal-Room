@@ -15,7 +15,7 @@ export const ACP_HARD_GUARDRAILS = [
   "VLN and deferred consideration kept distinct",
   "No valuation anchor",
   "No lender names",
-  "No YOFY / automation mention",
+  "No automation-platform mention",
   "Six facts captured before the call ends"
 ];
 

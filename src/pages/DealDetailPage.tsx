@@ -810,7 +810,14 @@ export function DealDetailPage() {
         )}
 
         {activeTab === "loi" && (
-          <LOIStructureTab deal={joinedDeal} openComposer={openComposer} />
+          <LOIStructureTab
+            deal={joinedDeal}
+            openComposer={openComposer}
+            onSaved={() => {
+              setRefreshTrigger(prev => prev + 1);
+              refreshPipeline();
+            }}
+          />
         )}
 
         {activeTab === "documents" && (
@@ -1746,9 +1753,11 @@ function OverviewTab({
 
   const verdict = scoreTotal >= 19 ? "ADVANCE" : "HOLD";
 
-  const revenueVal = Number(deal.revenue) || 1600000;
-  const realEbitdaVal = Number(deal.ebitda) || 190000;
-  const realMarginVal = ((realEbitdaVal / revenueVal) * 100).toFixed(1);
+  // Straight off the deal record. These used to fall back to £1.6m/£190k, so a
+  // deal with no figures displayed another deal's numbers as if they were its own.
+  const revenueVal = Number(deal.revenue) || 0;
+  const realEbitdaVal = Number(deal.ebitda) || 0;
+  const realMarginVal = revenueVal > 0 ? ((realEbitdaVal / revenueVal) * 100).toFixed(1) : null;
 
   const capitalStack = useMemo(() => {
     if (deal.capitalStructure && deal.capitalStructure.length > 0) {
@@ -2087,7 +2096,7 @@ function OverviewTab({
             onToggle={() => setIsFinancialsOpen(!isFinancialsOpen)}
             headerBadge={
               <span className="text-[10px] font-extrabold text-white bg-white/[0.015] border border-white/[0.02] px-2 py-0.5 rounded select-none">
-                Margin: {realMarginVal}% · Mult: {multVal > 0 ? `${multVal.toFixed(1)}x` : "—"}
+                Margin: {realMarginVal ? `${realMarginVal}%` : "—"} · Mult: {multVal > 0 ? `${multVal.toFixed(1)}x` : "—"}
               </span>
             }
           >
@@ -2095,11 +2104,11 @@ function OverviewTab({
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
                 <div>
                   <span className="block text-[8px] text-slate-500 uppercase select-none">Revenue</span>
-                  <span className="font-bold text-slate-200">{formatGBP(revenueVal)}</span>
+                  <span className="font-bold text-slate-200">{revenueVal > 0 ? formatGBP(revenueVal) : "—"}</span>
                 </div>
                 <div>
                   <span className="block text-[8px] text-slate-500 uppercase select-none">EBITDA (Normalized)</span>
-                  <span className="font-bold text-slate-200">{formatGBP(realEbitdaVal)}</span>
+                  <span className="font-bold text-slate-200">{realEbitdaVal > 0 ? formatGBP(realEbitdaVal) : "—"}</span>
                 </div>
                 <div>
                   <span className="block text-[8px] text-slate-500 uppercase select-none">EV Ask Multiple</span>
@@ -4840,31 +4849,134 @@ function FinancialsTab({
   );
 }
 
-function LOIStructureTab({ deal, openComposer }: { deal: any; openComposer: (opts: any) => void }) {
-  const [totalEv, setTotalEv] = useState("525,000");
-  const [cashAtClose, setCashAtClose] = useState("341,000");
-  const [vln, setVln] = useState("105,000");
-  const [deferred, setDeferred] = useState("79,000");
-  const [targetCompletion, setTargetCompletion] = useState("31 July 2026");
-  const [exclusivity, setExclusivity] = useState("30 days");
+/** Thousands-separated figure, or a placeholder when the deal record has no
+ *  value — never invent one, an LOI is a priced offer. */
+const loiMoney = (v: string) => {
+  const n = Number(String(v).replace(/[^0-9.-]/g, ""));
+  return v && !Number.isNaN(n) && n !== 0 ? n.toLocaleString("en-GB") : "[TBC]";
+};
+
+/** Strip formatting for the wire; blank → null so numeric columns accept it. */
+const loiNumber = (v: string) => {
+  const n = Number(String(v).replace(/[^0-9.-]/g, ""));
+  return String(v).trim() === "" || Number.isNaN(n) ? null : n;
+};
+
+/**
+ * The letter, in one place. The preview, the .md download and the email
+ * composer all render this — they used to carry three hand-maintained copies,
+ * which is how "(Kent) Ltd" and the EBITDA-milestone clause survived in some
+ * of them and not others.
+ */
+function buildLoiLetter(deal: any, terms: {
+  totalEv: string; cashAtClose: string; vln: string; deferred: string;
+  targetCompletion: string; exclusivity: string;
+}) {
+  const company = deal.companyName || deal.dealRef || "the company";
+  const sector = String(deal.sector || "").trim();
+  return {
+    from: "Aysan Capital Partners",
+    to: `${deal.vendorNames || "[Vendor name]"} - ${company}`,
+    date: new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }),
+    intent: `We are pleased to confirm our non-binding intention to acquire 100% of the issued share capital of ${company} on the following principal terms:`,
+    consideration: `£${loiMoney(terms.totalEv)} total EV comprising cash at completion of £${loiMoney(terms.cashAtClose)}, a Vendor Loan Note of £${loiMoney(terms.vln)} over 36 months at 5% per annum, and deferred consideration of £${loiMoney(terms.deferred)}.`,
+    diligence: `This proposal is subject to detailed financial, legal, and operational due diligence. We propose an exclusivity period of ${terms.exclusivity || "[TBC]"} from the date of this letter to conclude the transaction, targeting completion by ${terms.targetCompletion || "[TBC]"}.`,
+    closing: sector
+      ? `Our team has extensive experience in the ${sector.toLowerCase()} sector and we believe our partnership will preserve the legacy of the company while driving next-phase growth through our operational platform.`
+      : `We believe our partnership will preserve the legacy of the company while driving next-phase growth through our operational platform.`,
+    signoff: "We look forward to your positive response.",
+  };
+}
+
+function loiPlainText(deal: any, terms: Parameters<typeof buildLoiLetter>[1]) {
+  const l = buildLoiLetter(deal, terms);
+  return `LETTER OF INTENT
+
+From: ${l.from}
+To: ${l.to}
+Date: ${l.date}
+
+${l.intent}
+
+Consideration: ${l.consideration}
+
+${l.diligence}
+
+${l.closing}
+
+${l.signoff}
+`;
+}
+
+function LOIStructureTab({ deal, openComposer, onSaved }: { deal: any; openComposer: (opts: any) => void; onSaved?: () => void }) {
+  // Seed every field from the deal record. `deal.id` in the dependency list
+  // re-seeds when you navigate between deals — without it the previous deal's
+  // terms would linger in state.
+  const raw = deal.rawFields ?? {};
+  const seed = {
+    totalEv: String(raw.EV || deal.evAsk || ""),
+    revenue: String(deal.revenue || raw.Turnover || ""),
+    ebitda: String(deal.ebitda || raw.EBITDA_GBP || ""),
+    cashAtClose: String(raw.LOI_Cash_At_Close || ""),
+    vln: String(raw.LOI_VLN_Amount || ""),
+    deferred: String(raw.LOI_Deferred_Consideration || ""),
+    targetCompletion: String(raw.LOI_Target_Completion || ""),
+    exclusivity: String(raw.LOI_Exclusivity_Period || "30 days"),
+  };
+
+  const [totalEv, setTotalEv] = useState(seed.totalEv);
+  const [revenue, setRevenue] = useState(seed.revenue);
+  const [ebitda, setEbitda] = useState(seed.ebitda);
+  const [cashAtClose, setCashAtClose] = useState(seed.cashAtClose);
+  const [vln, setVln] = useState(seed.vln);
+  const [deferred, setDeferred] = useState(seed.deferred);
+  const [targetCompletion, setTargetCompletion] = useState(seed.targetCompletion);
+  const [exclusivity, setExclusivity] = useState(seed.exclusivity);
+  const [saving, setSaving] = useState(false);
+  const [savedAt, setSavedAt] = useState<string | null>(null);
+
+  useEffect(() => {
+    setTotalEv(seed.totalEv);
+    setRevenue(seed.revenue);
+    setEbitda(seed.ebitda);
+    setCashAtClose(seed.cashAtClose);
+    setVln(seed.vln);
+    setDeferred(seed.deferred);
+    setTargetCompletion(seed.targetCompletion);
+    setExclusivity(seed.exclusivity);
+    setSavedAt(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deal.id]);
+
+  const terms = { totalEv, cashAtClose, vln, deferred, targetCompletion, exclusivity };
+  const letter = buildLoiLetter(deal, terms);
+
+  // Write the drafted terms back onto the deal, so the financials the LOI
+  // quotes are the deal's own figures everywhere else too.
+  const saveToDealRecord = async () => {
+    setSaving(true);
+    try {
+      await updateAdminDeal(deal.id, {
+        enterprise_value: loiNumber(totalEv),
+        turnover: loiNumber(revenue),
+        ebitda_gbp: loiNumber(ebitda),
+        loi_cash_at_close: loiNumber(cashAtClose),
+        loi_vln_amount: loiNumber(vln),
+        loi_deferred_consideration: loiNumber(deferred),
+        loi_target_completion: targetCompletion.trim() || null,
+        loi_exclusivity_period: exclusivity.trim() || null,
+      });
+      setSavedAt(new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }));
+      onSaved?.();
+    } catch (err: any) {
+      alert(err.message || "Could not save these terms to the deal record");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const downloadLoiDraft = () => {
-    const content = `LETTER OF INTENT
-    
-From: Aysan Capital Partners - YOFY Ltd
-To: [Vendor name] - ${deal.companyName || deal.dealRef} (Kent) Ltd
-Date: ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
-
-We are pleased to confirm our non-binding intention to acquire 100% of the issued share capital of ${deal.companyName || deal.dealRef} (Kent) Ltd on the following principal terms:
-
-Consideration: £${totalEv} total EV comprising cash at completion of £${cashAtClose}, a Vendor Loan Note of £${vln} over 36 months at 5% per annum, and deferred consideration of £${deferred} subject to EBITDA performance milestones in months 13-24.
-
-This proposal is subject to detailed financial, legal, and operational due diligence. We propose an exclusivity period of ${exclusivity} from the date of this letter to conclude the transaction.
-
-Our team has extensive experience in the cleaning services sector and we believe our partnership will preserve the legacy of the company while driving next-phase growth through our operational platform.
-
-We look forward to your positive response.
-`;
+    const content = loiPlainText(deal, terms);
 
     const blob = new Blob([content], { type: "text/markdown;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
@@ -4893,6 +5005,24 @@ We look forward to your positive response.
                 type="text"
                 value={totalEv}
                 onChange={(e) => setTotalEv(e.target.value)}
+                className="mt-1.5 h-9 w-full rounded-xl border border-white/[0.02] bg-white/[0.015] px-3 text-white focus:border-acp-bronze outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-500">Revenue</label>
+              <input
+                type="text"
+                value={revenue}
+                onChange={(e) => setRevenue(e.target.value)}
+                className="mt-1.5 h-9 w-full rounded-xl border border-white/[0.02] bg-white/[0.015] px-3 text-white focus:border-acp-bronze outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-500">EBITDA</label>
+              <input
+                type="text"
+                value={ebitda}
+                onChange={(e) => setEbitda(e.target.value)}
                 className="mt-1.5 h-9 w-full rounded-xl border border-white/[0.02] bg-white/[0.015] px-3 text-white focus:border-acp-bronze outline-none"
               />
             </div>
@@ -4944,7 +5074,21 @@ We look forward to your positive response.
           </div>
         </div>
 
-        <div className="flex gap-2 mt-6">
+        <div className="mt-6 space-y-2">
+          <button
+            type="button"
+            onClick={saveToDealRecord}
+            disabled={saving}
+            className="w-full h-10 rounded-xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06] text-white font-bold text-xs uppercase tracking-wider transition flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40"
+          >
+            {saving ? "Saving…" : savedAt ? `Saved to deal record · ${savedAt}` : "Save to deal record"}
+          </button>
+          <p className="text-[9px] leading-relaxed text-slate-500">
+            These terms are the deal's own figures — saving updates the deal record, and edits made there flow back here.
+          </p>
+        </div>
+
+        <div className="flex gap-2 mt-4">
           <button
             type="button"
             onClick={downloadLoiDraft}
@@ -4960,7 +5104,7 @@ We look forward to your positive response.
               recipientName: deal.rawFields?.["Contact Name"] || deal.rawFields?.["Broker Name"] || "",
               recipientEmail: deal.rawFields?.["Contact Email"] || deal.rawFields?.["Broker Email"] || "",
               subject: `Letter of Intent (LOI) - ${deal.companyName || deal.dealRef || "Project"}`,
-              body: `LETTER OF INTENT\n\nFrom: Aysan Capital Partners - YOFY Ltd\nTo: ${deal.vendorNames || "[Vendor name]"} - ${deal.companyName || deal.dealRef} Ltd\nDate: ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}\n\nWe are pleased to confirm our non-binding intention to acquire 100% of the issued share capital of ${deal.companyName || deal.dealRef} (Kent) Ltd on the following principal terms:\n\nConsideration: £${totalEv} total EV comprising cash at completion of £${cashAtClose}, a Vendor Loan Note of £${vln} over 36 months at 5% per annum, and deferred consideration of £${deferred} subject to EBITDA performance milestones in months 13-24.\n\nThis proposal is subject to detailed financial, legal, and operational due diligence. We propose an exclusivity period of ${exclusivity} from the date of this letter to conclude the transaction.\n\nOur team has extensive experience in the cleaning services sector and we believe our partnership will preserve the legacy of the company while driving next-phase growth through our operational platform.\n\nWe look forward to your positive response.`,
+              body: loiPlainText(deal, terms),
               generatedBy: "precall_brief_engine"
             })}
             className="flex-1 h-10 rounded-xl bg-[#C6A66B] hover:bg-[#B8924F] text-slate-950 font-black text-xs uppercase tracking-wider transition flex items-center justify-center gap-1.5 cursor-pointer shadow-glow-bronze/10"
@@ -4986,30 +5130,22 @@ We look forward to your positive response.
           </div>
 
           <div className="space-y-0.5 text-slate-400 font-mono text-[11px]">
-            <p><span className="font-semibold text-slate-550">From:</span> Aysan Capital Partners - YOFY Ltd</p>
-            <p><span className="font-semibold text-slate-550">To:</span> {deal.vendorNames || "[Vendor name]"} - {deal.companyName || deal.dealRef} Ltd</p>
-            <p><span className="font-semibold text-slate-550">Date:</span> {new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+            <p><span className="font-semibold text-slate-550">From:</span> {letter.from}</p>
+            <p><span className="font-semibold text-slate-550">To:</span> {letter.to}</p>
+            <p><span className="font-semibold text-slate-550">Date:</span> {letter.date}</p>
           </div>
 
-          <p>
-            We are pleased to confirm our non-binding intention to acquire 100% of the issued share capital of {deal.companyName || deal.dealRef} (Kent) Ltd on the following principal terms:
-          </p>
+          <p>{letter.intent}</p>
 
           <p>
-            <strong className="text-white">Consideration:</strong> £{totalEv} total EV comprising cash at completion of £{cashAtClose}, a Vendor Loan Note of £{vln} over 36 months at 5% per annum, and deferred consideration of £{deferred} subject to EBITDA performance milestones in months 13-24.
+            <strong className="text-white">Consideration:</strong> {letter.consideration}
           </p>
 
-          <p>
-            This proposal is subject to detailed financial, legal, and operational due diligence. We propose an exclusivity period of {exclusivity} from the date of this letter to conclude the transaction.
-          </p>
+          <p>{letter.diligence}</p>
 
-          <p>
-            Our team has extensive experience in the cleaning services sector and we believe our partnership will preserve the legacy of the company while driving next-phase growth through our operational platform.
-          </p>
+          <p>{letter.closing}</p>
 
-          <p className="border-t border-white/5 pt-4 mt-6">
-            We look forward to your positive response.
-          </p>
+          <p className="border-t border-white/5 pt-4 mt-6">{letter.signoff}</p>
         </div>
       </div>
 
@@ -5455,17 +5591,17 @@ function LenderMatchTab({
           <button
             type="button"
             onClick={() => {
-              const subject = encodeURIComponent(`Deal Submission: ${deal.companyName || deal.dealRef} (Kent) Ltd`);
+              const subject = encodeURIComponent(`Deal Submission: ${deal.companyName || deal.dealRef}`);
               const body = encodeURIComponent(`Hi Lee,
 
 Hope you're well.
 
-I wanted to share a new deal opportunity with you: ${deal.companyName || deal.dealRef} (Kent) Ltd.
+I wanted to share a new deal opportunity with you: ${deal.companyName || deal.dealRef}.
 
 Below are some key metrics:
 - Sector: ${deal.sector}
-- EV Ask: £525k (2.6x EBITDA)
-- EBITDA: £190k
+- EV Ask: £${loiMoney(String(deal.evAsk || ""))}${deal.multiplier ? ` (${deal.multiplier}x EBITDA)` : ""}
+- EBITDA: £${loiMoney(String(deal.ebitda || ""))}
 
 Let me know if you would like to receive the full submission pack.
 

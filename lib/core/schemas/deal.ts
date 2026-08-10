@@ -58,6 +58,14 @@ export const dealSchema = z.object({
   asking_price_gbp: nullableNum,
   enterprise_value: nullableNum,
 
+  // LOI structure terms — drafted on the deal's LOI tab, stored here so the
+  // letter and the deal record can't disagree (see migration 0015).
+  loi_cash_at_close: nullableNum,
+  loi_vln_amount: nullableNum,
+  loi_deferred_consideration: nullableNum,
+  loi_target_completion: nullableStr,
+  loi_exclusivity_period: nullableStr,
+
   business_description: nullableStr,
   executive_summary: nullableStr,
   internal_notes: nullableStr,
