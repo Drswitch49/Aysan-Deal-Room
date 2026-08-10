@@ -2398,7 +2398,7 @@ function OverviewTab({
                     recipientName: deal.rawFields?.["Contact Name"] || deal.rawFields?.["Broker Name"] || "",
                     recipientEmail: deal.rawFields?.["Contact Email"] || deal.rawFields?.["Broker Email"] || "",
                     subject: `Letter of Intent (LOI) - ${deal.companyName || deal.dealRef || "Project"}`,
-                    body: deal.rawFields?.["LOI Draft"] || `Dear ${deal.rawFields?.["Contact Name"] || "Sir/Madam"},\n\nWe are pleased to submit this Letter of Intent for the acquisition of ${deal.companyName || "the company"}.\n\nKind regards,\n${ownerName}`,
+                    body: loiEmailBody(deal, loiTermsFromDeal(deal), deal.rawFields?.["Contact Name"] || deal.rawFields?.["Broker Name"] || ""),
                     generatedBy: "precall_brief_engine"
                   })}
                   className="h-9 rounded-xl bg-[#C6A66B] hover:bg-[#B8924F] text-slate-950 font-black text-[10px] uppercase tracking-wider transition flex items-center justify-center gap-1.5 cursor-pointer shadow-glow-bronze/10"
@@ -2951,7 +2951,7 @@ function PreCallBriefTab({ deal, openComposer }: { deal: any; openComposer: (opt
                     recipientName: deal.rawFields?.["Contact Name"] || deal.rawFields?.["Broker Name"] || "",
                     recipientEmail: deal.rawFields?.["Contact Email"] || deal.rawFields?.["Broker Email"] || "",
                     subject: `Letter of Intent (LOI) - ${deal.companyName || deal.dealRef || "Project"}`,
-                    body: deal.rawFields?.["LOI Draft"] || `Dear ${deal.rawFields?.["Contact Name"] || "Sir/Madam"},\n\nFollowing our discussion, we are pleased to submit this Letter of Intent for the acquisition of ${deal.companyName || "the company"}.\n\nKind regards,\n${deal.ownerName || "Ayo Oyesanya"}`,
+                    body: loiEmailBody(deal, loiTermsFromDeal(deal), deal.rawFields?.["Contact Name"] || deal.rawFields?.["Broker Name"] || ""),
                     generatedBy: "precall_brief_engine"
                   })}
                   className="h-8 px-3 rounded-lg bg-[#C6A66B] hover:bg-[#B8924F] text-slate-950 font-bold text-[10px] uppercase tracking-wider transition flex items-center justify-center gap-1.5 cursor-pointer shadow-glow-bronze/10"
@@ -4871,12 +4871,16 @@ const loiNumber = (v: string) => {
 function buildLoiLetter(deal: any, terms: {
   totalEv: string; cashAtClose: string; vln: string; deferred: string;
   targetCompletion: string; exclusivity: string;
-}) {
+}, recipient?: string) {
   const company = deal.companyName || deal.dealRef || "the company";
   const sector = String(deal.sector || "").trim();
+  // Whoever the letter is actually going to: the composer's chosen recipient
+  // when there is one, else whatever the deal records as the vendor.
+  const vendor = String(recipient || deal.vendorNames || "").trim() || "[Vendor name]";
   return {
     from: "Aysan Capital Partners",
-    to: `${deal.vendorNames || "[Vendor name]"} - ${company}`,
+    to: `${vendor} - ${company}`,
+    salutation: `Hello ${vendor},`,
     date: new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }),
     intent: `We are pleased to confirm our non-binding intention to acquire 100% of the issued share capital of ${company} on the following principal terms:`,
     consideration: `£${loiMoney(terms.totalEv)} total EV comprising cash at completion of £${loiMoney(terms.cashAtClose)}, a Vendor Loan Note of £${loiMoney(terms.vln)} over 36 months at 5% per annum, and deferred consideration of £${loiMoney(terms.deferred)}.`,
@@ -4888,6 +4892,20 @@ function buildLoiLetter(deal: any, terms: {
   };
 }
 
+/** The LOI terms as they stand on the deal record — so a Send LOI button
+ *  outside the LOI tab drafts the same letter, not an ad-hoc one. */
+function loiTermsFromDeal(deal: any) {
+  const raw = deal.rawFields ?? {};
+  return {
+    totalEv: String(raw.EV || deal.evAsk || ""),
+    cashAtClose: String(raw.LOI_Cash_At_Close || ""),
+    vln: String(raw.LOI_VLN_Amount || ""),
+    deferred: String(raw.LOI_Deferred_Consideration || ""),
+    targetCompletion: String(raw.LOI_Target_Completion || ""),
+    exclusivity: String(raw.LOI_Exclusivity_Period || "30 days"),
+  };
+}
+
 /**
  * The message alone, for sending.
  *
@@ -4895,9 +4913,11 @@ function buildLoiLetter(deal: any, terms: {
  * already the To: address, and the mail service stamps sender and date. Pasting
  * all three at the top of the body just repeats them back at the reader.
  */
-function loiEmailBody(deal: any, terms: Parameters<typeof buildLoiLetter>[1]) {
-  const l = buildLoiLetter(deal, terms);
-  return `${l.intent}
+function loiEmailBody(deal: any, terms: Parameters<typeof buildLoiLetter>[1], recipient?: string) {
+  const l = buildLoiLetter(deal, terms, recipient);
+  return `${l.salutation}
+
+${l.intent}
 
 Consideration: ${l.consideration}
 
@@ -4919,6 +4939,8 @@ From: ${l.from}
 To: ${l.to}
 Date: ${l.date}
 
+${l.salutation}
+
 ${l.intent}
 
 Consideration: ${l.consideration}
@@ -4937,14 +4959,9 @@ function LOIStructureTab({ deal, openComposer, onSaved }: { deal: any; openCompo
   // terms would linger in state.
   const raw = deal.rawFields ?? {};
   const seed = {
-    totalEv: String(raw.EV || deal.evAsk || ""),
+    ...loiTermsFromDeal(deal),
     revenue: String(deal.revenue || raw.Turnover || ""),
     ebitda: String(deal.ebitda || raw.EBITDA_GBP || ""),
-    cashAtClose: String(raw.LOI_Cash_At_Close || ""),
-    vln: String(raw.LOI_VLN_Amount || ""),
-    deferred: String(raw.LOI_Deferred_Consideration || ""),
-    targetCompletion: String(raw.LOI_Target_Completion || ""),
-    exclusivity: String(raw.LOI_Exclusivity_Period || "30 days"),
   };
 
   const [totalEv, setTotalEv] = useState(seed.totalEv);
@@ -5127,7 +5144,7 @@ function LOIStructureTab({ deal, openComposer, onSaved }: { deal: any; openCompo
               recipientName: deal.rawFields?.["Contact Name"] || deal.rawFields?.["Broker Name"] || "",
               recipientEmail: deal.rawFields?.["Contact Email"] || deal.rawFields?.["Broker Email"] || "",
               subject: `Letter of Intent (LOI) - ${deal.companyName || deal.dealRef || "Project"}`,
-              body: loiEmailBody(deal, terms),
+              body: loiEmailBody(deal, terms, deal.rawFields?.["Contact Name"] || deal.rawFields?.["Broker Name"] || ""),
               generatedBy: "precall_brief_engine"
             })}
             className="flex-1 h-10 rounded-xl bg-[#C6A66B] hover:bg-[#B8924F] text-slate-950 font-black text-xs uppercase tracking-wider transition flex items-center justify-center gap-1.5 cursor-pointer shadow-glow-bronze/10"
@@ -5157,6 +5174,8 @@ function LOIStructureTab({ deal, openComposer, onSaved }: { deal: any; openCompo
             <p><span className="font-semibold text-slate-550">To:</span> {letter.to}</p>
             <p><span className="font-semibold text-slate-550">Date:</span> {letter.date}</p>
           </div>
+
+          <p>{letter.salutation}</p>
 
           <p>{letter.intent}</p>
 
@@ -5674,6 +5693,18 @@ Ayo
   );
 }
 
+/** A greeting line we generated: "Hello X," / "Hi X," / "Dear X,". */
+const GREETING_LINE = /^(hello|hi|dear)\b[^\n]*,\s*$/i;
+
+/** Re-address the opening greeting, leaving anything else exactly as typed. */
+function readdressGreeting(body: string, name: string): string {
+  const lines = body.split(/\r?\n/);
+  const first = lines.findIndex((l) => l.trim() !== "");
+  if (first === -1 || !GREETING_LINE.test(lines[first].trim())) return body;
+  lines[first] = `Hello ${name.trim() || "[Vendor name]"},`;
+  return lines.join("\n");
+}
+
 function EmailComposerModal({
   isOpen,
   onClose,
@@ -5790,9 +5821,14 @@ function EmailComposerModal({
                 const lenderId = e.target.value;
                 const lender = allLenders.find((l) => l.id === lenderId);
                 if (lender) {
-                  setRecipientName(lender.Contact_Name || lender.Company_Name || "");
+                  const name = lender.Contact_Name || lender.Company_Name || "";
+                  setRecipientName(name);
                   setRecipientEmail(lender.Email || "");
                   setLenderCompany(lender.Company_Name || "");
+                  // Keep the greeting addressed to whoever was just picked —
+                  // only when the opening line is one we wrote, so an edited
+                  // body is never rewritten under the user.
+                  setBody((prev) => readdressGreeting(prev, name));
                 }
               }}
               className="w-full h-9 rounded-xl border border-white/[0.02] bg-[#161B22] px-3 text-xs text-white focus:border-[#C6A66B] outline-none cursor-pointer"
