@@ -5812,11 +5812,10 @@ function EmailComposerModal({
             </div>
             <div>
               <label className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-500 mb-1">
-                Lender Company
+                Lender Company <span className="text-slate-600 normal-case tracking-normal">(optional)</span>
               </label>
               <input
                 type="text"
-                required
                 value={lenderCompany}
                 onChange={(e) => setLenderCompany(e.target.value)}
                 placeholder="e.g. ABL Bank Ltd"
