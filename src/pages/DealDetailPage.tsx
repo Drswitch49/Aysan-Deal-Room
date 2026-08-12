@@ -35,6 +35,7 @@ import {
   deleteDeal, fetchTeamMemberRecords, getJobStatus, enqueueAiJob
 } from "../api/admin";
 import { useImDocuments, isExternalDoc, type ImDoc } from "../hooks/useImDocuments";
+import { UploadProgressBar } from "../components/ui/UploadProgressBar";
 import { getDealInbox } from "../api/airtable";
 import { HeaderMetrics } from "../components/ui/HeaderMetrics";
 import { usePipeline } from "../context/PipelineContext";
@@ -1337,8 +1338,8 @@ export function DealDetailPage() {
             )}
 
             {/* Add new attachment input */}
-            <div className="flex items-center gap-2">
-              <label className="flex-1 h-9 rounded-xl border border-dashed border-white/10 hover:border-white/20 bg-white/[0.005] flex items-center justify-center gap-2 text-xs text-slate-450 cursor-pointer select-none">
+            <div className="space-y-2">
+              <label className="flex h-9 rounded-xl border border-dashed border-white/10 hover:border-white/20 bg-white/[0.005] items-center justify-center gap-2 text-xs text-slate-450 cursor-pointer select-none">
                 <Upload className="h-3.5 w-3.5 text-slate-500" />
                 <span>{editImDocs.isUploading ? "Uploading…" : "Upload New Attachment"}</span>
                 <input
@@ -1351,6 +1352,16 @@ export function DealDetailPage() {
                   }}
                 />
               </label>
+              {editImDocs.progress && (
+                <UploadProgressBar
+                  name={editImDocs.progress.name}
+                  fraction={editImDocs.progress.fraction}
+                  finishing={editImDocs.progress.finishing}
+                />
+              )}
+              {editImDocs.error && (
+                <p className="text-[10px] text-rose-400 font-semibold">{editImDocs.error}</p>
+              )}
             </div>
           </div>
 
@@ -3411,10 +3422,18 @@ function PreCallBriefTab({ deal, openComposer }: { deal: any; openComposer: (opt
                     className="absolute inset-0 opacity-0 cursor-pointer"
                   />
                   {imDocs.isUploading ? (
-                    <div className="space-y-2">
-                      <RefreshCw className="h-4 w-4 text-[#10B981] mx-auto animate-spin" />
-                      <p className="text-[10px] text-slate-400 font-semibold">Attaching to the deal…</p>
-                    </div>
+                    imDocs.progress ? (
+                      <UploadProgressBar
+                        name={imDocs.progress.name}
+                        fraction={imDocs.progress.fraction}
+                        finishing={imDocs.progress.finishing}
+                      />
+                    ) : (
+                      <div className="space-y-2">
+                        <RefreshCw className="h-4 w-4 text-[#10B981] mx-auto animate-spin" />
+                        <p className="text-[10px] text-slate-400 font-semibold">Attaching to the deal…</p>
+                      </div>
+                    )
                   ) : isDragging ? (
                     <div className="space-y-1">
                       <Upload className="h-5 w-5 text-[#10B981] mx-auto animate-bounce" />
@@ -5214,7 +5233,7 @@ function ImAttachmentsTab({
   const [isDeleting, setIsDeleting] = useState(false);
 
   const {
-    docs: attachments, isLoading, isUploading, busyId, downloadingId,
+    docs: attachments, isLoading, isUploading, progress, busyId, downloadingId,
     error, upload, replace, remove, download,
   } = useImDocuments(deal.id, onRefresh);
 
@@ -5347,21 +5366,29 @@ function ImAttachmentsTab({
             }}
             className="hidden"
           />
-          <label htmlFor="im-attachment-file-upload" className="cursor-pointer space-y-3 block">
-            <div className="flex justify-center">
-              {isUploading ? (
-                <RefreshCw className="h-6 w-6 text-[#C6A66B] animate-spin" />
-              ) : (
-                <Upload className="h-6 w-6 text-slate-500" />
-              )}
+          {progress ? (
+            <div className="px-2 py-1">
+              <UploadProgressBar name={progress.name} fraction={progress.fraction} finishing={progress.finishing} />
             </div>
-            <div>
-              <p className="text-xs font-semibold text-white">
-                {isUploading ? "Uploading attachment..." : "Drag & drop file here, or click to browse"}
-              </p>
-              <p className="text-[10px] text-slate-500 mt-1.5 font-medium">Supported formats: PDF, DOCX, XLSX (max 20MB)</p>
-            </div>
-          </label>
+          ) : (
+            <label htmlFor="im-attachment-file-upload" className="cursor-pointer space-y-3 block">
+              <div className="flex justify-center">
+                {isUploading ? (
+                  <RefreshCw className="h-6 w-6 text-[#C6A66B] animate-spin" />
+                ) : (
+                  <Upload className="h-6 w-6 text-slate-500" />
+                )}
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-white">
+                  {isUploading ? "Uploading attachment..." : "Drag & drop file here, or click to browse"}
+                </p>
+                {/* 10 MB is the store's actual ceiling — the copy said 20 MB,
+                    so a 15 MB IM looked allowed right up until it was refused. */}
+                <p className="text-[10px] text-slate-500 mt-1.5 font-medium">Any document format, up to 10MB per file</p>
+              </div>
+            </label>
+          )}
         </div>
       </div>
 
@@ -5451,6 +5478,14 @@ function DocumentsTab({ deal, documentState, setRefreshTrigger }: { deal: any; d
       <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-4 space-y-3.5">
         {uploadError && (
           <div className="text-[11px] text-rose-400 bg-rose-500/10 px-3 py-2 rounded-lg border border-rose-500/20">{uploadError}</div>
+        )}
+
+        {imDocs.progress && (
+          <UploadProgressBar
+            name={imDocs.progress.name}
+            fraction={imDocs.progress.fraction}
+            finishing={imDocs.progress.finishing}
+          />
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3">

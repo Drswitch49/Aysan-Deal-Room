@@ -129,29 +129,125 @@ export async function resolveDealId(refOrId: string): Promise<string> {
   return deal.id;
 }
 
-/** Direct browser → Cloudinary upload via a server-signed payload.
- *  Accepts either a raw base64 string OR a full `data:<mime>;base64,…` URI —
- *  FileReader.readAsDataURL produces the latter, and atob() would throw on the
- *  `data:…;base64,` prefix, so we strip it here (this was breaking uploads). */
-export async function uploadToCloudinary(fileName: string, fileType: string, fileDataBase64: string, folder: string) {
+/**
+ * The largest file the document store will take.
+ *
+ * Cloudinary rejects anything above this with "File size too large. Got N.
+ * Maximum is 10485760." — a per-plan ceiling that applies to every resource
+ * type, so there is no upload path around it. Checking up front means the user
+ * is told which file is too big before they wait out an upload that can only
+ * fail, and before an over-sized read runs in the browser.
+ */
+export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+
+export function formatBytes(bytes: number): string {
+  if (bytes >= 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+}
+
+/** What a base64 payload weighs once decoded — without decoding it. */
+function base64Bytes(data: string): number {
+  const b64 = data.startsWith("data:") ? data.slice(data.indexOf(",") + 1) : data;
+  const padding = b64.endsWith("==") ? 2 : b64.endsWith("=") ? 1 : 0;
+  return Math.max(0, Math.floor((b64.length * 3) / 4) - padding);
+}
+
+/** Fraction of the file sent so far, 0 → 1. */
+export type UploadProgress = (fraction: number) => void;
+
+/**
+ * POST the form to Cloudinary, reporting how much of it has gone out.
+ *
+ * XMLHttpRequest rather than fetch: `fetch` has no way to observe an upload in
+ * flight (request streaming is not usable here — Cloudinary does not accept a
+ * chunked-encoding body), and `xhr.upload.onprogress` is what lets the IM panel
+ * show a real bar rather than a spinner that says nothing for 30 seconds.
+ */
+function postToCloudinary(url: string, form: FormData, fileName: string, onProgress?: UploadProgress): Promise<Row> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", url);
+    xhr.responseType = "json";
+
+    if (onProgress) {
+      // Only the request body is measurable, and only when the browser knows
+      // its total; a non-computable event means "no idea yet", not zero.
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable && e.total > 0) onProgress(Math.min(1, e.loaded / e.total));
+      };
+      // Not every browser fires a final 100% progress event, so mark the body
+      // as fully sent here. 1 means "all bytes gone", not "Cloudinary is done" —
+      // the caller decides how to show the wait that follows.
+      xhr.upload.onload = () => onProgress(1);
+    }
+
+    xhr.onload = () => {
+      // responseType "json" gives a parsed body on any status; a non-JSON error
+      // page comes back as null.
+      const payload = (xhr.response ?? null) as Row | null;
+      if (xhr.status >= 200 && xhr.status < 300 && payload?.public_id) {
+        resolve(payload);
+        return;
+      }
+      reject(new Error(payload?.error?.message ?? `Upload of "${fileName}" failed (${xhr.status}).`));
+    };
+    xhr.onerror = () =>
+      reject(new Error(`Could not reach the file store to upload "${fileName}". Check your connection and try again.`));
+    xhr.onabort = () => reject(new Error(`Upload of "${fileName}" was cancelled.`));
+
+    xhr.send(form);
+  });
+}
+
+/**
+ * Direct browser → Cloudinary upload via a server-signed payload.
+ *
+ * Pass the `File` itself wherever possible: it goes up as multipart binary,
+ * which is what makes a large IM upload feel instant instead of stalling the
+ * tab while FileReader turns 10 MB of PDF into 13 MB of base64 in memory. A
+ * base64 string (raw, or a full `data:<mime>;base64,…` URI as
+ * FileReader.readAsDataURL produces) is still accepted for the callers that
+ * only hold one.
+ *
+ * `onProgress` is called with the fraction sent so far, and is the only honest
+ * signal available — the two server round-trips either side of the transfer
+ * (signing, then recording the row) are not part of it.
+ */
+export async function uploadToCloudinary(
+  fileName: string,
+  fileType: string,
+  file: Blob | string,
+  folder: string,
+  onProgress?: UploadProgress,
+) {
+  const size = typeof file === "string" ? base64Bytes(file) : file.size;
+  if (size > MAX_UPLOAD_BYTES) {
+    throw new Error(
+      `"${fileName}" is ${formatBytes(size)} — larger than the ${formatBytes(MAX_UPLOAD_BYTES)} limit on the document store. Compress or split the file and try again.`,
+    );
+  }
+
   const signed = await api.post<Row>("/api/documents/sign-upload", { folder });
 
-  // Cloudinary accepts a data-URI as the `file` param directly — simplest and
-  // avoids any client-side base64 decoding entirely.
-  const dataUri = fileDataBase64.startsWith("data:")
-    ? fileDataBase64
-    : `data:${fileType || "application/octet-stream"};base64,${fileDataBase64}`;
-
   const form = new FormData();
-  form.append("file", dataUri);
+  if (typeof file === "string") {
+    // Cloudinary accepts a data-URI as the `file` param directly, which avoids
+    // any client-side base64 decoding.
+    form.append("file", file.startsWith("data:") ? file : `data:${fileType || "application/octet-stream"};base64,${file}`);
+  } else {
+    form.append("file", file, fileName);
+  }
   form.append("api_key", signed.apiKey);
   form.append("timestamp", String(signed.timestamp));
   form.append("signature", signed.signature);
   form.append("folder", signed.folder);
   form.append("type", "authenticated");
 
-  const res = await fetch(`https://api.cloudinary.com/v1_1/${signed.cloudName}/auto/upload`, { method: "POST", body: form });
-  const payload = await res.json();
-  if (!res.ok) throw new Error(payload?.error?.message ?? "Cloudinary upload failed");
+  const payload = await postToCloudinary(
+    `https://api.cloudinary.com/v1_1/${signed.cloudName}/auto/upload`,
+    form,
+    fileName,
+    onProgress,
+  );
   return { publicId: payload.public_id as string, secureUrl: payload.secure_url as string };
 }

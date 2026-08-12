@@ -6,11 +6,12 @@ import {
   Upload, Star
 } from "lucide-react";
 import { getDealInbox, getDealStageCounts, createInboxDeal, updateInboxDeal } from "../api/airtable";
-import { api } from "../api/http";
 import { promoteDealFromInbox, transitionDealLifecycle, STATUS_TO_STAGE, deleteInboxDeal, fetchTeamMemberRecords, uploadTempFile, listImDocuments, createImDocument, deleteImDocumentRow } from "../api/admin";
+import { useImDocuments, isExternalDoc, type ImDoc, type UploadState } from "../hooks/useImDocuments";
 import { LoadingState } from "../components/ui/LoadingState";
 import { Modal } from "../components/ui/Modal";
 import { FormField } from "../components/ui/FormField";
+import { UploadProgressBar } from "../components/ui/UploadProgressBar";
 import { cx } from "../utils/cx";
 import { fileNameFromUrl } from "../utils/fileName";
 import { usePipeline } from "../context/PipelineContext";
@@ -129,6 +130,13 @@ export function DealInboxPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
+  // The detail modal's IM & Review attachments. This is the same hook the deal
+  // detail page's IM tab uses: it uploads the File itself (no base64 detour),
+  // reports the reason an upload was rejected rather than a bare "failed", and
+  // saves a download through a blob so the file keeps its own name instead of
+  // arriving as the random Cloudinary public id.
+  const detailDocs = useImDocuments(selectedDeal?.id);
+
   const [teamMembers, setTeamMembers] = useState<any[]>([]);
 
   useEffect(() => {
@@ -153,10 +161,11 @@ export function DealInboxPage() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingDeal, setEditingDeal] = useState<any | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<UploadState | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   // IM/Review docs as loaded from the table when the edit modal opened — used to
   // diff on save (delete rows the user removed, create rows they added).
   const [editImDocsOriginal, setEditImDocsOriginal] = useState<any[]>([]);
-  const [downloadingId, setDownloadingId] = useState<string | null>(null);
   
   const [formData, setFormData] = useState({
     refNo: "", dealName: "", companyName: "", sector: "", location: "", broker: "", status: "Inbox",
@@ -174,6 +183,7 @@ export function DealInboxPage() {
       owner: ""
     });
     setEditImDocsOriginal([]);
+    setUploadError(null);
     setIsAddModalOpen(true);
   };
 
@@ -181,6 +191,7 @@ export function DealInboxPage() {
     e.stopPropagation();
     setEditingDeal(deal);
     setEditImDocsOriginal([]);
+    setUploadError(null);
 
     setFormData({
       refNo: deal.fields["REF. NO"] || "",
@@ -215,62 +226,23 @@ export function DealInboxPage() {
     }
   };
 
-  const openDetailModal = async (item: any) => {
-    setSelectedDeal({ ...item, imDocs: [] });
+  const openDetailModal = (item: any) => {
+    // The attachment list loads itself off the deal id (see `detailDocs`).
+    setSelectedDeal(item);
     setIsModalOpen(true);
-    try {
-      const docs = await listImDocuments(item.id);
-      setSelectedDeal((prev: any) => (prev && prev.id === item.id ? { ...prev, imDocs: docs } : prev));
-    } catch (err) {
-      console.error("Failed to load IM documents:", err);
-    }
   };
 
-  const handleDownloadDoc = async (docId: string | undefined, name: string) => {
-    if (!docId) { alert("This file has no id and can't be downloaded."); return; }
-    setDownloadingId(docId);
-    // Open the tab synchronously (within the click gesture) so it isn't popup-blocked
-    // after the async fetch; then point it at the signed URL once we have it.
-    const win = window.open("", "_blank");
-    try {
-      // Authenticated Cloudinary assets need a short-lived signed URL — the server
-      // builds one (private_download_url) that forces an attachment download.
-      const res = await api.get<{ url: string }>(`/api/im-documents/download?id=${encodeURIComponent(docId)}`, { noCache: true });
-      const url = res?.url;
-      if (!url) throw new Error("No download URL returned.");
-      if (win) {
-        win.location.href = url;
-      } else {
-        // Popup blocked — fall back to a same-tab anchor click.
-        const a = document.createElement("a");
-        a.href = url;
-        a.rel = "noreferrer";
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-      }
-    } catch (err: any) {
-      if (win) win.close();
-      alert("Download failed: " + (err.message || "unknown error"));
-    } finally {
-      setDownloadingId(null);
-    }
+  /** Attach a file to the open deal, straight from the detail modal. */
+  const handleDetailUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // so picking the same file again still fires onChange
+    if (file) await detailDocs.upload(file);
   };
 
-  const handleRemoveAttachment = async (docId: string | undefined, filename: string) => {
-    if (!selectedDeal) return;
-    if (!docId) { alert("This attachment has no id and can't be removed here."); return; }
-    if (!confirm(`Are you sure you want to delete ${filename}?`)) return;
-    try {
-      await deleteImDocumentRow(docId);
-
-      // Update selectedDeal state locally so the list updates immediately.
-      const remaining = (selectedDeal.imDocs || []).filter((d: any) => d.id !== docId);
-      const updatedDeal = { ...selectedDeal, imDocs: remaining };
-      setSelectedDeal(updatedDeal);
-    } catch (err: any) {
-      alert("Error deleting document: " + err.message);
-    }
+  const handleRemoveAttachment = async (doc: ImDoc) => {
+    if (!doc.id) { alert("This attachment has no id and can't be removed here."); return; }
+    if (!confirm(`Are you sure you want to delete ${doc.filename}?`)) return;
+    await detailDocs.remove(doc).catch(() => undefined);
   };
 
   const handleRemoveFormDoc = (idx: number) => {
@@ -280,61 +252,58 @@ export function DealInboxPage() {
     }));
   };
 
-  const handleReplaceFormDoc = async (idx: number, e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  /**
+   * Push a picked file to the file store and hand back the row to record.
+   *
+   * The two callers used to kick off a FileReader and drop `isUploading` in a
+   * `finally` that ran the moment `readAsDataURL` returned — before a single
+   * byte had been sent. The spinner cleared instantly, Save Deal re-enabled
+   * itself, and a user who saved at that point saved a deal with no attachment
+   * on it: the upload was still in flight and its result landed in state that
+   * had already been written away. Awaiting the whole thing is what makes the
+   * uploading state mean what it says.
+   */
+  const uploadFormDoc = async (file: File) => {
+    setUploadError(null);
     setIsUploading(true);
+    setUploadProgress({ name: file.name, fraction: 0, finishing: false });
     try {
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const base64data = reader.result as string;
-        try {
-          const raw = base64data.includes(",") ? base64data.split(",")[1] : base64data;
-          const data = await uploadTempFile(file.name, file.type, raw);
-          setFormData(prev => {
-            const updated = [...prev.imReviewDocs];
-            updated[idx] = { url: data.url, filename: file.name, publicId: data.publicId };
-            return { ...prev, imReviewDocs: updated };
-          });
-        } catch {
-          alert("File replacement failed.");
-        }
-      };
-      reader.readAsDataURL(file);
-    } catch (err) {
+      const data = await uploadTempFile(file.name, file.type, file, (fraction) =>
+        setUploadProgress({ name: file.name, fraction: Math.min(fraction, 0.99), finishing: fraction >= 1 }),
+      );
+      return { url: data.url, filename: file.name, publicId: data.publicId, fileType: file.type };
+    } catch (err: any) {
       console.error(err);
-      alert("Error replacing file");
+      // The real reason — "…is 14.2 MB, larger than the 10.0 MB limit…" — used
+      // to be swallowed by a bare "File upload failed." alert.
+      setUploadError(err?.message || "The file could not be uploaded.");
+      return null;
     } finally {
       setIsUploading(false);
+      setUploadProgress(null);
     }
+  };
+
+  const handleReplaceFormDoc = async (idx: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    const doc = await uploadFormDoc(file);
+    if (!doc) return;
+    setFormData(prev => {
+      const updated = [...prev.imReviewDocs];
+      updated[idx] = doc;
+      return { ...prev, imReviewDocs: updated };
+    });
   };
 
   const handleAddFormDoc = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = "";
     if (!file) return;
-    setIsUploading(true);
-    try {
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const base64data = reader.result as string;
-        try {
-          const raw = base64data.includes(",") ? base64data.split(",")[1] : base64data;
-          const data = await uploadTempFile(file.name, file.type, raw);
-          setFormData(prev => ({
-            ...prev,
-            imReviewDocs: [...prev.imReviewDocs, { url: data.url, filename: file.name, publicId: data.publicId }]
-          }));
-        } catch {
-          alert("File upload failed.");
-        }
-      };
-      reader.readAsDataURL(file);
-    } catch (err) {
-      console.error(err);
-      alert("Error uploading file");
-    } finally {
-      setIsUploading(false);
-    }
+    const doc = await uploadFormDoc(file);
+    if (!doc) return;
+    setFormData(prev => ({ ...prev, imReviewDocs: [...prev.imReviewDocs, doc] }));
   };
 
   const handleSaveDeal = async (e: any) => {
@@ -1042,49 +1011,73 @@ export function DealInboxPage() {
 
               {/* IM & Review Documents Section */}
               <div className="space-y-4 min-w-0 border-t border-white/[0.05] pt-6">
-                <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2">IM & Review Documents</h4>
-                {(() => {
-                  const docsList = (selectedDeal.imDocs || []).filter((doc: any) => doc.url);
+                <div className="flex items-center justify-between gap-3">
+                  <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-500">IM & Review Documents</h4>
+                  <label className={cx(
+                    "flex items-center gap-2 px-3 h-8 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 text-[11px] font-bold text-[#C6A66B] transition select-none",
+                    detailDocs.isUploading ? "opacity-50 cursor-wait" : "cursor-pointer",
+                  )}>
+                    <Upload className="h-3.5 w-3.5" />
+                    {detailDocs.isUploading ? "Uploading…" : "Upload"}
+                    <input type="file" className="hidden" disabled={detailDocs.isUploading} onChange={handleDetailUpload} />
+                  </label>
+                </div>
 
-                  if (docsList.length === 0) {
-                    return <p className="text-xs text-slate-500 italic">No IM documents attached to this deal.</p>;
-                  }
-                  
-                  return (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 min-w-0">
-                      {docsList.map((att: any, idx: number) => {
-                        const name = att.filename || `IM_Document_${idx + 1}`;
-                        return (
-                          <div key={att.id || idx} className="flex items-center justify-between bg-white/[0.01] border border-white/[0.02] p-4 rounded-xl hover:bg-white/[0.03] transition min-w-0">
-                            <div className="flex items-center gap-3 min-w-0 flex-1 pr-2">
-                              <FileText className="w-5 h-5 text-acp-bronze flex-shrink-0" />
-                              <div className="text-xs text-white truncate font-medium" title={name}>
-                                {name}
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-3 flex-shrink-0">
-                              <button
-                                type="button"
-                                onClick={() => handleDownloadDoc(att.id, name)}
-                                disabled={downloadingId === att.id}
-                                className="text-xs text-[#C6A66B] hover:text-white font-bold select-none disabled:opacity-50 disabled:cursor-wait"
-                              >
-                                {downloadingId === att.id ? "Preparing…" : "Download"}
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleRemoveAttachment(att.id, name)}
-                                className="text-xs text-rose-500 hover:text-rose-450 font-bold select-none"
-                              >
-                                Delete
-                              </button>
+                {detailDocs.progress && (
+                  <UploadProgressBar
+                    name={detailDocs.progress.name}
+                    fraction={detailDocs.progress.fraction}
+                    finishing={detailDocs.progress.finishing}
+                  />
+                )}
+
+                {detailDocs.error && (
+                  <p className="text-xs text-rose-400 font-semibold">{detailDocs.error}</p>
+                )}
+
+                {detailDocs.isLoading ? (
+                  <p className="text-xs text-slate-500 italic">Loading attachments…</p>
+                ) : detailDocs.docs.length === 0 ? (
+                  <p className="text-xs text-slate-500 italic">No IM documents attached to this deal.</p>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 min-w-0">
+                    {detailDocs.docs.map((att, idx) => {
+                      const name = att.filename || `IM_Document_${idx + 1}`;
+                      const isLink = isExternalDoc(att);
+                      const busy = detailDocs.busyId === att.id;
+                      return (
+                        <div key={att.id || idx} className="flex items-center justify-between bg-white/[0.01] border border-white/[0.02] p-4 rounded-xl hover:bg-white/[0.03] transition min-w-0">
+                          <div className="flex items-center gap-3 min-w-0 flex-1 pr-2">
+                            {isLink
+                              ? <ExternalLink className="w-5 h-5 text-acp-bronze flex-shrink-0" />
+                              : <FileText className="w-5 h-5 text-acp-bronze flex-shrink-0" />}
+                            <div className="text-xs text-white truncate font-medium" title={name}>
+                              {name}
                             </div>
                           </div>
-                        );
-                      })}
-                    </div>
-                  );
-                })()}
+                          <div className="flex items-center gap-3 flex-shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => detailDocs.download(att)}
+                              disabled={detailDocs.downloadingId === att.id}
+                              className="text-xs text-[#C6A66B] hover:text-white font-bold select-none disabled:opacity-50 disabled:cursor-wait"
+                            >
+                              {detailDocs.downloadingId === att.id ? "Preparing…" : isLink ? "Open" : "Download"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveAttachment(att)}
+                              disabled={busy}
+                              className="text-xs text-rose-500 hover:text-rose-450 font-bold select-none disabled:opacity-50"
+                            >
+                              {busy ? "Deleting…" : "Delete"}
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1195,9 +1188,11 @@ export function DealInboxPage() {
                     <div className="flex items-center gap-3">
                       <label className="text-[10px] font-bold text-[#C6A66B] hover:text-white cursor-pointer select-none">
                         Replace
+                        {/* No `accept` filter: the store takes any format, and
+                            the old .pdf/.doc/.xls list greyed out the decks,
+                            images and zipped packs brokers actually send. */}
                         <input
                           type="file"
-                          accept=".pdf,.doc,.docx,.xls,.xlsx"
                           className="hidden"
                           onChange={(e) => handleReplaceFormDoc(idx, e)}
                         />
@@ -1223,7 +1218,6 @@ export function DealInboxPage() {
                   <span>Upload New Attachment</span>
                   <input
                     type="file"
-                    accept=".pdf,.doc,.docx,.xls,.xlsx"
                     className="hidden"
                     onChange={handleAddFormDoc}
                   />
@@ -1266,7 +1260,11 @@ export function DealInboxPage() {
                         new URL(val);
                         setFormData(prev => ({
                           ...prev,
-                          imReviewDocs: [...prev.imReviewDocs, { url: val, filename: val.split("/").pop() || "Document" }]
+                          // Same naming as the Enter key above. This button kept
+                          // its own `url.split("/").pop()`, which is why Drive
+                          // links added with it were still landing in the list
+                          // called "view?usp=sharing".
+                          imReviewDocs: [...prev.imReviewDocs, { url: val, filename: fileNameFromUrl(val) }]
                         }));
                         if (input) input.value = "";
                       } catch {
@@ -1280,8 +1278,15 @@ export function DealInboxPage() {
                 </button>
               </div>
             </div>
-            {isUploading && (
-              <span className="text-[10px] text-acp-bronze animate-pulse font-medium">Uploading file...</span>
+            {uploadProgress && (
+              <UploadProgressBar
+                name={uploadProgress.name}
+                fraction={uploadProgress.fraction}
+                finishing={uploadProgress.finishing}
+              />
+            )}
+            {uploadError && (
+              <p className="text-[10px] text-rose-400 font-semibold">{uploadError}</p>
             )}
           </div>
         </div>

@@ -20,19 +20,6 @@ const querySchema = z.object({
   mode: z.enum(["view", "download"]).default("view"),
 });
 
-/**
- * Turn a Google Drive share link into one that serves the file.
- *
- * `…/file/d/<id>/view?usp=sharing` opens Drive's preview page; `uc?export=
- * download&id=<id>` serves the bytes for anyone the file is shared with.
- * Anything we don't recognise is handed back untouched.
- */
-function directDownloadLink(url: string): string {
-  const drive = url.match(/^https:\/\/drive\.google\.com\/file\/d\/([^/?#]+)/i);
-  if (drive) return `https://drive.google.com/uc?export=download&id=${drive[1]}`;
-  return url;
-}
-
 export default createHandler<unknown, z.infer<typeof querySchema>>({
   methods: ["GET"],
   requireAuth: true,
@@ -46,10 +33,20 @@ export default createHandler<unknown, z.infer<typeof querySchema>>({
     const storedUrl: string = row.file_url || row.legacy_file_url || "";
     const publicId: string | null = row.cloudinary_public_id ?? null;
 
-    // No Cloudinary id → external/legacy link. We can't stream someone else's
-    // file, but a Drive *share* link renders a preview page rather than serving
-    // the document, so rewrite it to the direct-download form first.
-    if (!publicId) return { url: directDownloadLink(storedUrl) };
+    // No Cloudinary id → external/legacy link, handed back exactly as stored.
+    //
+    // These used to be rewritten to Drive's `uc?export=download&id=<id>` form
+    // on the theory that a share link only opens a preview page. It does serve
+    // bytes — but only for a file shared with "anyone with the link". Every
+    // Drive attachment here is shared with named accounts instead, and that
+    // endpoint answers those with a bare 403 Forbidden page, which is what the
+    // Download button was landing on. The share link itself carries the
+    // viewer's own Google session, so it opens the document (or offers
+    // "Request access") for the people actually entitled to it.
+    if (!publicId) {
+      if (!storedUrl) throw new NotFoundError("This attachment has no file or link stored");
+      return { url: storedUrl };
+    }
 
     // The resource type is encoded in the stored delivery URL
     // (…/res.cloudinary.com/<cloud>/<image|raw|video>/authenticated/…).

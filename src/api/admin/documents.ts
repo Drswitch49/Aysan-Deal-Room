@@ -1,7 +1,7 @@
 /** Admin client — Documents + Cloudinary-backed IM deal files. */
 import { api } from "../http";
 import { clearAirtableCache } from "../airtable";
-import { type Row, mapKeys, resolveDealId, DOC_KEY_MAP, uploadToCloudinary } from "./_shared";
+import { type Row, type UploadProgress, mapKeys, resolveDealId, DOC_KEY_MAP, uploadToCloudinary } from "./_shared";
 import { enqueueAiJob } from "./ai";
 
 export async function updateAdminDocuments(updates: Array<{ id: string; fields: Row }>) {
@@ -116,8 +116,13 @@ export async function getDocumentFileUrl(
 
 /** Upload a standalone file to Cloudinary and return its URL (replaces the
  *  legacy upload-temp-file action that pushed to public filebin.net). */
-export async function uploadTempFile(fileName: string, fileType: string, fileDataBase64: string): Promise<{ url: string; publicId: string }> {
-  const asset = await uploadToCloudinary(fileName, fileType, fileDataBase64, "aysan-deal-room/uploads");
+export async function uploadTempFile(
+  fileName: string,
+  fileType: string,
+  file: Blob | string,
+  onProgress?: UploadProgress,
+): Promise<{ url: string; publicId: string }> {
+  const asset = await uploadToCloudinary(fileName, fileType, file, "aysan-deal-room/uploads", onProgress);
   return { url: asset.secureUrl, publicId: asset.publicId };
 }
 
@@ -181,10 +186,11 @@ export async function uploadImDocument(
   dealId: string,
   fileName: string,
   fileType: string,
-  fileData: string,
+  fileData: Blob | string,
+  onProgress?: UploadProgress,
 ): Promise<ImDoc> {
   const id = await resolveDealId(dealId);
-  const asset = await uploadToCloudinary(fileName, fileType, fileData, "aysan-deal-room/im");
+  const asset = await uploadToCloudinary(fileName, fileType, fileData, "aysan-deal-room/im", onProgress);
   const row = await createImDocument(id, {
     url: asset.secureUrl,
     filename: fileName,
@@ -213,9 +219,10 @@ export async function replaceImDocument(
   docId: string | undefined,
   fileName: string,
   fileType: string,
-  fileData: string,
+  fileData: Blob | string,
+  onProgress?: UploadProgress,
 ): Promise<ImDoc> {
-  const uploaded = await uploadImDocument(dealId, fileName, fileType, fileData);
+  const uploaded = await uploadImDocument(dealId, fileName, fileType, fileData, onProgress);
   if (docId) {
     await deleteImDocumentRow(docId);
     await syncDealFilePointer(await resolveDealId(dealId));

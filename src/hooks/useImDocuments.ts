@@ -29,19 +29,6 @@ export function isExternalDoc(doc: ImDoc): boolean {
   return !doc.publicId;
 }
 
-/** Read a File as bare base64 (no `data:…;base64,` prefix). */
-function toBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result as string;
-      resolve(result.includes(",") ? result.split(",")[1] : result);
-    };
-    reader.onerror = () => reject(reader.error ?? new Error("Could not read the file"));
-    reader.readAsDataURL(file);
-  });
-}
-
 /** Click a synthetic anchor — navigates to an attachment URL without a new tab. */
 function saveAs(url: string, filename: string) {
   const a = document.createElement("a");
@@ -53,10 +40,19 @@ function saveAs(url: string, filename: string) {
   a.remove();
 }
 
+/** A transfer in flight: which file, and how much of it has gone up (0 → 1). */
+export interface UploadState {
+  name: string;
+  fraction: number;
+  /** True once the bytes are all sent and we are waiting on the row to be written. */
+  finishing: boolean;
+}
+
 export function useImDocuments(dealId?: string, onChange?: () => void) {
   const [docs, setDocs] = useState<ImDoc[]>([]);
   const [isLoading, setIsLoading] = useState(Boolean(dealId));
   const [isUploading, setIsUploading] = useState(false);
+  const [progress, setProgress] = useState<UploadState | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -68,6 +64,9 @@ export function useImDocuments(dealId?: string, onChange?: () => void) {
       return;
     }
     setIsLoading(true);
+    // Clears a message left over from another deal — the detail modal keeps one
+    // instance of this hook and re-points it as the user opens deals.
+    setError(null);
     try {
       setDocs(await listImDocuments(dealId));
     } catch (err: any) {
@@ -82,13 +81,28 @@ export function useImDocuments(dealId?: string, onChange?: () => void) {
     void reload();
   }, [reload]);
 
+  /**
+   * Report a transfer as it goes out.
+   *
+   * The bar stops at 99% while `finishing` is set: the bytes have left the
+   * browser but Cloudinary is still storing the asset and the row still has to
+   * be written, and showing 100% through that wait is a lie the user can see —
+   * the panel would sit "complete" for seconds before the file appeared.
+   */
+  const trackProgress = useCallback(
+    (name: string) => (fraction: number) =>
+      setProgress({ name, fraction: Math.min(fraction, 0.99), finishing: fraction >= 1 }),
+    [],
+  );
+
   const upload = useCallback(
     async (file: File) => {
       if (!dealId) return;
       setError(null);
       setIsUploading(true);
+      setProgress({ name: file.name, fraction: 0, finishing: false });
       try {
-        await uploadImDocument(dealId, file.name, file.type, await toBase64(file));
+        await uploadImDocument(dealId, file.name, file.type, file, trackProgress(file.name));
         await reload();
         onChange?.();
       } catch (err: any) {
@@ -96,9 +110,10 @@ export function useImDocuments(dealId?: string, onChange?: () => void) {
         setError(err.message || "Failed to upload the file.");
       } finally {
         setIsUploading(false);
+        setProgress(null);
       }
     },
-    [dealId, reload, onChange],
+    [dealId, reload, onChange, trackProgress],
   );
 
   const replace = useCallback(
@@ -106,8 +121,9 @@ export function useImDocuments(dealId?: string, onChange?: () => void) {
       if (!dealId) return;
       setError(null);
       setBusyId(doc.id ?? null);
+      setProgress({ name: file.name, fraction: 0, finishing: false });
       try {
-        await replaceImDocument(dealId, doc.id, file.name, file.type, await toBase64(file));
+        await replaceImDocument(dealId, doc.id, file.name, file.type, file, trackProgress(file.name));
         await reload();
         onChange?.();
       } catch (err: any) {
@@ -115,9 +131,10 @@ export function useImDocuments(dealId?: string, onChange?: () => void) {
         setError(err.message || "Failed to replace the file.");
       } finally {
         setBusyId(null);
+        setProgress(null);
       }
     },
-    [dealId, reload, onChange],
+    [dealId, reload, onChange, trackProgress],
   );
 
   const remove = useCallback(
@@ -162,13 +179,17 @@ export function useImDocuments(dealId?: string, onChange?: () => void) {
     setError(null);
     setDownloadingId(doc.id);
     // Opened synchronously, inside the click gesture, or the popup blocker eats
-    // it once the await below resolves.
-    const externalWindow = isExternalDoc(doc) ? window.open("", "_blank", "noopener,noreferrer") : null;
+    // it once the await below resolves. No "noopener" in the feature list —
+    // passing it makes window.open return null, which sent every external link
+    // down the fallback path and navigated the current tab away from the app.
+    // `opener` is severed below instead, which is the same protection.
+    const externalWindow = isExternalDoc(doc) ? window.open("", "_blank") : null;
+    if (externalWindow) externalWindow.opener = null;
     try {
       const url = await getImDocumentFileUrl(doc.id, "download");
       if (isExternalDoc(doc)) {
         if (externalWindow) externalWindow.location.href = url;
-        else saveAs(url, doc.filename);
+        else window.open(url, "_blank", "noopener,noreferrer");
         return;
       }
       try {
@@ -193,6 +214,7 @@ export function useImDocuments(dealId?: string, onChange?: () => void) {
     docs,
     isLoading,
     isUploading,
+    progress,
     busyId,
     downloadingId,
     error,
