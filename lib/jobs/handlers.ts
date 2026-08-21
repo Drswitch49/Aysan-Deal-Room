@@ -82,6 +82,13 @@ registerHandler("precall-brief", async (payload: any) => {
   const { data: deal, error } = await db().from("deals").select("*").eq("id", deal_id).single();
   if (error || !deal) throw new Error(`deal ${deal_id} not found`);
 
+  const briefParams = params ?? {
+    selectedCallType: "1st",
+    selectedPersonas: [],
+    selectedScenario: "",
+    dataSources: [],
+  };
+
   const brief = await generatePrecallBrief(
     {
       // The id is what lets the brief pull the deal's own Supabase context
@@ -95,13 +102,23 @@ registerHandler("precall-brief", async (payload: any) => {
       revenue: deal.turnover,
       ebitda: deal.ebitda_gbp,
     },
-    params ?? { selectedCallType: "1st", selectedPersonas: [], selectedScenario: "", dataSources: [] },
+    briefParams,
   );
 
   const { data: created, error: insErr } = await db().from("precall_briefs").insert({
     deal_id,
     name: `Pre-call brief — ${deal.company_name ?? deal.deal_name ?? deal_id}`,
-    brief_data: brief,
+    // The request parameters are stored with the output: the tab's parameters
+    // panel reads selectedPersonas/selectedScenario/selectedCallType/dataSources
+    // off the brief, and storing only the model's JSON left every one of them
+    // undefined — so every brief displayed as a participant-less "Negotiation".
+    brief_data: {
+      ...brief,
+      selectedCallType: briefParams.selectedCallType,
+      selectedPersonas: briefParams.selectedPersonas,
+      selectedScenario: briefParams.selectedScenario,
+      dataSources: briefParams.dataSources,
+    },
     processing_status: "completed",
     processed_at: new Date().toISOString(),
   }).select("id").single();

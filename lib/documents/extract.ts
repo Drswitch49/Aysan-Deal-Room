@@ -9,6 +9,35 @@
 import { z } from "zod";
 import { askClaudeJson } from "../ai/client.js";
 
+/**
+ * Readable text out of an HTML page.
+ *
+ * Not every "IM" on a deal is a file: brokers routinely send a link to a CIM
+ * viewer, and those rows get fetched like any other document. Handing the raw
+ * markup to Claude as the deal's primary source is worse than handing it
+ * nothing — a page of CSP headers and script tags reads as content, spends the
+ * IM character budget, and invites the model to infer from noise.
+ */
+function htmlToText(html: string): string {
+  return html
+    .replace(/<!--[\s\S]*?-->/g, " ")
+    .replace(/<(script|style|noscript|template|svg)\b[^>]*>[\s\S]*?<\/\1>/gi, " ")
+    .replace(/<\/(p|div|section|article|h[1-6]|li|tr|br)\s*\/?>/gi, "\n")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)))
+    .replace(/[ \t\u00A0]+/g, " ")
+    .replace(/\n\s*\n\s*\n+/g, "\n\n")
+    .trim();
+}
+
+/** Below this, a stripped page is a JS shell or a login wall, not a document. */
+const MIN_HTML_TEXT_CHARS = 400;
+
 export async function extractTextFromUrl(url: string, filename?: string | null): Promise<string> {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Failed to fetch document (${res.status}) from ${url.slice(0, 80)}`);
@@ -31,7 +60,24 @@ export async function extractTextFromUrl(url: string, filename?: string | null):
     const result = await mammoth.extractRawText({ buffer });
     return result.value ?? "";
   }
-  return buffer.toString("utf8");
+
+  const raw = buffer.toString("utf8");
+
+  if (name.endsWith(".html") || name.endsWith(".htm") || contentType.includes("html") || /^\s*<(!doctype|html)\b/i.test(raw)) {
+    const text = htmlToText(raw);
+    // A CIM viewer renders client-side, so the fetched HTML carries no document
+    // text at all. Fail loudly: the caller records it as unreadable and the
+    // brief lists it as a blind spot instead of quoting boilerplate at us.
+    if (text.length < MIN_HTML_TEXT_CHARS) {
+      throw new Error(
+        "The link returned a web page with no readable document text (it likely needs a login or renders in the browser). " +
+          "Download the document and upload the file itself.",
+      );
+    }
+    return text;
+  }
+
+  return raw;
 }
 
 export const documentAnalysisSchema = z.object({

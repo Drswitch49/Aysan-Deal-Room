@@ -75,6 +75,7 @@ function flattenBrief(r: Row): Row {
     participantQuestionBank: arr(data.participantQuestionBank),
     internalWatchouts: arr(data.internalWatchouts),
     recommendedNextActions: arr(data.recommendedNextActions),
+    sourceReport: arr(data.sourceReport),
     scores: (data.scores && typeof data.scores === "object") ? data.scores : {},
     id: r.id,
     deal_id: r.deal_id,
@@ -180,6 +181,12 @@ export interface JobStatusResponse {
   isComplete: boolean;
   isFailed: boolean;
   isProcessing: boolean;
+  /** Attempts consumed so far, and the ceiling. A queued job with attempts > 0
+   *  has already failed at least once and is waiting out its retry backoff. */
+  attempts: number;
+  maxAttempts: number;
+  /** When a retrying job is next eligible to run. */
+  retryAt: string | null;
 }
 
 /**
@@ -204,5 +211,101 @@ export async function getJobStatus(_table: string, recordId: string, _jobType?: 
     isComplete: job.status === "done",
     isFailed: job.status === "failed",
     isProcessing: job.status === "running" || job.status === "queued",
+    attempts: typeof job.attempts === "number" ? job.attempts : 0,
+    maxAttempts: typeof job.max_attempts === "number" ? job.max_attempts : 3,
+    retryAt: job.run_after ?? null,
   };
+}
+
+// ─── Job watching ───────────────────────────────────────────────────────────
+
+export interface JobWatchCallbacks {
+  /** Live status line for the UI while the job is still in flight. */
+  onProgress?: (message: string) => void;
+  onComplete: (job: JobStatusResponse) => void | Promise<void>;
+  onFail: (message: string) => void;
+}
+
+/** Hard ceiling on how long the UI will wait before calling a job dead. Well
+ *  past the worst honest case (a 300s worker slot plus a queue wait), and short
+ *  enough that a user is never left staring at a spinner. */
+const JOB_WATCH_TIMEOUT_MS = 8 * 60 * 1000;
+const JOB_POLL_INTERVAL_MS = 2500;
+
+/**
+ * Poll a job to a terminal state and report it.
+ *
+ * Returns a cancel function — call it on unmount. The previous inline pollers
+ * left their `setInterval` running when the tab was closed mid-generation, so
+ * they kept hitting the API and setting state on a dead component while the
+ * remounted tab showed no sign that anything was in flight.
+ *
+ * Three things the naive poll got wrong, all of which read to the user as
+ * "stuck forever":
+ *   - a failed-but-retrying job reports `queued`, so it looked like progress;
+ *   - the error already recorded on the job was never shown until (and unless)
+ *     every attempt was spent;
+ *   - nothing ever timed out.
+ */
+export function watchJob(jobId: string, cb: JobWatchCallbacks): () => void {
+  const startedAt = Date.now();
+  let cancelled = false;
+  let lastError: string | null = null;
+
+  const timer = setInterval(async () => {
+    if (cancelled) return;
+    const job = await getJobStatus("jobs", jobId).catch(() => null);
+    if (cancelled) return;
+
+    if (!job) {
+      // Transient API blip; keep polling until the timeout below decides.
+      if (Date.now() - startedAt > JOB_WATCH_TIMEOUT_MS) {
+        stop();
+        cb.onFail(lastError ?? "Lost contact with the job queue. Please try again.");
+      }
+      return;
+    }
+
+    if (job.error) lastError = job.error;
+
+    if (job.isComplete) {
+      stop();
+      await cb.onComplete(job);
+      return;
+    }
+    if (job.isFailed) {
+      stop();
+      cb.onFail(job.error || "Generation failed in the background.");
+      return;
+    }
+
+    if (Date.now() - startedAt > JOB_WATCH_TIMEOUT_MS) {
+      stop();
+      cb.onFail(
+        lastError ??
+          "Generation is taking longer than expected and has been abandoned. " +
+            "Check the job queue, then try again.",
+      );
+      return;
+    }
+
+    // Still running. A queued job that already carries an error has failed at
+    // least once — say so instead of implying steady progress.
+    if (job.attempts > 0 && job.error) {
+      cb.onProgress?.(
+        `Attempt ${job.attempts} of ${job.maxAttempts} failed — retrying. Last error: ${job.error}`,
+      );
+    } else if (job.status === "processing") {
+      cb.onProgress?.("Running — Claude is working on it…");
+    } else {
+      cb.onProgress?.("Queued — generating in background…");
+    }
+  }, JOB_POLL_INTERVAL_MS);
+
+  function stop() {
+    cancelled = true;
+    clearInterval(timer);
+  }
+
+  return stop;
 }

@@ -22,7 +22,11 @@ export default createHandler<unknown, z.infer<typeof querySchema>>({
       id: job.id,
       type: job.type,
       status: job.status,
+      // attempts/max_attempts/run_after let the UI tell "still working" apart
+      // from "failed once and waiting out a backoff" — both read `queued`.
       attempts: job.attempts,
+      max_attempts: job.max_attempts,
+      run_after: job.run_after ?? null,
       result: job.result ?? null,
       error: job.error ?? null,
       created_at: job.created_at,

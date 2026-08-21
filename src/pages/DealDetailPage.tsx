@@ -8,7 +8,7 @@ import {
   Columns, UserCheck, BookOpen, UserX, Lightbulb, Trash2, FileSpreadsheet
 } from "lucide-react";
 import type { ComponentType } from "react";
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { Link, useParams, useSearchParams, useNavigate } from "react-router-dom";
 import { CoverSheet } from "../components/deals/CoverSheet";
 import { DocumentChecklist } from "../components/deals/DocumentChecklist";
@@ -32,7 +32,7 @@ import {
   fetchPostcallBriefs, generatePostcallBrief, overridePostcallScores,
   transitionDealStage, transitionDealLifecycle, triggerOsintEnrichment, triggerFinancialAnalysis,
   sendLoiWebhook, sendEmailWebhook, updateAdminDeal,
-  deleteDeal, fetchTeamMemberRecords, getJobStatus, enqueueAiJob
+  deleteDeal, fetchTeamMemberRecords, getJobStatus, enqueueAiJob, watchJob
 } from "../api/admin";
 import { useImDocuments, isExternalDoc, type ImDoc } from "../hooks/useImDocuments";
 import { UploadProgressBar } from "../components/ui/UploadProgressBar";
@@ -2611,6 +2611,11 @@ function PreCallBriefTab({ deal, openComposer }: { deal: any; openComposer: (opt
     "Formatting intelligence brief..."
   ];
 
+  // Stops the job poller. Held in a ref so leaving the tab mid-generation tears
+  // the poll down instead of leaving it running against a dead component.
+  const cancelWatch = useRef<(() => void) | null>(null);
+  useEffect(() => () => cancelWatch.current?.(), []);
+
   useEffect(() => {
     if (deal?.id) {
       loadBriefs();
@@ -2683,32 +2688,22 @@ function PreCallBriefTab({ deal, openComposer }: { deal: any; openComposer: (opt
 
       if (result?.status === "queued" && result?.id) {
         setGeneratingStatus("Queued — generating in background…");
-        const briefId = result.id;
-        
-        const pollInterval = setInterval(async () => {
-          try {
-            const statusData = await getJobStatus("Precall_Briefs", briefId).catch(() => null);
-            if (!statusData) return;
-            
-            if (statusData.isComplete) {
-              clearInterval(pollInterval);
-              const list = await fetchPrecallBriefs(deal.id);
-              setBriefs(list);
-              if (list.length > 0) {
-                setSelectedBrief(list[0]);
-              }
-              setIsGenerating(false);
-              setGeneratingStatus("");
-            } else if (statusData.isFailed) {
-              clearInterval(pollInterval);
-              setError(statusData.error || "Generation failed in background.");
-              setIsGenerating(false);
-              setGeneratingStatus("");
-            }
-          } catch (e) {
-            console.error("Error polling job status:", e);
-          }
-        }, 2500);
+        cancelWatch.current?.();
+        cancelWatch.current = watchJob(result.id, {
+          onProgress: setGeneratingStatus,
+          onComplete: async () => {
+            const list = await fetchPrecallBriefs(deal.id);
+            setBriefs(list);
+            if (list.length > 0) setSelectedBrief(list[0]);
+            setIsGenerating(false);
+            setGeneratingStatus("");
+          },
+          onFail: (message) => {
+            setError(message);
+            setIsGenerating(false);
+            setGeneratingStatus("");
+          },
+        });
       } else {
         // 200 — synchronous result (local dev)
         setBriefs((prev) => [result, ...prev]);
@@ -2840,6 +2835,14 @@ function PreCallBriefTab({ deal, openComposer }: { deal: any; openComposer: (opt
             <p className="text-xs text-[#C6A66B] font-medium select-none tracking-wide animate-pulse font-sans">
               {steps[loadingStep]}
             </p>
+            {/* The real queue state, under the animated step list. Without it a
+                job that has already failed once and is waiting out its backoff
+                looks exactly like one making progress. */}
+            {generatingStatus && (
+              <p className="text-[11px] text-slate-400 font-sans max-w-md mx-auto leading-relaxed">
+                {generatingStatus}
+              </p>
+            )}
           </div>
           <div className="w-full max-w-xs bg-white/[0.015] rounded-full h-1.5 overflow-hidden">
             <div 
@@ -2903,7 +2906,9 @@ function PreCallBriefTab({ deal, openComposer }: { deal: any; openComposer: (opt
 
 
 
-              {/* Data Sources */}
+              {/* Data Sources — what the brief actually read, not what was
+                  asked for. `sourceReport` is recorded by the generator; older
+                  briefs have none, so those still fall back to the toggles. */}
               <div className="space-y-2">
                 <span className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-500 font-sans">OSINT SOURCES INGESTED</span>
                 <div className="grid grid-cols-2 gap-2">
@@ -2915,13 +2920,20 @@ function PreCallBriefTab({ deal, openComposer }: { deal: any; openComposer: (opt
                     { id: "supabase", label: "Deal record", legacyDefault: true },
                     { id: "imFiles", label: "IM & attachments", legacyDefault: false },
                   ].map((src) => {
-                    const isConnected = selectedBrief.dataSources?.[src.id] ?? src.legacyDefault;
+                    const reported = selectedBrief.sourceReport?.find((r: any) => r.id === src.id);
+                    const isConnected = reported
+                      ? reported.status === "ok"
+                      : selectedBrief.dataSources?.[src.id] ?? src.legacyDefault;
+                    const title = reported
+                      ? `${reported.status.toUpperCase()}${reported.detail ? ` — ${reported.detail}` : ""}`
+                      : undefined;
                     return (
                       <div
                         key={src.id}
+                        title={title}
                         className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-[10px] font-bold text-left opacity-75 ${
-                          isConnected 
-                            ? "bg-white/[0.015] border-white/[0.02] text-white" 
+                          isConnected
+                            ? "bg-white/[0.015] border-white/[0.02] text-white"
                             : "bg-white/[0.01] border-white/5 text-slate-600"
                         }`}
                       >
@@ -2931,6 +2943,19 @@ function PreCallBriefTab({ deal, openComposer }: { deal: any; openComposer: (opt
                     );
                   })}
                 </div>
+                {/* Name the gaps outright — a grey dot is easy to read as "off
+                    by choice" when it actually means "not configured". */}
+                {selectedBrief.sourceReport?.some((r: any) => r.status === "unavailable" || r.status === "empty") && (
+                  <ul className="space-y-1 pt-1">
+                    {selectedBrief.sourceReport
+                      .filter((r: any) => r.status === "unavailable" || r.status === "empty")
+                      .map((r: any) => (
+                        <li key={r.id} className="text-[9px] leading-relaxed text-amber-300/70">
+                          {r.label}: {r.detail || r.status}
+                        </li>
+                      ))}
+                  </ul>
+                )}
               </div>
             </div>
 
@@ -3562,6 +3587,10 @@ function PostMeetingTab({ deal, onScoreChange, openComposer }: { deal: any; onSc
   const [copiedEmail, setCopiedEmail] = useState(false);
   const [activeExplanation, setActiveExplanation] = useState<string | null>(null);
 
+  // Stops the job poller when the tab unmounts mid-generation.
+  const cancelWatch = useRef<(() => void) | null>(null);
+  useEffect(() => () => cancelWatch.current?.(), []);
+
   // Load past briefs on mount
   useEffect(() => {
     let active = true;
@@ -3649,34 +3678,28 @@ Owner is open to deferred payment structures, specifically accepting 20% Vendor 
       if (result?.status === "queued" && result?.id) {
         setGeneratingStatus("Queued — generating in background…");
         setSuccessMsg("Post-call analysis queued — results will appear automatically.");
-        const briefId = result.id;
 
-        const pollInterval = setInterval(async () => {
-          try {
-            const statusData = await getJobStatus("Postcall_Briefs", briefId).catch(() => null);
-            if (!statusData) return;
-
-            if (statusData.isComplete) {
-              clearInterval(pollInterval);
-              const list = await fetchPostcallBriefs(deal.id);
-              setBriefs(list);
-              if (list.length > 0) {
-                setSelectedBrief(list[0]);
-                setMode("view");
-              }
-              setGenerating(false);
-              setGeneratingStatus("");
-              setSuccessMsg("Post-call analysis completed successfully!");
-            } else if (statusData.isFailed) {
-              clearInterval(pollInterval);
-              setErrorMsg(statusData.error || "Generation failed in background.");
-              setGenerating(false);
-              setGeneratingStatus("");
+        cancelWatch.current?.();
+        cancelWatch.current = watchJob(result.id, {
+          onProgress: setGeneratingStatus,
+          onComplete: async () => {
+            const list = await fetchPostcallBriefs(deal.id);
+            setBriefs(list);
+            if (list.length > 0) {
+              setSelectedBrief(list[0]);
+              setMode("view");
             }
-          } catch (e) {
-            console.error("Error polling job status:", e);
-          }
-        }, 2500);
+            setGenerating(false);
+            setGeneratingStatus("");
+            setSuccessMsg("Post-call analysis completed successfully!");
+          },
+          onFail: (message) => {
+            setErrorMsg(message);
+            setSuccessMsg("");
+            setGenerating(false);
+            setGeneratingStatus("");
+          },
+        });
 
         setManualNotes("");
         setUploadState("idle");
@@ -4213,6 +4236,14 @@ Owner is open to deferred payment structures, specifically accepting 20% Vendor 
               )}
             </button>
           </div>
+
+          {/* The live queue state — a job that has failed once and is waiting
+              out its retry backoff otherwise looks identical to one working. */}
+          {generating && generatingStatus && (
+            <div className="rounded-xl border border-white/[0.04] bg-white/[0.015] p-3 text-[11px] text-slate-400 font-medium leading-relaxed">
+              {generatingStatus}
+            </div>
+          )}
 
           {errorMsg && (
             <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 p-3 text-xs text-rose-450 font-medium">

@@ -11,6 +11,7 @@
  */
 import { adminClient } from "../data/supabase/client.js";
 import { logger } from "../core/logger.js";
+import { classifyFailure } from "./failure.js";
 
 export interface Job<TPayload = unknown> {
   id: string;
@@ -99,8 +100,13 @@ export async function runDueJobs(opts: { batch?: number; timeBudgetMs?: number }
           .eq("id", job.id);
         ran++;
       } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        const retryable = job.attempts < job.max_attempts;
+        const raw = err instanceof Error ? err.message : String(err);
+        // A retry only helps for transient faults. Billing, auth and bad-payload
+        // failures are recorded as `failed` on the first attempt so the UI stops
+        // polling and shows the reason, rather than sitting on a `queued` row
+        // that is really a failure waiting out its backoff.
+        const { message, permanent } = classifyFailure(err);
+        const retryable = !permanent && job.attempts < job.max_attempts;
         const backoffSec = Math.min(60 * Math.pow(2, job.attempts), 3600); // 2min, 4min, … cap 1h
         await db
           .from("jobs")
@@ -110,7 +116,10 @@ export async function runDueJobs(opts: { batch?: number; timeBudgetMs?: number }
               : { status: "failed", finished_at: new Date().toISOString(), error: message },
           )
           .eq("id", job.id);
-        logger.error({ jobId: job.id, type: job.type, attempts: job.attempts, retryable, err: message }, "job failed");
+        logger.error(
+          { jobId: job.id, type: job.type, attempts: job.attempts, retryable, permanent, err: raw },
+          "job failed",
+        );
         failed++;
       }
     }

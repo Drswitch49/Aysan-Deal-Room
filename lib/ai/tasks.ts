@@ -165,6 +165,9 @@ export const precallBriefSchema = z.object({
 });
 export type PrecallBrief = z.infer<typeof precallBriefSchema>;
 
+/** What the job stores: the model's brief plus the provenance of its inputs. */
+export type PrecallBriefWithSources = PrecallBrief & { sourceReport: BriefSourceStatus[] };
+
 export interface PrecallParams {
   selectedCallType: string;
   selectedPersonas: string[];
@@ -185,6 +188,24 @@ function enabledSources(sources: PrecallParams["dataSources"]): string[] {
   return [];
 }
 
+/** What one requested source actually contributed to this brief. */
+export interface BriefSourceStatus {
+  id: string;
+  label: string;
+  status: "ok" | "empty" | "unavailable" | "skipped";
+  /** Chars of prompt text contributed (0 unless status is "ok"). */
+  chars: number;
+  /** Why it is empty or unavailable — shown to the user, and to the model. */
+  detail?: string;
+}
+
+const SOURCE_LABELS: Record<string, string> = {
+  companiesHouse: "Companies House",
+  notionSops: "ACP SOPs (Notion)",
+  supabase: "Deal record (Supabase)",
+  imFiles: "IM & attachments",
+};
+
 /**
  * Gather the source material the brief form's toggles ask for.
  *
@@ -192,50 +213,116 @@ function enabledSources(sources: PrecallParams["dataSources"]): string[] {
  * line and was then written from the deal's six summary fields alone. Each
  * enabled source now actually contributes text, including `imFiles`: the text
  * of the deal's own IM and attachments, not just their names.
+ *
+ * Every source also reports what it managed to contribute. A source that is
+ * off, unconfigured (no COMPANIES_HOUSE_API_KEY) or simply empty used to vanish
+ * silently: the brief was thinner, said nothing about why, and the tab still
+ * showed the source as "ingested". The report goes into the prompt so the model
+ * can be explicit about its blind spots, and is stored on the brief so the tab
+ * can show what really went in.
  */
-async function collectBriefSources(
+export async function collectBriefSources(
   dealId: string | undefined,
   companyName: string,
   sources: string[],
-): Promise<string> {
+): Promise<{ prompt: string; report: BriefSourceStatus[] }> {
   const want = (name: string) => sources.length === 0 || sources.includes(name);
+  const report: BriefSourceStatus[] = [];
   const blocks: string[] = [];
 
-  const [sops, dealCtx, imText, ch] = await Promise.all([
-    want("notionSops")
-      ? import("../osint/providers/notionSops.js")
-          .then(async (m) => m.formatSopsForPrompt(await m.fetchNotionSops()))
-          .catch(() => "")
-      : Promise.resolve(""),
-    want("supabase") && dealId
-      ? import("../osint/providers/dealContext.js")
-          .then(async (m) => m.formatDealContextForPrompt(await m.loadDealContext(dealId)))
-          .catch(() => "")
-      : Promise.resolve(""),
-    want("imFiles") && dealId
-      ? import("../osint/providers/imDocuments.js")
-          .then(async (m) => m.formatImDocumentsForPrompt(await m.loadImDocumentText(dealId)))
-          .catch(() => "")
-      : Promise.resolve(""),
-    want("companiesHouse")
-      ? import("../../api/_osint/providers/companiesHouse.js")
-          .then((m) => m.searchCompaniesHouse(companyName))
-          .catch(() => null)
-      : Promise.resolve(null),
+  /** Run one source, converting a throw into an "unavailable" report entry. */
+  const run = async (
+    id: string,
+    fn: () => Promise<{ text: string; detail?: string }>,
+  ): Promise<BriefSourceStatus & { text: string }> => {
+    const label = SOURCE_LABELS[id] ?? id;
+    if (!want(id)) {
+      return { id, label, status: "skipped", chars: 0, detail: "Not selected for this brief", text: "" };
+    }
+    try {
+      const { text, detail } = await fn();
+      return text.trim()
+        ? { id, label, status: "ok", chars: text.length, detail, text }
+        : { id, label, status: "empty", chars: 0, detail: detail ?? "No content returned", text: "" };
+    } catch (err) {
+      return {
+        id,
+        label,
+        status: "unavailable",
+        chars: 0,
+        detail: err instanceof Error ? err.message : String(err),
+        text: "",
+      };
+    }
+  };
+
+  const [sops, dealCtx, ch, imText] = await Promise.all([
+    run("notionSops", async () => {
+      const m = await import("../osint/providers/notionSops.js");
+      return { text: m.formatSopsForPrompt(await m.fetchNotionSops()) };
+    }),
+    run("supabase", async () => {
+      if (!dealId) return { text: "", detail: "No deal id supplied" };
+      const m = await import("../osint/providers/dealContext.js");
+      return { text: m.formatDealContextForPrompt(await m.loadDealContext(dealId)) };
+    }),
+    run("companiesHouse", async () => {
+      const m = await import("../../api/_osint/providers/companiesHouse.js");
+      const result = await m.searchCompaniesHouse(companyName);
+      const text = m.formatCompaniesHouseForPrompt(result);
+      // The provider reports a missing key as a normal "not found" — surface it
+      // as the configuration problem it is rather than as "no such company".
+      const detail =
+        result.error === "COMPANIES_HOUSE_API_KEY not set"
+          ? "Companies House is not configured for this deployment (COMPANIES_HOUSE_API_KEY)"
+          : result.error;
+      return { text, detail };
+    }),
+    run("imFiles", async () => {
+      if (!dealId) return { text: "", detail: "No deal id supplied" };
+      const m = await import("../osint/providers/imDocuments.js");
+      const docs = await m.loadImDocumentText(dealId);
+      if (!docs.length) return { text: "", detail: "No IM or attachments on this deal" };
+      const unreadable = docs.filter((d) => d.error);
+      return {
+        text: m.formatImDocumentsForPrompt(docs),
+        detail: unreadable.length
+          ? `${docs.length} file(s); ${unreadable.length} could not be read: ${unreadable.map((d) => d.name).join(", ")}`
+          : `${docs.length} file(s) read`,
+      };
+    }),
   ]);
 
-  if (sops) blocks.push(`═══ ACP SOPs (Notion) ═══\n${sops}`);
-  if (dealCtx) blocks.push(`═══ ACP DEAL RECORD (Supabase) ═══\n${dealCtx}`);
-  if (ch && (ch as { found?: boolean }).found) {
-    blocks.push(`═══ COMPANIES HOUSE ═══\n${JSON.stringify(ch, null, 1).slice(0, 4000)}`);
+  for (const s of [sops, dealCtx, ch, imText]) {
+    const { text: _text, ...status } = s;
+    report.push(status);
   }
+
+  if (sops.text) blocks.push(`═══ ACP SOPs (Notion) ═══\n${sops.text}`);
+  if (dealCtx.text) blocks.push(`═══ ACP DEAL RECORD (Supabase) ═══\n${dealCtx.text}`);
+  if (ch.text) blocks.push(`═══ COMPANIES HOUSE (registry record) ═══\n${ch.text}`);
   // The IM goes last, closest to the ask — it is the source the brief should
   // lean on hardest, and recency in the prompt is the cheapest way to say so.
-  if (imText) blocks.push(`═══ DEAL IM & ATTACHMENTS (primary source) ═══\n${imText}`);
-  return blocks.join("\n\n");
+  if (imText.text) blocks.push(`═══ DEAL IM & ATTACHMENTS (primary source) ═══\n${imText.text}`);
+
+  // Tell the model what it is missing. Without this it cannot distinguish
+  // "Companies House says nothing unusual" from "we never asked Companies
+  // House", and it will happily write the former.
+  const gaps = report.filter((r) => r.status !== "ok");
+  if (gaps.length) {
+    blocks.push(
+      `═══ SOURCE AVAILABILITY (blind spots — do not paper over these) ═══\n` +
+        gaps.map((g) => `- ${g.label}: ${g.status.toUpperCase()}${g.detail ? ` — ${g.detail}` : ""}`).join("\n"),
+    );
+  }
+
+  return { prompt: blocks.join("\n\n"), report };
 }
 
-export async function generatePrecallBrief(dealData: any, params: PrecallParams): Promise<PrecallBrief> {
+export async function generatePrecallBrief(
+  dealData: any,
+  params: PrecallParams,
+): Promise<PrecallBriefWithSources> {
   const callTypeLabel =
     params.selectedCallType === "1st" ? "1st Seller Call"
     : params.selectedCallType === "2nd" ? "2nd Follow-up Call"
@@ -346,7 +433,7 @@ BREVITY AND LIMITS (CRITICAL):
 - If many participants are selected, compress their data into tight summaries rather than writing essays.`;
 
   const sources = enabledSources(params.dataSources);
-  const sourceMaterial = await collectBriefSources(
+  const { prompt: sourceMaterial, report: sourceReport } = await collectBriefSources(
     dealData.id,
     dealData.companyName || dealData.dealRef || "",
     sources,
@@ -364,12 +451,14 @@ Sources: ${sources.join(", ") || "None selected"}
 ${params.pastedText ? `\nIM Text:\n${params.pastedText.substring(0, 3000)}` : ""}
 ${sourceMaterial ? `\n${sourceMaterial}` : "\nNo external source material was available — work from the fields above and say so where the brief is thin."}`;
 
-  return askClaudeJson(precallBriefSchema, {
+  const brief = await askClaudeJson(precallBriefSchema, {
     system: systemPrompt,
     maxTokens: 8000,
     effort: "high",
     messages: [{ role: "user", content: userContent }],
   });
+
+  return { ...brief, sourceReport };
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
