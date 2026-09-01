@@ -4,6 +4,7 @@ import { cx } from "../utils/cx";
 import { HeaderMetrics } from "../components/ui/HeaderMetrics";
 import { fetchHrRegistry, addHiringBrief, deleteHiringBrief, createTeamMember, createStakeholder, provisionAccess } from "../api/admin";
 import { api } from "../api/http";
+import { accessLevelFor } from "../lib/rbac";
 
 /** New REST endpoint per drawer-user type. */
 const hrEndpointFor = (type: string) =>
@@ -191,7 +192,7 @@ export function HrStakeholdersPage() {
         expiresInMinutes,
         type: "Team Member",
         role: teamForm.role,
-        accessLevel: ["managing partner", "partner", "super admin", "owner", "admin"].includes((teamForm.role || "").toLowerCase()) ? "FULL ACCESS" : "WRITE ACCESS"
+        accessLevel: accessLevelFor(teamForm.role)
       });
       setTeamForm({ name: "", email: "", phone: "", role: "Analyst", status: "Active" });
       setIsAddTeamMemberOpen(false);

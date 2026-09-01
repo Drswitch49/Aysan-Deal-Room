@@ -80,6 +80,44 @@ function canonicalRole(role: string): string {
 }
 
 /**
+ * Badge label for a roster row's access level.
+ *
+ * `access_level` is a free-text column that only rows created through this app
+ * ever populated — every Airtable-imported member has it null, which rendered
+ * an empty badge. So fall back to the member's role, which is always set.
+ *
+ * Mirrors the role tiers in `api/_lib/account-provisioning.ts:staffRoleFor`,
+ * including its rule of never guessing upward: an unrecognised role reads as
+ * READ ONLY rather than being granted a write label it may not have.
+ * This is a display label only — it grants nothing on its own.
+ */
+export function accessLevelFor(role: string, accessLevel?: string | null): string {
+  const stored = (accessLevel || "").trim();
+  if (stored) return stored;
+
+  const canon = canonicalRole(role);
+  if (
+    canon === "owner" ||
+    canon === "super_admin" ||
+    canon === "founder" ||
+    canon === "ceo" ||
+    canon === "admin" ||
+    canon.includes("partner")
+  ) {
+    return "FULL ACCESS";
+  }
+  if (
+    canon.includes("analyst") ||
+    canon.includes("associate") ||
+    canon.includes("operations") ||
+    canon === "hr"
+  ) {
+    return "WRITE ACCESS";
+  }
+  return "READ ONLY";
+}
+
+/**
  * Check if a user has a specific permission.
  * Role lookup is canonicalized so all historical role spellings resolve.
  */

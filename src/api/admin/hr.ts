@@ -1,6 +1,7 @@
 /** Admin client — HR: team members, hiring briefs, stakeholders, shareholders. */
 import { api, type Paginated } from "../http";
 import { type Row, mapKeys } from "./_shared";
+import { accessLevelFor } from "../../lib/rbac";
 
 export async function fetchHrRegistry(): Promise<{
   team: any[];
@@ -26,7 +27,7 @@ export async function fetchHrRegistry(): Promise<{
       status: r.status ?? "active",
       createdAt: r.created_at ?? "",
       lastLogin: "",
-      accessLevel: r.access_level ?? "",
+      accessLevel: accessLevelFor(String(r.role ?? ""), r.access_level as string | null),
       avatarTheme: r.avatar_theme ?? "",
     })),
     hires: hiring.rows.map((r) => ({
