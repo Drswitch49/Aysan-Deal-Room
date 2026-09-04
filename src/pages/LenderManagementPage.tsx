@@ -1157,7 +1157,7 @@ export function LenderManagementPage() {
               <Trash2 className="h-6 w-6" />
             </div>
             <p className="text-xs text-slate-400 mt-1.5 leading-relaxed text-center">
-              Are you sure you want to delete <strong>{selectedLender.Company_Name}</strong>? This will permanently remove their portal access and all active deal assignments in Airtable.
+              Are you sure you want to delete <strong>{selectedLender.Company_Name}</strong>? Their profile, deal assignments and chat history are erased from the database and their portal login is deleted. This cannot be undone.
             </p>
 
             <FormField label="Type company name to confirm" id="delete-confirm-input">

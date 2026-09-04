@@ -85,7 +85,7 @@ export function assertCanGrant(actorRole: string, targetRole: string): void {
  * Look up an auth user by email. GoTrue's admin API has no email filter, so we
  * page through — fine at this tenant's scale (a few hundred accounts).
  */
-async function findAuthUserByEmail(email: string): Promise<User | null> {
+export async function findAuthUserByEmail(email: string): Promise<User | null> {
   const target = email.trim().toLowerCase();
   const admin = adminClient().auth.admin;
   const perPage = 200;
