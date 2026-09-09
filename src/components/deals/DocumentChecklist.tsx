@@ -809,6 +809,7 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
                           className="text-[11px] bg-slate-900 border border-white/10 rounded-lg px-2 py-1 text-white font-semibold cursor-pointer outline-none focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze transition"
                         >
                           <option value="Outstanding" className="bg-[#161B22] text-white">Outstanding</option>
+                          <option value="Review" className="bg-[#161B22] text-white">Review</option>
                           <option value="Sent to Lender" className="bg-[#161B22] text-white">Sent to Lender</option>
                         </select>
                       ) : (
@@ -956,6 +957,7 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
                     className="h-9 w-full rounded-xl border border-white/[0.02] bg-[#161B22] px-3 text-white outline-none focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze transition-all cursor-pointer"
                   >
                     <option value="Outstanding" className="bg-[#161B22] text-white">Outstanding</option>
+                    <option value="Review" className="bg-[#161B22] text-white">Review</option>
                     <option value="Sent to Lender" className="bg-[#161B22] text-white">Sent to Lender</option>
                   </select>
                 </div>
