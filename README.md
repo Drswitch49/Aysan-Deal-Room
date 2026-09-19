@@ -50,6 +50,9 @@ See `.env` locally (never committed). Required groups:
 - Legacy-endpoint → REST mapping from the 2026 rewrite: `docs/api-migration-map.md`.
 - The one-time Airtable→Supabase ETL lives in `scripts/etl/` (historical;
   Airtable is no longer used at runtime).
+- [GPT Live voice-agent architecture proposal](docs/gpt-live-voice-agents.md):
+  proposed staff voice workflows, authorization boundaries, and phased delivery;
+  no voice feature is implemented.
 
 ## Deployment (Vercel)
 
