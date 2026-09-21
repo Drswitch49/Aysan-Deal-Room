@@ -85,6 +85,7 @@ async function sendComposedEmail(type: "LOI" | "Post_meeting_email", data: Row):
     content,
     type,
     ...(data.dealId ? { deal_id: String(data.dealId) } : {}),
+    ...(data.generatedBy ? { generated_by: String(data.generatedBy) } : {}),
   });
 }
 

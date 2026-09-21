@@ -8,6 +8,7 @@ import { WRITERS, ALL_ADMINS } from "../_lib/authz.js";
 import { ForbiddenError, NotFoundError, BadRequestError } from "../../lib/core/errors.js";
 import { repositories } from "../../lib/data/supabase/repositories.js";
 import { updateDealSchema } from "../../lib/core/schemas/deal.js";
+import { DEAL_CONTROL_COLUMNS } from "../../lib/postcall/playbook.js";
 
 const idSchema = z.object({ id: z.string().uuid("A deal id (uuid) is required") });
 
@@ -27,6 +28,10 @@ export default createHandler({
       if (!user || !WRITERS.includes(user.role)) throw new ForbiddenError("Editing deals requires a writer role");
       const patch = updateDealSchema.parse(body ?? {});
       if (Object.keys(patch).length === 0) throw new BadRequestError("Empty update");
+      // The DSCR sanction and institutional band gate LOI readiness; they are
+      // admin-only and written through /api/postcall-controls.
+      const controlled = DEAL_CONTROL_COLUMNS.filter((c) => c in patch);
+      if (controlled.length) throw new ForbiddenError(`Set ${controlled.join(", ")} via /api/postcall-controls`);
       return repositories.deals.update(id, patch);
     }
 

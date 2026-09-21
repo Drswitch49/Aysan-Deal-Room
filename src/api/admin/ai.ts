@@ -1,6 +1,7 @@
 /** Admin client — AI: transcripts, pre/post-call briefs, OSINT, financial, jobs. */
 import { api, type Paginated } from "../http";
 import { type Row, resolveDealId } from "./_shared";
+import type { PlaybookConfig, Scorecard } from "../../lib/acp/postcallSpec";
 
 /**
  * Start the queued job now instead of waiting for the cron tick.
@@ -128,34 +129,82 @@ export async function askPrecallBriefQuestion(data: {
   return { answer: r.answer, aiAnswers: r.answer };
 }
 
-export async function fetchPostcallBriefs(dealId: string) {
+/** One post-call run. `scorecard` is null for legacy pre-spec briefs. */
+export interface PostcallRun {
+  id: string;
+  name: string;
+  created_at: string;
+  playbook_version: number | null;
+  input_kind: "transcript" | "notes" | null;
+  input_text: string | null;
+  scorecard: Scorecard | null;
+  /** Legacy (pre-spec) brief content, shown read-only. */
+  legacy: { summary?: string; followUpEmail?: string } | null;
+}
+
+export async function fetchPostcallRuns(dealId: string): Promise<PostcallRun[]> {
   const id = await resolveDealId(dealId).catch(() => dealId);
-  const page = await api.get<Paginated<Row>>(`/api/briefs/postcall?deal_id=${encodeURIComponent(id)}`);
-  return page.rows.map(flattenBrief);
+  const page = await api.get<Paginated<Row>>(`/api/briefs/postcall?deal_id=${encodeURIComponent(id)}&limit=100`);
+  return page.rows.map((r) => {
+    const data = r.brief_data && typeof r.brief_data === "object" ? r.brief_data : {};
+    const isSpec = data.spec === "acp-postcall-v1";
+    return {
+      id: r.id,
+      name: r.name ?? "",
+      created_at: r.created_at ?? "",
+      playbook_version: r.playbook_version ?? null,
+      input_kind: r.input_kind ?? null,
+      input_text: r.input_text ?? null,
+      scorecard: isSpec ? (data as Scorecard) : null,
+      legacy: isSpec ? null : { summary: data.summary, followUpEmail: data.followUpEmail },
+    };
+  });
 }
 
-export async function generatePostcallBrief(data: { dealId: string; notes: string; schemaId?: string }): Promise<Row> {
+/** Queue a new run. Each transcript or note creates a new run; none is overwritten. */
+export async function runPostcallScorecard(data: {
+  dealId: string;
+  inputText: string;
+  inputKind: "transcript" | "notes";
+  precallBriefId?: string | null;
+}): Promise<{ jobId: string }> {
   const id = await resolveDealId(data.dealId);
-  const job = await enqueueAiJob("postcall-brief", { deal_id: id, notes: data.notes, schema_id: data.schemaId });
-  return { success: true, status: "queued", id: job.job_id, jobId: job.job_id };
+  const job = await enqueueAiJob("postcall-brief", {
+    deal_id: id,
+    input_text: data.inputText,
+    input_kind: data.inputKind,
+    ...(data.precallBriefId ? { precall_brief_id: data.precallBriefId } : {}),
+  });
+  return { jobId: job.job_id };
 }
 
-export async function overridePostcallScores(data: {
-  briefId: string;
-  scores?: Row;
-  overrides?: Row;
-  summary?: string;
-  dealId?: string;
-}) {
-  const scores = data.scores ?? data.overrides ?? {};
-  const existing = await api.get<Row>(`/api/postcall-briefs/${encodeURIComponent(data.briefId)}`);
-  const prev = existing.brief_data ?? {};
-  const briefData = {
-    ...prev,
-    scores: { ...(prev.scores ?? {}), ...scores },
-    ...(data.summary ? { summary: data.summary } : {}),
-  };
-  return api.patch<Row>(`/api/postcall-briefs/${encodeURIComponent(data.briefId)}`, { brief_data: briefData });
+export function fetchPlaybookVersions(): Promise<PlaybookConfig[]> {
+  return api.get<PlaybookConfig[]>("/api/playbook-config");
+}
+
+export function createPlaybookVersion(values: Omit<PlaybookConfig, "version" | "created_by" | "created_at">): Promise<PlaybookConfig> {
+  return api.post<PlaybookConfig>("/api/playbook-config", values);
+}
+
+export interface PostcallControls {
+  deal_id: string;
+  institutional_band_pct: number | null;
+  dscr_sanctioned_at: string | null;
+  dscr_sanctioned_by: string | null;
+  dscr_sanction_note: string | null;
+}
+
+export async function fetchPostcallControls(dealId: string): Promise<PostcallControls> {
+  const id = await resolveDealId(dealId).catch(() => dealId);
+  return api.get<PostcallControls>(`/api/postcall-controls?deal_id=${encodeURIComponent(id)}`);
+}
+
+export async function updatePostcallControls(
+  dealId: string,
+  patch: { institutional_band_pct?: number | null; dscr_sanctioned?: boolean; dscr_sanction_note?: string | null },
+): Promise<PostcallControls> {
+  const id = await resolveDealId(dealId);
+  return api.patch<PostcallControls>("/api/postcall-controls", { deal_id: id, ...patch });
 }
 
 export async function triggerOsintEnrichment(dealId: string): Promise<{ success: boolean; message: string }> {

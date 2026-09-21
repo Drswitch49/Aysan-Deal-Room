@@ -16,6 +16,7 @@ import { SubmissionTimeline } from "../components/deals/SubmissionTimeline";
 import { DealChat } from "../components/deals/DealChat";
 import { ManualNotesTab } from "../components/deals/ManualNotesTab";
 import { KillReasonCard } from "../components/deals/KillReasonCard";
+import { PostCallScorecardTab } from "../components/deals/PostCallScorecardTab";
 import { ErrorState } from "../components/ui/ErrorState";
 import { LoadingState } from "../components/ui/LoadingState";
 import { PageHeader } from "../components/ui/PageHeader";
@@ -29,7 +30,7 @@ import { ACP_SCENARIOS } from "../lib/acp/scenarios";
 import { 
   fetchAdminLenders, createLender, assignDealToLender,
   fetchPrecallBriefs, generatePrecallBrief, askPrecallBriefQuestion,
-  fetchPostcallBriefs, generatePostcallBrief, overridePostcallScores,
+  fetchPostcallRuns,
   transitionDealStage, transitionDealLifecycle, triggerOsintEnrichment, triggerFinancialAnalysis,
   sendLoiWebhook, sendEmailWebhook, updateAdminDeal,
   deleteDeal, fetchTeamMemberRecords, getJobStatus, enqueueAiJob, watchJob
@@ -53,7 +54,7 @@ const formatGBP = (val: number) => {
 const tabs: Array<{ id: TabId; label: string; icon: ComponentType<{ className?: string }> }> = [
   { id: "overview", label: "Overview", icon: Eye },
   { id: "brief", label: "Pre-call brief", icon: FileText },
-  { id: "post-meeting", label: "Post-meeting", icon: History },
+  { id: "post-meeting", label: "Post-call", icon: History },
   { id: "financials", label: "Financials", icon: TrendingUp },
   { id: "loi", label: "LOI & structure", icon: ShieldCheck },
   { id: "documents", label: "Documents", icon: ClipboardList },
@@ -120,15 +121,24 @@ export function DealDetailPage() {
   const [activeTab, setActiveTab] = useState<TabId>("overview");
   const decodedRef = useMemo(() => (ref ? decodeURIComponent(ref) : ""), [ref]);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [latestPostcallScore, setLatestPostcallScore] = useState<string>("Pending");
+  // The header shows the latest post-call run's verdict (Kill / Price / …).
+  const [latestPostcallVerdict, setLatestPostcallVerdict] = useState<string>("Pending");
 
   const dealState = useDeal(decodedRef, refreshTrigger);
 
+  const dealId = dealState.data?.id;
   useEffect(() => {
-    if (dealState.data?.rawFields?.["Postcall_Score"]) {
-      setLatestPostcallScore(`${dealState.data.rawFields["Postcall_Score"]}/50`);
-    }
-  }, [dealState.data]);
+    if (!dealId) return;
+    let active = true;
+    fetchPostcallRuns(dealId)
+      .then((runs) => {
+        if (active) setLatestPostcallVerdict(runs[0]?.scorecard?.verdict ?? (runs.length ? "Legacy" : "Pending"));
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, [dealId]);
 
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -776,7 +786,7 @@ export function DealDetailPage() {
             setIsTransitionModalOpen={setIsTransitionModalOpen}
             setTransitionNotes={setTransitionNotes}
             setTransitionError={setTransitionError}
-            overallDisplayScore={latestPostcallScore}
+            overallDisplayScore={latestPostcallVerdict}
             openComposer={openComposer}
             isGeneratingVerdict={isGeneratingVerdict}
             handleGenerateVerdict={handleGenerateVerdict}
@@ -795,7 +805,7 @@ export function DealDetailPage() {
         )}
         
         {activeTab === "post-meeting" && (
-          <PostMeetingTab deal={joinedDeal} onScoreChange={setLatestPostcallScore} openComposer={openComposer} />
+          <PostCallScorecardTab deal={joinedDeal} onVerdictChange={setLatestPostcallVerdict} openComposer={openComposer} />
         )}
 
         {activeTab === "financials" && (
@@ -1925,7 +1935,7 @@ function OverviewTab({
                     </button>
                   )}
                   <div className="pl-3 border-l border-white/[0.06]">
-                    <span className="block text-[8px] font-bold text-slate-500 uppercase tracking-wider">Score</span>
+                    <span className="block text-[8px] font-bold text-slate-500 uppercase tracking-wider">Post-call</span>
                     <span className="text-base font-black text-[#C6A66B] font-mono tracking-tight block leading-tight">
                       {overallDisplayScore}
                     </span>
@@ -3566,721 +3576,6 @@ function PreCallBriefTab({ deal, openComposer }: { deal: any; openComposer: (opt
   );
 }
 
-function PostMeetingTab({ deal, onScoreChange, openComposer }: { deal: any; onScoreChange: (score: string) => void; openComposer: (opts: any) => void }) {
-  const [briefs, setBriefs] = useState<any[]>([]);
-  const [loadingBriefs, setLoadingBriefs] = useState(true);
-  const [selectedBrief, setSelectedBrief] = useState<any | null>(null);
-  
-  const [schemaId, setSchemaId] = useState<string>("ACP_DEAL_ROOM");
-  const [manualNotes, setManualNotes] = useState("");
-  const [uploadState, setUploadState] = useState<"idle" | "dragging" | "uploading" | "analyzed">("idle");
-  const [uploadedFileName, setUploadedFileName] = useState("");
-  const [progress, setProgress] = useState(0);
-  
-  const [mode, setMode] = useState<"view" | "new">("view");
-  const [generating, setGenerating] = useState(false);
-  const [generatingStatus, setGeneratingStatus] = useState(""); // live queue status
-  const [overrides, setOverrides] = useState<Record<string, number>>({});
-  const [savingOverrides, setSavingOverrides] = useState(false);
-  const [successMsg, setSuccessMsg] = useState("");
-  const [errorMsg, setErrorMsg] = useState("");
-  const [copiedEmail, setCopiedEmail] = useState(false);
-  const [activeExplanation, setActiveExplanation] = useState<string | null>(null);
-
-  // Stops the job poller when the tab unmounts mid-generation.
-  const cancelWatch = useRef<(() => void) | null>(null);
-  useEffect(() => () => cancelWatch.current?.(), []);
-
-  // Load past briefs on mount
-  useEffect(() => {
-    let active = true;
-    async function loadBriefs() {
-      setLoadingBriefs(true);
-      try {
-        const list = await fetchPostcallBriefs(deal.id);
-        if (active) {
-          setBriefs(list);
-          if (list.length > 0) {
-            setSelectedBrief(list[0]);
-            setMode("view");
-          } else {
-            setMode("new");
-          }
-        }
-      } catch (err: any) {
-        console.error("Failed to load post-call briefs:", err);
-      } finally {
-        if (active) setLoadingBriefs(false);
-      }
-    }
-    loadBriefs();
-    return () => {
-      active = false;
-    };
-  }, [deal.id]);
-
-  // Sync parent header score
-  useEffect(() => {
-    if (selectedBrief && selectedBrief.calculated) {
-      onScoreChange(`${selectedBrief.calculated.scoreOutOf50}/50`);
-    } else {
-      onScoreChange("—/50");
-    }
-  }, [selectedBrief, onScoreChange]);
-
-  // Initialize overrides state when selectedBrief changes
-  useEffect(() => {
-    if (selectedBrief) {
-      setOverrides(selectedBrief.overrides || {});
-    } else {
-      setOverrides({});
-    }
-    setActiveExplanation(null);
-  }, [selectedBrief]);
-
-  const handleCopyEmail = () => {
-    if (selectedBrief?.followUpEmail) {
-      navigator.clipboard.writeText(selectedBrief.followUpEmail);
-      setCopiedEmail(true);
-      setTimeout(() => setCopiedEmail(false), 2000);
-    }
-  };
-
-  const handleLoadDemo = () => {
-    setManualNotes(`CleanCare Ltd Discovery Call Notes - 07/06/2026
-Target clean contract provider based in Maidstone, Kent.
-
-Turnover is £1.8m, with EBITDA reported at £165k. Owner add-back of £25k verified for owner/director market salary. Total EBITDA normalized is £190k. Asking price EV is £450k (~2.4x normalized EBITDA).
-
-Owner plans to retire but is willing to support operations for up to 6 months for transition under earn-out/handover. TUPE transfers apply to 14 cleaners. Depot lease terms are currently outstanding and need landlord confirmation.
-
-Client concentration details verified: largest facility client generates 21% of turnover. Low historical debtor risk. Predictable recurring office cleaning services contracts. Bankable profile for senior debt, suitable for 45% EV leverage.
-
-Owner is open to deferred payment structures, specifically accepting 20% Vendor Loan Note (VLN) and 15% deferred payment over 2 years, with remaining 65% cash at close. Responsive team and broker agreed to supply full 3-year P&L immediately.`);
-  };
-
-  const handleUpdateScorecard = async () => {
-    if (!manualNotes.trim()) {
-      setErrorMsg("Please paste some meeting notes or drag a transcript first.");
-      return;
-    }
-    setGenerating(true);
-    setErrorMsg("");
-    setSuccessMsg("");
-    setGeneratingStatus("");
-    try {
-      const result = await generatePostcallBrief({
-        dealId: deal.id,
-        notes: manualNotes,
-        schemaId
-      });
-
-      if (result?.status === "queued" && result?.id) {
-        setGeneratingStatus("Queued — generating in background…");
-        setSuccessMsg("Post-call analysis queued — results will appear automatically.");
-
-        cancelWatch.current?.();
-        cancelWatch.current = watchJob(result.id, {
-          onProgress: setGeneratingStatus,
-          onComplete: async () => {
-            const list = await fetchPostcallBriefs(deal.id);
-            setBriefs(list);
-            if (list.length > 0) {
-              setSelectedBrief(list[0]);
-              setMode("view");
-            }
-            setGenerating(false);
-            setGeneratingStatus("");
-            setSuccessMsg("Post-call analysis completed successfully!");
-          },
-          onFail: (message) => {
-            setErrorMsg(message);
-            setSuccessMsg("");
-            setGenerating(false);
-            setGeneratingStatus("");
-          },
-        });
-
-        setManualNotes("");
-        setUploadState("idle");
-      } else {
-        // 200 — synchronous result (local dev)
-        setBriefs(prev => [result, ...prev]);
-        setSelectedBrief(result);
-        setMode("view");
-        setManualNotes("");
-        setUploadState("idle");
-        setSuccessMsg("Post-call analysis generated successfully!");
-        setGenerating(false);
-      }
-    } catch (err: any) {
-      console.error(err);
-      setErrorMsg(err.message || "Failed to generate post-call brief.");
-      setGenerating(false);
-    }
-  };
-
-  const handleSliderChange = (metricId: string, val: number) => {
-    setOverrides(prev => ({
-      ...prev,
-      [metricId]: val
-    }));
-  };
-
-  const handleResetOverrides = () => {
-    setOverrides(selectedBrief?.overrides || {});
-  };
-
-  const handleSubmitOverrides = async () => {
-    if (!selectedBrief) return;
-    setSavingOverrides(true);
-    setErrorMsg("");
-    setSuccessMsg("");
-    try {
-      const result = await overridePostcallScores({
-        dealId: deal.id,
-        briefId: selectedBrief.id,
-        overrides
-      });
-      // Update briefs list and current selection
-      setBriefs(prev => prev.map(b => b.id === result.id ? result : b));
-      setSelectedBrief(result);
-      setSuccessMsg("Manual overrides updated and saved successfully!");
-    } catch (err: any) {
-      console.error(err);
-      setErrorMsg(err.message || "Failed to save overrides.");
-    } finally {
-      setSavingOverrides(false);
-    }
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setUploadState("dragging");
-  };
-
-  const handleDragLeave = () => {
-    setUploadState("idle");
-  };
-
-  const startMockUpload = (fileName: string) => {
-    setUploadedFileName(fileName);
-    setUploadState("uploading");
-    setProgress(20);
-    const interval = setInterval(() => {
-      setProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setTimeout(() => {
-            setUploadState("analyzed");
-            // Fill with demo text for high fidelity
-            handleLoadDemo();
-          }, 300);
-          return 100;
-        }
-        return prev + 20;
-      });
-    }, 100);
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    const files = e.dataTransfer.files;
-    if (files.length > 0) {
-      startMockUpload(files[0].name);
-    }
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (files && files.length > 0) {
-      startMockUpload(files[0].name);
-    }
-  };
-
-  const hasUnsavedOverrides = useMemo(() => {
-    if (!selectedBrief) return false;
-    // Check if overrides state differs from selectedBrief.overrides
-    const schemaMetrics = selectedBrief.calculated?.metrics || [];
-    return schemaMetrics.some((metric: any) => {
-      const stateVal = overrides[metric.metricId] !== undefined ? overrides[metric.metricId] : metric.score;
-      const dbVal = selectedBrief.overrides?.[metric.metricId] !== undefined 
-        ? selectedBrief.overrides[metric.metricId] 
-        : selectedBrief.aiScores?.[metric.metricId]?.score;
-      return stateVal !== dbVal;
-    });
-  }, [overrides, selectedBrief]);
-
-  if (loadingBriefs) {
-    return (
-      <div className="flex flex-col items-center justify-center py-16 text-center space-y-4">
-        <Loader2 className="h-8 w-8 text-[#C6A66B] animate-spin" />
-        <p className="text-xs text-slate-400">Loading scoring scorecard records...</p>
-      </div>
-    );
-  }
-
-  // ----------------------------------------------------
-  // VIEW MODE
-  // ----------------------------------------------------
-  if (mode === "view" && selectedBrief) {
-    const calc = selectedBrief.calculated || { scoreOutOf50: 0, percentage: 0, metrics: [] };
-    const schemaLabel = selectedBrief.schemaId === "ACP_DEAL_ROOM" ? "ACP Default" : "Modular";
-
-    let emailSubject = "Follow-up & Discovery Outcomes";
-    let emailBody = selectedBrief.followUpEmail || "";
-    if (emailBody.toLowerCase().trim().startsWith("subject:")) {
-      const firstLineEnd = emailBody.indexOf("\n");
-      if (firstLineEnd !== -1) {
-        emailSubject = emailBody.substring(emailBody.toLowerCase().indexOf("subject:") + 8, firstLineEnd).trim();
-        emailBody = emailBody.substring(firstLineEnd).trim();
-      }
-    }
-    
-    return (
-      <div className="space-y-6 animate-fade-in-up font-sans">
-        
-        {/* Controls Row */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/5 pb-4">
-          <div className="flex items-center gap-3">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Analysis Run:</span>
-            <select
-              value={selectedBrief.id}
-              onChange={(e) => {
-                const found = briefs.find(b => b.id === e.target.value);
-                if (found) setSelectedBrief(found);
-              }}
-              className="h-9 rounded-xl border border-white/[0.02] bg-[#161B22] px-3.5 text-xs text-white outline-none focus:border-acp-bronze cursor-pointer"
-            >
-              {briefs.map(b => (
-                <option key={b.id} value={b.id}>{b.name}</option>
-              ))}
-            </select>
-          </div>
-          
-          <button
-            onClick={() => {
-              setMode("new");
-              setOverrides({});
-              setSuccessMsg("");
-              setErrorMsg("");
-            }}
-            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-white/[0.02] bg-white/[0.015] px-4 text-xs font-bold uppercase tracking-wider text-slate-350 hover:text-white hover:bg-white/[0.02] transition cursor-pointer"
-          >
-            <Plus className="h-4 w-4" />
-            New Analysis
-          </button>
-        </div>
-
-        {errorMsg && (
-          <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 p-3 text-xs text-rose-400 font-medium">
-            {errorMsg}
-          </div>
-        )}
-
-        {successMsg && (
-          <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3 text-xs text-emerald-400 font-medium flex items-center gap-2">
-            <Check className="h-4 w-4" />
-            {successMsg}
-          </div>
-        )}
-
-        {/* Main Scorecard View */}
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-6 items-start">
-          
-          {/* Left: Score Breakdown */}
-          <div className="space-y-6">
-            
-            {/* Scorecard Box */}
-            <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-6 space-y-6">
-              
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/5 pb-4">
-                <div>
-                  <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-350">
-                    DEAL SCORECARD — {calc.scoreOutOf50}/50
-                  </h4>
-                  <p className="text-[10px] text-slate-500 font-semibold tracking-wider mt-0.5">
-                    Schema: {schemaLabel} ({calc.metrics?.length || 0} Categories)
-                  </p>
-                </div>
-                <div className="text-right">
-                  <span className="block text-[9px] font-extrabold uppercase tracking-widest text-[#FF6B00]">
-                    {calc.percentage}% — progress to IC approval
-                  </span>
-                  <div className="h-2 w-48 bg-white/[0.015] rounded-full overflow-hidden mt-1.5 ml-auto">
-                    <div className="h-full rounded-full bg-[#FF6B00]" style={{ width: `${calc.percentage}%` }} />
-                  </div>
-                </div>
-              </div>
-
-              {/* Sliders Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5">
-                {calc.metrics?.map((metric: any) => {
-                  const currentVal = overrides[metric.metricId] !== undefined ? overrides[metric.metricId] : metric.score;
-                  const dbVal = selectedBrief.overrides?.[metric.metricId] !== undefined 
-                    ? selectedBrief.overrides[metric.metricId] 
-                    : selectedBrief.aiScores?.[metric.metricId]?.score;
-                  const isMetricOverridden = selectedBrief.overrides?.[metric.metricId] !== undefined;
-                  const isModifiedLocally = currentVal !== dbVal;
-
-                  // Color based on score
-                  const scoreColorClass = currentVal >= 8 
-                    ? "text-emerald-400" 
-                    : currentVal >= 5 
-                    ? "text-[#FF6B00]" 
-                    : "text-rose-450";
-
-                  const scoreBgColor = currentVal >= 8 
-                    ? "#10B981" 
-                    : currentVal >= 5 
-                    ? "#FF6B00" 
-                    : "#EF4444";
-
-                  return (
-                    <div key={metric.metricId} className="space-y-2 p-3 bg-white/[0.01] hover:bg-white/[0.02] border border-white/[0.02] rounded-xl transition duration-200">
-                      <div className="flex items-center justify-between text-xs">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-slate-300 font-semibold text-[11px]">{metric.name}</span>
-                          {isMetricOverridden && (
-                            <span className="text-[8px] bg-blue-500/10 text-blue-450 border border-blue-500/20 px-1 py-0.2 rounded font-extrabold uppercase tracking-wider">
-                              Override
-                            </span>
-                          )}
-                          {isModifiedLocally && (
-                            <span className="text-[8px] bg-amber-500/10 text-amber-500 border border-amber-500/20 px-1 py-0.2 rounded font-extrabold uppercase tracking-wider animate-pulse">
-                              Pending
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <span className={`font-extrabold ${scoreColorClass}`}>{currentVal}/10</span>
-                          <button
-                            type="button"
-                            onClick={() => setActiveExplanation(activeExplanation === metric.metricId ? null : metric.metricId)}
-                            className={`h-5 w-5 flex items-center justify-center rounded-md border transition cursor-pointer ${
-                              activeExplanation === metric.metricId
-                                ? "bg-blue-500/10 border-blue-500/30 text-blue-450"
-                                : "bg-white/[0.015] border-white/[0.02] text-slate-500 hover:text-white"
-                            }`}
-                          >
-                            <Info className="h-3 w-3" />
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="relative flex items-center">
-                        <input
-                          type="range"
-                          min="1"
-                          max="10"
-                          value={currentVal}
-                          onChange={(e) => handleSliderChange(metric.metricId, Number(e.target.value))}
-                          className="w-full h-1.5 rounded-full appearance-none bg-white/[0.015] cursor-pointer focus:outline-none transition"
-                          style={{
-                            background: `linear-gradient(to right, ${scoreBgColor} 0%, ${scoreBgColor} ${currentVal * 10}%, rgba(255,255,255,0.05) ${currentVal * 10}%, rgba(255,255,255,0.05) 100%)`
-                          }}
-                        />
-                      </div>
-
-                      {/* Tooltip inline box */}
-                      {activeExplanation === metric.metricId && (
-                        <div className="text-[10px] text-slate-400 bg-[#07090D] border border-white/5 rounded-lg p-2.5 mt-2 leading-relaxed animate-fade-in-up">
-                          <p className="font-semibold text-slate-300 mb-0.5">AI Rating Rationale:</p>
-                          {metric.explanation}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Unsaved overrides banner */}
-              {hasUnsavedOverrides && (
-                <div className="rounded-xl border border-amber-500/25 bg-amber-500/5 p-4 flex flex-col sm:flex-row items-center justify-between gap-4 animate-scale-in">
-                  <div className="flex items-center gap-2.5 text-xs text-amber-500 font-medium">
-                    <AlertTriangle className="h-4.5 w-4.5 shrink-0" />
-                    <span>Unsaved adjustments. Recompute & update scorecard?</span>
-                  </div>
-                  <div className="flex items-center gap-2 w-full sm:w-auto">
-                    <button
-                      onClick={handleResetOverrides}
-                      disabled={savingOverrides}
-                      className="h-8 flex-1 sm:flex-initial rounded-lg border border-white/[0.02] hover:border-white/20 bg-white/[0.015] px-3 text-xs font-bold uppercase tracking-wider text-slate-350 transition cursor-pointer"
-                    >
-                      Reset
-                    </button>
-                    <button
-                      onClick={handleSubmitOverrides}
-                      disabled={savingOverrides}
-                      className="h-8 flex-1 sm:flex-initial rounded-lg bg-[#C6A66B] text-slate-950 px-4 text-xs font-black uppercase tracking-wider hover:brightness-110 active:scale-[0.98] transition cursor-pointer shadow-lg shadow-[#C6A66B]/10 flex items-center justify-center gap-1"
-                    >
-                      {savingOverrides && <RefreshCw className="h-3 w-3 animate-spin" />}
-                      Save Scores
-                    </button>
-                  </div>
-                </div>
-              )}
-
-            </div>
-
-            {/* AI Summary Block */}
-            <div className="rounded-2xl border border-white/[0.04] bg-[#161B22] p-5 space-y-4 shadow-premium-card card-sheen">
-              <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 pb-2 border-b border-white/5 select-none">
-                ACP AI POST-CALL SUMMARY & INSIGHTS
-              </h4>
-              <div className="rounded-xl border border-[#C6A66B]/15 bg-gradient-to-r from-[#C6A66B]/5 to-transparent p-5 space-y-3 border-l-2 border-l-[#C6A66B] shadow-inner">
-                <div className="flex items-center gap-2 pb-1">
-                  <BrainCircuit className="h-4 w-4 text-[#C6A66B]" />
-                  <span className="text-[9px] font-black uppercase tracking-widest text-[#C6A66B]">Analysis Run Executive Insights</span>
-                </div>
-                {renderRichText(selectedBrief.summary)}
-              </div>
-            </div>
-
-          </div>
-
-          {/* Right: Email Drawer */}
-          <div className="rounded-2xl border border-white/[0.04] bg-[#161B22] p-5 space-y-4 h-full shadow-premium-card card-sheen">
-            <div className="flex items-center justify-between border-b border-white/5 pb-3">
-              <h3 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 select-none">
-                BROKER FOLLOW-UP EMAIL DRAFT
-              </h3>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={handleCopyEmail}
-                  className="inline-flex h-7 items-center gap-1.5 rounded-lg border border-white/[0.02] bg-[#C6A66B]/10 text-[#C6A66B] border-[#C6A66B]/20 px-3 text-[10px] font-extrabold uppercase tracking-wider hover:bg-[#C6A66B]/20 cursor-pointer transition"
-                >
-                  {copiedEmail ? (
-                    <>
-                      <Check className="h-3 w-3 text-emerald-400" />
-                      COPIED
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="h-3 w-3" />
-                      COPY EMAIL
-                    </>
-                  )}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => openComposer({
-                    type: "email",
-                    recipientName: deal.rawFields?.["Contact Name"] || deal.rawFields?.["Broker Name"] || "",
-                    recipientEmail: deal.rawFields?.["Contact Email"] || deal.rawFields?.["Broker Email"] || "",
-                    subject: emailSubject,
-                    body: emailBody,
-                    generatedBy: "postcall_analysis_engine"
-                  })}
-                  className="inline-flex h-7 items-center gap-1.5 rounded-lg bg-[#C6A66B] hover:bg-[#B8924F] text-slate-950 px-3 text-[10px] font-black uppercase tracking-wider transition cursor-pointer"
-                >
-                  <Send className="h-3 w-3" />
-                  SEND EMAIL
-                </button>
-              </div>
-            </div>
-            
-            {/* Mock Email client window */}
-            <div className="rounded-xl border border-white/5 bg-[#0E1524] overflow-hidden shadow-inner flex flex-col">
-              {/* Header Fields */}
-              <div className="p-4 border-b border-white/5 space-y-2.5 text-xs text-slate-400 select-none bg-white/[0.005]">
-                <div className="flex items-center gap-2">
-                  <span className="font-extrabold text-[10px] uppercase w-10 text-slate-500">From:</span>
-                  <span className="text-slate-300 font-medium">Ayo Olatunjie <span className="text-slate-500 font-normal">&lt;ayo@aysancapital.com&gt;</span></span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="font-extrabold text-[10px] uppercase w-10 text-slate-500">To:</span>
-                  <span className="text-slate-300 font-medium">Broker / Seller Representative</span>
-                </div>
-                <div className="flex items-start gap-2 pt-1 border-t border-white/[0.02]">
-                  <span className="font-extrabold text-[10px] uppercase w-10 text-slate-500 mt-0.5">Subject:</span>
-                  <span className="text-white font-bold">{emailSubject}</span>
-                </div>
-              </div>
-              
-              {/* Compose Body */}
-              <div className="p-5 overflow-y-auto max-h-[400px] text-slate-300 text-xs leading-relaxed font-sans whitespace-pre-wrap select-text">
-                {emailBody}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ----------------------------------------------------
-  // NEW ANALYSIS MODE (NEW)
-  // ----------------------------------------------------
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-6 items-stretch font-sans animate-fade-in-up">
-      
-      {/* Left Column Controls */}
-      <div className="space-y-6 flex flex-col justify-between h-full">
-        
-        {/* Post-meeting upload */}
-        <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 space-y-4">
-          <div className="flex items-center justify-between pb-2 border-b border-white/5">
-            <h3 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">
-              POST-MEETING SCORING
-            </h3>
-            {briefs.length > 0 && (
-              <button
-                onClick={() => setMode("view")}
-                className="text-[9px] font-black uppercase text-[#C6A66B] hover:underline cursor-pointer"
-              >
-                Back to Scorecard
-              </button>
-            )}
-          </div>
-          
-          <p className="text-[10px] text-slate-400 leading-relaxed">
-            Specify a scorecard schema configuration, paste call notes/transcripts or drag a file to run the AI engine.
-          </p>
-
-          {/* Schema Selector */}
-          <div className="space-y-1.5">
-            <label className="block text-[9px] font-extrabold uppercase tracking-wider text-slate-400">Scoring Schema Configuration</label>
-            <select
-              value={schemaId}
-              onChange={(e) => setSchemaId(e.target.value)}
-              className="h-10 w-full rounded-xl border border-white/[0.02] bg-[#161B22] px-3 text-xs text-white outline-none focus:border-acp-bronze cursor-pointer"
-            >
-              <option value="ACP_DEAL_ROOM">ACP Default Schema (5 Categories)</option>
-              <option value="MODULAR_OPPORTUNITY">Modular Opportunity Schema (8 Categories)</option>
-            </select>
-          </div>
-
-          {/* Drag & Drop */}
-          <div 
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-            className={`border border-dashed rounded-xl p-6 text-center transition cursor-pointer relative ${
-              uploadState === "dragging" 
-                ? "border-acp-bronze bg-acp-bronze/5" 
-                : "border-white/[0.02] hover:border-white/20 bg-white/[0.01]"
-            }`}
-          >
-            <input 
-              type="file" 
-              onChange={handleFileChange}
-              className="absolute inset-0 opacity-0 cursor-pointer"
-            />
-            {uploadState === "idle" && (
-              <div className="space-y-2 py-1">
-                <FileText className="h-5 w-5 text-slate-500 mx-auto" />
-                <p className="text-[9px] text-slate-405 font-bold uppercase tracking-wider">
-                  TRANSCRIPT (PDF, TXT, DOCX)
-                </p>
-              </div>
-            )}
-            {uploadState === "dragging" && (
-              <p className="text-[10px] text-acp-bronze font-bold">Drop transcript file here</p>
-            )}
-            {uploadState === "uploading" && (
-              <div className="space-y-2">
-                <RefreshCw className="h-4 w-4 text-acp-bronze mx-auto animate-spin" />
-                <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Parsing Transcript ({progress}%)</p>
-              </div>
-            )}
-            {uploadState === "analyzed" && (
-              <div className="space-y-1">
-                <Check className="h-4.5 w-4.5 text-emerald-450 mx-auto" />
-                <p className="text-[10px] text-slate-200 font-bold truncate">{uploadedFileName}</p>
-                <p className="text-[8px] text-emerald-400 font-bold uppercase tracking-widest">Transcript Loaded</p>
-              </div>
-            )}
-          </div>
-
-          <div className="flex items-center justify-between text-[8px] font-black uppercase text-slate-500 tracking-widest my-2">
-            <span className="h-px bg-white/[0.015] flex-1" />
-            <span className="px-2">OR PASTE CALL NOTES MANUALLY</span>
-            <span className="h-px bg-white/[0.015] flex-1" />
-          </div>
-
-          <textarea
-            value={manualNotes}
-            onChange={(e) => setManualNotes(e.target.value)}
-            placeholder="Key points from the call..."
-            rows={6}
-            className="w-full rounded-xl border border-white/[0.02] bg-white/[0.015] p-3 text-xs text-white placeholder-slate-600 outline-none focus:border-acp-bronze font-sans resize-none"
-          />
-
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={handleLoadDemo}
-              disabled={generating}
-              className="flex-1 h-10 rounded-xl border border-white/[0.02] bg-white/[0.015] text-slate-350 font-bold text-xs uppercase tracking-wider hover:bg-white/[0.02] transition cursor-pointer"
-            >
-              Demo Notes
-            </button>
-            
-            <button
-              type="button"
-              onClick={handleUpdateScorecard}
-              disabled={generating}
-              className="flex-[2] h-10 rounded-xl bg-gradient-to-r from-[#C6A66B] to-[#B8924F] text-slate-950 font-black text-xs uppercase tracking-wider hover:opacity-90 active:scale-[0.98] flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 shadow-lg shadow-[#C6A66B]/10 transition duration-200"
-            >
-              {generating ? (
-                <>
-                  <RefreshCw className="h-4 w-4 animate-spin" />
-                  Scoring...
-                </>
-              ) : (
-                <>
-                  <CheckCircle2 className="h-4.5 w-4.5 text-slate-950" />
-                  Score Call
-                </>
-              )}
-            </button>
-          </div>
-
-          {/* The live queue state — a job that has failed once and is waiting
-              out its retry backoff otherwise looks identical to one working. */}
-          {generating && generatingStatus && (
-            <div className="rounded-xl border border-white/[0.04] bg-white/[0.015] p-3 text-[11px] text-slate-400 font-medium leading-relaxed">
-              {generatingStatus}
-            </div>
-          )}
-
-          {errorMsg && (
-            <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 p-3 text-xs text-rose-450 font-medium">
-              {errorMsg}
-            </div>
-          )}
-        </div>
-
-        {/* Info panel */}
-        <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 space-y-3">
-          <h3 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 pb-2 border-b border-white/5">
-            EXPLAINABLE AI ENGINE
-          </h3>
-          <p className="text-[10px] text-slate-400 leading-relaxed">
-            The Deal Room engine runs structured prompts mapping details against transaction guidelines. Manual overrides are saved to Airtable, recalculating the totals dynamically.
-          </p>
-        </div>
-
-      </div>
-
-      {/* Right Column Empty State (Waiting for action) */}
-      <div className="rounded-2xl border border-[#C6A66B]/10 bg-gradient-to-b from-[#161B22] to-[#080B10] p-8 flex flex-col items-center justify-center text-center space-y-4 min-h-[400px] flex-1">
-        <div className="h-14 w-14 rounded-full bg-[#C6A66B]/10 border border-[#C6A66B]/20 flex items-center justify-center text-[#C6A66B] shadow-glow-bronze/10">
-          <Sparkles className="h-6 w-6 animate-pulse" />
-        </div>
-        <div className="max-w-md space-y-1.5">
-          <h4 className="text-sm font-bold text-white uppercase tracking-wider">Awaiting Discovery Call Input</h4>
-          <p className="text-xs text-slate-400 leading-relaxed">
-            Select your scorecard schema layout (ACP Default 5-metric or Modular 8-metric), paste the meeting notes, and click **Score Call** to run the intelligence scoring engine.
-          </p>
-        </div>
-      </div>
-
-    </div>
-  );
-}
-
 function FinancialsTab({ 
   deal, 
   financialStatus, 
@@ -5838,6 +5133,7 @@ function EmailComposerModal({
         dealId,
         subject,
         body,
+        generatedBy,
         type: type === "loi" ? "loi" : "post_meeting_email"
       };
 

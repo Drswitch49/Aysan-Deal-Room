@@ -6,7 +6,8 @@
  */
 import { z } from "zod";
 import { askClaude, askClaudeJson } from "./client.js";
-import { getPromptInstructions, SCORING_SCHEMAS } from "../../api/_services/scoring.js";
+import { GATES, POSTCALL_FIELDS, type PlaybookConfig } from "../../src/lib/acp/postcallSpec.js";
+import { claudeScorecardSchema, numberLines, type ClaudeScorecard } from "../postcall/scorecard.js";
 import { ACP_PERSONAS } from "../../src/lib/acp/personas.js";
 import { ACP_SCENARIOS } from "../../src/lib/acp/scenarios.js";
 
@@ -462,72 +463,111 @@ ${sourceMaterial ? `\n${sourceMaterial}` : "\nNo external source material was av
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-//  Post-call brief + scoring
+//  Post-call scorecard (ACP Post-Call Scorecard Spec)
 // ═══════════════════════════════════════════════════════════════════════════
-const metricScoreSchema = z.object({
-  score: z.number().catch(5),
-  explanation: z.string().catch("No AI explanation provided."),
-});
-export const postcallBriefSchema = z.object({
-  summary: z.string().catch("Discovery call complete. Key details analyzed."),
-  scores: z.record(z.string(), metricScoreSchema).catch({}),
-  followUpEmail: z.string().catch("Dear team, the follow-up email draft is pending."),
-});
-export type PostcallBrief = z.infer<typeof postcallBriefSchema>;
+/** Render one Playbook threshold for the prompt; unset values are said so. */
+function threshold(v: number | null, unit: string): string {
+  return v == null ? "NOT SET in the Playbook config" : `${v}${unit}`;
+}
 
-export async function generatePostcallBrief(deal: any, notes: string, schemaId: string): Promise<PostcallBrief> {
-  const schema = (SCORING_SCHEMAS as any)[schemaId] || (SCORING_SCHEMAS as any).ACP_DEAL_ROOM;
-  const scoringInstructions = getPromptInstructions(schemaId);
+function postcallSystemPrompt(config: PlaybookConfig, institutionalBandPct: number | null): string {
+  const fieldList = POSTCALL_FIELDS.map((f) => `  "${f.key}": ${f.label}. value: ${f.shape}`).join("\n");
+  const gateList = GATES.map(
+    (g) => `  ${g.id}. ${g.name}: ${g.question}\n     inputs: ${g.inputs.join(", ")}\n     pass if: ${g.pass}\n     fail if: ${g.fail}`,
+  ).join("\n");
 
-  const systemPrompt = `You are a senior investment director at Aysan Capital Partners (ACP).
-Analyze the provided meeting notes or transcript from a discovery call with a target company's owner/broker.
-Your task is to:
-1. Write a professional, concise executive post-call summary paragraph (under 4 sentences) outlining key call outcomes, risks, and next steps.
-2. Score the opportunity across the defined metrics.
-3. Draft a professional, warm, yet direct follow-up email to the broker/seller summarizing the call, confirming interest, and requesting typical next-step documents (e.g. 3-year accounts, staff structures, client concentration details, lease agreements).
+  return `You are the post-call scorecard engine for Aysan Capital Partners (ACP), a UK acquirer of non-discretionary B2B service businesses.
+You read one call transcript or set of manual notes and return ONE scorecard as strict JSON. Gates decide the verdict; the backend computes the verdict, completeness and info request from what you return.
 
-${scoringInstructions}
+THE INPUT
+The call input is given with every line prefixed "L<n>:". A pre-call brief may follow; it is context, not evidence of what was said on the call.
 
-You MUST respond ONLY with a valid JSON object. Do not output any preamble, markdown formatting block fences (like \`\`\`json), or conversational filler. The output must be pure, parsable JSON matching this schema exactly:
+FIELD OBJECT — every field you return has exactly these five attributes:
+  "value": the extracted answer in the shape given below, or null
+  "status": one of "filed" (from filed statutory accounts), "estimated" (your derivation from stated facts), "vendor" (the seller or broker said it), "verified" (checked against a document on the call), "unknown"
+  "source": where the value comes from — a note line ("L12", "L12-L14", "L12, L30"), a transcript timestamp exactly as it appears in the input ("00:14:32"), or "brief:<section>" for a fact taken from the pre-call brief. Separate several references with commas.
+  "box": "kill", "price", "condition" or "none" — where this fact lands: a hard-gate failure, something that moves price, something that becomes a deal condition, or neither
+  "next_action": the single question to put to the broker or seller in the info request or on a second call
 
+RULES
+- No source means you may not assert the value: return value null, status "unknown". Never guess, never fill from general knowledge.
+- A post-call run rarely produces "verified". Most fields will be "vendor" or "unknown". That is correct.
+- Every "unknown" field must carry a next_action question. Known fields may carry one to firm them up.
+- next_action questions go to the broker verbatim. They must NOT contain £ or any currency, percentages, numbers describing money or shares, or anything about deal structure, price, valuation, earn-outs, loan notes, deferred consideration, leverage or DSCR.
+- Percent fields are numbers 0-100. Money fields are plain GBP numbers with no symbol or commas.
+- Aggregate framework revenue to the single buyer behind the framework when computing largest_pct and top3_pct.
+- Founder dependency is a price matter, not a kill, wherever a manager is installable within the manager_install_days window: box it "price".
+- Do not add keys, commentary or prose anywhere. The only free text allowed is inside next_action and inside string values.
+
+FIELDS (return every key under "fields"):
+${fieldList}
+
+HARD GATES — for each, answer "pass", "fail", "vendor" (would pass, but only on the seller's word) or "unknown" (not enough to call it). One fail kills the deal, so fail only on facts with a source.
+${gateList}
+
+PLAYBOOK THRESHOLDS (config version ${config.version}; use only these, never your own):
+  recurring_gate: ${threshold(config.recurring_gate_pct, "% of revenue")}
+  ebitda_band: ${config.ebitda_band_min_gbp == null || config.ebitda_band_max_gbp == null ? "NOT SET in the Playbook config" : `GBP ${config.ebitda_band_min_gbp} to GBP ${config.ebitda_band_max_gbp}`}
+  concentration_largest: ${threshold(config.concentration_largest_pct, "% of revenue")}
+  concentration_top3: ${threshold(config.concentration_top3_pct, "% of revenue")}
+  institutional_band (this deal): ${threshold(institutionalBandPct, "% of revenue for the largest customer, where it is an institutional buyer")}
+  accreditation_stay_months: ${threshold(config.accreditation_stay_months, " months")}
+  manager_install_days: ${threshold(config.manager_install_days, " days")}
+Where a threshold a gate depends on is NOT SET, that gate may not "pass" on the threshold test: return "unknown" unless a non-threshold fail condition is met.
+
+OUTPUT — pure JSON, no markdown fences, exactly this shape:
 {
-  "summary": "Executive summary paragraph...",
-  "scores": {
-    ${schema.metrics.map((m: any) => `"${m.id}": { "score": 8, "explanation": "..." }`).join(",\n    ")}
-  },
-  "followUpEmail": "Subject: Next Steps - [Company Name]...\\n\\nDear [Name],..."
+  "fields": { "<field key>": { "value": ..., "status": "...", "source": "..." | null, "box": "...", "next_action": "..." | null }, ... },
+  "gates": [ { "id": 1, "result": "pass" | "fail" | "vendor" | "unknown" }, ... all 8 gates in order ]
 }`;
+}
 
-  const userContent = `Here is the target company information:
-- Company Name: ${deal.companyName || deal.dealRef}
-- Sector: ${deal.sector}
-- Location: ${deal.location}
-- Asking Price (EV): ${deal.evAsk ? `£${deal.evAsk}` : "TBC"}
-- Revenue/Turnover: ${deal.revenue ? `£${deal.revenue}` : "TBC"}
-- EBITDA: ${deal.ebitda ? `£${deal.ebitda}` : "TBC"}
-- EV Multiple: ${deal.multiplier || "TBC"}
+export interface PostcallRunInput {
+  deal: { id: string; companyName: string; sector?: string | null; location?: string | null };
+  inputKind: "transcript" | "notes";
+  inputText: string;
+  precallBrief: Record<string, unknown> | null;
+  config: PlaybookConfig;
+  institutionalBandPct: number | null;
+}
 
-Here are the call notes/transcript:
-${notes}
+/** Claude's extraction for one run. The spec's rules are applied afterwards
+ *  by lib/postcall/scorecard.ts — this returns the raw, schema-valid read. */
+export function extractPostcallScorecard(run: PostcallRunInput): Promise<ClaudeScorecard> {
+  const { numbered } = numberLines(run.inputText);
 
-Perform your analysis and return the JSON object.`;
+  // The brief's judgement sections only — enough to cite, not the call script.
+  let briefBlock = "No pre-call brief was supplied.";
+  if (run.precallBrief) {
+    const b = run.precallBrief;
+    const pick = {
+      executiveDealSnapshot: b.executiveDealSnapshot,
+      financialIntelligence: b.financialIntelligence,
+      sellerIntelligence: b.sellerIntelligence,
+      osintIntelligence: b.osintIntelligence,
+      criticalUnknowns: b.criticalUnknowns,
+      dealKillers: b.dealKillers,
+    };
+    briefBlock = `PRE-CALL BRIEF (cite as brief:<section>, e.g. brief:financialIntelligence):\n${JSON.stringify(pick, null, 2).slice(0, 12_000)}`;
+  }
 
-  const parsed = await askClaudeJson(postcallBriefSchema, {
-    system: systemPrompt,
-    maxTokens: 4000,
+  const userContent = `Deal ID: ${run.deal.id}
+Company: ${run.deal.companyName}${run.deal.sector ? ` | Sector: ${run.deal.sector}` : ""}${run.deal.location ? ` | Location: ${run.deal.location}` : ""}
+Playbook config version: ${run.config.version}
+
+CALL ${run.inputKind === "transcript" ? "TRANSCRIPT" : "MANUAL NOTES"}:
+${numbered}
+
+${briefBlock}
+
+Return the scorecard JSON.`;
+
+  return askClaudeJson(claudeScorecardSchema, {
+    system: postcallSystemPrompt(run.config, run.institutionalBandPct),
+    maxTokens: 12_000,
+    effort: "high",
     messages: [{ role: "user", content: userContent }],
   });
-
-  // Ensure every schema metric has a bounded score (legacy behavior preserved).
-  const validatedScores: PostcallBrief["scores"] = {};
-  for (const m of schema.metrics as Array<{ id: string }>) {
-    const metricScore = parsed.scores?.[m.id] ?? { score: 5, explanation: "No AI explanation provided." };
-    validatedScores[m.id] = {
-      score: Math.min(10, Math.max(1, Math.round(metricScore.score))),
-      explanation: metricScore.explanation || "No AI explanation provided.",
-    };
-  }
-  return { ...parsed, scores: validatedScores };
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

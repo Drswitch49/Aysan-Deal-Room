@@ -13,9 +13,10 @@ import {
   analyzeTranscript,
   generateInvestmentVerdict,
   generatePrecallBrief,
-  generatePostcallBrief,
+  extractPostcallScorecard,
   generatePortfolioBriefing,
 } from "../ai/tasks.js";
+import { buildScorecard } from "../postcall/scorecard.js";
 
 const db = () => adminClient();
 
@@ -126,36 +127,74 @@ registerHandler("precall-brief", async (payload: any) => {
   return { brief_id: created.id };
 });
 
-/** payload: { deal_id, notes, schema_id } — generate + store a post-call brief. */
+/**
+ * payload: { deal_id, input_text, input_kind, precall_brief_id? } — score one
+ * call against the post-call scorecard spec and store it as a NEW run.
+ *
+ * Runs are never overwritten: each transcript or note inserts a row stamped
+ * with the Playbook config version it was scored against (migration 0018).
+ */
 registerHandler("postcall-brief", async (payload: any) => {
-  const { deal_id, notes, schema_id } = payload ?? {};
-  if (!deal_id || !notes) throw new Error("deal_id and notes required");
+  const deal_id = payload?.deal_id;
+  // `notes` is the pre-spec payload key; accept it so already-queued jobs still run.
+  const inputText: string = payload?.input_text ?? payload?.notes ?? "";
+  const inputKind: "transcript" | "notes" = payload?.input_kind === "transcript" ? "transcript" : "notes";
+  if (!deal_id || !inputText.trim()) throw new Error("deal_id and input_text required");
+
   const { data: deal, error } = await db().from("deals").select("*").eq("id", deal_id).single();
   if (error || !deal) throw new Error(`deal ${deal_id} not found`);
 
-  const brief = await generatePostcallBrief(
-    {
-      companyName: deal.company_name,
-      dealRef: deal.ref_no ?? deal.acp_ref_no,
-      sector: deal.sector ?? deal.industry,
-      location: deal.location,
-      evAsk: deal.enterprise_value ?? deal.asking_price_gbp,
-      revenue: deal.turnover,
-      ebitda: deal.ebitda_gbp,
-    },
-    notes,
-    schema_id ?? "ACP_DEAL_ROOM",
-  );
+  const { data: config, error: cfgErr } = await db()
+    .from("playbook_config").select("*").order("version", { ascending: false }).limit(1).maybeSingle();
+  if (cfgErr) throw new Error(`load playbook config: ${cfgErr.message}`);
+  if (!config) throw new Error("No Playbook config version exists — apply migration 0018.");
+
+  // The pre-call brief the caller chose, else the deal's latest.
+  let briefQuery = db().from("precall_briefs").select("id, brief_data").eq("deal_id", deal_id).is("deleted_at", null);
+  briefQuery = payload?.precall_brief_id
+    ? briefQuery.eq("id", payload.precall_brief_id)
+    : briefQuery.order("created_at", { ascending: false }).limit(1);
+  const { data: briefs } = await briefQuery;
+  const brief = briefs?.[0] ?? null;
+
+  const companyName = deal.company_name ?? deal.deal_name ?? deal_id;
+  const institutionalBandPct = deal.institutional_band_pct == null ? null : Number(deal.institutional_band_pct);
+
+  const raw = await extractPostcallScorecard({
+    deal: { id: deal_id, companyName, sector: deal.sector ?? deal.industry, location: deal.location },
+    inputKind,
+    inputText,
+    precallBrief: brief?.brief_data ?? null,
+    config,
+    institutionalBandPct,
+  });
+
+  const scorecard = buildScorecard({
+    dealId: deal_id,
+    companyName,
+    recipientName: deal.broker,
+    raw,
+    config,
+    institutionalBandPct,
+    inputKind,
+    inputText,
+    precallBriefId: brief?.id ?? null,
+    dscrSanctioned: Boolean(deal.dscr_sanctioned_at),
+  });
 
   const { data: created, error: insErr } = await db().from("postcall_briefs").insert({
     deal_id,
-    name: `Post-call brief — ${deal.company_name ?? deal.deal_name ?? deal_id}`,
-    brief_data: brief,
+    name: `Post-call scorecard — ${companyName} — ${new Date().toISOString().slice(0, 16).replace("T", " ")} UTC`,
+    brief_data: scorecard,
+    playbook_version: config.version,
+    input_kind: inputKind,
+    input_text: inputText,
+    precall_brief_id: brief?.id ?? null,
     processing_status: "completed",
     processed_at: new Date().toISOString(),
   }).select("id").single();
-  if (insErr) throw new Error(`store postcall brief: ${insErr.message}`);
-  return { brief_id: created.id };
+  if (insErr) throw new Error(`store postcall run: ${insErr.message}`);
+  return { brief_id: created.id, verdict: scorecard.verdict, completeness: scorecard.completeness.pct };
 });
 
 /** payload: {} — portfolio intelligence briefing across all companies. */

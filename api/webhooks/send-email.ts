@@ -11,8 +11,10 @@
 import { z } from "zod";
 import { createHandler } from "../_lib/handler.js";
 import { WRITERS } from "../_lib/authz.js";
-import { ForbiddenError, InternalError } from "../../lib/core/errors.js";
+import { BadRequestError, ForbiddenError, InternalError } from "../../lib/core/errors.js";
 import { repositories } from "../../lib/data/supabase/repositories.js";
+import { getDealControls } from "../../lib/postcall/playbook.js";
+import { containsFiguresOrStructure } from "../../lib/postcall/scorecard.js";
 
 const MAKE_WEBHOOK_URL =
   process.env.MAKE_WEBHOOK_URL || "https://hook.eu2.make.com/6ib81dgibwtyf9t1moa8ixwd7eai5wxx";
@@ -25,7 +27,13 @@ const bodySchema = z.object({
   type: z.enum(["LOI", "Post_meeting_email"]),
   /** Context for the audit entry; never forwarded. */
   deal_id: z.string().optional(),
+  /** Which engine drafted the email; never forwarded. */
+  generated_by: z.string().optional(),
 });
+
+/** Drafts from the post-call scorecard go to the broker: before Dami's DSCR
+ *  sanction they may not carry £, percentages or structure (spec: "No figures out"). */
+const POSTCALL_SCORECARD_ENGINE = "postcall_scorecard";
 
 export default createHandler<z.infer<typeof bodySchema>, unknown>({
   methods: ["POST"],
@@ -34,7 +42,17 @@ export default createHandler<z.infer<typeof bodySchema>, unknown>({
   handle: async ({ body, user }) => {
     if (!user || !WRITERS.includes(user.role)) throw new ForbiddenError("Sending requires a writer role");
 
-    const { deal_id, ...payload } = body;
+    const { deal_id, generated_by, ...payload } = body;
+
+    if (generated_by === POSTCALL_SCORECARD_ENGINE) {
+      if (!deal_id) throw new BadRequestError("A post-call scorecard email must name its deal");
+      const { dscr_sanctioned_at } = await getDealControls(deal_id);
+      if (!dscr_sanctioned_at && containsFiguresOrStructure(`${payload.subject}\n${payload.content}`)) {
+        throw new BadRequestError(
+          "This broker email carries £, percentages or deal structure. Remove them, or record the DSCR sanction first.",
+        );
+      }
+    }
 
     let res: Response;
     try {
