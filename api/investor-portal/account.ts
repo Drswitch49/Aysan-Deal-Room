@@ -20,6 +20,34 @@ import { BadRequestError, InternalError, UnauthorizedError } from "../../lib/cor
 import { adminClient, userClient } from "../../lib/data/supabase/client.js";
 import { isCertifiedNow, logAccess } from "../_lib/investor-context.js";
 import { logActivity } from "../_lib/investor-access.js";
+import { getTokens, invalidateAccessToken, setSessionCookies } from "../_lib/session.js";
+
+/**
+ * Re-establish the browser session after a password change.
+ *
+ * Changing a password through the admin API revokes the user's existing
+ * sessions, so the cookies the browser is holding die the moment the change
+ * lands. The portal keeps rendering because verifyAccessToken caches a verified
+ * user for 30 seconds — then every read starts coming back "Authentication
+ * required" on what still looks like a signed-in portal. Signing in again with
+ * the new password and re-issuing the cookies closes that window; dropping the
+ * old token from the cache stops it being served inside it.
+ *
+ * Best effort: a partner who has just set a password should not be told the
+ * change failed because only the re-issue did. They land on the sign-in screen,
+ * which their new password opens.
+ */
+async function reissueSession(req: any, res: any, email: string, password: string): Promise<void> {
+  const { access } = getTokens(req);
+  if (access) invalidateAccessToken(access);
+  const { data, error } = await userClient("").auth.signInWithPassword({ email, password });
+  if (error || !data.session) return;
+  setSessionCookies(res, {
+    access_token: data.session.access_token,
+    refresh_token: data.session.refresh_token,
+    expires_in: data.session.expires_in,
+  });
+}
 
 /** The Build Pack's floor for a partner password. */
 const MIN_PASSWORD_LENGTH = 12;
@@ -47,7 +75,7 @@ const bodySchema = z.discriminatedUnion("action", [
 export default createHandler({
   methods: ["GET", "POST"],
   requireAuth: true,
-  handle: async ({ req, body, user }) => {
+  handle: async ({ req, res, body, user }) => {
     const db = adminClient();
 
     if (req.method === "GET") {
@@ -148,6 +176,7 @@ export default createHandler({
         app_metadata: { role: "investor", investor_id: map.investor_id, must_change_password: false },
       });
       if (error) throw new InternalError(`Password change failed: ${error.message}`);
+      await reissueSession(req, res, user.email, input.new_password);
 
       const patch: Record<string, unknown> = { last_login_at: new Date().toISOString() };
       if (map.login_mode === "pending") {
@@ -189,6 +218,7 @@ export default createHandler({
         },
       });
       if (error) throw new InternalError(`Password reset failed: ${error.message}`);
+      await reissueSession(req, res, user.email, input.new_password);
 
       const patch: Record<string, unknown> = { last_login_at: new Date().toISOString() };
       if (map.login_mode === "pending") {
