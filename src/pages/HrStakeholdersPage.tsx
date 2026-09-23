@@ -284,7 +284,7 @@ export function HrStakeholdersPage() {
   // any legacy spelling ("Managing Partner") resolve to the same key. Must mirror
   // the backend PEOPLE_MANAGERS group so shown controls match what's permitted.
   const canonRole = (currentUser?.role || "").toLowerCase().replace(/[\s_]+/g, "_");
-  const PEOPLE_MANAGERS = ["owner", "super_admin", "managing_partner", "partner", "admin", "hr"];
+  const PEOPLE_MANAGERS = ["owner", "super_admin", "managing_partner", "partner", "admin", "cfo", "hr"];
   const canManageTeam = PEOPLE_MANAGERS.includes(canonRole);
   const canManageStakeholders = PEOPLE_MANAGERS.includes(canonRole);
   // One gate for every drawer action, whichever registry the drawer is showing.
@@ -1136,6 +1136,7 @@ export function HrStakeholdersPage() {
                 <select id="edit-role" value={editForm.role} onChange={e => setEditForm(f => ({ ...f, role: e.target.value }))} className={selectClass}>
                   <option value="Managing Partner">Managing Partner</option>
                   <option value="Partner">Partner</option>
+                  <option value="CFO">CFO</option>
                   <option value="Analyst">Analyst</option>
                   <option value="Admin">Admin</option>
                   <option value="Read Only">Read Only</option>
