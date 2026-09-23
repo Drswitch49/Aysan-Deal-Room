@@ -58,6 +58,7 @@ export interface SessionUser {
   role: string;
   lenderId: string | null;
   shareholderId: string | null;
+  investorId: string | null;
   fullName: string | null;
 }
 
@@ -75,6 +76,7 @@ function toSessionUser(u: {
     role: typeof app.role === "string" ? app.role : "read_only",
     lenderId: typeof app.lender_id === "string" ? app.lender_id : null,
     shareholderId: typeof app.shareholder_id === "string" ? app.shareholder_id : null,
+    investorId: typeof app.investor_id === "string" ? app.investor_id : null,
     fullName:
       (typeof meta.full_name === "string" && meta.full_name) ||
       (typeof meta.contact_name === "string" && meta.contact_name) ||

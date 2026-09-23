@@ -20,6 +20,7 @@ const STAFF_ROLES = new Set([
   "managing_partner",
   "partner",
   "admin",
+  "cfo",
   "analyst",
   "hr",
   "stakeholder",

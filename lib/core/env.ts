@@ -44,6 +44,18 @@ const EnvSchema = z.object({
    *  request is unauthenticated and every queued AI job stays queued forever. */
   CRON_SECRET: z.string().min(1).optional(),
 
+  // Outbound partner email (Capital Partner Portal, Build Pack Section 18).
+  // Absent RESEND_API_KEY the queue still records every message it would have
+  // sent, so nothing is lost — it just never leaves. Verify SPF, DKIM and DMARC
+  // on aysancapital.com before the first real send.
+  RESEND_API_KEY: z.string().min(1).optional(),
+  /** Sender for every partner email. Must be on a domain Resend has verified. */
+  MAIL_FROM: z.string().min(1).optional(),
+  /** Absolute base of the partner portal, used to build invite and reset links. */
+  PORTAL_BASE_URL: z.string().url().optional(),
+  /** While portal_settings.notify_only is true every partner email goes here. */
+  NOTIFY_ONLY_ADMIN_EMAIL: z.string().email().optional(),
+
   // Airtable — used ONLY by the one-time ETL scripts, never by the app.
   AIRTABLE_API_KEY: z.string().min(1).optional(),
   AIRTABLE_BASE_ID: z.string().min(1).optional(),

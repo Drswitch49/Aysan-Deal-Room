@@ -11,6 +11,7 @@ const hrEndpointFor = (type: string) =>
   type === "team" ? "/api/team-members" : type === "shareholder" ? "/api/shareholders" : "/api/stakeholders";
 import { Modal } from "../components/ui/Modal";
 import { FormField, inputClass, selectClass } from "../components/ui/FormField";
+import { CapitalPartnersTab } from "../components/partners/CapitalPartnersTab";
 
 type TeamMember = {
   id: string;
@@ -814,6 +815,19 @@ export function HrStakeholdersPage() {
             )}
           </div>
 
+          {/* CAPITAL PARTNERS — the portal-facing half of the registry.
+              A stakeholder created with type "Investor" appears here with a
+              partner record behind it: certification, portal access,
+              commitments and an audit trail. Access is issued from the record,
+              never from the stakeholder card, because the database gates it on
+              live certification. */}
+          <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 shadow-premium-card card-sheen">
+            <h3 className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-400 border-b border-white/[0.02] pb-3 mb-4 select-none">
+              Capital Partners
+            </h3>
+            <CapitalPartnersTab canManage={canManageStakeholders} />
+          </div>
+
           {/* EXTERNAL STAKEHOLDERS */}
           <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 shadow-premium-card card-sheen">
             <h3 className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-400 border-b border-white/[0.02] pb-3 mb-4 select-none">
@@ -1287,6 +1301,7 @@ export function HrStakeholdersPage() {
               <select id="tm-role" value={teamForm.role} onChange={e => setTeamForm(f => ({ ...f, role: e.target.value }))} className={selectClass}>
                 <option value="Managing Partner">Managing Partner</option>
                 <option value="Partner">Partner</option>
+                <option value="CFO">CFO</option>
                 <option value="Analyst">Analyst</option>
                 <option value="Admin">Admin</option>
                 <option value="Read Only">Read Only</option>

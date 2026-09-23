@@ -8,12 +8,13 @@
  *
  * Public by design — the person redeeming it has no session yet.
  */
-import { userClient } from "../../lib/data/supabase/client.js";
+import { adminClient, userClient } from "../../lib/data/supabase/client.js";
 import { setSessionCookies } from "../_lib/session.js";
 import { logger } from "../../lib/core/logger.js";
 
 const LANDING_BY_ROLE: Record<string, string> = {
   shareholder: "/shareholders/portal",
+  investor: "/investors/portal",
 };
 
 function redirect(res: any, location: string): void {
@@ -50,6 +51,23 @@ export default async function handler(req: any, res: any) {
     });
 
     const role = typeof data.user.app_metadata?.role === "string" ? data.user.app_metadata.role : "";
+
+    // Somebody arriving on a recovery link cannot be asked for their current
+    // password — not knowing it is why they are here. Stamp the redemption so
+    // /api/investor-portal/account will accept one password change without it,
+    // and only for the next few minutes. The stamp is the authority, so it is
+    // written server-side and cleared the moment it is used.
+    if (type === "recovery" && role === "investor") {
+      await adminClient()
+        .auth.admin.updateUserById(data.user.id, {
+          app_metadata: {
+            ...(data.user.app_metadata ?? {}),
+            password_recovery_at: new Date().toISOString(),
+          },
+        })
+        .catch((err) => logger.error({ err }, "recovery stamp failed"));
+    }
+
     return redirect(res, LANDING_BY_ROLE[role] ?? "/");
   } catch (err) {
     logger.error({ err }, "login link redemption failed");

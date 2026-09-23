@@ -18,6 +18,10 @@
     {
       "path": "/api/jobs/worker",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/portal",
+      "schedule": "15 2 * * *"
     }
   ]
 }

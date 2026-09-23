@@ -29,6 +29,9 @@ const ROLE_RANK: Record<string, number> = {
   owner: 70,
   managing_partner: 60,
   partner: 50,
+  // The CFO ranks with admin. The authority that sets them apart — sole author
+  // of a deal's coverage status — is not a rank and is enforced in Postgres.
+  cfo: 40,
   admin: 40,
   hr: 30,
   analyst: 20,
@@ -36,6 +39,7 @@ const ROLE_RANK: Record<string, number> = {
   shareholder: 5,
   lender: 5,
   stakeholder: 5,
+  investor: 5,
 };
 
 const canon = (value: unknown) => String(value ?? "").trim().toLowerCase().replace(/[\s-]+/g, "_");
@@ -48,7 +52,16 @@ const canon = (value: unknown) => String(value ?? "").trim().toLowerCase().repla
 export function staffRoleFor(role: unknown, accessLevel: unknown): string {
   const r = canon(role);
   if (r === "super_admin" || r === "founder" || r === "ceo") return "owner";
-  if (ROLE_RANK[r] !== undefined && r !== "shareholder" && r !== "lender" && r !== "stakeholder") return r;
+  if (
+    ROLE_RANK[r] !== undefined &&
+    r !== "shareholder" &&
+    r !== "lender" &&
+    r !== "stakeholder" &&
+    r !== "investor"
+  ) {
+    return r;
+  }
+  if (r.includes("chief_financial") || r === "finance_director") return "cfo";
   if (r.includes("managing_partner")) return "managing_partner";
   if (r.includes("partner")) return "partner";
   if (r.includes("analyst") || r.includes("associate")) return "analyst";

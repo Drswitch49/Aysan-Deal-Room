@@ -57,6 +57,21 @@ const ROLE_PERMISSIONS: Partial<Record<UserRole, string[]>> = {
     "view_audit_logs",
     "view_analytics"
   ],
+  // The CFO carries full access plus the one authority nobody else has:
+  // setting a deal's coverage status (rule R4). That authority is enforced in
+  // Postgres, not in this list — see supabase/migrations/0019_partner_portal.sql.
+  "CFO": [
+    "view_deals",
+    "create_deal",
+    "edit_deal",
+    "manage_stages",
+    "upload_documents",
+    "manage_portfolio",
+    "manage_stakeholders",
+    "set_coverage_status",
+    "view_audit_logs",
+    "view_analytics"
+  ],
   "Read Only": [
     "view_deals",
     "view_audit_logs"
@@ -102,6 +117,7 @@ export function accessLevelFor(role: string, accessLevel?: string | null): strin
     canon === "founder" ||
     canon === "ceo" ||
     canon === "admin" ||
+    canon === "cfo" ||
     canon.includes("partner")
   ) {
     return "FULL ACCESS";

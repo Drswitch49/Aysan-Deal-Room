@@ -56,6 +56,7 @@ export default async function handler(req: any, res: any) {
           role,
           lenderId: null,
           shareholderId: null,
+          investorId: null,
           fullName:
             (typeof meta.full_name === "string" && meta.full_name) ||
             (typeof meta.contact_name === "string" && meta.contact_name) ||

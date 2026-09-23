@@ -21,6 +21,8 @@ interface CrudOptions {
   deleteRoles?: string[];
   /** Runs after a successful PATCH — e.g. to cascade a flag onto child rows. */
   onUpdated?: (row: any, patch: Record<string, unknown>) => Promise<void>;
+  /** Runs after a successful POST — e.g. to provision a linked record. */
+  onCreated?: (row: any) => Promise<void>;
 }
 
 export function collectionHandler(
@@ -34,7 +36,9 @@ export function collectionHandler(
     handle: async ({ req, body, query, user }) => {
       if (req.method === "GET") return repo.list(query as Record<string, unknown>);
       if (!user || !writeRoles.includes(user.role)) throw new ForbiddenError("Insufficient role to create");
-      return repo.create(body);
+      const created = await repo.create(body);
+      if (opts.onCreated) await opts.onCreated(created);
+      return created;
     },
   });
 }

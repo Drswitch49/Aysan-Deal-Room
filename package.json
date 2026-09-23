@@ -17,6 +17,8 @@
     "etl:list": "node --env-file=.env --import tsx scripts/etl/list-tables.ts",
     "etl:count": "node --env-file=.env --import tsx scripts/etl/count-rows.ts",
     "db:migrate": "node --env-file=.env --import tsx scripts/db/migrate.ts",
+    "db:dry-run": "node --env-file=.env --import tsx scripts/db/dry-run.ts",
+    "db:verify-portal": "node --env-file=.env --import tsx scripts/db/verify-portal.ts",
     "etl:migrate": "node --env-file=.env --import tsx scripts/etl/migrate.ts"
   },
   "dependencies": {

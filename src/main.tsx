@@ -75,6 +75,7 @@ function CurrentDealRedirect() {
 }
 
 const ShareholderPortalPage = lazy(() => import("./pages/ShareholderPortalPage").then(m => ({ default: m.ShareholderPortalPage })));
+const InvestorPortalPage = lazy(() => import("./pages/InvestorPortalPage").then(m => ({ default: m.InvestorPortalPage })));
 
 const router = createBrowserRouter([
   {
@@ -110,6 +111,13 @@ const router = createBrowserRouter([
   {
     path: "shareholders/portal",
     element: withSuspense(ShareholderPortalPage),
+  },
+  // The Capital Partner Portal sits outside AdminGuard: partners are not staff
+  // and must never load a CRM route. It carries its own sign-in and its own
+  // onboarding, and refuses any session whose role is not "investor".
+  {
+    path: "investors/portal",
+    element: withSuspense(InvestorPortalPage),
   },
   {
     path: "portal/:portalSlug",

@@ -213,6 +213,32 @@ Preview and Development), and mirror them in a local `.env` for scripts and
 | `ANTHROPIC_API_KEY` | Every AI feature (verdicts, briefs, OSINT, document analysis) |
 | `CRON_SECRET` | Authenticates the Vercel Cron that drains the job queue. Any long random string; set the **same** value in Vercel. Without it the cron falls back to the `x-vercel-cron` header — the in-app worker kick still runs jobs, but set this so the backstop is authenticated. |
 
+### Capital Partner Portal
+
+The portal itself runs without any of these. What they change is whether a
+partner's email actually leaves the building: with none set, every message is
+still recorded in `email_queue` and an admin hands the credentials over by
+hand, which is the same way lender and shareholder access works today.
+
+| Variable | Used for |
+|---|---|
+| `RESEND_API_KEY` | Sending partner email. Create the key at <https://resend.com> and verify `aysancapital.com` — SPF, DKIM **and** DMARC — before the first real send. Capital call fraud by spoofed email is the most likely real-world loss in this system, so a DMARC reject policy is not optional. |
+| `MAIL_FROM` | Sender address, e.g. `Aysan Capital Partners <partnerships@aysancapital.com>`. Must be on the verified domain. |
+| `PORTAL_BASE_URL` | Absolute base of the partner portal, e.g. `https://dealroom.aysancapital.com/investors/portal`. Used to build sign-in links in email. Falls back to the request's own origin. |
+| `NOTIFY_ONLY_ADMIN_EMAIL` | While `portal_settings.notify_only` is true (the default), **every** partner email is redirected here with the intended recipient in the subject. Leave notify-only on until two clean weeks of execution logs, then set `notify_only = false`. |
+
+Two more things are configuration rather than environment:
+
+- **The CFO role.** Coverage status (`deals.dscr_status`) has one author, and
+  Postgres refuses every other role — including owner and admin. Somebody must
+  hold the `cfo` role or no coverage status can ever be set. Set it on the HR
+  page (Team & Access → role → CFO), then re-issue that account's access so the
+  claim reaches their session.
+- **The nightly cron.** `/api/cron/portal` runs at 02:15 UTC (see
+  `vercel.json`) and expires certifications at twelve months, expires unused
+  invites, recalculates staleness, and ends the ninety-day read-only window
+  after a buyback. It uses the same `CRON_SECRET` as the job worker.
+
 ### OSINT sources (optional — each degrades gracefully)
 
 A scan runs on whatever is configured and reports the rest as unavailable; it

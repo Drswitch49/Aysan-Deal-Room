@@ -17,6 +17,8 @@
 import { runDueJobs } from "../../lib/jobs/queue.js";
 import "../../lib/jobs/handlers.js"; // registers all handlers
 import { getUserContext, ALL_ADMINS } from "../_lib/authz.js";
+import { drainEmailQueue } from "../../lib/email/send.js";
+import { logger } from "../../lib/core/logger.js";
 
 export default async function handler(req: any, res: any) {
   const cronSecret = process.env.CRON_SECRET;
@@ -34,7 +36,19 @@ export default async function handler(req: any, res: any) {
 
   try {
     const stats = await runDueJobs();
-    return res.status(200).json({ data: stats });
+
+    // Partner email rides the same tick so an invite goes out in about a
+    // minute. A mail failure must not fail the job worker, so it is reported
+    // alongside the job stats rather than thrown.
+    let mail: unknown;
+    try {
+      mail = await drainEmailQueue();
+    } catch (err) {
+      logger.error({ err }, "partner email drain failed");
+      mail = { error: err instanceof Error ? err.message : "drain failed" };
+    }
+
+    return res.status(200).json({ data: { ...stats, mail } });
   } catch (err) {
     return res.status(500).json({ error: { code: "worker_error", message: err instanceof Error ? err.message : "worker failed" } });
   }
