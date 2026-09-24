@@ -21,13 +21,12 @@ import {
   type PartnerDealSettings,
 } from "../../api/admin/partners";
 import { useAuth } from "../../context/AuthContext";
+import { canAccessInvestors } from "../../lib/rbac";
 import { gbp } from "../../lib/portal/format";
 import { cx } from "../../utils/cx";
 import { IN_PORTAL } from "../../lib/portal/commitments";
 import { CommitmentCard, NewCommitmentForm } from "../partners/CommitmentPanels";
 
-/** Mirrors PARTNER_MANAGERS in api/_lib/authz.ts. */
-const PARTNER_MANAGERS = ["owner", "super_admin", "managing_partner", "partner", "admin", "cfo"];
 
 const input =
   "w-full rounded-lg border border-white/10 bg-[#0F1115] px-3 py-2 text-sm text-white outline-none transition focus:border-[#C6A66B] disabled:opacity-60";
@@ -82,8 +81,7 @@ function toForm(s: PartnerDealSettings): Form {
 
 export function DealPortalTab({ dealId }: { dealId: string }) {
   const { user } = useAuth();
-  const role = String(user?.role ?? "").toLowerCase().replace(/[\s_]+/g, "_");
-  const canManage = PARTNER_MANAGERS.includes(role);
+  const canManage = canAccessInvestors(user?.role);
 
   const [settings, setSettings] = useState<PartnerDealSettings | null>(null);
   const [commitments, setCommitments] = useState<Array<Record<string, any>>>([]);

@@ -3,10 +3,11 @@ import type { ReactNode } from "react";
 import {
   Building2, LogOut, Menu, X,
   LayoutDashboard, Kanban, Users, Settings, KeyRound, Activity,
-  ChevronLeft, ChevronRight, Inbox, MessageSquare, MessageCircle
+  ChevronLeft, ChevronRight, Inbox, MessageSquare, MessageCircle, Landmark
 } from "lucide-react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import { cx } from "../../utils/cx";
+import { canAccessInvestors } from "../../lib/rbac";
 import { changeAdminPassword, fetchAdminLenders } from "../../api/admin";
 import { fetchRecentAdminChat, subscribeAllChat } from "../../api/chat";
 import { clearRealtimeAuth } from "../../lib/supabase";
@@ -32,7 +33,8 @@ const NAV_SECTIONS = [
     group: "Relations & Intelligence",
     items: [
       { to: "/admin/lenders", icon: <Building2 className="h-4 w-4" />, label: "Lender Intel" },
-      { to: "/admin/hr", icon: <Users className="h-4 w-4" />, label: "HR & Stakeholders" },
+      { to: "/admin/investors", icon: <Landmark className="h-4 w-4" />, label: "Investors" },
+      { to: "/admin/hr", icon: <Users className="h-4 w-4" />, label: "HR" },
       { to: "/admin/settings", icon: <Settings className="h-4 w-4" />, label: "Settings" },
     ],
   },
@@ -277,7 +279,8 @@ function getBreadcrumb(pathname: string): string {
   if (pathname === "/deals") return "Active Deals";
   if (pathname.startsWith("/deals/")) return "Deal Detail";
   if (pathname === "/admin/lenders") return "Lender Intelligence";
-  if (pathname === "/admin/hr") return "HR & Stakeholders";
+  if (pathname === "/admin/hr") return "HR";
+  if (pathname === "/admin/investors") return "Investors";
   if (pathname === "/admin/settings") return "Settings";
   if (pathname === "/admin/messages") return "Messages";
   if (pathname === "/admin/portco") return "Portfolio Monitor";
@@ -343,9 +346,12 @@ function NavContent({
   isCollapsed?: boolean;
 }) {
   const role = (user?.role || "").toLowerCase();
-  
+  const canSeeInvestors = canAccessInvestors(role);
+
   const filteredNav = NAV_SECTIONS.map(section => {
-    let items = section.items;
+    // Investors (capital partners, stakeholders, shareholders) is for admins,
+    // partners and the CFO only; the API refuses everyone else.
+    let items = section.items.filter(item => item.to !== "/admin/investors" || canSeeInvestors);
 
     if (role === "hr") {
       items = items.filter(item => item.to === "/admin/hr");

@@ -17,13 +17,14 @@ import {
   ChevronRight,
   PieChart,
   Search,
+  ShieldAlert,
   Users,
 } from "lucide-react";
 import { cx } from "../utils/cx";
 import { HeaderMetrics } from "../components/ui/HeaderMetrics";
 import { fetchHrRegistry, addHiringBrief, deleteHiringBrief, createTeamMember, createStakeholder, provisionAccess } from "../api/admin";
 import { api } from "../api/http";
-import { accessLevelFor } from "../lib/rbac";
+import { accessLevelFor, canAccessInvestors } from "../lib/rbac";
 
 /** New REST endpoint per drawer-user type. */
 const hrEndpointFor = (type: string) =>
@@ -92,8 +93,10 @@ type Shareholder = {
   assignments: any[];
 };
 
-type RegistryTab = "partners" | "stakeholders" | "shareholders" | "hiring";
-const REGISTRY_TABS: RegistryTab[] = ["partners", "stakeholders", "shareholders", "hiring"];
+type RegistryTab = "partners" | "stakeholders" | "shareholders";
+const REGISTRY_TABS: RegistryTab[] = ["partners", "stakeholders", "shareholders"];
+
+
 const REGISTRY_TAB_KEY = "acp:hr-registry-tab";
 
 function readRegistryTab(): RegistryTab {
@@ -190,7 +193,18 @@ const RegistryEmpty = ({ text }: { text: string }) => (
   </p>
 );
 
-export function HrStakeholdersPage() {
+/** HR: the ACP team and PortCo hiring. */
+export function HrPage() {
+  return <HrStakeholdersPage mode="hr" />;
+}
+
+/** Investors: capital partners, stakeholders and shareholders. */
+export function InvestorsPage() {
+  return <HrStakeholdersPage mode="investors" />;
+}
+
+function HrStakeholdersPage({ mode }: { mode: "hr" | "investors" }) {
+  const isInvestors = mode === "investors";
   const [team, setTeam] = useState<TeamMember[]>([]);
   const [hires, setHires] = useState<HiringBrief[]>([]);
   const [stakeholders, setStakeholders] = useState<ExternalStakeholder[]>([]);
@@ -398,7 +412,7 @@ export function HrStakeholdersPage() {
 
   const loadData = async () => {
     try {
-      const data = await fetchHrRegistry();
+      const data = await fetchHrRegistry(mode);
       setTeam(data.team || []);
       setHires(data.hires || []);
       setStakeholders(data.stakeholders || []);
@@ -435,12 +449,49 @@ export function HrStakeholdersPage() {
   const canonRole = (currentUser?.role || "").toLowerCase().replace(/[\s_]+/g, "_");
   const PEOPLE_MANAGERS = ["owner", "super_admin", "managing_partner", "partner", "admin", "cfo", "hr"];
   const canManageTeam = PEOPLE_MANAGERS.includes(canonRole);
-  const canManageStakeholders = PEOPLE_MANAGERS.includes(canonRole);
+  // Investors (capital partners, stakeholders, shareholders): admins, partners
+  // and the CFO only — HR no longer sees or edits them.
+  const canManageStakeholders = canAccessInvestors(canonRole);
   // One gate for every drawer action, whichever registry the drawer is showing.
   const canManageDrawer = drawerUser?.type === "team" ? canManageTeam : canManageStakeholders;
   // These registry tables all soft-delete on the backend, so the delete action
   // is never a permanent hard delete — keep the accurate "Soft Delete" copy.
   const isSuperAdmin = false;
+
+  const addItems = (
+    isInvestors
+      ? [
+          canManageStakeholders && {
+            label: "Stakeholder",
+            hint: "Advisor, lender contact, investor",
+            icon: Building2,
+            run: () => setIsAddStakeholderOpen(true),
+          },
+          canManageStakeholders && {
+            label: "Shareholder",
+            hint: "Holding in an ACP deal",
+            icon: PieChart,
+            run: () => setIsAddShareholderOpen(true),
+          },
+        ]
+      : [
+          canManageTeam && {
+            label: "Team member",
+            hint: "Staff login & access level",
+            icon: UserPlus,
+            run: () => setIsAddTeamMemberOpen(true),
+          },
+          canManageTeam && {
+            label: "Hiring brief",
+            hint: "PortCo CEO or operator role",
+            icon: Briefcase,
+            run: () => {
+              setModalError(null);
+              setIsModalOpen(true);
+            },
+          },
+        ]
+  ).filter(Boolean) as Array<{ label: string; hint: string; icon: typeof Plus; run: () => void }>;
 
   const needle = registryQuery.trim().toLowerCase();
   const matches = (...fields: Array<string | undefined>) =>
@@ -718,13 +769,26 @@ export function HrStakeholdersPage() {
     }
   };
 
+  // The API refuses these roles anyway; say so plainly instead of an error.
+  if (isInvestors && currentUser && !canManageStakeholders) {
+    return (
+      <div className="flex min-h-[50vh] flex-col items-center justify-center gap-2 text-center">
+        <ShieldAlert className="h-6 w-6 text-slate-500" />
+        <p className="text-sm font-semibold text-white">Investors is restricted</p>
+        <p className="max-w-sm text-xs text-slate-500">
+          Only admins, partners and the CFO can view capital partners, stakeholders and shareholders.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-5 text-[#E2E8F0] font-sans">
       {/* Header: title, live counts, and one Add menu instead of a row of buttons */}
       <div className="flex flex-col gap-3 border-b border-white/5 pb-4 md:flex-row md:items-center md:justify-between">
         <div className="min-w-0">
           <h1 className="text-xl font-bold tracking-tight text-white">
-            HR & <span className="text-[#C6A66B]">Stakeholders</span>
+            {isInvestors ? <span className="text-[#C6A66B]">Investors</span> : <>HR <span className="text-[#C6A66B]">& Hiring</span></>}
           </h1>
           <p className="mt-0.5 text-xs font-medium text-slate-500">
             {isLoading ? (
@@ -732,8 +796,10 @@ export function HrStakeholdersPage() {
                 <Loader2 className="h-3 w-3 animate-spin text-slate-500" />
                 Loading registry...
               </span>
+            ) : isInvestors ? (
+              "Capital partners, stakeholders and shareholders"
             ) : (
-              "People, partners and relationships across ACP"
+              "The ACP team and PortCo hiring"
             )}
           </p>
         </div>
@@ -741,7 +807,7 @@ export function HrStakeholdersPage() {
         <div className="flex select-none flex-wrap items-center gap-2">
           <HeaderMetrics />
 
-          {canManageTeam || canManageStakeholders ? (
+          {addItems.length ? (
             <div className="relative" ref={addMenuRef}>
               <button
                 type="button"
@@ -754,37 +820,7 @@ export function HrStakeholdersPage() {
               </button>
               {addMenuOpen ? (
                 <div className="absolute right-0 z-30 mt-1.5 w-52 overflow-hidden rounded-xl border border-white/10 bg-[#161B22] p-1 shadow-2xl animate-fade-in">
-                  {(
-                    [
-                      canManageTeam && {
-                        label: "Team member",
-                        hint: "Staff login & access level",
-                        icon: UserPlus,
-                        run: () => setIsAddTeamMemberOpen(true),
-                      },
-                      canManageStakeholders && {
-                        label: "Stakeholder",
-                        hint: "Advisor, lender contact, investor",
-                        icon: Building2,
-                        run: () => setIsAddStakeholderOpen(true),
-                      },
-                      canManageStakeholders && {
-                        label: "Shareholder",
-                        hint: "Holding in an ACP deal",
-                        icon: PieChart,
-                        run: () => setIsAddShareholderOpen(true),
-                      },
-                      canManageTeam && {
-                        label: "Hiring brief",
-                        hint: "PortCo CEO or operator role",
-                        icon: Briefcase,
-                        run: () => {
-                          setModalError(null);
-                          setIsModalOpen(true);
-                        },
-                      },
-                    ].filter(Boolean) as Array<{ label: string; hint: string; icon: typeof Plus; run: () => void }>
-                  ).map((item) => (
+                  {addItems.map((item) => (
                     <button
                       key={item.label}
                       type="button"
@@ -809,42 +845,39 @@ export function HrStakeholdersPage() {
       </div>
 
       {/* Summary strip — each count is also the way into its list */}
-      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
-        <SummaryTile
-          icon={Users}
-          label="Team"
-          value={team.length}
-          detail={`${team.filter((m) => /full/i.test(m.accessLevel)).length} with full access`}
-          loading={isLoading}
-        />
-        <SummaryTile
-          icon={Building2}
-          label="Stakeholders"
-          value={stakeholders.length}
-          detail="External registry"
-          loading={isLoading}
-          active={registryTab === "stakeholders"}
-          onClick={() => setRegistryTab("stakeholders")}
-        />
-        <SummaryTile
-          icon={PieChart}
-          label="Shareholders"
-          value={shareholders.length}
-          detail={`${shareholders.filter((s) => s.status !== "Inactive").length} active`}
-          loading={isLoading}
-          active={registryTab === "shareholders"}
-          onClick={() => setRegistryTab("shareholders")}
-        />
-        <SummaryTile
-          icon={Briefcase}
-          label="Open hires"
-          value={hires.length}
-          detail="PortCo CEO & operators"
-          loading={isLoading}
-          active={registryTab === "hiring"}
-          onClick={() => setRegistryTab("hiring")}
-        />
-      </div>
+      {isInvestors ? (
+        <div className="grid grid-cols-2 gap-2.5">
+          <SummaryTile
+            icon={Building2}
+            label="Stakeholders"
+            value={stakeholders.length}
+            detail={`${stakeholders.filter((s) => s.status !== "Inactive").length} active`}
+            loading={isLoading}
+            active={registryTab === "stakeholders"}
+            onClick={() => setRegistryTab("stakeholders")}
+          />
+          <SummaryTile
+            icon={PieChart}
+            label="Shareholders"
+            value={shareholders.length}
+            detail={`${shareholders.filter((s) => s.status !== "Inactive").length} active`}
+            loading={isLoading}
+            active={registryTab === "shareholders"}
+            onClick={() => setRegistryTab("shareholders")}
+          />
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-2.5">
+          <SummaryTile
+            icon={Users}
+            label="Team"
+            value={team.length}
+            detail={`${team.filter((m) => /full/i.test(m.accessLevel)).length} with full access`}
+            loading={isLoading}
+          />
+          <SummaryTile icon={Briefcase} label="Open hires" value={hires.length} detail="PortCo CEO & operators" loading={isLoading} />
+        </div>
+      )}
 
       {diagnostics ? (
         <div className="rounded-2xl border border-red-500/20 bg-red-950/15 backdrop-blur-md p-6 space-y-4 animate-fade-in shadow-premium-card">
@@ -914,69 +947,10 @@ export function HrStakeholdersPage() {
         </div>
       ) : null}
 
-      {/* Main: the team on the left, every external registry in one tabbed panel */}
-      <div className="grid items-start gap-5 lg:grid-cols-12">
-        {/* ACP TEAM */}
-        <section className="col-span-12 overflow-hidden rounded-2xl border border-white/[0.04] bg-[#161B22] shadow-premium-card lg:sticky lg:top-4 lg:col-span-4">
-          <header className="flex items-center justify-between border-b border-white/[0.04] px-4 py-3">
-            <h3 className="select-none text-[10px] font-extrabold uppercase tracking-[0.18em] text-slate-400">
-              ACP Team
-            </h3>
-            {!isLoading ? <span className="text-[10px] font-bold text-slate-500">{team.length}</span> : null}
-          </header>
-
-          {isLoading ? (
-            <div className="flex items-center justify-center gap-2 py-10 text-xs text-slate-500">
-              <Loader2 className="h-4 w-4 animate-spin text-[#C6A66B]" /> Loading team...
-            </div>
-          ) : team.length === 0 ? (
-            <p className="select-none py-10 text-center text-xs text-slate-500">No team members configured.</p>
-          ) : (
-            <ul className="p-1.5">
-              {team.map((member, idx) => {
-                const theme = themeMap[member.avatarTheme?.toLowerCase() || ""] || themeMap.blue;
-                const isUserInactive = member.status === "Inactive";
-                return (
-                  <li key={member.id || idx}>
-                    <button
-                      type="button"
-                      onClick={() => openConfigDrawerForTeam(member)}
-                      className={cx(
-                        "group flex w-full cursor-pointer items-center gap-3 rounded-xl px-2.5 py-2 text-left transition hover:bg-white/[0.03]",
-                        isUserInactive && "opacity-50",
-                      )}
-                    >
-                      <span
-                        className={cx(
-                          "flex h-8 w-8 shrink-0 select-none items-center justify-center rounded-full border text-[10px] font-black",
-                          theme.bg,
-                        )}
-                      >
-                        {member.initials}
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="flex items-center gap-1.5 truncate text-xs font-semibold text-white">
-                          {member.name}
-                          {isUserInactive ? (
-                            <span className="shrink-0 rounded-full border border-rose-500/20 bg-rose-500/10 px-1.5 py-px text-[7px] font-extrabold uppercase tracking-wider text-rose-400">
-                              Inactive
-                            </span>
-                          ) : null}
-                        </span>
-                        <span className="block truncate text-[10px] text-slate-500">{member.role}</span>
-                      </span>
-                      <AccessPill level={member.accessLevel} />
-                      <ChevronRight className="h-3.5 w-3.5 shrink-0 text-slate-600 opacity-0 transition group-hover:opacity-100" />
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </section>
-
-        {/* REGISTRY — capital partners, stakeholders, shareholders, hiring */}
-        <section className="col-span-12 overflow-hidden rounded-2xl border border-white/[0.04] bg-[#161B22] shadow-premium-card lg:col-span-8">
+      {/* Main: HR shows the team and hiring; Investors shows the registries —
+          capital partners, stakeholders and shareholders — in one tabbed panel. */}
+      {isInvestors ? (
+        <section className="col-span-12 overflow-hidden rounded-2xl border border-white/[0.04] bg-[#161B22] shadow-premium-card">
           <header className="flex flex-col gap-2 border-b border-white/[0.04] px-3 pt-2 sm:flex-row sm:items-end sm:justify-between">
             <nav className="-mb-px flex gap-0.5 overflow-x-auto" aria-label="Registry">
               {(
@@ -984,7 +958,6 @@ export function HrStakeholdersPage() {
                   ["partners", "Capital partners", null],
                   ["stakeholders", "Stakeholders", stakeholders.length],
                   ["shareholders", "Shareholders", shareholders.length],
-                  ["hiring", "Hiring", hires.length],
                 ] as Array<[RegistryTab, string, number | null]>
               ).map(([key, text, count]) => (
                 <button
@@ -1149,59 +1122,130 @@ export function HrStakeholdersPage() {
               )
             ) : null}
 
-            {registryTab === "hiring" ? (
-              isLoading ? (
-                <RegistryLoading label="Loading hiring pipelines..." />
-              ) : (
-                <div className="space-y-2">
-                  {hires.length === 0 ? (
-                    <RegistryEmpty text="No active hiring briefs." />
-                  ) : (
-                    <ul className="divide-y divide-white/[0.04] overflow-hidden rounded-xl border border-white/[0.04]">
-                      {hires.map((hire, idx) => (
-                        <li key={idx} className="group/card flex items-center gap-3 px-3.5 py-2.5 transition hover:bg-white/[0.03]">
-                          <span className={cx("h-2 w-2 shrink-0 rounded-full", accentDot(hire.accentColor))} />
-                          <span className="min-w-0 flex-1">
-                            <span className="block truncate text-xs font-semibold text-white">
-                              {hire.role} <span className="font-normal text-slate-500">for</span> {hire.company}
-                            </span>
-                            {hire.status ? (
-                              <span className="mt-0.5 block truncate text-[10px] text-slate-500">{hire.status}</span>
-                            ) : null}
-                          </span>
-                          {canManageTeam ? (
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteBrief(hire, idx)}
-                              className="shrink-0 cursor-pointer rounded p-1.5 text-slate-500 opacity-0 transition hover:bg-white/[0.03] hover:text-rose-500 focus:opacity-100 group-hover/card:opacity-100"
-                              title="Delete hiring brief"
-                              aria-label={`Delete hiring brief for ${hire.role}`}
-                            >
-                              <Trash className="h-3.5 w-3.5" />
-                            </button>
-                          ) : null}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                  {canManageTeam ? (
+          </div>
+        </section>
+      ) : (
+      <div className="grid items-start gap-5 lg:grid-cols-12">
+        {/* ACP TEAM */}
+        <section className="col-span-12 overflow-hidden rounded-2xl border border-white/[0.04] bg-[#161B22] shadow-premium-card lg:col-span-7">
+          <header className="flex items-center justify-between border-b border-white/[0.04] px-4 py-3">
+            <h3 className="select-none text-[10px] font-extrabold uppercase tracking-[0.18em] text-slate-400">
+              ACP Team
+            </h3>
+            {!isLoading ? <span className="text-[10px] font-bold text-slate-500">{team.length}</span> : null}
+          </header>
+
+          {isLoading ? (
+            <div className="flex items-center justify-center gap-2 py-10 text-xs text-slate-500">
+              <Loader2 className="h-4 w-4 animate-spin text-[#C6A66B]" /> Loading team...
+            </div>
+          ) : team.length === 0 ? (
+            <p className="select-none py-10 text-center text-xs text-slate-500">No team members configured.</p>
+          ) : (
+            <ul className="p-1.5">
+              {team.map((member, idx) => {
+                const theme = themeMap[member.avatarTheme?.toLowerCase() || ""] || themeMap.blue;
+                const isUserInactive = member.status === "Inactive";
+                return (
+                  <li key={member.id || idx}>
                     <button
                       type="button"
-                      onClick={() => {
-                        setModalError(null);
-                        setIsModalOpen(true);
-                      }}
-                      className="flex h-9 w-full cursor-pointer items-center justify-center gap-1.5 rounded-xl border border-dashed border-white/[0.08] text-[10px] font-bold uppercase tracking-wider text-slate-500 transition hover:border-white/20 hover:bg-white/[0.02] hover:text-slate-300"
+                      onClick={() => openConfigDrawerForTeam(member)}
+                      className={cx(
+                        "group flex w-full cursor-pointer items-center gap-3 rounded-xl px-2.5 py-2 text-left transition hover:bg-white/[0.03]",
+                        isUserInactive && "opacity-50",
+                      )}
                     >
-                      <Plus className="h-3.5 w-3.5" /> Add hiring brief
+                      <span
+                        className={cx(
+                          "flex h-8 w-8 shrink-0 select-none items-center justify-center rounded-full border text-[10px] font-black",
+                          theme.bg,
+                        )}
+                      >
+                        {member.initials}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-center gap-1.5 truncate text-xs font-semibold text-white">
+                          {member.name}
+                          {isUserInactive ? (
+                            <span className="shrink-0 rounded-full border border-rose-500/20 bg-rose-500/10 px-1.5 py-px text-[7px] font-extrabold uppercase tracking-wider text-rose-400">
+                              Inactive
+                            </span>
+                          ) : null}
+                        </span>
+                        <span className="block truncate text-[10px] text-slate-500">{member.role}</span>
+                      </span>
+                      <AccessPill level={member.accessLevel} />
+                      <ChevronRight className="h-3.5 w-3.5 shrink-0 text-slate-600 opacity-0 transition group-hover:opacity-100" />
                     </button>
-                  ) : null}
-                </div>
-              )
-            ) : null}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
+
+        {/* OPEN HIRING — PortCo CEO & operators */}
+        <section className="col-span-12 overflow-hidden rounded-2xl border border-white/[0.04] bg-[#161B22] shadow-premium-card lg:col-span-5">
+          <header className="flex items-center justify-between border-b border-white/[0.04] px-4 py-3">
+            <h3 className="select-none text-[10px] font-extrabold uppercase tracking-[0.18em] text-slate-400">
+              Open hiring — PortCo CEO & operators
+            </h3>
+            {!isLoading ? <span className="text-[10px] font-bold text-slate-500">{hires.length}</span> : null}
+          </header>
+          <div className="p-4">
+            {isLoading ? (
+              <RegistryLoading label="Loading hiring pipelines..." />
+            ) : (
+              <div className="space-y-2">
+                {hires.length === 0 ? (
+                  <RegistryEmpty text="No active hiring briefs." />
+                ) : (
+                  <ul className="divide-y divide-white/[0.04] overflow-hidden rounded-xl border border-white/[0.04]">
+                    {hires.map((hire, idx) => (
+                      <li key={idx} className="group/card flex items-center gap-3 px-3.5 py-2.5 transition hover:bg-white/[0.03]">
+                        <span className={cx("h-2 w-2 shrink-0 rounded-full", accentDot(hire.accentColor))} />
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-xs font-semibold text-white">
+                            {hire.role} <span className="font-normal text-slate-500">for</span> {hire.company}
+                          </span>
+                          {hire.status ? (
+                            <span className="mt-0.5 block truncate text-[10px] text-slate-500">{hire.status}</span>
+                          ) : null}
+                        </span>
+                        {canManageTeam ? (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteBrief(hire, idx)}
+                            className="shrink-0 cursor-pointer rounded p-1.5 text-slate-500 opacity-0 transition hover:bg-white/[0.03] hover:text-rose-500 focus:opacity-100 group-hover/card:opacity-100"
+                            title="Delete hiring brief"
+                            aria-label={`Delete hiring brief for ${hire.role}`}
+                          >
+                            <Trash className="h-3.5 w-3.5" />
+                          </button>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {canManageTeam ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setModalError(null);
+                      setIsModalOpen(true);
+                    }}
+                    className="flex h-9 w-full cursor-pointer items-center justify-center gap-1.5 rounded-xl border border-dashed border-white/[0.08] text-[10px] font-bold uppercase tracking-wider text-slate-500 transition hover:border-white/20 hover:bg-white/[0.02] hover:text-slate-300"
+                  >
+                    <Plus className="h-3.5 w-3.5" /> Add hiring brief
+                  </button>
+                ) : null}
+              </div>
+            )}
           </div>
         </section>
       </div>
+      )}
 
       {/* Slide-over Side Drawer: Profile Administration */}
       {isDrawerOpen && drawerUser && (

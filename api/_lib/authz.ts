@@ -65,6 +65,14 @@ export const PORTAL_ROLES = ["lender", "shareholder", "stakeholder", "investor"]
 export const PARTNER_MANAGERS = ["owner", "managing_partner", "partner", "admin", "cfo"];
 
 /**
+ * The Investors area — capital partners, external stakeholders, shareholders,
+ * commitments, capital transactions and each deal's partner-facing settings —
+ * is read AND written by these roles only (user's decision, 2026-09-24).
+ * HR, analysts and read-only staff see none of it.
+ */
+export const INVESTOR_ROLES = PARTNER_MANAGERS;
+
+/**
  * Permanently erasing a capital partner — record, money trail and audit
  * history — is narrower still. Postgres enforces the same list in
  * erase_investor(), so this check is for a readable refusal, not the gate.

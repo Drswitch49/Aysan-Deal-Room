@@ -16,7 +16,8 @@
  */
 import { z } from "zod";
 import { createHandler } from "../_lib/handler.js";
-import { PEOPLE_MANAGERS } from "../_lib/authz.js";
+import { INVESTOR_ROLES, PEOPLE_MANAGERS } from "../_lib/authz.js";
+import { ForbiddenError } from "../../lib/core/errors.js";
 import {
   provisionAccount,
   issueLoginLink,
@@ -41,6 +42,12 @@ export default createHandler({
   handle: async ({ req, body, user }) => {
     const actorRole = user?.role ?? "read_only";
     const { type, id, mode } = body;
+
+    // Shareholders belong to the Investors area: HR may manage staff logins
+    // but not a shareholder's.
+    if (type === "shareholder" && !INVESTOR_ROLES.includes(actorRole)) {
+      throw new ForbiddenError("Only an admin, partner or the CFO can manage shareholder access.");
+    }
 
     if (mode === "enable" || mode === "disable") {
       const result = await setAccountEnabled(type, id, mode === "enable", actorRole);

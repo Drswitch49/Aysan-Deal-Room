@@ -18,6 +18,8 @@ import { ManualNotesTab } from "../components/deals/ManualNotesTab";
 import { KillReasonCard } from "../components/deals/KillReasonCard";
 import { PostCallScorecardTab } from "../components/deals/PostCallScorecardTab";
 import { DealPortalTab } from "../components/deals/DealPortalTab";
+import { useAuth } from "../context/AuthContext";
+import { canAccessInvestors } from "../lib/rbac";
 import { ErrorState } from "../components/ui/ErrorState";
 import { LoadingState } from "../components/ui/LoadingState";
 import { PageHeader } from "../components/ui/PageHeader";
@@ -121,6 +123,13 @@ export function DealDetailPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<TabId>("overview");
+  // The Investor Portal tab is for admins, partners and the CFO only.
+  const { user: authUser } = useAuth();
+  const showInvestorTab = canAccessInvestors(authUser?.role);
+  const visibleTabs = useMemo(
+    () => tabs.filter((t) => t.id !== "investor-portal" || showInvestorTab),
+    [showInvestorTab],
+  );
   const decodedRef = useMemo(() => (ref ? decodeURIComponent(ref) : ""), [ref]);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   // The header shows the latest post-call run's verdict (Kill / Price / …).
@@ -749,7 +758,7 @@ export function DealDetailPage() {
       {/* Tabs navigation with scroll support */}
       <div className="border-b border-white/[0.02] w-full flex items-center mb-6">
         <div className="flex gap-8 overflow-x-auto flex-1 -mb-[1px]">
-          {tabs.map((tab) => (
+          {visibleTabs.map((tab) => (
             <button
               key={tab.id}
               className={cx(
@@ -909,7 +918,7 @@ export function DealDetailPage() {
           </div>
         )}
 
-        {activeTab === "investor-portal" && dealId && <DealPortalTab dealId={dealId} />}
+        {activeTab === "investor-portal" && dealId && showInvestorTab && <DealPortalTab dealId={dealId} />}
 
         {activeTab === "notes" && (
           <ManualNotesTab dealRef={decodedRef} />

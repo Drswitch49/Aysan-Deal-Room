@@ -220,7 +220,7 @@ function PartnerPicker({
           </p>
         ) : rows.length === 0 ? (
           <p className="px-3 py-3 text-xs text-slate-500">
-            {all.length ? "No partners match." : "No capital partners yet — add one under HR & Stakeholders."}
+            {all.length ? "No partners match." : "No capital partners yet — add one under Investors."}
           </p>
         ) : (
           rows.map((p) => (

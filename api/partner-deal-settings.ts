@@ -16,7 +16,7 @@
  */
 import { z } from "zod";
 import { createHandler } from "./_lib/handler.js";
-import { ALL_STAFF, PARTNER_MANAGERS } from "./_lib/authz.js";
+import { INVESTOR_ROLES, PARTNER_MANAGERS } from "./_lib/authz.js";
 import { ForbiddenError, InternalError, NotFoundError } from "../lib/core/errors.js";
 import { adminClient } from "../lib/data/supabase/client.js";
 import { recordAudit, translateGateError } from "./_lib/investor-access.js";
@@ -54,7 +54,7 @@ const coverageSchema = z.object({
 export default createHandler({
   methods: ["GET", "PATCH", "POST"],
   requireAuth: true,
-  roles: ALL_STAFF,
+  roles: INVESTOR_ROLES,
   handle: async ({ req, body, query, user }) => {
     const db = adminClient();
 

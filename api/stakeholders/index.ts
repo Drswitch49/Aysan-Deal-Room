@@ -8,11 +8,12 @@
  */
 import { collectionHandler } from "../_lib/crud-route.js";
 import { repositories } from "../../lib/data/supabase/repositories.js";
-import { PEOPLE_MANAGERS } from "../_lib/authz.js";
+import { INVESTOR_ROLES } from "../_lib/authz.js";
 import { syncInvestorFromStakeholder } from "../_lib/investor-access.js";
 
 export default collectionHandler(repositories.externalStakeholders, {
-  writeRoles: PEOPLE_MANAGERS,
+  readRoles: INVESTOR_ROLES,
+  writeRoles: INVESTOR_ROLES,
   onCreated: async (row) => {
     await syncInvestorFromStakeholder(row);
   },

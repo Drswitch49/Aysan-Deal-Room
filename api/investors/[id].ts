@@ -18,7 +18,7 @@
  */
 import { z } from "zod";
 import { createHandler } from "../_lib/handler.js";
-import { ALL_STAFF, PARTNER_ERASERS, PARTNER_MANAGERS } from "../_lib/authz.js";
+import { INVESTOR_ROLES, PARTNER_ERASERS, PARTNER_MANAGERS } from "../_lib/authz.js";
 import { ForbiddenError, NotFoundError, BadRequestError, InternalError } from "../../lib/core/errors.js";
 import { adminClient } from "../../lib/data/supabase/client.js";
 import { isCertifiedNow } from "../_lib/investor-context.js";
@@ -65,7 +65,7 @@ const RESTRICTED = new Set([
 export default createHandler({
   methods: ["GET", "PATCH", "DELETE"],
   requireAuth: true,
-  roles: ALL_STAFF,
+  roles: INVESTOR_ROLES,
   handle: async ({ req, body, query, user }) => {
     const { id } = idSchema.parse(query);
     const db = adminClient();

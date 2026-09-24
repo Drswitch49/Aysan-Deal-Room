@@ -95,6 +95,16 @@ function canonicalRole(role: string): string {
 }
 
 /**
+ * Roles that may read and write the Investors area — capital partners,
+ * stakeholders, shareholders and each deal's Investor Portal tab. Mirrors
+ * INVESTOR_ROLES in api/_lib/authz.ts, which is the gate that refuses.
+ */
+export const INVESTOR_ROLES = ["owner", "super_admin", "managing_partner", "partner", "admin", "cfo"];
+
+export const canAccessInvestors = (role: string | null | undefined): boolean =>
+  INVESTOR_ROLES.includes(canonicalRole(role ?? ""));
+
+/**
  * Badge label for a roster row's access level.
  *
  * `access_level` is a free-text column that only rows created through this app

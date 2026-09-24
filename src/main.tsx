@@ -14,7 +14,8 @@ const DealDetailPage = lazy(() => import("./pages/DealDetailPage").then(m => ({ 
 const LenderManagementPage = lazy(() => import("./pages/LenderManagementPage").then(m => ({ default: m.LenderManagementPage })));
 const LenderPortalPage = lazy(() => import("./pages/LenderPortalPage").then(m => ({ default: m.LenderPortalPage })));
 const PortCoMonitorPage = lazy(() => import("./pages/PortCoMonitorPage").then(m => ({ default: m.PortCoMonitorPage })));
-const HrStakeholdersPage = lazy(() => import("./pages/HrStakeholdersPage").then(m => ({ default: m.HrStakeholdersPage })));
+const HrPage = lazy(() => import("./pages/HrStakeholdersPage").then(m => ({ default: m.HrPage })));
+const InvestorsPage = lazy(() => import("./pages/HrStakeholdersPage").then(m => ({ default: m.InvestorsPage })));
 const SettingsPage = lazy(() => import("./pages/SettingsPage").then(m => ({ default: m.SettingsPage })));
 const AdminMessagesPage = lazy(() => import("./pages/AdminMessagesPage").then(m => ({ default: m.AdminMessagesPage })));
 const DealInboxPage = lazy(() => import("./pages/DealInboxPage").then(m => ({ default: m.DealInboxPage })));
@@ -98,7 +99,8 @@ const router = createBrowserRouter([
       { path: "deals/:ref", element: withSuspense(DealDetailPage) },
       { path: "admin/lenders", element: withSuspense(LenderManagementPage) },
       { path: "admin/portco", element: withSuspense(PortCoMonitorPage) },
-      { path: "admin/hr", element: withSuspense(HrStakeholdersPage) },
+      { path: "admin/hr", element: withSuspense(HrPage) },
+      { path: "admin/investors", element: withSuspense(InvestorsPage) },
       { path: "admin/settings", element: withSuspense(SettingsPage) },
       { path: "admin/messages", element: withSuspense(AdminMessagesPage) },
       { path: "admin/inbox", element: withSuspense(DealInboxPage) },

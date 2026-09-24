@@ -3,17 +3,25 @@ import { api, type Paginated } from "../http";
 import { type Row, mapKeys } from "./_shared";
 import { accessLevelFor } from "../../lib/rbac";
 
-export async function fetchHrRegistry(): Promise<{
+const none = Promise.resolve<Paginated<Row>>({ rows: [], total: 0, limit: 0, offset: 0 });
+
+/**
+ * Load one side of the registry. The HR page reads the team and hiring; the
+ * Investors page reads stakeholders and shareholders, which only the investor
+ * roles may see — so neither page asks for the other's data.
+ */
+export async function fetchHrRegistry(scope: "hr" | "investors" = "hr"): Promise<{
   team: any[];
   hires: any[];
   stakeholders: any[];
   shareholders: any[];
 }> {
+  const hr = scope === "hr";
   const [team, hiring, stakeholders, shareholders] = await Promise.all([
-    api.get<Paginated<Row>>("/api/team-members?limit=200"),
-    api.get<Paginated<Row>>("/api/hiring-briefs?limit=200"),
-    api.get<Paginated<Row>>("/api/stakeholders?limit=200"),
-    api.get<Paginated<Row>>("/api/shareholders?limit=200").catch(() => ({ rows: [] as Row[] })),
+    hr ? api.get<Paginated<Row>>("/api/team-members?limit=200") : none,
+    hr ? api.get<Paginated<Row>>("/api/hiring-briefs?limit=200") : none,
+    hr ? none : api.get<Paginated<Row>>("/api/stakeholders?limit=200"),
+    hr ? none : api.get<Paginated<Row>>("/api/shareholders?limit=200"),
   ]);
   return {
     team: team.rows.map((r) => ({

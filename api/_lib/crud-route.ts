@@ -17,6 +17,8 @@ import type { Repository } from "../../lib/data/ports/repository.js";
 const idSchema = z.object({ id: z.string().uuid("A resource id (uuid) is required") });
 
 interface CrudOptions {
+  /** Who may read (GET). Defaults to any authenticated user. */
+  readRoles?: string[];
   writeRoles?: string[];
   deleteRoles?: string[];
   /** Runs after a successful PATCH — e.g. to cascade a flag onto child rows. */
@@ -34,7 +36,12 @@ export function collectionHandler(
     methods: ["GET", "POST"],
     requireAuth: true,
     handle: async ({ req, body, query, user }) => {
-      if (req.method === "GET") return repo.list(query as Record<string, unknown>);
+      if (req.method === "GET") {
+        if (opts.readRoles && (!user || !opts.readRoles.includes(user.role))) {
+          throw new ForbiddenError("Insufficient role to view");
+        }
+        return repo.list(query as Record<string, unknown>);
+      }
       if (!user || !writeRoles.includes(user.role)) throw new ForbiddenError("Insufficient role to create");
       const created = await repo.create(body);
       if (opts.onCreated) await opts.onCreated(created);
@@ -55,6 +62,9 @@ export function itemHandler(
     handle: async ({ req, body, query, user }) => {
       const { id } = idSchema.parse(query);
       if (req.method === "GET") {
+        if (opts.readRoles && (!user || !opts.readRoles.includes(user.role))) {
+          throw new ForbiddenError("Insufficient role to view");
+        }
         const row = await repo.findById(id);
         if (!row) throw new NotFoundError("Not found");
         return row;
