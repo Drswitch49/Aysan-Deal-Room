@@ -11,14 +11,18 @@
  *     evidence link, and only admin/cfo may record it;
  *   · passing a partner — needs both a reason and a category, and revokes the
  *     login the same day.
+ *
+ * DELETE permanently erases the partner and everything about them (see
+ * erasePartner). It needs ?confirm=<the partner's email>, typed by the admin,
+ * so a stray request or a mis-click on the wrong record cannot do it.
  */
 import { z } from "zod";
 import { createHandler } from "../_lib/handler.js";
-import { ALL_STAFF, PARTNER_MANAGERS } from "../_lib/authz.js";
+import { ALL_STAFF, PARTNER_ERASERS, PARTNER_MANAGERS } from "../_lib/authz.js";
 import { ForbiddenError, NotFoundError, BadRequestError, InternalError } from "../../lib/core/errors.js";
 import { adminClient } from "../../lib/data/supabase/client.js";
 import { isCertifiedNow } from "../_lib/investor-context.js";
-import { recordAudit, setPortalAccess, translateGateError } from "../_lib/investor-access.js";
+import { erasePartner, recordAudit, setPortalAccess, translateGateError } from "../_lib/investor-access.js";
 
 const idSchema = z.object({ id: z.string().uuid("A capital partner id (uuid) is required") });
 
@@ -59,7 +63,7 @@ const RESTRICTED = new Set([
 ]);
 
 export default createHandler({
-  methods: ["GET", "PATCH"],
+  methods: ["GET", "PATCH", "DELETE"],
   requireAuth: true,
   roles: ALL_STAFF,
   handle: async ({ req, body, query, user }) => {
@@ -67,6 +71,26 @@ export default createHandler({
     const db = adminClient();
 
     if (req.method === "GET") return loadRecord(id);
+
+    // ── DELETE: permanent erasure ──
+    if (req.method === "DELETE") {
+      if (!user || !PARTNER_ERASERS.includes(user.role)) {
+        throw new ForbiddenError("Only an owner, managing partner or admin may permanently delete a capital partner.");
+      }
+      const { data: target, error: targetErr } = await db
+        .from("investors")
+        .select("email")
+        .eq("id", id)
+        .maybeSingle();
+      if (targetErr) throw new InternalError(`investors: ${targetErr.message}`);
+      if (!target) throw new NotFoundError("Capital partner not found");
+
+      const confirm = String((query as Record<string, unknown>).confirm ?? "").trim().toLowerCase();
+      if (!confirm || confirm !== String(target.email).trim().toLowerCase()) {
+        throw new BadRequestError("Type the partner's email address exactly to confirm the permanent delete.");
+      }
+      return erasePartner(id, user);
+    }
 
     // ── PATCH ──
     const patch = patchSchema.parse(body ?? {});

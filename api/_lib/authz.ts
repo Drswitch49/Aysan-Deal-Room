@@ -65,6 +65,13 @@ export const PORTAL_ROLES = ["lender", "shareholder", "stakeholder", "investor"]
 export const PARTNER_MANAGERS = ["owner", "managing_partner", "partner", "admin", "cfo"];
 
 /**
+ * Permanently erasing a capital partner — record, money trail and audit
+ * history — is narrower still. Postgres enforces the same list in
+ * erase_investor(), so this check is for a readable refusal, not the gate.
+ */
+export const PARTNER_ERASERS = ["owner", "managing_partner", "admin"];
+
+/**
  * Coverage status has one author (rule R4). This list is advisory only — the
  * refusal that matters is the `dscr_status_cfo_only` gate in Postgres, which
  * fires even if a route forgets to check. Ayo's admin login fails here by

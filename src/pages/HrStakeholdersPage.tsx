@@ -825,7 +825,10 @@ export function HrStakeholdersPage() {
             <h3 className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-400 border-b border-white/[0.02] pb-3 mb-4 select-none">
               Capital Partners
             </h3>
-            <CapitalPartnersTab canManage={canManageStakeholders} />
+            <CapitalPartnersTab
+              canManage={canManageStakeholders}
+              canErase={["owner", "super_admin", "managing_partner", "admin"].includes(canonRole)}
+            />
           </div>
 
           {/* EXTERNAL STAKEHOLDERS */}

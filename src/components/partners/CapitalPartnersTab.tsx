@@ -25,10 +25,12 @@ import {
   Loader2,
   Plus,
   ShieldOff,
+  Trash2,
   X,
 } from "lucide-react";
 import {
   createPartner,
+  erasePartner,
   getPartner,
   listPartners,
   partnerAccess,
@@ -89,9 +91,10 @@ const certTone = (row: { certification_status: string; certified_now: boolean })
 const portalTone = (mode: string) =>
   mode === "full" ? "ok" : mode === "pending" || mode === "read_only" ? "warn" : mode === "revoked" ? "bad" : "mute";
 
-export function CapitalPartnersTab({ canManage }: { canManage: boolean }) {
+export function CapitalPartnersTab({ canManage, canErase = false }: { canManage: boolean; canErase?: boolean }) {
   const [rows, setRows] = useState<PartnerListRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [filter, setFilter] = useState<"all" | "certified" | "portal" | "stale">("all");
@@ -153,6 +156,14 @@ export function CapitalPartnersTab({ canManage }: { canManage: boolean }) {
       {error ? (
         <div className="mb-4 rounded border border-rose-500/25 bg-rose-500/10 px-3 py-2 text-xs text-rose-300">
           {error}
+        </div>
+      ) : null}
+      {notice ? (
+        <div className="mb-4 flex items-start justify-between gap-3 rounded border border-emerald-500/25 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-300">
+          <span>{notice}</span>
+          <button type="button" onClick={() => setNotice(null)} className="shrink-0 text-emerald-300/70 hover:text-emerald-200">
+            <X className="h-3.5 w-3.5" />
+          </button>
         </div>
       ) : null}
 
@@ -235,8 +246,14 @@ export function CapitalPartnersTab({ canManage }: { canManage: boolean }) {
         <PartnerDrawer
           id={openId}
           canManage={canManage}
+          canErase={canErase}
           onClose={() => setOpenId(null)}
           onChanged={load}
+          onErased={async (message) => {
+            setOpenId(null);
+            setNotice(message);
+            await load();
+          }}
         />
       ) : null}
     </div>
@@ -373,14 +390,19 @@ type DrawerTab = "details" | "certification" | "access" | "commitments" | "audit
 function PartnerDrawer({
   id,
   canManage,
+  canErase,
   onClose,
   onChanged,
+  onErased,
 }: {
   id: string;
   canManage: boolean;
+  canErase: boolean;
   onClose: () => void;
   onChanged: () => Promise<void>;
+  onErased: (message: string) => Promise<void>;
 }) {
+  const [erasing, setErasing] = useState(false);
   const [record, setRecord] = useState<PartnerRecord | null>(null);
   const [tab, setTab] = useState<DrawerTab>("details");
   const [error, setError] = useState("");
@@ -549,7 +571,36 @@ function PartnerDrawer({
               </div>
             </div>
           ) : null}
+
+          {canErase ? (
+            <div className="rounded border border-rose-500/25 bg-rose-500/[0.04] p-4">
+              <p className="text-xs font-bold text-rose-300">Danger zone</p>
+              <p className="mt-1 text-[11px] leading-relaxed text-slate-400">
+                Permanently delete this partner and everything recorded about them — including commitments, capital
+                transactions and the audit trail. This cannot be undone.
+              </p>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => setErasing(true)}
+                className="mt-3 rounded border border-rose-500/40 px-3.5 py-2 text-xs font-semibold text-rose-300 transition hover:bg-rose-500/10 disabled:opacity-40"
+              >
+                <Trash2 className="mr-1 inline h-3.5 w-3.5" /> Permanently delete partner
+              </button>
+            </div>
+          ) : null}
         </div>
+      ) : null}
+
+      {erasing ? (
+        <EraseDialog
+          record={record}
+          onCancel={() => setErasing(false)}
+          onErased={async (message) => {
+            setErasing(false);
+            await onErased(message);
+          }}
+        />
       ) : null}
 
       {tab === "commitments" ? (
@@ -832,6 +883,165 @@ function CertificationTab({
         </button>
       </div>
     </div>
+  );
+}
+
+/** What a permanent delete removes, and the steps to take before doing it. */
+function EraseDialog({
+  record,
+  onCancel,
+  onErased,
+}: {
+  record: PartnerRecord;
+  onCancel: () => void;
+  onErased: (message: string) => Promise<void>;
+}) {
+  const p = record.investor;
+  const [understood, setUnderstood] = useState(false);
+  const [typed, setTyped] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  const txns = record.commitments.reduce(
+    (n, c) => n + (Array.isArray(c.capital_transactions) ? c.capital_transactions.length : 0),
+    0,
+  );
+  const matches = typed.trim().toLowerCase() === String(p.email).trim().toLowerCase();
+  const hasMoney = record.commitments.length > 0 || txns > 0;
+
+  const erase = async () => {
+    setBusy(true);
+    setError("");
+    try {
+      const res = await erasePartner(p.id, typed.trim());
+      const login =
+        res.login === "deleted"
+          ? " Their portal login was deleted."
+          : res.login === "unlinked"
+            ? " Their login is shared with another role, so only the partner link was removed from it."
+            : "";
+      await onErased(`${p.name} was permanently deleted.${login}`);
+    } catch (err: any) {
+      setError(err?.message || "The partner could not be deleted.");
+      setBusy(false);
+    }
+  };
+
+  const erased: Array<[string, string]> = [
+    ["Partner record and details", "name, email, phone, entity, notes, certification"],
+    ["Portal access", `login, ${record.invites.length} invite(s), terms acceptance`],
+    ["Commitments", String(record.commitments.length)],
+    ["Capital transactions", `${txns} (calls, distributions, buybacks)`],
+    ["HoldCo shareholdings", "all"],
+    ["Documents", String(record.documents.length)],
+    ["Activity, access and email logs", "all"],
+    ["Audit trail", `${record.audit.length} entr${record.audit.length === 1 ? "y" : "ies"}, with no record of this delete`],
+    ["Linked stakeholder card", "if one exists"],
+  ];
+
+  return (
+    <Overlay
+      title="Permanently delete partner"
+      subtitle={`${p.name} · ${p.email}`}
+      onClose={busy ? () => undefined : onCancel}
+    >
+      <div className="space-y-4">
+        <div className="flex gap-2.5 rounded border border-rose-500/30 bg-rose-500/10 p-3">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-rose-300" />
+          <p className="text-xs leading-relaxed text-rose-200">
+            <span className="font-bold">This is a hard delete and cannot be undone.</span> Everything below is erased
+            from the database immediately. There is no restore in the app, and no audit entry will show it ever
+            existed.
+          </p>
+        </div>
+
+        {hasMoney ? (
+          <div className="flex gap-2.5 rounded border border-amber-500/30 bg-amber-500/10 p-3">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
+            <p className="text-xs leading-relaxed text-amber-200">
+              This partner has financial records: {record.commitments.length} commitment(s) and {txns} capital
+              transaction(s). They will be erased too, and any figures that include them will change.
+            </p>
+          </div>
+        ) : null}
+
+        <div>
+          <p className={label}>What will be erased</p>
+          <dl className="divide-y divide-white/5 rounded border border-white/5">
+            {erased.map(([k, v]) => (
+              <div key={k} className="flex items-center justify-between gap-3 px-3 py-1.5 text-xs">
+                <dt className="text-slate-300">{k}</dt>
+                <dd className="text-right text-slate-500">{v}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+
+        <div>
+          <p className={label}>Before you delete</p>
+          <ol className="list-decimal space-y-1 pl-4 text-[11px] leading-relaxed text-slate-400">
+            <li>
+              Keep a copy of anything you are required to retain — subscription documents, capital history,
+              certification evidence. Check the Commitments and Audit tabs first.
+            </li>
+            <li>
+              If the partner still needs to hear from you, contact them now: their login stops working immediately
+              and any unsent emails to them are cancelled.
+            </li>
+            <li>
+              If you only want to stop their access, use <span className="text-slate-200">Revoke access</span>{" "}
+              instead — it keeps the record.
+            </li>
+          </ol>
+        </div>
+
+        <label className="flex cursor-pointer items-start gap-2 text-xs text-slate-300">
+          <input
+            type="checkbox"
+            checked={understood}
+            onChange={(e) => setUnderstood(e.target.checked)}
+            className="mt-0.5 accent-rose-500"
+          />
+          I understand this permanently erases this partner and cannot be undone.
+        </label>
+
+        <div>
+          <label className={label} htmlFor="erase-confirm">
+            Type <span className="normal-case text-slate-300">{p.email}</span> to confirm
+          </label>
+          <input
+            id="erase-confirm"
+            value={typed}
+            onChange={(e) => setTyped(e.target.value)}
+            autoComplete="off"
+            spellCheck={false}
+            placeholder={p.email}
+            className={input}
+          />
+        </div>
+
+        {error ? <ErrorNote>{error}</ErrorNote> : null}
+
+        <div className="flex justify-end gap-2">
+          <button type="button" className={ghostBtn} disabled={busy} onClick={onCancel}>
+            Cancel
+          </button>
+          <button
+            type="button"
+            disabled={!understood || !matches || busy}
+            onClick={() => void erase()}
+            className="rounded bg-rose-600 px-3.5 py-2 text-xs font-bold text-white transition hover:bg-rose-500 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {busy ? (
+              <Loader2 className="mr-1 inline h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Trash2 className="mr-1 inline h-3.5 w-3.5" />
+            )}
+            Permanently delete
+          </button>
+        </div>
+      </div>
+    </Overlay>
   );
 }
 

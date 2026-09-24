@@ -122,6 +122,15 @@ export const partnerAccess = (body: {
   reason?: string;
 }) => api.post<AccessGrant & { changed?: boolean; login_mode?: string }>("/api/partner-access", body);
 
+/**
+ * Permanently erase a partner and everything about them. `confirmEmail` must
+ * be the partner's email, typed by the admin; the server checks it.
+ */
+export const erasePartner = (id: string, confirmEmail: string) =>
+  api.del<{ removed: Record<string, number>; login: "deleted" | "unlinked" | "none" }>(
+    `/api/investors/${encodeURIComponent(id)}?confirm=${encodeURIComponent(confirmEmail)}`,
+  );
+
 // ─── Commitments and capital transactions ──────────────────────────────────
 
 export const listCommitments = (params: { investor_id?: string; deal_id?: string }) => {

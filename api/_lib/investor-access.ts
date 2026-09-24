@@ -415,6 +415,70 @@ export async function recordAudit(opts: {
  * admin exactly which box to tick; a generic "operation failed" sends them to
  * the developer instead.
  */
+// ─── Permanent erasure ─────────────────────────────────────────────────────
+
+export interface ErasureResult {
+  removed: Record<string, number>;
+  /** "deleted", "unlinked" (the login is shared with another role), or "none". */
+  login: "deleted" | "unlinked" | "none";
+}
+
+/**
+ * Permanently erase a capital partner and everything about them. The database
+ * half — record, stakeholder card, commitments, capital transactions, HoldCo
+ * shares, documents, logs, queued mail and audit history — is one transaction
+ * inside erase_investor() (migration 0021), so it either all goes or none
+ * does. The Supabase Auth login lives outside that transaction and is removed
+ * afterwards.
+ */
+export async function erasePartner(investorId: string, actor: UserContext): Promise<ErasureResult> {
+  const db = adminClient();
+  const { data, error } = await db.rpc("erase_investor", {
+    p_investor: investorId,
+    p_actor_role: actor.role,
+  });
+  if (error) {
+    if (error.message.includes("investor_not_found")) throw new NotFoundError("Capital partner not found");
+    throw translateGateError(error.message);
+  }
+
+  const result = (data ?? {}) as { auth_uid?: string | null; removed?: Record<string, number> };
+  let login: ErasureResult["login"] = "none";
+
+  if (result.auth_uid) {
+    const { data: found } = await db.auth.admin.getUserById(result.auth_uid);
+    const user = found?.user;
+    if (user) {
+      const meta = { ...(user.app_metadata ?? {}) } as Record<string, unknown>;
+      // Issuing access reuses an existing login for the same email, so this
+      // account may also be someone's lender or staff login. Only a login that
+      // is purely this partner's is deleted; otherwise just the partner link
+      // is stripped from it.
+      const partnerOnly = meta.role === "investor" && meta.investor_id === investorId;
+      if (partnerOnly) {
+        const { error: delErr } = await db.auth.admin.deleteUser(user.id);
+        if (delErr) {
+          logger.error({ err: delErr, investorId }, "partner erased but auth user delete failed");
+          throw new InternalError(
+            `The partner's records were erased, but their login could not be removed: ${delErr.message}. Delete ${user.email} under Supabase → Authentication → Users.`,
+          );
+        }
+        login = "deleted";
+      } else {
+        delete meta.investor_id;
+        delete meta.must_change_password;
+        if (meta.role === "investor") delete meta.role;
+        await db.auth.admin.updateUserById(user.id, { app_metadata: meta });
+        login = "unlinked";
+      }
+    }
+  }
+
+  // Deliberately no audit row: the user chose erasure with no trace.
+  logger.info({ investorId, by: actor.email, login }, "capital partner permanently erased");
+  return { removed: result.removed ?? {}, login };
+}
+
 export function translateGateError(message: string): Error {
   const m = String(message);
   if (m.includes("certification_invalid")) {
