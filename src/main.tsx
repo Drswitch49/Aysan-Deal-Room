@@ -130,11 +130,13 @@ const router = createBrowserRouter([
 ]);
 
 import { AuthProvider } from "./context/AuthContext";
+import { UpdateBanner } from "./components/ui/UpdateBanner";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <AuthProvider>
       <RouterProvider router={router} />
+      <UpdateBanner />
     </AuthProvider>
   </StrictMode>,
 );
