@@ -178,16 +178,16 @@ export function CapitalPartnersTab({ canManage, canErase = false }: { canManage:
         </div>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-white/5">
-          <table className="w-full min-w-[820px] text-left">
+          <table className="w-full min-w-[560px] text-left">
             <thead className="bg-white/[0.02]">
               <tr className="text-[10px] uppercase tracking-[0.12em] text-slate-500">
-                <th className="px-4 py-3 font-semibold">Partner</th>
-                <th className="px-4 py-3 font-semibold">Type</th>
-                <th className="px-4 py-3 text-right font-semibold">Committed</th>
-                <th className="px-4 py-3 font-semibold">Perimeter</th>
-                <th className="px-4 py-3 font-semibold">Certification</th>
-                <th className="px-4 py-3 font-semibold">Portal</th>
-                <th className="px-4 py-3 font-semibold">Last touch</th>
+                <th className="px-3 py-2.5 font-semibold">Partner</th>
+                <th className="px-3 py-2.5 font-semibold">Type</th>
+                <th className="px-3 py-2.5 text-right font-semibold">Committed</th>
+                <th className="hidden px-3 py-2.5 font-semibold 2xl:table-cell">Perimeter</th>
+                <th className="px-3 py-2.5 font-semibold">Certification</th>
+                <th className="px-3 py-2.5 font-semibold">Portal</th>
+                <th className="hidden px-3 py-2.5 font-semibold xl:table-cell">Last touch</th>
               </tr>
             </thead>
             <tbody>
@@ -197,26 +197,28 @@ export function CapitalPartnersTab({ canManage, canErase = false }: { canManage:
                   onClick={() => setOpenId(row.id)}
                   className="cursor-pointer border-t border-white/5 transition hover:bg-white/[0.03]"
                 >
-                  <td className="px-4 py-3">
-                    <p className="text-sm text-slate-200">{row.name}</p>
-                    <p className="text-[11px] text-slate-500">{row.email}</p>
+                  <td className="max-w-[200px] px-3 py-2.5">
+                    <p className="truncate text-xs font-semibold text-slate-200">{row.name}</p>
+                    <p className="truncate text-[10px] text-slate-500">{row.email}</p>
                   </td>
-                  <td className="px-4 py-3 text-xs text-slate-400">{TYPE_LABEL[row.type] ?? row.type}</td>
-                  <td className="px-4 py-3 text-right text-sm tabular-nums text-slate-200">
+                  <td className="whitespace-nowrap px-3 py-2.5 text-xs text-slate-400">{TYPE_LABEL[row.type] ?? row.type}</td>
+                  <td className="whitespace-nowrap px-3 py-2.5 text-right text-xs tabular-nums text-slate-200">
                     {row.committed_pence ? gbp(row.committed_pence) : "n/a"}
                   </td>
-                  <td className="px-4 py-3 text-xs text-slate-400">{row.perimeter_flag ? "Inside" : "Outside"}</td>
-                  <td className="px-4 py-3">
+                  <td className="hidden px-3 py-2.5 text-xs text-slate-400 2xl:table-cell">
+                    {row.perimeter_flag ? "Inside" : "Outside"}
+                  </td>
+                  <td className="whitespace-nowrap px-3 py-2.5">
                     <Pill tone={certTone(row)}>
                       {row.certified_now && row.certification_date
                         ? `Valid to ${formatDate(addYear(row.certification_date))}`
                         : CERT_LABEL[row.certification_status] ?? row.certification_status}
                     </Pill>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-3 py-2.5">
                     <Pill tone={portalTone(row.login_mode)}>{PORTAL_LABEL[row.login_mode] ?? row.login_mode}</Pill>
                   </td>
-                  <td className="px-4 py-3 text-xs text-slate-400">
+                  <td className="hidden whitespace-nowrap px-3 py-2.5 text-xs text-slate-400 xl:table-cell">
                     {row.last_touch ? formatDate(row.last_touch) : "—"}
                     {row.staleness_flag ? (
                       <span className="ml-1.5 text-amber-400" title="No contact in 90 days">

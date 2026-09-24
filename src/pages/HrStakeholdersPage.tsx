@@ -1,5 +1,24 @@
-import { useState, useEffect } from "react";
-import { Plus, Trash, Loader2, AlertCircle, UserPlus, X, Copy, ShieldCheck, KeyRound, Edit, UserCheck, UserX } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import {
+  Plus,
+  Trash,
+  Loader2,
+  AlertCircle,
+  UserPlus,
+  X,
+  Copy,
+  KeyRound,
+  Edit,
+  UserCheck,
+  UserX,
+  Briefcase,
+  Building2,
+  ChevronDown,
+  ChevronRight,
+  PieChart,
+  Search,
+  Users,
+} from "lucide-react";
 import { cx } from "../utils/cx";
 import { HeaderMetrics } from "../components/ui/HeaderMetrics";
 import { fetchHrRegistry, addHiringBrief, deleteHiringBrief, createTeamMember, createStakeholder, provisionAccess } from "../api/admin";
@@ -73,6 +92,104 @@ type Shareholder = {
   assignments: any[];
 };
 
+type RegistryTab = "partners" | "stakeholders" | "shareholders" | "hiring";
+const REGISTRY_TABS: RegistryTab[] = ["partners", "stakeholders", "shareholders", "hiring"];
+const REGISTRY_TAB_KEY = "acp:hr-registry-tab";
+
+function readRegistryTab(): RegistryTab {
+  try {
+    const saved = localStorage.getItem(REGISTRY_TAB_KEY) as RegistryTab | null;
+    return saved && REGISTRY_TABS.includes(saved) ? saved : "partners";
+  } catch {
+    return "partners";
+  }
+}
+
+const accentDot = (accent?: string) =>
+  accent === "amber" ? "bg-amber-400" : accent === "blue" ? "bg-blue-400" : accent === "slate" ? "bg-slate-400" : "bg-emerald-400";
+
+/** Access level as a colour-coded pill: full, write and read-only read at a glance. */
+function AccessPill({ level }: { level: string }) {
+  const l = (level || "").toLowerCase();
+  const tone = l.includes("full")
+    ? "border-[#C6A66B]/25 bg-[#C6A66B]/10 text-[#C6A66B]"
+    : l.includes("write")
+      ? "border-blue-500/25 bg-blue-500/10 text-blue-300"
+      : "border-white/[0.06] bg-white/[0.03] text-slate-400";
+  const text = l.includes("full") ? "Full" : l.includes("write") ? "Write" : l.includes("read") ? "Read" : level;
+  return (
+    <span
+      title={level}
+      className={cx("shrink-0 select-none rounded-full border px-2 py-px text-[9px] font-bold uppercase tracking-wider", tone)}
+    >
+      {text}
+    </span>
+  );
+}
+
+function SummaryTile({
+  icon: Icon,
+  label,
+  value,
+  detail,
+  loading,
+  active,
+  onClick,
+}: {
+  icon: typeof Users;
+  label: string;
+  value: number;
+  detail: string;
+  loading: boolean;
+  active?: boolean;
+  onClick?: () => void;
+}) {
+  const body = (
+    <>
+      <span
+        className={cx(
+          "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border",
+          active ? "border-[#C6A66B]/30 bg-[#C6A66B]/10" : "border-white/[0.06] bg-white/[0.02]",
+        )}
+      >
+        <Icon className={cx("h-4 w-4", active ? "text-[#C6A66B]" : "text-slate-400")} />
+      </span>
+      <span className="min-w-0">
+        <span className="block text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">{label}</span>
+        <span className="flex items-baseline gap-1.5">
+          <span className="text-lg font-bold leading-tight tabular-nums text-white">
+            {loading ? <span className="inline-block h-4 w-5 animate-pulse rounded bg-white/5 align-middle" /> : value}
+          </span>
+          <span className="truncate text-[10px] text-slate-500">{loading ? "" : detail}</span>
+        </span>
+      </span>
+    </>
+  );
+  const cls = cx(
+    "flex items-center gap-3 rounded-xl border bg-[#161B22] px-3.5 py-2.5 text-left transition",
+    active ? "border-[#C6A66B]/30" : "border-white/[0.04]",
+  );
+  return onClick ? (
+    <button type="button" onClick={onClick} className={cx(cls, "cursor-pointer hover:border-white/10")}>
+      {body}
+    </button>
+  ) : (
+    <div className={cls}>{body}</div>
+  );
+}
+
+const RegistryLoading = ({ label }: { label: string }) => (
+  <div className="flex items-center justify-center gap-2 py-10 text-xs text-slate-500">
+    <Loader2 className="h-4 w-4 animate-spin text-[#C6A66B]" /> {label}
+  </div>
+);
+
+const RegistryEmpty = ({ text }: { text: string }) => (
+  <p className="select-none rounded-xl border border-dashed border-white/[0.06] py-10 text-center text-xs text-slate-500">
+    {text}
+  </p>
+);
+
 export function HrStakeholdersPage() {
   const [team, setTeam] = useState<TeamMember[]>([]);
   const [hires, setHires] = useState<HiringBrief[]>([]);
@@ -85,6 +202,38 @@ export function HrStakeholdersPage() {
 
   // Current User Session
   const [currentUser, setCurrentUser] = useState<any>(null);
+
+  // Registry panel: which list is showing (remembered per browser), its
+  // search, and the header Add menu.
+  const [registryTab, setRegistryTabState] = useState<RegistryTab>(readRegistryTab);
+  const [registryQuery, setRegistryQuery] = useState("");
+  const [addMenuOpen, setAddMenuOpen] = useState(false);
+  const addMenuRef = useRef<HTMLDivElement>(null);
+
+  const setRegistryTab = (tab: RegistryTab) => {
+    setRegistryTabState(tab);
+    setRegistryQuery("");
+    try {
+      localStorage.setItem(REGISTRY_TAB_KEY, tab);
+    } catch {
+      // Storage blocked; the tab just is not remembered.
+    }
+  };
+
+  useEffect(() => {
+    if (!addMenuOpen) return;
+    const close = (e: MouseEvent | KeyboardEvent) => {
+      if (e instanceof KeyboardEvent ? e.key === "Escape" : !addMenuRef.current?.contains(e.target as Node)) {
+        setAddMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", close);
+    document.addEventListener("keydown", close);
+    return () => {
+      document.removeEventListener("mousedown", close);
+      document.removeEventListener("keydown", close);
+    };
+  }, [addMenuOpen]);
 
   // Slide-over side drawer settings
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -292,6 +441,14 @@ export function HrStakeholdersPage() {
   // These registry tables all soft-delete on the backend, so the delete action
   // is never a permanent hard delete — keep the accurate "Soft Delete" copy.
   const isSuperAdmin = false;
+
+  const needle = registryQuery.trim().toLowerCase();
+  const matches = (...fields: Array<string | undefined>) =>
+    !needle || fields.some((f) => (f || "").toLowerCase().includes(needle));
+  const visibleStakeholders = stakeholders.filter((sh) =>
+    matches(sh.name, sh.association, sh.description, sh.email, sh.type),
+  );
+  const visibleShareholders = shareholders.filter((sh) => matches(sh.name, sh.email, sh.notes));
 
   // Configuration drawer triggers
   const openConfigDrawerForTeam = (member: TeamMember) => {
@@ -562,58 +719,131 @@ export function HrStakeholdersPage() {
   };
 
   return (
-    <div className="space-y-6 text-[#E2E8F0] font-sans">
-      {/* Header section with warning badges */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/5 pb-4">
-        <div className="space-y-1">
-          <h1 className="text-xl font-bold text-white tracking-tight">
+    <div className="space-y-5 text-[#E2E8F0] font-sans">
+      {/* Header: title, live counts, and one Add menu instead of a row of buttons */}
+      <div className="flex flex-col gap-3 border-b border-white/5 pb-4 md:flex-row md:items-center md:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-xl font-bold tracking-tight text-white">
             HR & <span className="text-[#C6A66B]">Stakeholders</span>
           </h1>
-          <p className="text-xs text-slate-550 font-medium">
+          <p className="mt-0.5 text-xs font-medium text-slate-500">
             {isLoading ? (
               <span className="flex items-center gap-1.5 opacity-60">
                 <Loader2 className="h-3 w-3 animate-spin text-slate-500" />
                 Loading registry...
               </span>
             ) : (
-              `${team.length} team members · ${hires.length} open hires`
+              "People, partners and relationships across ACP"
             )}
           </p>
         </div>
-        
-        <div className="flex items-center gap-2 select-none">
+
+        <div className="flex select-none flex-wrap items-center gap-2">
           <HeaderMetrics />
-          
-          {canManageTeam && (
-            <button
-              onClick={() => setIsAddTeamMemberOpen(true)}
-              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#C6A66B]/30 bg-[#C6A66B]/5 px-3 text-[10px] font-bold uppercase tracking-wider text-[#C6A66B] hover:bg-[#C6A66B]/15 cursor-pointer transition animate-fade-in"
-              type="button"
-            >
-              <UserPlus className="h-3 w-3" /> Team Member
-            </button>
-          )}
 
-          {canManageStakeholders && (
-            <button
-              onClick={() => setIsAddStakeholderOpen(true)}
-              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#C6A66B]/30 bg-[#C6A66B]/5 px-3 text-[10px] font-bold uppercase tracking-wider text-[#C6A66B] hover:bg-[#C6A66B]/15 cursor-pointer transition animate-fade-in"
-              type="button"
-            >
-              <Plus className="h-3 w-3" /> Stakeholder
-            </button>
-          )}
-
-          {canManageStakeholders && (
-            <button
-              onClick={() => setIsAddShareholderOpen(true)}
-              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#C6A66B]/30 bg-[#C6A66B]/5 px-3 text-[10px] font-bold uppercase tracking-wider text-[#C6A66B] hover:bg-[#C6A66B]/15 cursor-pointer transition animate-fade-in"
-              type="button"
-            >
-              <Plus className="h-3 w-3" /> Shareholder
-            </button>
-          )}
+          {canManageTeam || canManageStakeholders ? (
+            <div className="relative" ref={addMenuRef}>
+              <button
+                type="button"
+                onClick={() => setAddMenuOpen((v) => !v)}
+                aria-expanded={addMenuOpen}
+                className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-lg bg-[#C6A66B] px-3 text-[11px] font-bold text-[#0F1115] transition hover:brightness-110"
+              >
+                <Plus className="h-3.5 w-3.5" /> Add
+                <ChevronDown className={cx("h-3 w-3 transition", addMenuOpen && "rotate-180")} />
+              </button>
+              {addMenuOpen ? (
+                <div className="absolute right-0 z-30 mt-1.5 w-52 overflow-hidden rounded-xl border border-white/10 bg-[#161B22] p-1 shadow-2xl animate-fade-in">
+                  {(
+                    [
+                      canManageTeam && {
+                        label: "Team member",
+                        hint: "Staff login & access level",
+                        icon: UserPlus,
+                        run: () => setIsAddTeamMemberOpen(true),
+                      },
+                      canManageStakeholders && {
+                        label: "Stakeholder",
+                        hint: "Advisor, lender contact, investor",
+                        icon: Building2,
+                        run: () => setIsAddStakeholderOpen(true),
+                      },
+                      canManageStakeholders && {
+                        label: "Shareholder",
+                        hint: "Holding in an ACP deal",
+                        icon: PieChart,
+                        run: () => setIsAddShareholderOpen(true),
+                      },
+                      canManageTeam && {
+                        label: "Hiring brief",
+                        hint: "PortCo CEO or operator role",
+                        icon: Briefcase,
+                        run: () => {
+                          setModalError(null);
+                          setIsModalOpen(true);
+                        },
+                      },
+                    ].filter(Boolean) as Array<{ label: string; hint: string; icon: typeof Plus; run: () => void }>
+                  ).map((item) => (
+                    <button
+                      key={item.label}
+                      type="button"
+                      onClick={() => {
+                        setAddMenuOpen(false);
+                        item.run();
+                      }}
+                      className="flex w-full cursor-pointer items-start gap-2.5 rounded-lg px-2.5 py-2 text-left transition hover:bg-white/[0.04]"
+                    >
+                      <item.icon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#C6A66B]" />
+                      <span className="min-w-0">
+                        <span className="block text-xs font-semibold text-slate-200">{item.label}</span>
+                        <span className="block text-[10px] text-slate-500">{item.hint}</span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </div>
+      </div>
+
+      {/* Summary strip — each count is also the way into its list */}
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+        <SummaryTile
+          icon={Users}
+          label="Team"
+          value={team.length}
+          detail={`${team.filter((m) => /full/i.test(m.accessLevel)).length} with full access`}
+          loading={isLoading}
+        />
+        <SummaryTile
+          icon={Building2}
+          label="Stakeholders"
+          value={stakeholders.length}
+          detail="External registry"
+          loading={isLoading}
+          active={registryTab === "stakeholders"}
+          onClick={() => setRegistryTab("stakeholders")}
+        />
+        <SummaryTile
+          icon={PieChart}
+          label="Shareholders"
+          value={shareholders.length}
+          detail={`${shareholders.filter((s) => s.status !== "Inactive").length} active`}
+          loading={isLoading}
+          active={registryTab === "shareholders"}
+          onClick={() => setRegistryTab("shareholders")}
+        />
+        <SummaryTile
+          icon={Briefcase}
+          label="Open hires"
+          value={hires.length}
+          detail="PortCo CEO & operators"
+          loading={isLoading}
+          active={registryTab === "hiring"}
+          onClick={() => setRegistryTab("hiring")}
+        />
       </div>
 
       {diagnostics ? (
@@ -684,254 +914,293 @@ export function HrStakeholdersPage() {
         </div>
       ) : null}
 
-      {/* Main Panels Grid */}
-      <div className="grid gap-6 lg:grid-cols-12">
-        {/* ACP TEAM (Left Column) */}
-        <div className="col-span-12 lg:col-span-5 rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 shadow-premium-card card-sheen">
-          <h3 className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-slate-400 border-b border-white/[0.02] pb-3 mb-4 select-none">
-            ACP Team
-          </h3>
-          
+      {/* Main: the team on the left, every external registry in one tabbed panel */}
+      <div className="grid items-start gap-5 lg:grid-cols-12">
+        {/* ACP TEAM */}
+        <section className="col-span-12 overflow-hidden rounded-2xl border border-white/[0.04] bg-[#161B22] shadow-premium-card lg:sticky lg:top-4 lg:col-span-4">
+          <header className="flex items-center justify-between border-b border-white/[0.04] px-4 py-3">
+            <h3 className="select-none text-[10px] font-extrabold uppercase tracking-[0.18em] text-slate-400">
+              ACP Team
+            </h3>
+            {!isLoading ? <span className="text-[10px] font-bold text-slate-500">{team.length}</span> : null}
+          </header>
+
           {isLoading ? (
-            <div className="py-12 flex flex-col items-center justify-center gap-2 text-slate-500 text-xs">
-              <Loader2 className="h-5 w-5 animate-spin text-[#C6A66B]" />
-              <span>Loading team members...</span>
+            <div className="flex items-center justify-center gap-2 py-10 text-xs text-slate-500">
+              <Loader2 className="h-4 w-4 animate-spin text-[#C6A66B]" /> Loading team...
             </div>
           ) : team.length === 0 ? (
-            <div className="py-12 text-center text-slate-500 text-xs select-none">
-              No team members configured.
-            </div>
+            <p className="select-none py-10 text-center text-xs text-slate-500">No team members configured.</p>
           ) : (
-            <div className="divide-y divide-white/[0.04]">
+            <ul className="p-1.5">
               {team.map((member, idx) => {
                 const theme = themeMap[member.avatarTheme?.toLowerCase() || ""] || themeMap.blue;
                 const isUserInactive = member.status === "Inactive";
                 return (
-                  <div 
-                    key={member.id || idx} 
-                    onClick={() => openConfigDrawerForTeam(member)}
-                    className={cx(
-                      "flex items-center justify-between py-3.5 first:pt-0 last:pb-0 group cursor-pointer hover:bg-white/[0.02] transition-all px-2 rounded-xl",
-                      isUserInactive && "opacity-50"
-                    )}
-                  >
-                    <div className="flex items-center gap-3.5 min-w-0">
-                      <div className={cx(
-                        "flex h-9.5 w-9.5 shrink-0 items-center justify-center rounded-full border text-xs font-black shadow-sm transition-transform duration-300 group-hover:scale-105 select-none",
-                        theme.bg
-                      )}>
+                  <li key={member.id || idx}>
+                    <button
+                      type="button"
+                      onClick={() => openConfigDrawerForTeam(member)}
+                      className={cx(
+                        "group flex w-full cursor-pointer items-center gap-3 rounded-xl px-2.5 py-2 text-left transition hover:bg-white/[0.03]",
+                        isUserInactive && "opacity-50",
+                      )}
+                    >
+                      <span
+                        className={cx(
+                          "flex h-8 w-8 shrink-0 select-none items-center justify-center rounded-full border text-[10px] font-black",
+                          theme.bg,
+                        )}
+                      >
                         {member.initials}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="truncate text-xs font-bold text-white tracking-wide flex items-center gap-1.5">
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-center gap-1.5 truncate text-xs font-semibold text-white">
                           {member.name}
-                          {isUserInactive && (
-                            <span className="text-[7px] font-extrabold tracking-wider bg-rose-500/10 text-rose-400 px-1.5 py-0.5 rounded-full border border-rose-500/20 uppercase shrink-0">
+                          {isUserInactive ? (
+                            <span className="shrink-0 rounded-full border border-rose-500/20 bg-rose-500/10 px-1.5 py-px text-[7px] font-extrabold uppercase tracking-wider text-rose-400">
                               Inactive
                             </span>
-                          )}
-                        </p>
-                        <p className="truncate text-[10px] font-semibold text-slate-500 mt-0.5">
-                          {member.role}
-                        </p>
-                      </div>
-                    </div>
-
-                    <span className="shrink-0 text-[8px] font-black uppercase tracking-wider text-slate-500 bg-white/[0.03] border border-white/5 rounded px-2 py-0.5 select-none">
-                      {member.accessLevel}
-                    </span>
-                  </div>
+                          ) : null}
+                        </span>
+                        <span className="block truncate text-[10px] text-slate-500">{member.role}</span>
+                      </span>
+                      <AccessPill level={member.accessLevel} />
+                      <ChevronRight className="h-3.5 w-3.5 shrink-0 text-slate-600 opacity-0 transition group-hover:opacity-100" />
+                    </button>
+                  </li>
                 );
               })}
-            </div>
+            </ul>
           )}
-        </div>
+        </section>
 
-        {/* Right Column Panels */}
-        <div className="col-span-12 lg:col-span-7 space-y-6">
-          {/* OPEN HIRING — PORTCO CEO & OPERATORS */}
-          <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 shadow-premium-card card-sheen">
-            <h3 className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-400 border-b border-white/[0.02] pb-3 mb-4 select-none">
-              Open Hiring — PortCo CEO & Operators
-            </h3>
-
-            {isLoading ? (
-              <div className="py-12 flex flex-col items-center justify-center gap-2 text-slate-500 text-xs">
-                <Loader2 className="h-5 w-5 animate-spin text-[#C6A66B]" />
-                <span>Loading hiring pipelines...</span>
-              </div>
-            ) : (
-              <div className="space-y-3.5">
-                {hires.length === 0 ? (
-                  <div className="py-6 text-center text-slate-550 text-xs select-none">
-                    No active hiring briefs found.
-                  </div>
-                ) : (
-                  hires.map((hire, idx) => (
-                    <div 
-                      key={idx} 
+        {/* REGISTRY — capital partners, stakeholders, shareholders, hiring */}
+        <section className="col-span-12 overflow-hidden rounded-2xl border border-white/[0.04] bg-[#161B22] shadow-premium-card lg:col-span-8">
+          <header className="flex flex-col gap-2 border-b border-white/[0.04] px-3 pt-2 sm:flex-row sm:items-end sm:justify-between">
+            <nav className="-mb-px flex gap-0.5 overflow-x-auto" aria-label="Registry">
+              {(
+                [
+                  ["partners", "Capital partners", null],
+                  ["stakeholders", "Stakeholders", stakeholders.length],
+                  ["shareholders", "Shareholders", shareholders.length],
+                  ["hiring", "Hiring", hires.length],
+                ] as Array<[RegistryTab, string, number | null]>
+              ).map(([key, text, count]) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setRegistryTab(key)}
+                  className={cx(
+                    "flex shrink-0 cursor-pointer items-center gap-1.5 border-b-2 px-3 py-2.5 text-xs font-semibold transition",
+                    registryTab === key
+                      ? "border-[#C6A66B] text-[#C6A66B]"
+                      : "border-transparent text-slate-400 hover:text-slate-200",
+                  )}
+                >
+                  {text}
+                  {count !== null && !isLoading ? (
+                    <span
                       className={cx(
-                        "rounded-xl border border-white/[0.02] bg-white/[0.01] p-3.5 border-l-4 flex items-center justify-between group/card transition duration-300 hover:bg-white/[0.02]",
-                        hire.accentColor === "amber" ? "border-l-amber-500/60" :
-                        hire.accentColor === "blue" ? "border-l-blue-500/60" : "border-l-emerald-500/60"
+                        "rounded-full px-1.5 py-px text-[9px] font-bold tabular-nums",
+                        registryTab === key ? "bg-[#C6A66B]/15 text-[#C6A66B]" : "bg-white/5 text-slate-500",
                       )}
                     >
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs font-bold text-white">
-                          {hire.role} <span className="text-slate-550 font-semibold">for</span> {hire.company}
-                        </p>
-                        <p className="text-[10px] font-semibold text-slate-450 mt-1 leading-normal">
-                          {hire.status}
-                        </p>
-                      </div>
+                      {count}
+                    </span>
+                  ) : null}
+                </button>
+              ))}
+            </nav>
 
-                      {canManageTeam && (
-                        <button 
-                          onClick={(e) => { e.stopPropagation(); handleDeleteBrief(hire, idx); }}
-                          className="ml-3 shrink-0 opacity-0 group-hover/card:opacity-100 text-slate-500 hover:text-rose-500 transition cursor-pointer p-1.5 rounded hover:bg-white/[0.015]"
-                          title="Delete hiring brief"
+            {registryTab === "stakeholders" || registryTab === "shareholders" ? (
+              <label className="relative mb-2 block sm:w-52">
+                <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
+                <input
+                  value={registryQuery}
+                  onChange={(e) => setRegistryQuery(e.target.value)}
+                  placeholder={`Search ${registryTab}`}
+                  aria-label={`Search ${registryTab}`}
+                  className="h-8 w-full rounded-lg border border-white/[0.06] bg-[#0F1115] pl-8 pr-2.5 text-xs text-white outline-none transition placeholder:text-slate-600 focus:border-[#C6A66B]/60"
+                />
+              </label>
+            ) : null}
+          </header>
+
+          <div className="p-4">
+            {/* CAPITAL PARTNERS — the portal-facing half of the registry. A
+                stakeholder created with type "Investor" appears here with a
+                partner record behind it: certification, portal access,
+                commitments and an audit trail. Access is issued from the
+                record, never from the stakeholder card, because the database
+                gates it on live certification. */}
+            {registryTab === "partners" ? (
+              <CapitalPartnersTab
+                canManage={canManageStakeholders}
+                canErase={["owner", "super_admin", "managing_partner", "admin"].includes(canonRole)}
+              />
+            ) : null}
+
+            {registryTab === "stakeholders" ? (
+              isLoading ? (
+                <RegistryLoading label="Loading stakeholders..." />
+              ) : visibleStakeholders.length === 0 ? (
+                <RegistryEmpty
+                  text={registryQuery ? "No stakeholders match that search." : "No external stakeholders recorded."}
+                />
+              ) : (
+                <ul className="divide-y divide-white/[0.04] overflow-hidden rounded-xl border border-white/[0.04]">
+                  {visibleStakeholders.map((sh, idx) => (
+                    <li key={sh.id || idx}>
+                      <button
+                        type="button"
+                        onClick={() => openConfigDrawerForStakeholder(sh)}
+                        className={cx(
+                          "group flex w-full cursor-pointer items-center gap-3 px-3.5 py-2.5 text-left transition hover:bg-white/[0.03]",
+                          sh.status === "Inactive" && "opacity-55",
+                        )}
+                      >
+                        <span className={cx("h-2 w-2 shrink-0 rounded-full", accentDot(sh.accentColor))} />
+                        <span className="min-w-0 flex-1">
+                          <span className="flex items-center gap-1.5 text-xs">
+                            <span className="truncate font-semibold text-white">{sh.name}</span>
+                            {sh.association ? (
+                              <span className="truncate text-slate-500">· {sh.association}</span>
+                            ) : null}
+                          </span>
+                          {sh.description ? (
+                            <span className="mt-0.5 block truncate text-[10px] text-slate-500">{sh.description}</span>
+                          ) : null}
+                        </span>
+                        {sh.type ? (
+                          <span className="hidden shrink-0 rounded border border-white/[0.06] bg-white/[0.02] px-1.5 py-0.5 text-[9px] font-semibold text-slate-400 sm:inline">
+                            {sh.type}
+                          </span>
+                        ) : null}
+                        {sh.status === "Inactive" ? (
+                          <span className="shrink-0 rounded-full border border-rose-500/20 bg-rose-500/10 px-1.5 py-px text-[7px] font-extrabold uppercase tracking-wider text-rose-400">
+                            Inactive
+                          </span>
+                        ) : null}
+                        <ChevronRight className="h-3.5 w-3.5 shrink-0 text-slate-600 opacity-0 transition group-hover:opacity-100" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )
+            ) : null}
+
+            {registryTab === "shareholders" ? (
+              isLoading ? (
+                <RegistryLoading label="Loading shareholders..." />
+              ) : visibleShareholders.length === 0 ? (
+                <RegistryEmpty
+                  text={registryQuery ? "No shareholders match that search." : "No shareholders recorded."}
+                />
+              ) : (
+                <ul className="divide-y divide-white/[0.04] overflow-hidden rounded-xl border border-white/[0.04]">
+                  {visibleShareholders.map((sh, idx) => {
+                    return (
+                      <li key={sh.id || idx}>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            openConfigDrawerForStakeholder(
+                              {
+                                ...sh,
+                                type: "Shareholder",
+                                association: "Shareholder",
+                                accentColor: "slate",
+                                description: sh.notes || "",
+                              } as unknown as ExternalStakeholder,
+                              "shareholder",
+                            )
+                          }
+                          className={cx(
+                            "group flex w-full cursor-pointer items-center gap-3 px-3.5 py-2.5 text-left transition hover:bg-white/[0.03]",
+                            sh.status === "Inactive" && "opacity-55",
+                          )}
                         >
-                          <Trash className="h-3.5 w-3.5" />
+                          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-white/[0.06] bg-white/[0.02]">
+                            <PieChart className="h-3.5 w-3.5 text-slate-400" />
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-xs font-semibold text-white">{sh.name}</span>
+                            {sh.email ? (
+                              <span className="block truncate text-[10px] text-slate-500">{sh.email}</span>
+                            ) : null}
+                          </span>
+                          <span className="hidden shrink-0 text-[10px] text-slate-500 sm:inline">
+                            {sh.lastLogin
+                              ? `Signed in ${new Date(sh.lastLogin).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}`
+                              : "Never signed in"}
+                          </span>
+                          {sh.status === "Inactive" ? (
+                            <span className="shrink-0 rounded-full border border-rose-500/20 bg-rose-500/10 px-1.5 py-px text-[7px] font-extrabold uppercase tracking-wider text-rose-400">
+                              Inactive
+                            </span>
+                          ) : null}
+                          <ChevronRight className="h-3.5 w-3.5 shrink-0 text-slate-600 opacity-0 transition group-hover:opacity-100" />
                         </button>
-                      )}
-                    </div>
-                  ))
-                )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              )
+            ) : null}
 
-                {/* Add hiring brief button */}
-                {canManageTeam && (
-                  <button
-                    onClick={() => {
-                      setModalError(null);
-                      setIsModalOpen(true);
-                    }}
-                    className="w-full flex h-10 items-center justify-center gap-1.5 rounded-xl border border-dashed border-white/[0.02] hover:border-white/20 bg-white/[0.01] hover:bg-white/[0.03] text-[10px] font-bold uppercase tracking-wider text-slate-500 hover:text-slate-300 transition cursor-pointer mt-2 animate-fade-in"
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                    <span>Add hiring brief</span>
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* CAPITAL PARTNERS — the portal-facing half of the registry.
-              A stakeholder created with type "Investor" appears here with a
-              partner record behind it: certification, portal access,
-              commitments and an audit trail. Access is issued from the record,
-              never from the stakeholder card, because the database gates it on
-              live certification. */}
-          <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 shadow-premium-card card-sheen">
-            <h3 className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-400 border-b border-white/[0.02] pb-3 mb-4 select-none">
-              Capital Partners
-            </h3>
-            <CapitalPartnersTab
-              canManage={canManageStakeholders}
-              canErase={["owner", "super_admin", "managing_partner", "admin"].includes(canonRole)}
-            />
-          </div>
-
-          {/* EXTERNAL STAKEHOLDERS */}
-          <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 shadow-premium-card card-sheen">
-            <h3 className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-400 border-b border-white/[0.02] pb-3 mb-4 select-none">
-              External Stakeholders
-            </h3>
-
-            {isLoading ? (
-              <div className="py-12 flex flex-col items-center justify-center gap-2 text-slate-500 text-xs">
-                <Loader2 className="h-5 w-5 animate-spin text-[#C6A66B]" />
-                <span>Loading external partners...</span>
-              </div>
-            ) : stakeholders.length === 0 ? (
-              <div className="py-12 text-center text-slate-550 text-xs select-none">
-                No external stakeholders recorded.
-              </div>
-            ) : (
-              <div className="grid gap-3.5 sm:grid-cols-2">
-                {stakeholders.map((sh, idx) => {
-                  const isStakeholderInactive = sh.status === "Inactive";
-                  return (
-                    <div 
-                      key={sh.id || idx} 
-                      onClick={() => openConfigDrawerForStakeholder(sh)}
-                      className={cx(
-                        "rounded-xl border border-white/[0.02] bg-white/[0.01] p-3.5 border-l-4 flex flex-col justify-center transition hover:bg-white/[0.02] duration-300 cursor-pointer relative",
-                        sh.accentColor === "amber" ? "border-l-amber-500/60" :
-                        sh.accentColor === "blue" ? "border-l-blue-500/60" : "border-l-emerald-500/60",
-                        isStakeholderInactive && "opacity-55"
-                      )}
-                    >
-                      <p className="text-xs font-bold text-white flex items-center justify-between gap-2">
-                        <span className="truncate">{sh.name} <span className="text-slate-550 font-semibold">on</span> {sh.association}</span>
-                        {isStakeholderInactive && (
-                          <span className="text-[7px] font-extrabold tracking-wider bg-rose-500/10 text-rose-400 px-1.5 py-0.5 rounded-full border border-rose-500/20 uppercase shrink-0">
-                            Inactive
+            {registryTab === "hiring" ? (
+              isLoading ? (
+                <RegistryLoading label="Loading hiring pipelines..." />
+              ) : (
+                <div className="space-y-2">
+                  {hires.length === 0 ? (
+                    <RegistryEmpty text="No active hiring briefs." />
+                  ) : (
+                    <ul className="divide-y divide-white/[0.04] overflow-hidden rounded-xl border border-white/[0.04]">
+                      {hires.map((hire, idx) => (
+                        <li key={idx} className="group/card flex items-center gap-3 px-3.5 py-2.5 transition hover:bg-white/[0.03]">
+                          <span className={cx("h-2 w-2 shrink-0 rounded-full", accentDot(hire.accentColor))} />
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-xs font-semibold text-white">
+                              {hire.role} <span className="font-normal text-slate-500">for</span> {hire.company}
+                            </span>
+                            {hire.status ? (
+                              <span className="mt-0.5 block truncate text-[10px] text-slate-500">{hire.status}</span>
+                            ) : null}
                           </span>
-                        )}
-                      </p>
-                      <p className="text-[10px] font-semibold text-slate-450 mt-1 leading-relaxed">
-                        {sh.description}
-                      </p>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* SHAREHOLDERS */}
-          <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 shadow-premium-card card-sheen">
-            <h3 className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-400 border-b border-white/[0.02] pb-3 mb-4 select-none">
-              Shareholders
-            </h3>
-
-            {isLoading ? (
-              <div className="py-12 flex flex-col items-center justify-center gap-2 text-slate-500 text-xs">
-                <Loader2 className="h-5 w-5 animate-spin text-[#C6A66B]" />
-                <span>Loading shareholders...</span>
-              </div>
-            ) : shareholders.length === 0 ? (
-              <div className="py-12 text-center text-slate-550 text-xs select-none">
-                No shareholders recorded.
-              </div>
-            ) : (
-              <div className="grid gap-3.5 sm:grid-cols-2">
-                {shareholders.map((sh, idx) => {
-                  const isInactive = sh.status === "Inactive";
-                  return (
-                    <div 
-                      key={sh.id || idx} 
-                      onClick={() => openConfigDrawerForStakeholder({
-                        ...sh,
-                        type: "Shareholder",
-                        association: "Shareholder",
-                        accentColor: "slate",
-                        description: sh.notes || "",
-                      } as unknown as ExternalStakeholder, "shareholder")}
-                      className={cx(
-                        "rounded-xl border border-white/[0.02] bg-white/[0.01] p-3.5 border-l-4 flex flex-col justify-center transition hover:bg-white/[0.02] duration-300 cursor-pointer relative",
-                        "border-l-slate-500/60",
-                        isInactive && "opacity-55"
-                      )}
+                          {canManageTeam ? (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteBrief(hire, idx)}
+                              className="shrink-0 cursor-pointer rounded p-1.5 text-slate-500 opacity-0 transition hover:bg-white/[0.03] hover:text-rose-500 focus:opacity-100 group-hover/card:opacity-100"
+                              title="Delete hiring brief"
+                              aria-label={`Delete hiring brief for ${hire.role}`}
+                            >
+                              <Trash className="h-3.5 w-3.5" />
+                            </button>
+                          ) : null}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {canManageTeam ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setModalError(null);
+                        setIsModalOpen(true);
+                      }}
+                      className="flex h-9 w-full cursor-pointer items-center justify-center gap-1.5 rounded-xl border border-dashed border-white/[0.08] text-[10px] font-bold uppercase tracking-wider text-slate-500 transition hover:border-white/20 hover:bg-white/[0.02] hover:text-slate-300"
                     >
-                      <p className="text-xs font-bold text-white flex items-center justify-between gap-2">
-                        <span className="truncate">{sh.name}</span>
-                        {isInactive && (
-                          <span className="text-[7px] font-extrabold tracking-wider bg-rose-500/10 text-rose-400 px-1.5 py-0.5 rounded-full border border-rose-500/20 uppercase shrink-0">
-                            Inactive
-                          </span>
-                        )}
-                      </p>
-                      <p className="text-[10px] font-semibold text-slate-450 mt-1 leading-relaxed">
-                        {sh.assignments?.length || 0} Deals Assigned
-                      </p>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+                      <Plus className="h-3.5 w-3.5" /> Add hiring brief
+                    </button>
+                  ) : null}
+                </div>
+              )
+            ) : null}
           </div>
-        </div>
+        </section>
       </div>
 
       {/* Slide-over Side Drawer: Profile Administration */}
