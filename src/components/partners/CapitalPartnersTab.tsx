@@ -39,7 +39,9 @@ import {
   type PartnerListRow,
   type PartnerRecord,
 } from "../../api/admin/partners";
-import { formatDate, gbp, pct } from "../../lib/portal/format";
+import { formatDate, gbp } from "../../lib/portal/format";
+import { dealLabel } from "../../lib/portal/commitments";
+import { CommitmentCard, NewCommitmentForm } from "./CommitmentPanels";
 import { cx } from "../../utils/cx";
 
 const TYPE_LABEL: Record<string, string> = {
@@ -405,6 +407,7 @@ function PartnerDrawer({
   onErased: (message: string) => Promise<void>;
 }) {
   const [erasing, setErasing] = useState(false);
+  const [addingCommitment, setAddingCommitment] = useState(false);
   const [record, setRecord] = useState<PartnerRecord | null>(null);
   const [tab, setTab] = useState<DrawerTab>("details");
   const [error, setError] = useState("");
@@ -606,42 +609,51 @@ function PartnerDrawer({
       ) : null}
 
       {tab === "commitments" ? (
-        <div>
-          {record.commitments.length === 0 ? (
-            <p className="py-8 text-center text-xs text-slate-500">
-              No commitments recorded. A commitment is created when subscription documents are executed.
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <p className="max-w-md text-[11px] leading-relaxed text-slate-500">
+              A deal appears in this partner’s portal once their commitment to it is marked completed. Pending
+              commitments stay private.
+            </p>
+            {canManage && !addingCommitment ? (
+              <button type="button" className={primaryBtn} onClick={() => setAddingCommitment(true)}>
+                <Plus className="mr-1 inline h-3.5 w-3.5" /> Record commitment
+              </button>
+            ) : null}
+          </div>
+
+          {addingCommitment ? (
+            <NewCommitmentForm
+              investorId={p.id}
+              onCancel={() => setAddingCommitment(false)}
+              onDone={async () => {
+                setAddingCommitment(false);
+                await load();
+                await onChanged();
+              }}
+            />
+          ) : null}
+
+          {record.commitments.length === 0 && !addingCommitment ? (
+            <p className="rounded-lg border border-dashed border-white/10 py-8 text-center text-xs text-slate-500">
+              No commitments recorded yet.
             </p>
           ) : (
-            <div className="space-y-3">
-              {record.commitments.map((c: any) => (
-                <div key={c.id} className="rounded border border-white/5 bg-white/[0.02] p-4">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="text-sm text-slate-200">
-                      {c.deals?.partner_display_name ?? c.deals?.company_name ?? "Acquisition"}
-                    </p>
-                    <Pill tone={c.status === "completed" || c.status === "converted" ? "ok" : "mute"}>{c.status}</Pill>
-                  </div>
-                  <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                    <Field k="Committed" v={gbp(c.committed_pence)} />
-                    <Field k="Ownership" v={c.ownership_bp !== null ? pct(c.ownership_bp) : "—"} />
-                    <Field k="Completed" v={c.completed_at ? formatDate(c.completed_at) : "—"} />
-                    <Field k="Transactions" v={String(c.capital_transactions?.length ?? 0)} />
-                  </div>
-                  {c.capital_transactions?.length ? (
-                    <div className="mt-3 border-t border-white/5 pt-2">
-                      {c.capital_transactions.map((t: any) => (
-                        <div key={t.id} className="flex items-center justify-between py-1 text-[11px]">
-                          <span className="text-slate-400">
-                            {t.type} · {formatDate(t.txn_date)} {t.settled ? "· settled" : "· unsettled"}
-                          </span>
-                          <span className="tabular-nums text-slate-300">{gbp(t.amount_pence)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  ) : null}
-                </div>
-              ))}
-            </div>
+            record.commitments.map((c: any) => (
+              <CommitmentCard
+                key={c.id}
+                c={c}
+                heading={dealLabel(c.deals)}
+                sub={[c.deals?.acp_ref_no, c.deals?.company_name && c.deals?.partner_display_name ? c.deals.company_name : null]
+                  .filter(Boolean)
+                  .join(" · ")}
+                canManage={canManage}
+                onChanged={async () => {
+                  await load();
+                  await onChanged();
+                }}
+              />
+            ))
           )}
         </div>
       ) : null}

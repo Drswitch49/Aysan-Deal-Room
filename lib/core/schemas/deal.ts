@@ -91,6 +91,9 @@ export const dealSchema = z.object({
   kill_reason_text: nullableStr,
   killed_by: nullableStr,
   kill_date: nullableDate,
+
+  /** What capital partners see instead of the company name (migration 0019). */
+  partner_display_name: nullableStr,
 });
 export type Deal = z.infer<typeof dealSchema>;
 

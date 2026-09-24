@@ -133,6 +133,24 @@ export const erasePartner = (id: string, confirmEmail: string) =>
 
 // ─── Commitments and capital transactions ──────────────────────────────────
 
+/** A deal as the commitment picker needs it. */
+export interface DealOption {
+  id: string;
+  acp_ref_no: string | null;
+  company_name: string | null;
+  deal_name: string | null;
+  partner_display_name: string | null;
+  stage: string | null;
+}
+
+/** Search the pipeline for a deal to commit against (name, ref or sector). */
+export const searchDeals = (q: string) => {
+  const params = new URLSearchParams({ limit: "8" });
+  if (q.trim()) params.set("q", q.trim());
+  else params.set("stage", "active");
+  return api.get<{ rows: DealOption[]; total: number }>(`/api/deals?${params.toString()}`);
+};
+
 export const listCommitments = (params: { investor_id?: string; deal_id?: string }) => {
   const q = new URLSearchParams(params as Record<string, string>).toString();
   return api.get<{ rows: Array<Record<string, any>>; total: number }>(`/api/commitments?${q}`);

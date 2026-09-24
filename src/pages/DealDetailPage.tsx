@@ -5,7 +5,7 @@ import {
   ArrowRight, BrainCircuit, RefreshCw, Star, Info, MessageSquareCode, AlertTriangle,
   FolderClosed, ChevronRight, Clock, CheckCircle2, Plus, Loader2, ShieldAlert, Building2,
   Paperclip, User, LineChart, XCircle, ListTodo, Target, Crosshair, PieChart,
-  Columns, UserCheck, BookOpen, UserX, Lightbulb, Trash2, FileSpreadsheet
+  Columns, UserCheck, BookOpen, UserX, Lightbulb, Trash2, FileSpreadsheet, Landmark
 } from "lucide-react";
 import type { ComponentType } from "react";
 import { useMemo, useState, useEffect, useRef } from "react";
@@ -17,6 +17,7 @@ import { DealChat } from "../components/deals/DealChat";
 import { ManualNotesTab } from "../components/deals/ManualNotesTab";
 import { KillReasonCard } from "../components/deals/KillReasonCard";
 import { PostCallScorecardTab } from "../components/deals/PostCallScorecardTab";
+import { DealPortalTab } from "../components/deals/DealPortalTab";
 import { ErrorState } from "../components/ui/ErrorState";
 import { LoadingState } from "../components/ui/LoadingState";
 import { PageHeader } from "../components/ui/PageHeader";
@@ -42,7 +43,7 @@ import { HeaderMetrics } from "../components/ui/HeaderMetrics";
 import { usePipeline } from "../context/PipelineContext";
 import { STAGE_LABELS, type DealStage } from "../lib/stages";
 
-type TabId = "overview" | "brief" | "post-meeting" | "financials" | "loi" | "documents" | "im-attachments" | "chat" | "notes";
+type TabId = "overview" | "brief" | "post-meeting" | "financials" | "loi" | "documents" | "im-attachments" | "chat" | "investor-portal" | "notes";
 
 const formatGBP = (val: number) => {
   if (val === 0 || !val) return "TBC";
@@ -57,6 +58,7 @@ const tabs: Array<{ id: TabId; label: string; icon: ComponentType<{ className?: 
   { id: "post-meeting", label: "Post-call", icon: History },
   { id: "financials", label: "Financials", icon: TrendingUp },
   { id: "loi", label: "LOI & structure", icon: ShieldCheck },
+  { id: "investor-portal", label: "Investor Portal", icon: Landmark },
   { id: "documents", label: "Documents", icon: ClipboardList },
   { id: "im-attachments", label: "IM & Attachments", icon: Paperclip },
   { id: "chat", label: "Lender Chat", icon: MessageSquare },
@@ -535,7 +537,7 @@ export function DealDetailPage() {
   useEffect(() => {
     const tabParam = searchParams.get("tab") as TabId | null;
     const lenderParam = searchParams.get("lenderId");
-    if (tabParam && ["overview", "brief", "post-meeting", "financials", "loi", "documents", "chat"].includes(tabParam)) {
+    if (tabParam && ["overview", "brief", "post-meeting", "financials", "loi", "documents", "chat", "investor-portal"].includes(tabParam)) {
       setActiveTab(tabParam);
     }
     if (lenderParam) {
@@ -906,6 +908,8 @@ export function DealDetailPage() {
             </div>
           </div>
         )}
+
+        {activeTab === "investor-portal" && dealId && <DealPortalTab dealId={dealId} />}
 
         {activeTab === "notes" && (
           <ManualNotesTab dealRef={decodedRef} />
