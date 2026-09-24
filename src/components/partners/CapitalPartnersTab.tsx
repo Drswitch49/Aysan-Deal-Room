@@ -851,11 +851,7 @@ function GrantPanel({ grant, onDismiss }: { grant: AccessGrant; onDismiss: () =>
           <X className="h-4 w-4" />
         </button>
       </div>
-      <p className="mb-3 text-[11px] leading-relaxed text-slate-400">
-        {grant.notifyOnly
-          ? "The portal is in notify-only mode, so this email went to the admin address, not to the partner. Send these details on yourself."
-          : `These details have been emailed to ${grant.email}.`}
-      </p>
+      <DeliveryNote grant={grant} />
       <dl className="space-y-2 text-xs">
         <CopyRow label="Portal" value={grant.portalUrl} onCopy={copy} copied={copied} />
         <CopyRow label="Email" value={grant.email} onCopy={copy} copied={copied} />
@@ -866,6 +862,32 @@ function GrantPanel({ grant, onDismiss }: { grant: AccessGrant; onDismiss: () =>
         The partner is asked to choose their own password the first time they sign in.
       </p>
     </div>
+  );
+}
+
+/** Say what really happened to the credentials email — never assume it went. */
+function DeliveryNote({ grant }: { grant: AccessGrant }) {
+  const d = grant.delivery;
+  if (d?.status === "sent" && !d.notifyOnly) {
+    return (
+      <p className="mb-3 text-[11px] leading-relaxed text-emerald-400">
+        These details have been emailed to {d.sentTo ?? grant.email}.
+      </p>
+    );
+  }
+  if (d?.status === "sent") {
+    return (
+      <p className="mb-3 text-[11px] leading-relaxed text-amber-300">
+        The portal is in notify-only mode, so this email went to {d.sentTo ?? "the admin address"}, not to the
+        partner. Send these details on yourself.
+      </p>
+    );
+  }
+  return (
+    <p className="mb-3 rounded border border-rose-500/25 bg-rose-500/10 px-2.5 py-2 text-[11px] leading-relaxed text-rose-300">
+      <span className="font-semibold">The email to {grant.email} was not sent.</span>{" "}
+      {d?.reason ?? "The server did not report a delivery result."} Send these details on yourself for now.
+    </p>
   );
 }
 

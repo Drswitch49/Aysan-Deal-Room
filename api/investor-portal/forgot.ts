@@ -15,7 +15,7 @@
 import { z } from "zod";
 import { createHandler } from "../_lib/handler.js";
 import { adminClient } from "../../lib/data/supabase/client.js";
-import { queueEmail } from "../../lib/email/send.js";
+import { queueAndSend } from "../../lib/email/send.js";
 import { logger } from "../../lib/core/logger.js";
 import { portalUrl } from "../_lib/investor-access.js";
 
@@ -66,7 +66,7 @@ export default createHandler<z.infer<typeof bodySchema>>({
         data.properties.hashed_token,
       )}&type=recovery`;
 
-      await queueEmail({
+      await queueAndSend({
         investorId: investor.id,
         template: "password_reset",
         to: investor.email,

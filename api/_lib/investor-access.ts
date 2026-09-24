@@ -19,11 +19,11 @@
 import type { User } from "@supabase/supabase-js";
 import { adminClient } from "../../lib/data/supabase/client.js";
 import { generatePassword } from "../../lib/core/secure-random.js";
-import { queueEmail } from "../../lib/email/send.js";
+import { queueAndSend, queueEmail, supersedeQueued, type Delivery } from "../../lib/email/send.js";
 import { getServerEnv } from "../../lib/core/env.js";
 import { logger } from "../../lib/core/logger.js";
 import { BadRequestError, ConflictError, InternalError, NotFoundError } from "../../lib/core/errors.js";
-import { findAuthUserByEmail, originFrom } from "./account-provisioning.js";
+import { findAuthUserByEmail } from "./account-provisioning.js";
 import type { UserContext } from "./authz.js";
 
 /** The stakeholder type that means "this person is a capital partner". */
@@ -32,11 +32,16 @@ export const INVESTOR_STAKEHOLDER_TYPE = "investor";
 export const isInvestorType = (type: unknown): boolean =>
   String(type ?? "").trim().toLowerCase() === INVESTOR_STAKEHOLDER_TYPE;
 
-/** Where a partner signs in. Configured absolutely, else derived per request. */
-export function portalUrl(req?: any): string {
+/**
+ * The partner portal's public address. Links in partner emails always use it,
+ * never the host the admin happened to be on (e.g. the *.vercel.app alias).
+ */
+const DEFAULT_PORTAL_URL = "https://dealroom.aysancapital.com/investors/portal";
+
+/** Where a partner signs in. PORTAL_BASE_URL overrides the production default. */
+export function portalUrl(_req?: any): string {
   const configured = getServerEnv().PORTAL_BASE_URL;
-  if (configured) return configured.replace(/\/+$/, "");
-  return `${originFrom(req)}/investors/portal`;
+  return (configured || DEFAULT_PORTAL_URL).replace(/\/+$/, "");
 }
 
 // ─── Registry sync ─────────────────────────────────────────────────────────
@@ -147,6 +152,8 @@ export interface AccessGrant {
    * hand the details over. The UI must say so rather than implying it sent.
    */
   notifyOnly: boolean;
+  /** Whether the credentials email actually went, and if not, why. */
+  delivery: Delivery;
 }
 
 /**
@@ -260,8 +267,10 @@ export async function issuePortalAccess(
     return base;
   });
 
-  const { data: settings } = await db.from("portal_settings").select("notify_only").eq("id", true).maybeSingle();
-  await queueEmail({
+  // Send now, not on the worker's next tick: the admin is waiting to hear
+  // whether the partner actually has their details.
+  await supersedeQueued(investorId, "credentials");
+  const delivery = await queueAndSend({
     investorId,
     template: "credentials",
     to: email,
@@ -279,7 +288,8 @@ export async function issuePortalAccess(
     portalUrl: base,
     expiresAt,
     created,
-    notifyOnly: settings?.notify_only !== false,
+    notifyOnly: delivery.notifyOnly,
+    delivery,
   };
 }
 

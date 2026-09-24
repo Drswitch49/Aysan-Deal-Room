@@ -8,8 +8,8 @@
  * kind of accident the Build Pack's gates exist to prevent.
  *
  * `issue` returns the temporary password once. It is also emailed to the
- * partner; while portal_settings.notify_only holds, that email goes to the
- * admin address instead and the response says so.
+ * partner straight away; the response says whether it actually went, and to
+ * the admin address instead while portal_settings.notify_only holds.
  */
 import { z } from "zod";
 import { createHandler } from "./_lib/handler.js";
@@ -17,7 +17,7 @@ import { PARTNER_MANAGERS } from "./_lib/authz.js";
 import { BadRequestError, InternalError, NotFoundError } from "../lib/core/errors.js";
 import { adminClient } from "../lib/data/supabase/client.js";
 import { generatePassword } from "../lib/core/secure-random.js";
-import { queueEmail } from "../lib/email/send.js";
+import { queueAndSend, supersedeQueued } from "../lib/email/send.js";
 import {
   issuePortalAccess,
   portalUrl,
@@ -80,7 +80,8 @@ export default createHandler<z.infer<typeof bodySchema>>({
         if (error) throw new InternalError(`Could not reset the password: ${error.message}`);
 
         const base = portalUrl(req);
-        await queueEmail({
+        await supersedeQueued(body.investor_id, "credentials");
+        const delivery = await queueAndSend({
           investorId: body.investor_id,
           template: "credentials",
           to: investor.email,
@@ -94,18 +95,13 @@ export default createHandler<z.infer<typeof bodySchema>>({
           reason: body.reason,
         });
 
-        const { data: settings } = await db
-          .from("portal_settings")
-          .select("notify_only")
-          .eq("id", true)
-          .maybeSingle();
-
         return {
           investorId: body.investor_id,
           email: investor.email,
           password,
           portalUrl: base,
-          notifyOnly: settings?.notify_only !== false,
+          notifyOnly: delivery.notifyOnly,
+          delivery,
         };
       }
     }

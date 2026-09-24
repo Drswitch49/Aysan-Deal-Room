@@ -15,10 +15,12 @@
  * password we emailed must choose their own, then accept the terms, before any
  * holding is visible.
  */
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { FormEvent, InputHTMLAttributes, useCallback, useEffect, useState } from "react";
 import {
   Activity as ActivityIcon,
   Building2,
+  Eye,
+  EyeOff,
   FileText,
   Landmark,
   LayoutGrid,
@@ -209,6 +211,25 @@ const buttonClass =
 const errorClass =
   "rounded border border-rose-500/25 bg-rose-500/10 px-3 py-2.5 text-center text-xs font-medium text-rose-300";
 
+/** A password input with a show/hide toggle, so a partner can check what they typed. */
+function PasswordInput(props: Omit<InputHTMLAttributes<HTMLInputElement>, "type" | "className">) {
+  const [visible, setVisible] = useState(false);
+  return (
+    <div className="relative">
+      <input {...props} type={visible ? "text" : "password"} className={`${fieldClass} pr-11`} />
+      <button
+        type="button"
+        onClick={() => setVisible((v) => !v)}
+        aria-label={visible ? "Hide password" : "Show password"}
+        title={visible ? "Hide password" : "Show password"}
+        className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded text-slate-500 transition hover:text-[#c9a257]"
+      >
+        {visible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+      </button>
+    </div>
+  );
+}
+
 function PortalLogin({ onSignedIn }: { onSignedIn: () => void }) {
   const [email, setEmail] = useState("");
   const [password, setPasswordValue] = useState("");
@@ -272,14 +293,12 @@ function PortalLogin({ onSignedIn }: { onSignedIn: () => void }) {
           <label className={labelClass} htmlFor="portal-password">
             Password
           </label>
-          <input
+          <PasswordInput
             id="portal-password"
-            type="password"
             autoComplete="current-password"
             required
             value={password}
             onChange={(e) => setPasswordValue(e.target.value)}
-            className={fieldClass}
           />
         </div>
         <button type="submit" disabled={busy} className={buttonClass}>
@@ -439,14 +458,12 @@ function SetPasswordScreen({
             <label className={labelClass} htmlFor="cur-pw">
               Temporary password
             </label>
-            <input
+            <PasswordInput
               id="cur-pw"
-              type="password"
               autoComplete="current-password"
               required
               value={current}
               onChange={(e) => setCurrent(e.target.value)}
-              className={fieldClass}
             />
           </div>
         )}
@@ -454,30 +471,26 @@ function SetPasswordScreen({
           <label className={labelClass} htmlFor="new-pw">
             New password
           </label>
-          <input
+          <PasswordInput
             id="new-pw"
-            type="password"
             autoComplete="new-password"
             required
             minLength={12}
             value={next}
             onChange={(e) => setNext(e.target.value)}
-            className={fieldClass}
           />
         </div>
         <div>
           <label className={labelClass} htmlFor="confirm-pw">
             Confirm password
           </label>
-          <input
+          <PasswordInput
             id="confirm-pw"
-            type="password"
             autoComplete="new-password"
             required
             minLength={12}
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
-            className={fieldClass}
           />
         </div>
         <p className="text-[11px] leading-relaxed text-slate-500">
@@ -1391,41 +1404,35 @@ function AccountView({
                 <label className={labelClass} htmlFor="acc-cur">
                   Current password
                 </label>
-                <input
+                <PasswordInput
                   id="acc-cur"
-                  type="password"
                   required
                   value={current}
                   onChange={(e) => setCurrent(e.target.value)}
-                  className={fieldClass}
                 />
               </div>
               <div>
                 <label className={labelClass} htmlFor="acc-new">
                   New password
                 </label>
-                <input
+                <PasswordInput
                   id="acc-new"
-                  type="password"
                   required
                   minLength={12}
                   value={next}
                   onChange={(e) => setNext(e.target.value)}
-                  className={fieldClass}
                 />
               </div>
               <div>
                 <label className={labelClass} htmlFor="acc-confirm">
                   Confirm new password
                 </label>
-                <input
+                <PasswordInput
                   id="acc-confirm"
-                  type="password"
                   required
                   minLength={12}
                   value={confirm}
                   onChange={(e) => setConfirm(e.target.value)}
-                  className={fieldClass}
                 />
               </div>
               <div className="flex gap-2">

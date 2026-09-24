@@ -224,7 +224,7 @@ hand, which is the same way lender and shareholder access works today.
 |---|---|
 | `RESEND_API_KEY` | Sending partner email. Create the key at <https://resend.com> and verify `aysancapital.com` — SPF, DKIM **and** DMARC — before the first real send. Capital call fraud by spoofed email is the most likely real-world loss in this system, so a DMARC reject policy is not optional. |
 | `MAIL_FROM` | Sender address, e.g. `Aysan Capital Partners <partnerships@aysancapital.com>`. Must be on the verified domain. |
-| `PORTAL_BASE_URL` | Absolute base of the partner portal, e.g. `https://dealroom.aysancapital.com/investors/portal`. Used to build sign-in links in email. Falls back to the request's own origin. |
+| `PORTAL_BASE_URL` | Absolute base of the partner portal, e.g. `https://dealroom.aysancapital.com/investors/portal`. Used to build sign-in links in email. Defaults to `https://dealroom.aysancapital.com/investors/portal` when unset. |
 | `NOTIFY_ONLY_ADMIN_EMAIL` | While `portal_settings.notify_only` is true (the default), **every** partner email is redirected here with the intended recipient in the subject. Leave notify-only on until two clean weeks of execution logs, then set `notify_only = false`. |
 
 Two more things are configuration rather than environment:

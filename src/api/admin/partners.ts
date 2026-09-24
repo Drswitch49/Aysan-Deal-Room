@@ -86,6 +86,13 @@ export interface AccessGrant {
   expiresAt?: string;
   created?: boolean;
   notifyOnly: boolean;
+  /** Whether the credentials email actually went, and if not, why. */
+  delivery?: {
+    status: "sent" | "failed" | "not_sent";
+    sentTo?: string;
+    notifyOnly: boolean;
+    reason?: string;
+  };
 }
 
 export const listPartners = (opts?: { noCache?: boolean }) =>

@@ -25,6 +25,9 @@ export default async function handler(req: any, res: any) {
     news: configured("NEWS_API_KEY"),
     cloudinary: configured("CLOUDINARY_API_KEY"),
     cronSecret: configured("CRON_SECRET"),
+    // Partner email needs both; notify-only mode also needs the admin address.
+    email: configured("RESEND_API_KEY") && configured("MAIL_FROM"),
+    notifyOnlyAdminEmail: configured("NOTIFY_ONLY_ADMIN_EMAIL"),
   };
 
   try {
