@@ -6,7 +6,9 @@
  * provenance badge, a coverage pill that shows a number, or an empty panel that
  * does not say when it will fill are all defects here, not style choices.
  */
-import { ReactNode } from "react";
+import { ReactNode, useState } from "react";
+import { Download, Eye, Loader2 } from "lucide-react";
+import { openDocument } from "../../api/investorPortal";
 import {
   COVERAGE_EXPLAINER,
   COVERAGE_LABEL,
@@ -115,38 +117,100 @@ export function PortalEmpty({ title, body, icon }: { title: string; body: string
  * A document that has not published yet shows the date it will, in gold, with
  * no link. Certification is view only and never offers a download.
  *
- * Opening is disabled until Phase C lands the private bucket and the signed URL
- * route. The row says so rather than offering a link that would bypass the
- * portal's access control and audit.
+ * Opening goes through the document-open route, which checks the partner may
+ * see it, logs the access and returns a URL that expires in two minutes — the
+ * row never holds a shareable link.
  */
 export function DocRow({
+  id,
   title,
   docType,
   date,
   available,
   publishesOn,
   viewOnly,
+  hasFile = false,
 }: {
+  id: string;
   title: string;
   docType: string;
   date: string | null;
   available: boolean;
   publishesOn: string | null;
   viewOnly: boolean;
+  hasFile?: boolean;
 }) {
   const typeLabel = docType.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  const [busy, setBusy] = useState<"view" | "download" | null>(null);
+  const [error, setError] = useState("");
+
+  const view = async () => {
+    // Opened synchronously so the popup blocker treats it as the click's window.
+    const tab = window.open("", "_blank");
+    setBusy("view");
+    setError("");
+    try {
+      const { url } = await openDocument(id);
+      if (tab) tab.location.href = url;
+      else window.location.href = url;
+    } catch (err: any) {
+      tab?.close();
+      setError(err?.message || "Could not open the document.");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const download = async () => {
+    setBusy("download");
+    setError("");
+    try {
+      const { url, file_name } = await openDocument(id, true);
+      // Cloudinary names a download after its random id, so fetch the bytes and
+      // save them under the document's real name.
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`Download failed (${res.status})`);
+      const href = URL.createObjectURL(await res.blob());
+      const a = document.createElement("a");
+      a.href = href;
+      a.download = file_name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(href), 10_000);
+    } catch (err: any) {
+      setError(err?.message || "Could not download the document.");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const action =
+    "inline-flex items-center gap-1 rounded border border-white/10 px-2.5 py-1 text-[11px] font-semibold text-slate-200 transition hover:border-[#C6A66B]/50 hover:text-[#C6A66B] disabled:opacity-50";
+
   return (
     <div className="flex flex-wrap items-center gap-3 border-b border-white/5 py-3 last:border-b-0">
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm text-slate-200">{title}</p>
         <p className="mt-0.5 text-[11px] uppercase tracking-[0.1em] text-slate-500">{typeLabel}</p>
+        {error ? <p className="mt-1 text-[11px] text-rose-300">{error}</p> : null}
       </div>
       <div className="w-28 text-xs text-slate-400">{date ? formatDate(date) : ""}</div>
-      <div className="w-44 text-right text-xs">
-        {available ? (
-          <span className="text-slate-500" title="Secure delivery arrives with Phase C.">
-            {viewOnly ? "View only" : "Available in the portal"}
-          </span>
+      <div className="flex w-44 justify-end gap-1.5 text-right text-xs">
+        {available && hasFile ? (
+          <>
+            <button type="button" onClick={() => void view()} disabled={busy !== null} className={action}>
+              {busy === "view" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Eye className="h-3 w-3" />} View
+            </button>
+            {viewOnly ? null : (
+              <button type="button" onClick={() => void download()} disabled={busy !== null} className={action}>
+                {busy === "download" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />}
+                Download
+              </button>
+            )}
+          </>
+        ) : available ? (
+          <span className="text-slate-500">{viewOnly ? "View only" : "File to follow"}</span>
         ) : (
           <span className="font-semibold text-[#C6A66B]">
             Publishes {publishesOn ? formatDate(publishesOn) : "soon"}

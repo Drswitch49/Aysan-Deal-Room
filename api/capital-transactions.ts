@@ -125,13 +125,13 @@ async function announceSettlement(txn: any): Promise<void> {
 
   const { data: commitment } = await db
     .from("commitments")
-    .select("investor_id, deal_id, investors(name, email), deals(partner_display_name)")
+    .select("investor_id, deal_id, investors(name, email), deals(partner_display_name, acp_ref_no)")
     .eq("id", txn.commitment_id)
     .maybeSingle();
   if (!commitment) return;
 
   const investor = (commitment as any).investors;
-  const dealName = (commitment as any).deals?.partner_display_name ?? null;
+  const dealName = (commitment as any).deals?.partner_display_name || (commitment as any).deals?.acp_ref_no || null;
   const eventType = txn.type === "call" ? "call_settled" : "distribution";
 
   await logActivity(commitment.investor_id, commitment.deal_id, eventType, {

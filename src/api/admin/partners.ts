@@ -231,10 +231,17 @@ export const setCoverageStatus = (body: {
 
 // ─── Documents and reports ─────────────────────────────────────────────────
 
-export const listPartnerDocuments = (params: { investor_id?: string; deal_id?: string }) => {
+export const listPartnerDocuments = (
+  params: { investor_id?: string; deal_id?: string },
+  opts?: { noCache?: boolean },
+) => {
   const q = new URLSearchParams(params as Record<string, string>).toString();
-  return api.get<{ rows: Array<Record<string, any>>; total: number }>(`/api/investor-documents?${q}`);
+  return api.get<{ rows: Array<Record<string, any>>; total: number }>(`/api/investor-documents?${q}`, opts);
 };
+
+/** Deletes the row and the stored file. Revoking (updatePartnerDocument) keeps both. */
+export const deletePartnerDocument = (id: string) =>
+  api.del<{ deleted: true; id: string }>(`/api/investor-documents?id=${encodeURIComponent(id)}`);
 
 export const addPartnerDocument = (body: Record<string, unknown>) =>
   api.post<Record<string, any>>("/api/investor-documents", body);
@@ -254,3 +261,7 @@ export const createDealReport = (body: {
 
 export const updateDealReport = (body: { id: string } & Record<string, unknown>) =>
   api.patch<Record<string, any>>("/api/deal-reports", body);
+
+/** A two-minute signed link to a partner document, for staff to check it. */
+export const openPartnerDocument = (id: string) =>
+  api.get<{ url: string }>(`/api/investor-documents?open=${encodeURIComponent(id)}`, { noCache: true });

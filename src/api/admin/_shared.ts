@@ -249,5 +249,11 @@ export async function uploadToCloudinary(
     fileName,
     onProgress,
   );
-  return { publicId: payload.public_id as string, secureUrl: payload.secure_url as string };
+  return {
+    publicId: payload.public_id as string,
+    secureUrl: payload.secure_url as string,
+    resourceType: payload.resource_type as "image" | "raw" | "video",
+    format: (payload.format as string | undefined) ?? null,
+    bytes: (payload.bytes as number | undefined) ?? size,
+  };
 }

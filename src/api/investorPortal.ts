@@ -51,6 +51,8 @@ export interface PortalAcquisition {
   headcount_band: string | null;
   founded_year: number | null;
   milestones: Array<{ date: string; text: string }> | null;
+  /** The deal's own business description, shown when no partner summary exists. */
+  business_description: string | null;
 }
 
 export interface PortalTransaction {
@@ -81,6 +83,9 @@ export interface PortalDocument {
   publishes_on: string | null;
   published_at: string | null;
   available: boolean;
+  has_file: boolean;
+  file_format: string | null;
+  file_bytes: number | null;
 }
 
 export interface PortalReport {
@@ -139,6 +144,13 @@ export const getDocuments = (dealKey?: string) =>
     dealKey
       ? `/api/investor-portal/documents?deal_key=${encodeURIComponent(dealKey)}`
       : "/api/investor-portal/documents",
+  );
+
+/** A short-lived signed URL for one document. Every call is logged as a doc_open. */
+export const openDocument = (id: string, download = false) =>
+  api.get<{ url: string; file_name: string; view_only: boolean }>(
+    `/api/investor-portal/document-open?id=${encodeURIComponent(id)}${download ? "&download=1" : ""}`,
+    { noCache: true },
   );
 
 export const getActivity = (page = 1) =>

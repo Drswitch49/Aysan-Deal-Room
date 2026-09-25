@@ -54,13 +54,14 @@ export default createHandler({
 
     const { data: commitment, error: readErr } = await db
       .from("commitments")
-      .select("*, deals(id, partner_display_name), investors(id, name, email)")
+      .select("*, deals(id, partner_display_name, acp_ref_no), investors(id, name, email)")
       .eq("id", id)
       .maybeSingle();
     if (readErr) throw new InternalError(`commitments: ${readErr.message}`);
     if (!commitment) throw new NotFoundError("Commitment not found");
 
-    const dealName = (commitment as any).deals?.partner_display_name ?? "your acquisition";
+    const dealName =
+      (commitment as any).deals?.partner_display_name || (commitment as any).deals?.acp_ref_no || "your acquisition";
     const investor = (commitment as any).investors;
 
     if (body.action === "complete") {

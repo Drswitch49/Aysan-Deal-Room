@@ -40,7 +40,7 @@ import {
   type PartnerRecord,
 } from "../../api/admin/partners";
 import { formatDate, gbp } from "../../lib/portal/format";
-import { dealLabel } from "../../lib/portal/commitments";
+import { dealLabel, dealSubLabel } from "../../lib/portal/commitments";
 import { CommitmentCard, NewCommitmentForm } from "./CommitmentPanels";
 import { cx } from "../../utils/cx";
 
@@ -644,9 +644,7 @@ function PartnerDrawer({
                 key={c.id}
                 c={c}
                 heading={dealLabel(c.deals)}
-                sub={[c.deals?.acp_ref_no, c.deals?.company_name && c.deals?.partner_display_name ? c.deals.company_name : null]
-                  .filter(Boolean)
-                  .join(" · ")}
+                sub={dealSubLabel(c.deals)}
                 canManage={canManage}
                 onChanged={async () => {
                   await load();

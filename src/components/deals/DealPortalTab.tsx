@@ -26,6 +26,7 @@ import { gbp } from "../../lib/portal/format";
 import { cx } from "../../utils/cx";
 import { IN_PORTAL } from "../../lib/portal/commitments";
 import { CommitmentCard, NewCommitmentForm } from "../partners/CommitmentPanels";
+import { DealPortalDocuments } from "./DealPortalDocuments";
 
 
 const input =
@@ -199,7 +200,7 @@ export function DealPortalTab({ dealId }: { dealId: string }) {
             </p>
             <p className="text-[11px] text-slate-500">
               {live.length
-                ? `Partners see it as “${settings.deal.partner_display_name || "Acquisition"}”.`
+                ? `Partners see it as “${settings.deal.partner_display_name || settings.deal.acp_ref_no || "Acquisition"}”.`
                 : "Add a partner commitment below and mark it completed to publish this deal to them."}
               {pending.length ? ` ${pending.length} pending commitment${pending.length === 1 ? "" : "s"}.` : ""}
             </p>
@@ -228,14 +229,14 @@ export function DealPortalTab({ dealId }: { dealId: string }) {
               id="p-name"
               value={form.partner_display_name}
               onChange={set("partner_display_name")}
-              placeholder="e.g. Midlands Care Group"
+              placeholder={settings.deal.acp_ref_no ? `Blank shows ${settings.deal.acp_ref_no}` : "e.g. Midlands Care Group"}
               className={input}
               disabled={!canManage}
             />
             <p className={cx("mt-1 text-[10px] leading-relaxed", nameMatchesCompany ? "text-amber-300" : "text-slate-500")}>
               {nameMatchesCompany
                 ? "This is the company’s real name. Partners must not see it before announcement — use a descriptive name instead."
-                : "Shown to partners instead of the company name, seller, lender or CFS code, which the portal never shows."}
+                : `Shown to partners instead of the company name, seller, lender or CFS code. Leave blank to show the ACP ref${settings.deal.acp_ref_no ? ` (${settings.deal.acp_ref_no})` : ""}.`}
             </p>
           </div>
 
@@ -388,6 +389,8 @@ export function DealPortalTab({ dealId }: { dealId: string }) {
           )}
         </section>
       </div>
+
+      <DealPortalDocuments dealId={dealId} canManage={canManage} partnerCount={live.length} />
     </div>
   );
 }

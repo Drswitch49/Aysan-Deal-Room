@@ -1017,8 +1017,10 @@ function AcquisitionDetail({ dealKey, onBack }: { dealKey: string; onBack: () =>
 
           {tab === "business" ? (
             <Panel title="The business">
-              {a.summary ? (
-                <p className="text-sm leading-relaxed text-slate-300">{a.summary}</p>
+              {a.summary || a.business_description ? (
+                <p className="whitespace-pre-line text-sm leading-relaxed text-slate-300">
+                  {a.summary || a.business_description}
+                </p>
               ) : (
                 <PortalEmpty
                   title="This section is being written."
@@ -1032,6 +1034,7 @@ function AcquisitionDetail({ dealKey, onBack }: { dealKey: string; onBack: () =>
                 </div>
               ) : null}
               <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-3">
+                {a.sector ? <Figure label="Sector" value={a.sector} /> : null}
                 {a.headcount_band ? <Figure label="Headcount" value={a.headcount_band} /> : null}
                 {a.founded_year ? <Figure label="Founded" value={String(a.founded_year)} /> : null}
                 {a.region ? <Figure label="Region" value={a.region} /> : null}
@@ -1060,12 +1063,14 @@ function AcquisitionDetail({ dealKey, onBack }: { dealKey: string; onBack: () =>
                   {data.documents.map((d) => (
                     <DocRow
                       key={d.id}
+                      id={d.id}
                       title={d.title}
                       docType={d.doc_type}
                       date={d.published_at}
                       available={d.available}
                       publishesOn={d.publishes_on}
                       viewOnly={d.view_only}
+                      hasFile={d.has_file}
                     />
                   ))}
                   <p className="mt-3 text-[11px] text-slate-500">{COPY.docsNote}</p>
@@ -1244,12 +1249,14 @@ function DocumentsView() {
               {groups.get(name)!.map((d) => (
                 <DocRow
                   key={d.id}
+                  id={d.id}
                   title={d.title}
                   docType={d.doc_type}
                   date={d.published_at}
                   available={d.available}
                   publishesOn={d.publishes_on}
                   viewOnly={d.view_only}
+                  hasFile={d.has_file}
                 />
               ))}
             </Panel>

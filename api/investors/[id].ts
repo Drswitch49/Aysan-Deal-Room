@@ -167,7 +167,7 @@ async function loadRecord(id: string) {
     db
       .from("commitments")
       .select(
-        "*, deals(id, partner_display_name, acp_ref_no, company_name, dscr_status, next_report_date), " +
+        "*, deals(id, partner_display_name, acp_ref_no, company_name, deal_name, dscr_status, next_report_date), " +
           "capital_transactions(*)",
       )
       .eq("investor_id", id)

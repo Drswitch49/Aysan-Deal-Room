@@ -38,7 +38,7 @@ export default createHandler({
       const filters = querySchema.parse(query ?? {});
       let q = db
         .from("commitments")
-        .select("*, investors(id, name, email), deals(id, partner_display_name, acp_ref_no, company_name), capital_transactions(*)")
+        .select("*, investors(id, name, email), deals(id, partner_display_name, acp_ref_no, company_name, deal_name), capital_transactions(*)")
         .order("created_at", { ascending: false });
       if (filters.investor_id) q = q.eq("investor_id", filters.investor_id);
       if (filters.deal_id) q = q.eq("deal_id", filters.deal_id);
