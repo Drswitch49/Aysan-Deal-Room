@@ -10,7 +10,8 @@
 import { z } from "zod";
 import { createHandler } from "../_lib/handler.js";
 import { INVESTOR_ROLES, PARTNER_MANAGERS } from "../_lib/authz.js";
-import { ForbiddenError, InternalError, NotFoundError } from "../../lib/core/errors.js";
+import { ConflictError, ForbiddenError, InternalError, NotFoundError } from "../../lib/core/errors.js";
+import { isActiveStageDeal } from "../../lib/core/schemas/deal.js";
 import { adminClient } from "../../lib/data/supabase/client.js";
 import { recordAudit, translateGateError } from "../_lib/investor-access.js";
 
@@ -61,6 +62,19 @@ export default createHandler({
       .is("deleted_at", null)
       .maybeSingle();
     if (!investor) throw new NotFoundError("Capital partner not found");
+
+    const { data: deal } = await db
+      .from("deals")
+      .select("id, acp_ref_no, stage, pipeline_stage")
+      .eq("id", input.deal_id)
+      .is("deleted_at", null)
+      .maybeSingle();
+    if (!deal) throw new NotFoundError("Deal not found");
+    if (!isActiveStageDeal(deal)) {
+      throw new ConflictError(
+        `${deal.acp_ref_no ?? "This deal"} is at stage "${deal.pipeline_stage || deal.stage}". Only deals at the Active stage can take capital partner commitments.`,
+      );
+    }
 
     const { data: created, error } = await db
       .from("commitments")

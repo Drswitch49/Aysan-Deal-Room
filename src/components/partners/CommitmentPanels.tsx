@@ -144,7 +144,7 @@ function DealPicker({ value, onChange }: { value: DealOption | null; onChange: (
             <Loader2 className="h-3.5 w-3.5 animate-spin" /> Searching deals…
           </p>
         ) : rows.length === 0 ? (
-          <p className="px-3 py-3 text-xs text-slate-500">{q ? "No deals match." : "No active deals."}</p>
+          <p className="px-3 py-3 text-xs text-slate-500">{q ? "No Active-stage deals match." : "No deals at the Active stage."}</p>
         ) : (
           rows.map((d) => (
             <button
@@ -162,12 +162,12 @@ function DealPicker({ value, onChange }: { value: DealOption | null; onChange: (
                   {d.partner_display_name ? ` · “${d.partner_display_name}”` : ""}
                 </span>
               </span>
-              {d.stage ? <span className="shrink-0 text-[10px] capitalize text-slate-500">{d.stage}</span> : null}
+              <span className="shrink-0 text-[10px] text-emerald-400">Active</span>
             </button>
           ))
         )}
       </div>
-      {!q ? <p className="mt-1 text-[10px] text-slate-500">Showing active deals. Type to search the whole pipeline.</p> : null}
+      {!q ? <p className="mt-1 text-[10px] text-slate-500">Only deals at the Active stage can take commitments.</p> : null}
     </div>
   );
 }

@@ -64,7 +64,7 @@ export default createHandler({
         db
           .from("deals")
           .select(
-            "id, acp_ref_no, company_name, deal_name, partner_display_name, dscr_status, " +
+            "id, acp_ref_no, company_name, deal_name, partner_display_name, stage, pipeline_stage, dscr_status, " +
               "contracted_bp_verified, amort_status, next_report_date",
           )
           .eq("id", deal_id)

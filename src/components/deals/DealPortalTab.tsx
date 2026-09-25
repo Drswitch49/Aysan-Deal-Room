@@ -27,6 +27,7 @@ import { cx } from "../../utils/cx";
 import { IN_PORTAL } from "../../lib/portal/commitments";
 import { CommitmentCard, NewCommitmentForm } from "../partners/CommitmentPanels";
 import { DealPortalDocuments } from "./DealPortalDocuments";
+import { isActiveStageDeal } from "../../../lib/core/schemas/deal";
 
 
 const input =
@@ -124,6 +125,7 @@ export function DealPortalTab({ dealId }: { dealId: string }) {
     setForm({ ...form, [k]: e.target.value });
   };
 
+  const investable = isActiveStageDeal(settings.deal);
   const live = commitments.filter((c) => IN_PORTAL.has(c.status));
   const pending = commitments.filter((c) => c.status === "pending");
   const sum = (list: Array<Record<string, any>>) => list.reduce((n, c) => n + Number(c.committed_pence || 0), 0);
@@ -346,7 +348,7 @@ export function DealPortalTab({ dealId }: { dealId: string }) {
             <h3 className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-400">
               Partner commitments{commitments.length ? ` · ${commitments.length}` : ""}
             </h3>
-            {canManage && !adding ? (
+            {canManage && !adding && investable ? (
               <button
                 type="button"
                 onClick={() => setAdding(true)}
@@ -356,6 +358,13 @@ export function DealPortalTab({ dealId }: { dealId: string }) {
               </button>
             ) : null}
           </div>
+
+          {canManage && !investable ? (
+            <p className="rounded-lg border border-amber-500/20 bg-amber-500/[0.06] px-3 py-2 text-[11px] text-amber-200">
+              This deal is at stage “{settings.deal.pipeline_stage || settings.deal.stage}”. Capital partners can only be
+              added to deals at the Active stage — move the deal to Active first.
+            </p>
+          ) : null}
 
           {adding ? (
             <NewCommitmentForm

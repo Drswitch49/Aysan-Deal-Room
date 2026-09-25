@@ -513,6 +513,20 @@ export function DealListPage() {
               }).length})
             </button>
 
+            {/* Active — also catches a live deal with no pipeline stage, whose
+                status falls back to the lifecycle "active" (see mappers.ts). */}
+            <button
+              onClick={() => { setSelectedStageFilter("Active"); setCurrentPage(1); }}
+              className={cx(
+                "px-3.5 py-1.5 rounded-full border transition cursor-pointer font-bold",
+                selectedStageFilter === "Active"
+                  ? "border-[#C6A66B] bg-[#C6A66B]/5 text-[#C6A66B]"
+                  : "border-white/[0.02] bg-white/[0.01] text-slate-400 hover:text-white hover:bg-white/[0.03]"
+              )}
+            >
+              Active ({baseFilteredDeals.filter((d: any) => (d.status || "").toLowerCase() === "active").length})
+            </button>
+
             {/* Killed deals leave the active pipeline for the Deal Inbox's Kill
                 bucket, so there is no killed filter here — just a way through. */}
             <Link

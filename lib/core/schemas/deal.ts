@@ -6,6 +6,19 @@ import { z } from "zod";
 import { auditFields } from "./common.js";
 
 export const DEAL_STAGES = ["inbox", "review", "active", "archived"] as const;
+
+/**
+ * Whether a deal's stage reads "Active" — the only deals capital partners can
+ * be committed to. The deal page shows pipeline_stage, falling back to the
+ * lifecycle stage when none is set, so a live deal with no pipeline stage reads
+ * "Active" too; this matches what the team sees. Shared by the commitment API
+ * (which enforces it) and the admin screens (which only offer such deals).
+ */
+export function isActiveStageDeal(d: { stage?: string | null; pipeline_stage?: string | null } | null | undefined): boolean {
+  if (!d || d.stage !== "active") return false;
+  const label = (d.pipeline_stage ?? "").trim().toLowerCase();
+  return label === "" || label === "active";
+}
 export const dealStageSchema = z.enum(DEAL_STAGES);
 export type DealStage = z.infer<typeof dealStageSchema>;
 

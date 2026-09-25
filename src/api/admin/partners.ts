@@ -6,6 +6,7 @@
  * the UI's job is to show them in plain words rather than to pre-judge them.
  */
 import { api } from "../http";
+import { isActiveStageDeal } from "../../../lib/core/schemas/deal";
 
 export type InvestorType = "holdco_equity" | "deal_equity" | "prospective";
 export type InvestorStatus =
@@ -141,14 +142,20 @@ export interface DealOption {
   deal_name: string | null;
   partner_display_name: string | null;
   stage: string | null;
+  pipeline_stage: string | null;
 }
 
-/** Search the pipeline for a deal to commit against (name, ref or sector). */
-export const searchDeals = (q: string) => {
-  const params = new URLSearchParams({ limit: "8" });
+/**
+ * Search for a deal to commit against (name, ref or sector). Only deals at the
+ * Active stage are offered — the commitment API refuses any other. The live
+ * pipeline is small, so it is fetched whole and narrowed here.
+ */
+export const searchDeals = async (q: string) => {
+  const params = new URLSearchParams({ limit: "200", stage: "active" });
   if (q.trim()) params.set("q", q.trim());
-  else params.set("stage", "active");
-  return api.get<{ rows: DealOption[]; total: number }>(`/api/deals?${params.toString()}`);
+  const res = await api.get<{ rows: DealOption[]; total: number }>(`/api/deals?${params.toString()}`);
+  const rows = res.rows.filter(isActiveStageDeal);
+  return { rows, total: rows.length };
 };
 
 export const listCommitments = (params: { investor_id?: string; deal_id?: string }) => {
@@ -204,6 +211,8 @@ export interface PartnerDealSettings {
     company_name: string | null;
     deal_name: string | null;
     partner_display_name: string | null;
+    stage: string | null;
+    pipeline_stage: string | null;
     dscr_status: string;
     contracted_bp_verified: number | null;
     amort_status: string;

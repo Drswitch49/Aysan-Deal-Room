@@ -109,6 +109,7 @@ const STAGE_BADGE_COLORS: Record<string, string> = {
   "IM Review": "bg-purple-500/10 text-purple-400 border-purple-500/20 hover:border-purple-550/40 hover:bg-purple-500/20",
   "Seller Call": "bg-blue-500/10 text-blue-400 border-blue-500/20 hover:border-blue-550/40 hover:bg-blue-500/20",
   "Offer Submitted": "bg-[#C6A66B]/10 text-[#C6A66B] border-[#C6A66B]/20 hover:border-[#C6A66B]/40 hover:bg-[#C6A66B]/20",
+  "Active": "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:border-emerald-500/40 hover:bg-emerald-500/20",
 };
 
 export function getStageBadgeColor(stg: string): string {
@@ -316,7 +317,8 @@ export function DealDetailPage() {
     "IC Decision",
     "IM Review",
     "Seller Call",
-    "Offer Submitted"
+    "Offer Submitted",
+    "Active"
   ]);
 
   // Stage labels are a fixed pipeline vocabulary now (the legacy endpoint that
