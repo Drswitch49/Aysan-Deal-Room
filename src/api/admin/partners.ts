@@ -258,18 +258,45 @@ export const addPartnerDocument = (body: Record<string, unknown>) =>
 export const updatePartnerDocument = (body: { id: string } & Record<string, unknown>) =>
   api.patch<Record<string, any>>("/api/investor-documents", body);
 
+/** A file already uploaded to Cloudinary, as the reports API takes it. */
+export interface ReportFile {
+  public_id: string;
+  resource_type: "image" | "raw" | "video";
+  format: string | null;
+  name: string;
+  bytes: number | null;
+}
+
+/** What publishing did: partners in the deal, and how many emails went out. */
+export interface ReportNotified {
+  partners: number;
+  emailed: number;
+  failed: string[];
+}
+
+export const listDealReports = (params: { deal_id?: string } = {}) => {
+  const q = new URLSearchParams(params as Record<string, string>).toString();
+  return api.get<{ rows: Array<Record<string, any>>; total: number }>(`/api/deal-reports?${q}`, { noCache: true });
+};
+
 export const createDealReport = (body: {
   deal_id: string;
   period_label: string;
   publishes_on: string;
   trading_summary?: string | null;
   coverage_at_period?: string | null;
-  report_link?: string | null;
-  covenant_cert_link?: string | null;
-}) => api.post<Record<string, any>>("/api/deal-reports", body);
+  report_file?: ReportFile | null;
+  certificate_file?: ReportFile | null;
+  publish?: boolean;
+  next_report_date?: string | null;
+}) => api.post<Record<string, any> & { notified: ReportNotified | null }>("/api/deal-reports", body);
 
 export const updateDealReport = (body: { id: string } & Record<string, unknown>) =>
-  api.patch<Record<string, any>>("/api/deal-reports", body);
+  api.patch<Record<string, any> & { notified: ReportNotified | null }>("/api/deal-reports", body);
+
+/** Only a report that has not been published can be deleted. */
+export const deleteDealReport = (id: string) =>
+  api.del<{ deleted: true; id: string }>(`/api/deal-reports?id=${encodeURIComponent(id)}`);
 
 /** A two-minute signed link to a partner document, for staff to check it. */
 export const openPartnerDocument = (id: string) =>

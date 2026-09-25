@@ -50,6 +50,7 @@ import {
   ActivityItem,
   CoveragePill,
   DocRow,
+  DocOpenButton,
   MetricRow,
   PortalEmpty,
   PortalFooter,
@@ -1095,6 +1096,7 @@ function AcquisitionDetail({ dealKey, onBack }: { dealKey: string; onBack: () =>
                         <th className="py-2 font-semibold">Published</th>
                         <th className="py-2 font-semibold">Trading summary</th>
                         <th className="py-2 font-semibold">Coverage</th>
+                        <th className="py-2 font-semibold">Files</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1111,8 +1113,20 @@ function AcquisitionDetail({ dealKey, onBack }: { dealKey: string; onBack: () =>
                             )}
                           </td>
                           <td className="py-3 pr-3 text-sm text-slate-300">{r.trading_summary ?? "—"}</td>
-                          <td className="py-3">
+                          <td className="py-3 pr-3">
                             {r.coverage_at_period ? <CoveragePill status={r.coverage_at_period} /> : "—"}
+                          </td>
+                          <td className="py-3">
+                            {r.published_at && (r.report_document_id || r.certificate_document_id) ? (
+                              <div className="flex flex-wrap gap-1.5">
+                                {r.report_document_id ? <DocOpenButton id={r.report_document_id} label="Report" /> : null}
+                                {r.certificate_document_id ? (
+                                  <DocOpenButton id={r.certificate_document_id} label="Certificate" />
+                                ) : null}
+                              </div>
+                            ) : (
+                              <span className="text-xs text-slate-500">—</span>
+                            )}
                           </td>
                         </tr>
                       ))}

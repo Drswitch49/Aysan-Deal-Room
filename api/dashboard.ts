@@ -83,11 +83,28 @@ export default createHandler({
       return count ?? 0;
     };
 
-    const [allDealsCount, inboxDealsCount, reviewDealsCount, activePipelineCount] = await Promise.all([
+    /**
+     * Capital partners on record, and how many are invested (a completed
+     * commitment). Best effort: the dashboard must still load if the portal
+     * tables are unavailable.
+     */
+    const investorCountsQ = async (): Promise<{ total: number; invested: number }> => {
+      const [all, held] = await Promise.all([
+        db.from("investors").select("*", { count: "exact", head: true }).is("deleted_at", null),
+        db.from("commitments").select("investor_id").in("status", ["completed", "converted", "bought_back"]),
+      ]);
+      return {
+        total: all.count ?? 0,
+        invested: new Set((held.data ?? []).map((r: any) => r.investor_id)).size,
+      };
+    };
+
+    const [allDealsCount, inboxDealsCount, reviewDealsCount, activePipelineCount, investorCounts] = await Promise.all([
       allDealsCountQ(),
       stageCount("inbox"),
       stageCount("review"),
       stageCount("active"),
+      investorCountsQ().catch(() => ({ total: 0, invested: 0 })),
     ]);
 
     // Active deals (bounded) for distribution + insights + actions.
@@ -227,6 +244,8 @@ export default createHandler({
       reviewDealsCount,
       activePipelineCount,
       pendingActionsCount: actionsDueToday.length,
+      investorsCount: investorCounts.total,
+      investedInvestorsCount: investorCounts.invested,
       stageDistribution,
       pipelineInsights,
       actionsDueToday,

@@ -94,8 +94,11 @@ export interface PortalReport {
   period_label: string;
   publishes_on: string;
   published_at: string | null;
+  /** Withheld (null) until the report publishes. */
   trading_summary: string | null;
   coverage_at_period: string | null;
+  report_document_id: string | null;
+  certificate_document_id: string | null;
 }
 
 export interface PortalDashboard {

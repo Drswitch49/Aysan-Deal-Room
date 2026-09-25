@@ -32,6 +32,7 @@ const hrEndpointFor = (type: string) =>
 import { Modal } from "../components/ui/Modal";
 import { FormField, inputClass, selectClass } from "../components/ui/FormField";
 import { CapitalPartnersTab } from "../components/partners/CapitalPartnersTab";
+import { QuarterlyReportsTab } from "../components/partners/QuarterlyReportsTab";
 
 type TeamMember = {
   id: string;
@@ -93,8 +94,8 @@ type Shareholder = {
   assignments: any[];
 };
 
-type RegistryTab = "partners" | "stakeholders" | "shareholders";
-const REGISTRY_TABS: RegistryTab[] = ["partners", "stakeholders", "shareholders"];
+type RegistryTab = "partners" | "reports" | "stakeholders" | "shareholders";
+const REGISTRY_TABS: RegistryTab[] = ["partners", "reports", "stakeholders", "shareholders"];
 
 
 const REGISTRY_TAB_KEY = "acp:hr-registry-tab";
@@ -956,6 +957,7 @@ function HrStakeholdersPage({ mode }: { mode: "hr" | "investors" }) {
               {(
                 [
                   ["partners", "Capital partners", null],
+                  ["reports", "Quarterly reports", null],
                   ["stakeholders", "Stakeholders", stakeholders.length],
                   ["shareholders", "Shareholders", shareholders.length],
                 ] as Array<[RegistryTab, string, number | null]>
@@ -1013,6 +1015,8 @@ function HrStakeholdersPage({ mode }: { mode: "hr" | "investors" }) {
                 canErase={["owner", "super_admin", "managing_partner", "admin"].includes(canonRole)}
               />
             ) : null}
+
+            {registryTab === "reports" ? <QuarterlyReportsTab canManage={canManageStakeholders} /> : null}
 
             {registryTab === "stakeholders" ? (
               isLoading ? (

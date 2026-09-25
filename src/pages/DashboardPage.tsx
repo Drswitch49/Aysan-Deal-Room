@@ -188,10 +188,11 @@ export function DashboardPage() {
               to="/deals"
             />
             <StatCard
-              label="Pending Actions"
-              value={stats.stageDistribution?.inbound ?? 0}
+              label="Investors"
+              value={stats.investorsCount ?? 0}
+              subLabel={`${stats.investedInvestorsCount ?? 0} with a completed commitment`}
               tone="bronze"
-              to="/deals?stage=Inbound"
+              to="/admin/investors"
             />
           </div>
 
