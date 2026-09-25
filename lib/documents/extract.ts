@@ -46,8 +46,14 @@ export async function extractTextFromUrl(url: string, filename?: string | null):
   const contentType = res.headers.get("content-type") ?? "";
 
   if (name.endsWith(".pdf") || contentType.includes("pdf")) {
+    // `pdf-parse/worker` must load first: it installs the DOMMatrix/Path2D
+    // globals pdfjs needs and statically imports the worker. Without it pdfjs
+    // reaches both through dynamic requires Vercel's bundler cannot trace, so
+    // every PDF parsed fine locally and failed on the deployment.
+    const { CanvasFactory, getData } = await import("pdf-parse/worker");
     const { PDFParse } = await import("pdf-parse");
-    const parser = new PDFParse({ data: buffer });
+    PDFParse.setWorker(getData());
+    const parser = new PDFParse({ data: buffer, CanvasFactory });
     try {
       const result = await parser.getText();
       return result.text ?? "";

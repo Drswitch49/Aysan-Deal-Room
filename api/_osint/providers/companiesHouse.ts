@@ -73,7 +73,9 @@ function pickMatch(items: any[], companyName: string): any {
 export async function searchCompaniesHouse(
   companyName: string
 ): Promise<CompaniesHouseResult> {
-  const apiKey = process.env.COMPANIES_HOUSE_API_KEY;
+  // Trimmed: a key pasted into Vercel with a trailing newline or space is sent
+  // verbatim in the Basic auth header and rejected with a 401.
+  const apiKey = process.env.COMPANIES_HOUSE_API_KEY?.trim();
 
   if (!apiKey) {
     console.warn("[Companies House] API key not configured — skipping");
@@ -105,7 +107,10 @@ export async function searchCompaniesHouse(
     if (!searchRes.ok) {
       return {
         found: false,
-        error: `Companies House API returned ${searchRes.status}`,
+        error:
+          searchRes.status === 401
+            ? "Companies House rejected COMPANIES_HOUSE_API_KEY (401) — it must be a REST API key from a Live (not Test) application"
+            : `Companies House API returned ${searchRes.status}`,
       };
     }
 

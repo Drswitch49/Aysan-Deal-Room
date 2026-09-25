@@ -34,6 +34,10 @@ async function candidateUrls(row: Record<string, any>): Promise<string[]> {
     );
   }
   for (const legacy of [row.file_url, row.legacy_file_url]) {
+    // An authenticated delivery URL always 401s for a PDF on this account (see
+    // downloadUrl), so once the signed forms have been tried it adds nothing —
+    // and as the last attempt its 401 used to replace the error that mattered.
+    if (row.cloudinary_public_id && /\/authenticated\//.test(legacy ?? "")) continue;
     if (legacy && !urls.includes(legacy)) urls.push(legacy);
   }
   return urls;
@@ -66,7 +70,7 @@ export async function loadImDocumentText(dealId: string): Promise<ImDocumentText
       const name = row.document_name || "Untitled attachment";
       if (row.extracted_text) return { name, text: row.extracted_text };
 
-      let lastErr: unknown = null;
+      const errors: string[] = [];
       for (const url of await candidateUrls(row)) {
         try {
           const text = await extractTextFromUrl(url, name);
@@ -79,11 +83,15 @@ export async function loadImDocumentText(dealId: string): Promise<ImDocumentText
             return { name, text };
           }
         } catch (err) {
-          lastErr = err;
+          const msg = err instanceof Error ? err.message : String(err);
+          if (!errors.includes(msg)) errors.push(msg);
         }
       }
 
-      const message = lastErr instanceof Error ? lastErr.message : "no readable text found";
+      // Keep every distinct failure: the first candidate's error is usually the
+      // real one, and the later fallbacks' errors used to hide it.
+      const message = errors.length ? errors.join(" | ") : "no readable text found";
+      console.error(`[imDocuments] could not read "${name}" (${row.id}): ${message}`);
       await cache(row.id, { extraction_error: message, extracted_at: new Date().toISOString() });
       return { name, text: "", error: message };
     }),
