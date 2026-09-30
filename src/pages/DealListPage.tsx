@@ -301,10 +301,10 @@ export function DealListPage() {
   // hardcoded shortlist) so every team member gets a legible chip, with a stable colour
   // picked from the name itself.
   const AVATAR_PALETTE = [
-    "from-[#C6A66B] to-[#D4B06A] text-slate-950 border-[#C6A66B]/20",
+    "from-acp-bronze to-acp-bronze-light text-acp-on-accent border-acp-bronze/20",
     "from-blue-500/80 to-blue-400/80 text-white border-blue-500/20",
     "from-purple-500/80 to-purple-400/80 text-white border-purple-500/20",
-    "from-emerald-500/80 to-emerald-400/80 text-slate-950 border-emerald-500/20",
+    "from-emerald-500/80 to-emerald-400/80 text-acp-on-accent border-emerald-500/20",
     "from-pink-500/80 to-pink-400/80 text-white border-pink-500/20",
   ];
 
@@ -408,7 +408,7 @@ export function DealListPage() {
   };
 
   return (
-    <div className="space-y-8 text-[#E2E8F0] font-sans animate-fade-in-up">
+    <div className="space-y-8 text-slate-200 font-sans animate-fade-in-up">
       
       {/* Header section with Dynamic overview & Warning Pills */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/[0.02] pb-5">
@@ -448,7 +448,7 @@ export function DealListPage() {
               className={cx(
                 "px-3.5 py-1.5 rounded-full border transition cursor-pointer font-bold",
                 selectedStageFilter === "All"
-                  ? "border-[#C6A66B] bg-[#C6A66B]/5 text-[#C6A66B]"
+                  ? "border-acp-bronze bg-acp-bronze/5 text-acp-bronze"
                   : "border-white/[0.02] bg-white/[0.01] text-slate-400 hover:text-white hover:bg-white/[0.03]"
               )}
             >
@@ -461,7 +461,7 @@ export function DealListPage() {
               className={cx(
                 "px-3.5 py-1.5 rounded-full border transition cursor-pointer font-bold",
                 selectedStageFilter === "Inbound"
-                  ? "border-[#C6A66B] bg-[#C6A66B]/5 text-[#C6A66B]"
+                  ? "border-acp-bronze bg-acp-bronze/5 text-acp-bronze"
                   : "border-white/[0.02] bg-white/[0.01] text-slate-400 hover:text-white hover:bg-white/[0.03]"
               )}
             >
@@ -477,7 +477,7 @@ export function DealListPage() {
               className={cx(
                 "px-3.5 py-1.5 rounded-full border transition cursor-pointer font-bold",
                 selectedStageFilter === "Seller Call"
-                  ? "border-[#C6A66B] bg-[#C6A66B]/5 text-[#C6A66B]"
+                  ? "border-acp-bronze bg-acp-bronze/5 text-acp-bronze"
                   : "border-white/[0.02] bg-white/[0.01] text-slate-400 hover:text-white hover:bg-white/[0.03]"
               )}
             >
@@ -490,7 +490,7 @@ export function DealListPage() {
               className={cx(
                 "px-3.5 py-1.5 rounded-full border transition cursor-pointer font-bold",
                 selectedStageFilter === "IM Review"
-                  ? "border-[#C6A66B] bg-[#C6A66B]/5 text-[#C6A66B]"
+                  ? "border-acp-bronze bg-acp-bronze/5 text-acp-bronze"
                   : "border-white/[0.02] bg-white/[0.01] text-slate-400 hover:text-white hover:bg-white/[0.03]"
               )}
             >
@@ -503,7 +503,7 @@ export function DealListPage() {
               className={cx(
                 "px-3.5 py-1.5 rounded-full border transition cursor-pointer font-bold",
                 selectedStageFilter === "DD"
-                  ? "border-[#C6A66B] bg-[#C6A66B]/5 text-[#C6A66B]"
+                  ? "border-acp-bronze bg-acp-bronze/5 text-acp-bronze"
                   : "border-white/[0.02] bg-white/[0.01] text-slate-400 hover:text-white hover:bg-white/[0.03]"
               )}
             >
@@ -520,7 +520,7 @@ export function DealListPage() {
               className={cx(
                 "px-3.5 py-1.5 rounded-full border transition cursor-pointer font-bold",
                 selectedStageFilter === "Active"
-                  ? "border-[#C6A66B] bg-[#C6A66B]/5 text-[#C6A66B]"
+                  ? "border-acp-bronze bg-acp-bronze/5 text-acp-bronze"
                   : "border-white/[0.02] bg-white/[0.01] text-slate-400 hover:text-white hover:bg-white/[0.03]"
               )}
             >
@@ -554,20 +554,20 @@ export function DealListPage() {
                 setSearchQuery(e.target.value);
                 setCurrentPage(1);
               }}
-              className="h-9 w-36 rounded-xl border border-white/[0.02] bg-[#0B0B0C] pl-9 pr-3 text-xs text-white placeholder-slate-500 outline-none transition focus:border-[#C6A66B] focus:w-44 shadow-inner"
+              className="h-9 w-36 rounded-xl border border-white/[0.02] bg-acp-deep pl-9 pr-3 text-xs text-white placeholder-slate-500 outline-none transition focus:border-acp-bronze focus:w-44 shadow-inner"
             />
           </div>
 
           <button
             onClick={() => setShowFilterDropdown(!showFilterDropdown)}
-            className="inline-flex h-9 items-center gap-2 rounded-xl border border-white/[0.02] bg-[#0B0B0C] px-3.5 text-xs font-semibold text-slate-300 hover:bg-white/[0.03] transition cursor-pointer shadow-inner"
+            className="inline-flex h-9 items-center gap-2 rounded-xl border border-white/[0.02] bg-acp-deep px-3.5 text-xs font-semibold text-slate-300 hover:bg-white/[0.03] transition cursor-pointer shadow-inner"
           >
             <Filter className="h-4 w-4" />
             <span>Filter</span>
           </button>
 
           {/* View Toggles */}
-          <div className="flex rounded-xl border border-white/[0.02] bg-[#0B0B0C] p-0.5 shadow-inner">
+          <div className="flex rounded-xl border border-white/[0.02] bg-acp-deep p-0.5 shadow-inner">
             <button
               onClick={() => setViewMode("list")}
               className={cx(
@@ -609,10 +609,10 @@ export function DealListPage() {
                 setSelectedOwnerFilter(e.target.value);
                 setCurrentPage(1);
               }}
-              className="h-10 w-full rounded-xl border border-white/[0.02] bg-[#0F1115] px-3.5 text-xs text-white outline-none focus:border-[#C6A66B] transition cursor-pointer shadow-inner"
+              className="h-10 w-full rounded-xl border border-white/[0.02] bg-acp-ink px-3.5 text-xs text-white outline-none focus:border-acp-bronze transition cursor-pointer shadow-inner"
             >
               {owners.map((o: string) => (
-                <option key={o} value={o} className="bg-[#0B0B0C]">{o}</option>
+                <option key={o} value={o} className="bg-acp-deep">{o}</option>
               ))}
             </select>
           </div>
@@ -627,10 +627,10 @@ export function DealListPage() {
                 setSelectedSectorFilter(e.target.value);
                 setCurrentPage(1);
               }}
-              className="h-10 w-full rounded-xl border border-white/[0.02] bg-[#0F1115] px-3.5 text-xs text-white outline-none focus:border-[#C6A66B] transition cursor-pointer shadow-inner"
+              className="h-10 w-full rounded-xl border border-white/[0.02] bg-acp-ink px-3.5 text-xs text-white outline-none focus:border-acp-bronze transition cursor-pointer shadow-inner"
             >
               {sectors.map((s: string) => (
-                <option key={s} value={s} className="bg-[#0B0B0C]">{s}</option>
+                <option key={s} value={s} className="bg-acp-deep">{s}</option>
               ))}
             </select>
           </div>
@@ -694,7 +694,7 @@ export function DealListPage() {
                                 <Link
                                   to={`/deals/${encodeURIComponent(deal.dealRef)}`}
                                   onClick={(e) => e.stopPropagation()}
-                                  className="block font-sans font-semibold text-[13px] leading-snug text-white hover:text-[#C6A66B] transition-colors break-words"
+                                  className="block font-sans font-semibold text-[13px] leading-snug text-white hover:text-acp-bronze transition-colors break-words"
                                 >
                                   {companyName}
                                 </Link>
@@ -740,7 +740,7 @@ export function DealListPage() {
                                 if (s === "killed") {
                                     return "bg-rose-500/5 text-rose-500 border-rose-500/10";
                                 }
-                                return "bg-[#C6A66B]/5 text-[#C6A66B] border-[#C6A66B]/10";
+                                return "bg-acp-bronze/5 text-acp-bronze border-acp-bronze/10";
                               })()
                             )}>
                               {deal.status}
@@ -853,7 +853,7 @@ export function DealListPage() {
             <button type="button" onClick={() => { setIsModalOpen(false); setPendingFiles([]); }} className="h-9 px-4 rounded-xl border border-white/[0.02] text-slate-400 text-xs font-bold uppercase tracking-wider hover:bg-white/[0.015] transition cursor-pointer">
               Cancel
             </button>
-            <button type="submit" disabled={isSubmittingDeal || isUploadingFiles} className="h-9 px-5 rounded-xl bg-gradient-to-r from-[#C6A66B] to-[#B8924F] text-slate-950 text-xs font-bold uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none hover:shadow-glow-bronze transition cursor-pointer">
+            <button type="submit" disabled={isSubmittingDeal || isUploadingFiles} className="h-9 px-5 rounded-xl bg-gradient-to-r from-acp-bronze to-acp-bronze-dark text-acp-on-accent text-xs font-bold uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none hover:shadow-glow-bronze transition cursor-pointer">
               {isSubmittingDeal ? "Adding Deal..." : isUploadingFiles ? "Uploading Files..." : "Add Deal"}
             </button>
           </>
@@ -1008,7 +1008,7 @@ export function DealListPage() {
                 {pendingFiles.map((file: any, idx: number) => (
                   <div key={idx} className="flex items-center justify-between p-2 rounded-lg bg-white/[0.015] border border-white/5 text-[11px]">
                     <div className="flex items-center gap-2 min-w-0">
-                      <FileText className="h-3.5 w-3.5 text-[#C6A66B] shrink-0" />
+                      <FileText className="h-3.5 w-3.5 text-acp-bronze shrink-0" />
                       <span className="text-white truncate font-medium">{file.fileName}</span>
                     </div>
                     <button
@@ -1044,7 +1044,7 @@ export function DealListPage() {
               className={cx(
                 "border border-dashed rounded-xl p-6 text-center transition cursor-pointer select-none relative",
                 dragActive
-                  ? "border-[#C6A66B] bg-[#C6A66B]/5 text-white"
+                  ? "border-acp-bronze bg-acp-bronze/5 text-white"
                   : "border-white/10 bg-white/[0.005] hover:border-white/20 text-slate-400"
               )}
             >
@@ -1072,7 +1072,7 @@ export function DealListPage() {
               <label htmlFor="add-deal-file-upload" className="cursor-pointer space-y-2 block">
                 <div className="flex justify-center">
                   {isUploadingFiles ? (
-                    <RefreshCw className="h-5 w-5 text-[#C6A66B] animate-spin" />
+                    <RefreshCw className="h-5 w-5 text-acp-bronze animate-spin" />
                   ) : (
                     <Upload className="h-5 w-5 text-slate-500" />
                   )}

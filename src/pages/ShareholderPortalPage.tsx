@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
-import { Landmark, LogOut, Files, FileText, Building2, LockKeyhole, Mail } from "lucide-react";
+import { LogOut, Files, FileText, Building2, LockKeyhole, Mail } from "lucide-react";
+import { BrandLogo } from "../components/ui/BrandLogo";
+import { ThemeToggle } from "../components/ui/ThemeToggle";
 import { LoadingState } from "../components/ui/LoadingState";
 import { ErrorState } from "../components/ui/ErrorState";
 import { EmptyState } from "../components/ui/EmptyState";
@@ -94,15 +96,13 @@ export function ShareholderPortalPage() {
 
   if (!token) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#07090c] p-4 text-slate-100 font-sans selection:bg-[#C6A66B]/30 relative overflow-hidden">
+      <div className="flex min-h-screen items-center justify-center bg-acp-deep p-4 text-slate-100 font-sans selection:bg-acp-bronze/30 relative overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,#C6A66B15_0%,transparent_50%)]"></div>
-        <div className="relative w-full max-w-sm rounded-2xl border border-white/5 bg-[#0F1115]/90 p-8 shadow-2xl backdrop-blur-xl animate-fade-in-up">
+        <ThemeToggle className="absolute right-4 top-4 z-20" />
+        <div className="relative w-full max-w-sm rounded-2xl border border-white/5 bg-acp-ink/90 p-8 shadow-2xl backdrop-blur-xl animate-fade-in-up">
           <div className="mb-8 flex flex-col items-center text-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-[#C6A66B] to-[#B8924F] shadow-[0_0_20px_rgba(198,166,107,0.3)] mb-4">
-              <Landmark className="h-7 w-7 text-[#07090c]" />
-            </div>
-            <h1 className="text-[10px] font-black uppercase tracking-[0.2em] text-[#C6A66B]">ACP OS</h1>
-            <p className="mt-1 text-lg font-bold text-white tracking-tight">Shareholder Login</p>
+            <BrandLogo className="h-8 text-white mb-4" />
+            <h1 className="text-lg font-bold text-white tracking-tight">Shareholder Login</h1>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-4">
@@ -114,28 +114,28 @@ export function ShareholderPortalPage() {
             
             <div className="relative group">
               <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                <Mail className="h-4 w-4 text-slate-500 group-focus-within:text-[#C6A66B] transition-colors" />
+                <Mail className="h-4 w-4 text-slate-500 group-focus-within:text-acp-bronze transition-colors" />
               </div>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Shareholder Email"
-                className="h-12 w-full rounded-xl border border-white/10 bg-black/40 pl-10 pr-4 text-sm text-white placeholder-slate-500 outline-none transition-all focus:border-[#C6A66B] focus:ring-1 focus:ring-[#C6A66B]"
+                className="h-12 w-full rounded-xl border border-white/10 bg-black/40 pl-10 pr-4 text-sm text-white placeholder-slate-500 outline-none transition-all focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze"
                 required
               />
             </div>
 
             <div className="relative group">
               <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                <LockKeyhole className="h-4 w-4 text-slate-500 group-focus-within:text-[#C6A66B] transition-colors" />
+                <LockKeyhole className="h-4 w-4 text-slate-500 group-focus-within:text-acp-bronze transition-colors" />
               </div>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Password"
-                className="h-12 w-full rounded-xl border border-white/10 bg-black/40 pl-10 pr-4 text-sm text-white placeholder-slate-500 outline-none transition-all focus:border-[#C6A66B] focus:ring-1 focus:ring-[#C6A66B]"
+                className="h-12 w-full rounded-xl border border-white/10 bg-black/40 pl-10 pr-4 text-sm text-white placeholder-slate-500 outline-none transition-all focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze"
                 required
               />
             </div>
@@ -143,7 +143,7 @@ export function ShareholderPortalPage() {
             <button
               type="submit"
               disabled={isVerifying || !email || !password}
-              className="mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#C6A66B] to-[#B8924F] text-sm font-black uppercase tracking-wider text-[#07090c] transition hover:opacity-90 disabled:opacity-50"
+              className="mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-acp-bronze to-acp-bronze-dark text-sm font-black uppercase tracking-wider text-acp-on-accent transition hover:opacity-90 disabled:opacity-50"
             >
               {isVerifying ? "Verifying..." : "Access Portal"}
             </button>
@@ -153,23 +153,19 @@ export function ShareholderPortalPage() {
     );
   }
 
-  if (isLoading) return <div className="min-h-screen bg-[#07090c] pt-20"><LoadingState label="Authenticating Shareholder Profile..." /></div>;
+  if (isLoading) return <div className="min-h-screen bg-acp-deep pt-20"><LoadingState label="Authenticating Shareholder Profile..." /></div>;
 
   return (
-    <div className="min-h-screen bg-[#07090c] text-slate-100 font-sans flex flex-col relative selection:bg-[#C6A66B]/30">
+    <div className="min-h-screen bg-acp-deep text-slate-100 font-sans flex flex-col relative selection:bg-acp-bronze/30">
       {/* HEADER */}
-      <header className="sticky top-0 z-40 bg-[#0A0D12]/90 backdrop-blur-md border-b border-white/[0.04]">
+      <header className="sticky top-0 z-40 bg-acp-deep/90 backdrop-blur-md border-b border-white/[0.04]">
         <div className="max-w-[1400px] mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="h-8 w-8 rounded bg-gradient-to-br from-[#C6A66B] to-[#B8924F] flex items-center justify-center shadow-[0_0_15px_rgba(198,166,107,0.3)]">
-              <Landmark className="h-4 w-4 text-[#07090c]" />
-            </div>
-            <div>
-              <div className="text-[10px] font-black tracking-[0.2em] uppercase text-[#C6A66B]">ACP OS</div>
-              <div className="text-xs font-semibold text-white tracking-wide">Shareholder Portal</div>
-            </div>
+          <div className="flex min-w-0 items-center gap-3 text-white">
+            <BrandLogo className="h-5" />
+            <span className="hidden truncate text-[10px] font-black tracking-[0.2em] uppercase text-acp-bronze sm:inline">Shareholder Portal</span>
           </div>
           <div className="flex items-center gap-4">
+            <ThemeToggle />
             <div className="hidden sm:flex items-center gap-2">
               <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
               <span className="text-xs font-semibold text-emerald-400">Authenticated</span>
@@ -187,7 +183,7 @@ export function ShareholderPortalPage() {
         
         {/* SIDEBAR - Deals List */}
         <aside className="w-full md:w-72 shrink-0 flex flex-col gap-4">
-          <h2 className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-500 pl-1 border-l border-[#C6A66B]/50">Assigned Deals</h2>
+          <h2 className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-500 pl-1 border-l border-acp-bronze/50">Assigned Deals</h2>
           
           {deals.length === 0 ? (
             <div className="p-4 rounded-xl border border-white/[0.02] bg-white/[0.01] text-center text-xs text-slate-500">
@@ -203,14 +199,14 @@ export function ShareholderPortalPage() {
                     onClick={() => setSelectedDeal(deal)}
                     className={cx(
                       "w-full text-left p-4 rounded-xl border transition-all duration-300",
-                      isActive ? "bg-[#C6A66B]/10 border-[#C6A66B]/30 shadow-[0_0_15px_rgba(198,166,107,0.05)]" : "bg-white/[0.02] border-white/[0.02] hover:bg-white/[0.04]"
+                      isActive ? "bg-acp-bronze/10 border-acp-bronze/30 shadow-[0_0_15px_rgba(198,166,107,0.05)]" : "bg-white/[0.02] border-white/[0.02] hover:bg-white/[0.04]"
                     )}
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <Building2 className={cx("h-3.5 w-3.5 shrink-0", isActive ? "text-[#C6A66B]" : "text-slate-500")} />
-                          <h3 className={cx("text-sm font-bold truncate", isActive ? "text-[#C6A66B]" : "text-slate-300")}>{deal.companyName}</h3>
+                          <Building2 className={cx("h-3.5 w-3.5 shrink-0", isActive ? "text-acp-bronze" : "text-slate-500")} />
+                          <h3 className={cx("text-sm font-bold truncate", isActive ? "text-acp-bronze" : "text-slate-300")}>{deal.companyName}</h3>
                         </div>
                         <p className="text-[10px] uppercase tracking-wider text-slate-500 font-bold ml-5">
                           {deal.industry || "General"}
@@ -230,16 +226,16 @@ export function ShareholderPortalPage() {
             <EmptyState icon={<Building2 className="h-10 w-10 text-slate-500" />} title="No Deal Selected" message="Select an assigned deal from the list to view its investment materials and details." />
           ) : (
             <div className="space-y-6 animate-fade-in">
-              <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-6 shadow-premium-card card-sheen">
+              <div className="rounded-2xl border border-white/[0.02] bg-acp-card p-6 shadow-premium-card card-sheen">
                 <div className="flex flex-wrap items-center justify-between gap-4 mb-8 pb-6 border-b border-white/[0.04]">
                   <div>
                     <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">{selectedDeal.companyName}</h1>
-                    <p className="text-sm font-bold text-[#C6A66B] mt-1 tracking-wide">{selectedDeal.industry}</p>
+                    <p className="text-sm font-bold text-acp-bronze mt-1 tracking-wide">{selectedDeal.industry}</p>
                   </div>
                   <div className="flex items-center gap-4 text-xs font-bold text-slate-400 bg-black/20 p-3 rounded-xl border border-white/[0.02]">
                     <div className="text-center px-3 border-r border-white/5">
                       <div className="text-[9px] uppercase tracking-wider mb-0.5 opacity-60">Revenue</div>
-                      <div className="text-[#C6A66B]">${(Number(selectedDeal.revenue) / 1e6).toFixed(1)}M</div>
+                      <div className="text-acp-bronze">${(Number(selectedDeal.revenue) / 1e6).toFixed(1)}M</div>
                     </div>
                     <div className="text-center px-3 border-r border-white/5">
                       <div className="text-[9px] uppercase tracking-wider mb-0.5 opacity-60">EBITDA</div>
@@ -284,11 +280,11 @@ export function ShareholderPortalPage() {
                           {selectedDeal.documents?.map((doc: any) => (
                             <div key={doc.id} className="flex items-center justify-between p-3 rounded-lg border border-white/[0.02] bg-white/[0.01] hover:bg-white/[0.03] transition-colors group">
                               <div className="flex items-center gap-3">
-                                <div className="h-8 w-8 rounded bg-[#C6A66B]/10 flex items-center justify-center text-[#C6A66B]">
+                                <div className="h-8 w-8 rounded bg-acp-bronze/10 flex items-center justify-center text-acp-bronze">
                                   <FileText className="h-4 w-4" />
                                 </div>
                                 <div>
-                                  <div className="text-xs font-bold text-white group-hover:text-[#C6A66B] transition-colors">{doc.name}</div>
+                                  <div className="text-xs font-bold text-white group-hover:text-acp-bronze transition-colors">{doc.name}</div>
                                   <div className="text-[9px] font-semibold uppercase tracking-wider text-slate-500 mt-0.5">{doc.type || "Document"}</div>
                                 </div>
                               </div>
@@ -298,7 +294,7 @@ export function ShareholderPortalPage() {
                                   : doc.url} 
                                 target="_blank" 
                                 rel="noopener noreferrer" 
-                                className="px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-[#C6A66B] bg-[#C6A66B]/10 hover:bg-[#C6A66B]/20 rounded transition"
+                                className="px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-acp-bronze bg-acp-bronze/10 hover:bg-acp-bronze/20 rounded transition"
                               >
                                 View
                               </a>

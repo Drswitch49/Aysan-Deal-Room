@@ -35,10 +35,10 @@ const DOC_TYPES = [
 const typeLabel = (t: string) => DOC_TYPES.find(([v]) => v === t)?.[1] ?? t.replace(/_/g, " ");
 
 const input =
-  "w-full rounded-lg border border-white/10 bg-[#0F1115] px-3 py-2 text-sm text-white outline-none transition focus:border-[#C6A66B] disabled:opacity-60";
+  "w-full rounded-lg border border-white/10 bg-acp-ink px-3 py-2 text-sm text-white outline-none transition focus:border-acp-bronze disabled:opacity-60";
 const label = "mb-1 block text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500";
 const iconBtn =
-  "inline-flex items-center gap-1 rounded-lg border border-white/10 px-2 py-1 text-[11px] font-semibold text-slate-300 transition hover:border-[#C6A66B]/40 hover:text-white disabled:opacity-40";
+  "inline-flex items-center gap-1 rounded-lg border border-white/10 px-2 py-1 text-[11px] font-semibold text-slate-300 transition hover:border-acp-bronze/40 hover:text-white disabled:opacity-40";
 
 export function DealPortalDocuments({
   dealId,
@@ -101,10 +101,10 @@ export function DealPortalDocuments({
   const live = docs.filter((d) => !d.revoked_at).length;
 
   return (
-    <section className="space-y-3 rounded-2xl border border-white/[0.04] bg-[#161B22] p-5">
+    <section className="space-y-3 rounded-2xl border border-white/[0.04] bg-acp-card p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <FileText className="h-3.5 w-3.5 text-[#C6A66B]" />
+          <FileText className="h-3.5 w-3.5 text-acp-bronze" />
           <h3 className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-400">
             Partner documents{docs.length ? ` · ${live} shared` : ""}
           </h3>
@@ -113,7 +113,7 @@ export function DealPortalDocuments({
           <button
             type="button"
             onClick={() => setAdding(true)}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-[#C6A66B] px-3 py-1.5 text-xs font-bold text-[#0F1115] transition hover:brightness-110"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-acp-bronze px-3 py-1.5 text-xs font-bold text-acp-on-accent transition hover:brightness-110"
           >
             <Upload className="h-3.5 w-3.5" /> Add document
           </button>
@@ -141,7 +141,7 @@ export function DealPortalDocuments({
 
       {!loaded ? (
         <div className="flex items-center gap-2 py-6 text-xs text-slate-500">
-          <Loader2 className="h-4 w-4 animate-spin text-[#C6A66B]" /> Loading…
+          <Loader2 className="h-4 w-4 animate-spin text-acp-bronze" /> Loading…
         </div>
       ) : docs.length === 0 && !adding ? (
         <div className="rounded-xl border border-dashed border-white/10 px-6 py-8 text-center">
@@ -299,7 +299,7 @@ function AddDocumentForm({
   const busy = progress !== null;
 
   return (
-    <div className="space-y-3 rounded-xl border border-[#C6A66B]/20 bg-[#C6A66B]/[0.03] p-4">
+    <div className="space-y-3 rounded-xl border border-acp-bronze/20 bg-acp-bronze/[0.03] p-4">
       <div className="flex gap-1.5">
         {(
           [
@@ -314,7 +314,7 @@ function AddDocumentForm({
             disabled={busy}
             className={cx(
               "inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition",
-              mode === m ? "border-[#C6A66B]/50 bg-[#C6A66B]/10 text-[#C6A66B]" : "border-white/10 text-slate-400 hover:text-white",
+              mode === m ? "border-acp-bronze/50 bg-acp-bronze/10 text-acp-bronze" : "border-white/10 text-slate-400 hover:text-white",
             )}
           >
             <Icon className="h-3.5 w-3.5" /> {text}
@@ -371,7 +371,7 @@ function AddDocumentForm({
           type="button"
           onClick={() => void submit()}
           disabled={busy}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-[#C6A66B] px-3.5 py-1.5 text-xs font-bold text-[#0F1115] transition hover:brightness-110 disabled:opacity-50"
+          className="inline-flex items-center gap-1.5 rounded-lg bg-acp-bronze px-3.5 py-1.5 text-xs font-bold text-acp-on-accent transition hover:brightness-110 disabled:opacity-50"
         >
           {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
           Share with partners

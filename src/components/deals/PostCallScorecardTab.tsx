@@ -126,11 +126,11 @@ function Chip({ className, children }: { className: string; children: React.Reac
   );
 }
 
-const card = "rounded-2xl border border-white/[0.04] bg-[#161B22] p-5";
+const card = "rounded-2xl border border-white/[0.04] bg-acp-card p-5";
 const heading = "text-[10px] font-extrabold uppercase tracking-wider text-slate-400";
 const btnGhost = "inline-flex h-8 items-center gap-1.5 rounded-lg border border-white/[0.06] bg-white/[0.015] px-3 text-[10px] font-bold uppercase tracking-wider text-slate-300 hover:text-white hover:bg-white/[0.03] transition cursor-pointer disabled:opacity-50";
-const btnGold = "inline-flex h-8 items-center gap-1.5 rounded-lg bg-[#C6A66B] hover:bg-[#B8924F] text-slate-950 px-3 text-[10px] font-black uppercase tracking-wider transition cursor-pointer disabled:opacity-50";
-const input = "h-9 w-full rounded-lg border border-white/[0.06] bg-white/[0.015] px-3 text-xs text-white outline-none focus:border-[#C6A66B]";
+const btnGold = "inline-flex h-8 items-center gap-1.5 rounded-lg bg-acp-bronze hover:bg-acp-bronze-dark text-acp-on-accent px-3 text-[10px] font-black uppercase tracking-wider transition cursor-pointer disabled:opacity-50";
+const input = "h-9 w-full rounded-lg border border-white/[0.06] bg-white/[0.015] px-3 text-xs text-white outline-none focus:border-acp-bronze";
 
 export function PostCallScorecardTab({
   deal,
@@ -191,7 +191,7 @@ export function PostCallScorecardTab({
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-16 space-y-3">
-        <Loader2 className="h-8 w-8 text-[#C6A66B] animate-spin" />
+        <Loader2 className="h-8 w-8 text-acp-bronze animate-spin" />
         <p className="text-xs text-slate-400">Loading post-call scorecards…</p>
       </div>
     );
@@ -231,7 +231,7 @@ export function PostCallScorecardTab({
               <select
                 value={selected.id}
                 onChange={(e) => setSelectedId(e.target.value)}
-                className="h-9 min-w-0 max-w-full rounded-xl border border-white/[0.04] bg-[#161B22] px-3 text-xs text-white outline-none focus:border-[#C6A66B] cursor-pointer"
+                className="h-9 min-w-0 max-w-full rounded-xl border border-white/[0.04] bg-acp-card px-3 text-xs text-white outline-none focus:border-acp-bronze cursor-pointer"
               >
                 {runs.map((r) => (
                   <option key={r.id} value={r.id}>
@@ -302,7 +302,7 @@ function ControlsStrip({
       <div className={cx(card, "space-y-2")}>
         <div className="flex items-center justify-between gap-2">
           <h3 className={heading}>Playbook config</h3>
-          <button type="button" onClick={() => setConfigOpen(true)} className="text-[10px] font-black uppercase text-[#C6A66B] hover:underline cursor-pointer">
+          <button type="button" onClick={() => setConfigOpen(true)} className="text-[10px] font-black uppercase text-acp-bronze hover:underline cursor-pointer">
             {isAdmin ? "View / new version" : "View"}
           </button>
         </div>
@@ -337,7 +337,7 @@ function ControlsStrip({
         <div className="flex items-center justify-between gap-2">
           <h3 className={heading}>DSCR sanction</h3>
           {isAdmin && (
-            <button type="button" onClick={() => setSanctionOpen(true)} className="text-[10px] font-black uppercase text-[#C6A66B] hover:underline cursor-pointer">
+            <button type="button" onClick={() => setSanctionOpen(true)} className="text-[10px] font-black uppercase text-acp-bronze hover:underline cursor-pointer">
               {sanctioned ? "Withdraw" : "Record"}
             </button>
           )}
@@ -601,7 +601,7 @@ function NewRunForm({
       <div className="flex items-center justify-between border-b border-white/5 pb-3">
         <h3 className={heading}>New post-call run</h3>
         {canCancel && (
-          <button type="button" onClick={onCancel} className="text-[10px] font-black uppercase text-[#C6A66B] hover:underline cursor-pointer">Back to scorecard</button>
+          <button type="button" onClick={onCancel} className="text-[10px] font-black uppercase text-acp-bronze hover:underline cursor-pointer">Back to scorecard</button>
         )}
       </div>
 
@@ -611,7 +611,7 @@ function NewRunForm({
           <div className="flex rounded-lg border border-white/[0.06] overflow-hidden">
             {(["transcript", "notes"] as const).map((k) => (
               <button key={k} type="button" onClick={() => setKind(k)}
-                className={cx("flex-1 h-9 text-[10px] font-bold uppercase tracking-wider transition cursor-pointer", kind === k ? "bg-[#C6A66B] text-slate-950" : "text-slate-400 hover:text-white")}>
+                className={cx("flex-1 h-9 text-[10px] font-bold uppercase tracking-wider transition cursor-pointer", kind === k ? "bg-acp-bronze text-acp-on-accent" : "text-slate-400 hover:text-white")}>
                 {k === "transcript" ? "Transcript" : "Manual notes"}
               </button>
             ))}
@@ -636,7 +636,7 @@ function NewRunForm({
         onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
         onDragLeave={() => setDragging(false)}
         onDrop={(e) => { e.preventDefault(); setDragging(false); const f = e.dataTransfer.files?.[0]; if (f) void readFile(f); }}
-        className={cx("relative rounded-xl border border-dashed p-4 text-center transition", dragging ? "border-[#C6A66B] bg-[#C6A66B]/5" : "border-white/10 bg-white/[0.01]")}
+        className={cx("relative rounded-xl border border-dashed p-4 text-center transition", dragging ? "border-acp-bronze bg-acp-bronze/5" : "border-white/10 bg-white/[0.01]")}
       >
         <input type="file" accept=".txt,.vtt,.srt,.md,.csv,text/*" onChange={(e) => { const f = e.target.files?.[0]; if (f) void readFile(f); e.target.value = ""; }} className="absolute inset-0 opacity-0 cursor-pointer" aria-label="Load transcript file" />
         <p className="flex items-center justify-center gap-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">
@@ -649,7 +649,7 @@ function NewRunForm({
         onChange={(e) => { setText(e.target.value); setFileName(""); }}
         placeholder={kind === "transcript" ? "Paste the call transcript, with timestamps if you have them…" : "Paste the call notes. Each line becomes a citable source (L1, L2…)."}
         rows={12}
-        className="w-full rounded-xl border border-white/[0.06] bg-white/[0.015] p-3 text-xs text-white placeholder-slate-600 outline-none focus:border-[#C6A66B] font-mono resize-y"
+        className="w-full rounded-xl border border-white/[0.06] bg-white/[0.015] p-3 text-xs text-white placeholder-slate-600 outline-none focus:border-acp-bronze font-mono resize-y"
       />
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -721,7 +721,7 @@ function RunView({
           <p className="text-2xl font-black text-white mt-1">{sc.completeness.pct}%</p>
           <p className="text-[11px] text-slate-500">{sc.completeness.known} of {sc.completeness.required} fields known</p>
           <div className="h-1.5 w-full bg-white/[0.04] rounded-full overflow-hidden mt-2">
-            <div className="h-full bg-[#C6A66B]" style={{ width: `${sc.completeness.pct}%` }} />
+            <div className="h-full bg-acp-bronze" style={{ width: `${sc.completeness.pct}%` }} />
           </div>
         </div>
         <div className={card}>
@@ -765,7 +765,7 @@ function RunView({
             const defs = POSTCALL_FIELDS.filter((f) => f.section === section.id);
             return (
               <div key={section.id}>
-                <p className="text-[10px] font-extrabold uppercase tracking-wider text-[#C6A66B]">
+                <p className="text-[10px] font-extrabold uppercase tracking-wider text-acp-bronze">
                   {section.label}{section.feeds ? <span className="text-slate-500 normal-case font-semibold tracking-normal"> · feeds {section.feeds}</span> : null}
                 </p>
                 <div className="mt-2 overflow-x-auto">
@@ -851,7 +851,7 @@ function RunView({
               </span>
             </p>
           )}
-          <div className="rounded-xl border border-white/5 bg-[#0E1524] p-4 text-xs text-slate-300 leading-relaxed whitespace-pre-wrap">
+          <div className="rounded-xl border border-white/5 bg-acp-portal-bg p-4 text-xs text-slate-300 leading-relaxed whitespace-pre-wrap">
             <p className="font-bold text-white mb-2">{sc.broker_email.subject}</p>
             {sc.broker_email.body}
           </div>
@@ -870,7 +870,7 @@ function RunView({
           </button>
         </div>
         {showInput && (
-          <pre className="mt-3 max-h-[420px] overflow-auto rounded-xl border border-white/5 bg-[#0E1524] p-3 text-[11px] text-slate-300 whitespace-pre-wrap">
+          <pre className="mt-3 max-h-[420px] overflow-auto rounded-xl border border-white/5 bg-acp-portal-bg p-3 text-[11px] text-slate-300 whitespace-pre-wrap">
             {(run.input_text ?? "").split(/\r?\n/).map((l, i) => `L${i + 1}: ${l}`).join("\n")}
           </pre>
         )}

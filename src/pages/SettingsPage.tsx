@@ -107,12 +107,12 @@ export function SettingsPage() {
   };
 
   return (
-    <div className="space-y-6 text-[#E2E8F0] font-sans animate-fade-in">
+    <div className="space-y-6 text-slate-200 font-sans animate-fade-in">
       {/* Page Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/5 pb-4">
         <div className="space-y-1">
           <h1 className="text-2xl font-black text-white tracking-tight flex items-center gap-2">
-            System <span className="text-[#C6A66B]">Settings</span>
+            System <span className="text-acp-bronze">Settings</span>
           </h1>
           <p className="text-xs text-slate-400 font-semibold tracking-wide">
             ACP Deal OS Workspace & Auth Configuration
@@ -128,7 +128,7 @@ export function SettingsPage() {
             title="Notifications"
           >
             <Bell className="h-4 w-4" />
-            <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-[#C6A66B]" />
+            <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-acp-bronze" />
           </button>
         </div>
       </div>
@@ -139,9 +139,9 @@ export function SettingsPage() {
         <div className="col-span-12 lg:col-span-6 space-y-6">
           
           {/* YOUR PROFILE — drives the name shown in the sidebar footer */}
-          <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-6 shadow-premium-card card-sheen">
+          <div className="rounded-2xl border border-white/[0.02] bg-acp-card p-6 shadow-premium-card card-sheen">
             <h3 className="text-xs font-extrabold uppercase tracking-[0.2em] text-slate-400 border-b border-white/[0.02] pb-4 mb-5 select-none flex items-center gap-2">
-              <UserRound className="h-4 w-4 text-[#C6A66B]" />
+              <UserRound className="h-4 w-4 text-acp-bronze" />
               <span>Your Profile</span>
             </h3>
 
@@ -195,7 +195,7 @@ export function SettingsPage() {
                   "w-full inline-flex h-10 items-center justify-center gap-2 rounded-xl border transition-all duration-200 text-xs font-bold uppercase tracking-widest select-none cursor-pointer disabled:opacity-50 disabled:pointer-events-none",
                   nameSaved
                     ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
-                    : "border-[#C6A66B]/30 bg-[#C6A66B]/10 text-[#C6A66B] hover:bg-[#C6A66B]/20"
+                    : "border-acp-bronze/30 bg-acp-bronze/10 text-acp-bronze hover:bg-acp-bronze/20"
                 )}
               >
                 {nameSaved ? (
@@ -211,9 +211,9 @@ export function SettingsPage() {
           </div>
 
           {/* BRANDING & ORGANIZATION CONFIGURATION */}
-          <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-6 shadow-premium-card card-sheen">
+          <div className="rounded-2xl border border-white/[0.02] bg-acp-card p-6 shadow-premium-card card-sheen">
             <h3 className="text-xs font-extrabold uppercase tracking-[0.2em] text-slate-400 border-b border-white/[0.02] pb-4 mb-5 select-none flex items-center gap-2">
-              <Database className="h-4 w-4 text-[#C6A66B]" />
+              <Database className="h-4 w-4 text-acp-bronze" />
               <span>Workspace Profile</span>
             </h3>
 
@@ -231,14 +231,14 @@ export function SettingsPage() {
               <div className="grid grid-cols-2 gap-4">
                 <FormField label="Primary Branding Hex" id="brand-color">
                   <div className="flex items-center gap-2">
-                    <span className="h-6 w-6 rounded border border-white/10 bg-[#C6A66B] shrink-0" />
+                    <span className="h-6 w-6 rounded border border-white/10 bg-acp-bronze shrink-0" />
                     <span className="text-xs font-mono font-bold text-slate-300">#C6A66B</span>
                   </div>
                 </FormField>
                 
                 <FormField label="Accent Tint Hex" id="accent-tint">
                   <div className="flex items-center gap-2">
-                    <span className="h-6 w-6 rounded border border-white/10 bg-[#161B22] shrink-0" />
+                    <span className="h-6 w-6 rounded border border-white/10 bg-acp-card shrink-0" />
                     <span className="text-xs font-mono font-bold text-slate-300">#161B22</span>
                   </div>
                 </FormField>
@@ -247,9 +247,9 @@ export function SettingsPage() {
           </div>
 
           {/* CACHE OPTIMIZATION PANEL */}
-          <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-6 shadow-premium-card card-sheen">
+          <div className="rounded-2xl border border-white/[0.02] bg-acp-card p-6 shadow-premium-card card-sheen">
             <h3 className="text-xs font-extrabold uppercase tracking-[0.2em] text-slate-400 border-b border-white/[0.02] pb-4 mb-5 select-none flex items-center gap-2">
-              <RefreshCw className="h-4 w-4 text-[#C6A66B]" />
+              <RefreshCw className="h-4 w-4 text-acp-bronze" />
               <span>Database Query Latency Optimization</span>
             </h3>
 
@@ -288,9 +288,9 @@ export function SettingsPage() {
           </div>
 
           {/* SYSTEM DIAGNOSTICS TABLE */}
-          <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-6 shadow-premium-card card-sheen">
+          <div className="rounded-2xl border border-white/[0.02] bg-acp-card p-6 shadow-premium-card card-sheen">
             <h3 className="text-xs font-extrabold uppercase tracking-[0.2em] text-slate-400 border-b border-white/[0.02] pb-4 mb-5 select-none flex items-center gap-2">
-              <Server className="h-4 w-4 text-[#C6A66B]" />
+              <Server className="h-4 w-4 text-acp-bronze" />
               <span>Diagnostics & Environment State</span>
             </h3>
 
@@ -332,9 +332,9 @@ export function SettingsPage() {
         <div className="col-span-12 lg:col-span-6 space-y-6">
 
           {/* ADMIN SECURITY PANEL */}
-          <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-6 shadow-premium-card card-sheen">
+          <div className="rounded-2xl border border-white/[0.02] bg-acp-card p-6 shadow-premium-card card-sheen">
             <h3 className="text-xs font-extrabold uppercase tracking-[0.2em] text-slate-400 border-b border-white/[0.02] pb-4 mb-5 select-none flex items-center gap-2">
-              <Key className="h-4 w-4 text-[#C6A66B]" />
+              <Key className="h-4 w-4 text-acp-bronze" />
               <span>Admin Security Configuration</span>
             </h3>
 
@@ -398,7 +398,7 @@ export function SettingsPage() {
               <button
                 type="submit"
                 disabled={isSubmitting || success}
-                className="w-full inline-flex h-11 items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-[#C6A66B] to-[#ac8843] text-xs font-bold uppercase tracking-widest text-slate-950 hover:shadow-glow-bronze disabled:opacity-40 select-none cursor-pointer mt-2 transition duration-200"
+                className="w-full inline-flex h-11 items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-acp-bronze to-acp-bronze text-xs font-bold uppercase tracking-widest text-acp-on-accent hover:shadow-glow-bronze disabled:opacity-40 select-none cursor-pointer mt-2 transition duration-200"
               >
                 <Zap className="h-3.5 w-3.5" />
                 <span>{isSubmitting ? "Updating..." : "Update Passcode"}</span>
@@ -407,16 +407,16 @@ export function SettingsPage() {
           </div>
 
           {/* SESSION ROLES & JWT HEALTH PANEL */}
-          <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-6 shadow-premium-card card-sheen">
+          <div className="rounded-2xl border border-white/[0.02] bg-acp-card p-6 shadow-premium-card card-sheen">
             <h3 className="text-xs font-extrabold uppercase tracking-[0.2em] text-slate-400 border-b border-white/[0.02] pb-4 mb-5 select-none flex items-center gap-2">
-              <ShieldAlert className="h-4 w-4 text-[#C6A66B]" />
+              <ShieldAlert className="h-4 w-4 text-acp-bronze" />
               <span>Session Roles & JWT Health</span>
             </h3>
 
             <div className="divide-y divide-white/[0.03] font-mono text-[10px] leading-none">
               <div className="flex items-center justify-between py-3">
                 <span className="font-bold text-slate-500">ACTIVE ROLE</span>
-                <span className="text-[#C6A66B] font-bold uppercase tracking-wider">
+                <span className="text-acp-bronze font-bold uppercase tracking-wider">
                   Managing Partner
                 </span>
               </div>

@@ -31,10 +31,10 @@ import { IN_PORTAL, dealLabel } from "../../lib/portal/commitments";
 import { cx } from "../../utils/cx";
 
 const input =
-  "w-full rounded-lg border border-white/10 bg-[#0F1115] px-3 py-2 text-sm text-white outline-none transition focus:border-[#C6A66B] disabled:opacity-60";
+  "w-full rounded-lg border border-white/10 bg-acp-ink px-3 py-2 text-sm text-white outline-none transition focus:border-acp-bronze disabled:opacity-60";
 const label = "mb-1 block text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500";
 const smallBtn =
-  "inline-flex items-center gap-1 rounded-lg border border-white/10 px-2 py-1 text-[11px] font-semibold text-slate-300 transition hover:border-[#C6A66B]/40 hover:text-white disabled:opacity-40";
+  "inline-flex items-center gap-1 rounded-lg border border-white/10 px-2 py-1 text-[11px] font-semibold text-slate-300 transition hover:border-acp-bronze/40 hover:text-white disabled:opacity-40";
 
 const COVERAGE_OPTIONS = ["not_yet_reported", "above_floor", "watch", "breach"] as const;
 
@@ -144,7 +144,7 @@ export function QuarterlyReportsTab({ canManage }: { canManage: boolean }) {
               setAdding(true);
               setNotice("");
             }}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-[#C6A66B] px-3 py-1.5 text-xs font-bold text-[#0F1115] transition hover:brightness-110"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-acp-bronze px-3 py-1.5 text-xs font-bold text-acp-on-accent transition hover:brightness-110"
           >
             <Plus className="h-3.5 w-3.5" /> New quarterly report
           </button>
@@ -172,7 +172,7 @@ export function QuarterlyReportsTab({ canManage }: { canManage: boolean }) {
 
       {!loaded ? (
         <div className="flex items-center gap-2 py-10 text-xs text-slate-500">
-          <Loader2 className="h-4 w-4 animate-spin text-[#C6A66B]" /> Loading reports…
+          <Loader2 className="h-4 w-4 animate-spin text-acp-bronze" /> Loading reports…
         </div>
       ) : reports.length === 0 && !adding ? (
         <div className="rounded-xl border border-dashed border-white/10 px-6 py-10 text-center">
@@ -226,7 +226,7 @@ export function QuarterlyReportsTab({ canManage }: { canManage: boolean }) {
                     "rounded-full border px-2 py-0.5 text-[10px] font-semibold",
                     published
                       ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-300"
-                      : "border-[#C6A66B]/30 bg-[#C6A66B]/10 text-[#C6A66B]",
+                      : "border-acp-bronze/30 bg-acp-bronze/10 text-acp-bronze",
                   )}
                 >
                   {published ? `Sent ${formatDate(r.published_at)}` : `Draft · publishes ${formatDate(r.publishes_on)}`}
@@ -241,7 +241,7 @@ export function QuarterlyReportsTab({ canManage }: { canManage: boolean }) {
                         if (!window.confirm(`Publish ${r.period_label} and email the ${partners} partner(s) in this deal now?`)) return;
                         void act(r.id, async () => notifiedText((await updateDealReport({ id: r.id, publish: true })).notified));
                       }}
-                      className="inline-flex items-center gap-1 rounded-lg bg-[#C6A66B] px-2.5 py-1 text-[11px] font-bold text-[#0F1115] transition hover:brightness-110 disabled:opacity-50"
+                      className="inline-flex items-center gap-1 rounded-lg bg-acp-bronze px-2.5 py-1 text-[11px] font-bold text-acp-on-accent transition hover:brightness-110 disabled:opacity-50"
                     >
                       {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />} Publish & send
                     </button>
@@ -391,7 +391,7 @@ function NewReportForm({
   }
 
   return (
-    <div className="space-y-3 rounded-xl border border-[#C6A66B]/20 bg-[#C6A66B]/[0.03] p-4">
+    <div className="space-y-3 rounded-xl border border-acp-bronze/20 bg-acp-bronze/[0.03] p-4">
       <div className="grid gap-3 sm:grid-cols-[2fr_1fr_1fr]">
         <div>
           <label className={label}>Deal</label>
@@ -479,7 +479,7 @@ function NewReportForm({
           type="button"
           onClick={() => void submit(true)}
           disabled={busy}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-[#C6A66B] px-3.5 py-1.5 text-xs font-bold text-[#0F1115] transition hover:brightness-110 disabled:opacity-50"
+          className="inline-flex items-center gap-1.5 rounded-lg bg-acp-bronze px-3.5 py-1.5 text-xs font-bold text-acp-on-accent transition hover:brightness-110 disabled:opacity-50"
         >
           <Send className="h-3.5 w-3.5" /> Publish & send
         </button>

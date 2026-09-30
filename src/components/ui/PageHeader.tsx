@@ -10,11 +10,11 @@ export function PageHeader({
   children?: ReactNode;
 }) {
   return (
-    <div className="mb-8 overflow-hidden rounded-2xl border border-white/[0.02] bg-[#161B22] backdrop-blur-md shadow-premium-card animate-fade-in-up">
+    <div className="mb-8 overflow-hidden rounded-2xl border border-white/[0.02] bg-acp-card backdrop-blur-md shadow-premium-card animate-fade-in-up">
       <div className="grid gap-5 px-6 py-6 sm:px-8 lg:grid-cols-[1fr_auto] lg:items-end">
         <div className="min-w-0">
           {eyebrow ? (
-            <p className="text-[9px] font-extrabold uppercase tracking-[0.2em] text-[#C6A66B]">{eyebrow}</p>
+            <p className="text-[9px] font-extrabold uppercase tracking-[0.2em] text-acp-bronze">{eyebrow}</p>
           ) : null}
           <h1 className="mt-2 truncate font-heading text-2xl sm:text-3xl text-white font-black tracking-tight uppercase">
             {title}

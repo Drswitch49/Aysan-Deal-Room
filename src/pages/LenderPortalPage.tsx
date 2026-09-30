@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useParams, Navigate, useSearchParams } from "react-router-dom";
 import {
-  Building2, Database, ShieldCheck, LockKeyhole, Landmark,
+  Database, ShieldCheck, LockKeyhole, Landmark,
   LogOut, Files, Menu, X, MessageSquare, Eye, EyeOff
 } from "lucide-react";
 import { loginLender, fetchLenderDeals, fetchLenderDocuments } from "../api/lender";
@@ -14,6 +14,8 @@ import { LoadingState } from "../components/ui/LoadingState";
 import { ErrorState } from "../components/ui/ErrorState";
 import { EmptyState } from "../components/ui/EmptyState";
 import { ChatNotificationWatcher } from "../components/ui/ChatNotificationWatcher";
+import { BrandLogo, BrandMark } from "../components/ui/BrandLogo";
+import { ThemeToggle } from "../components/ui/ThemeToggle";
 import type { PipelineDeal, DealDocument } from "../types/deal";
 import { cx } from "../utils/cx";
 
@@ -208,14 +210,15 @@ export function LenderPortalPage() {
   // Login Gate View
   if (!isAuthorized) {
     return (
-      <div className="min-h-screen bg-[#0F1115] flex items-center justify-center p-4 relative overflow-hidden">
+      <div className="min-h-screen bg-acp-ink flex items-center justify-center p-4 relative overflow-hidden">
+        <ThemeToggle className="absolute right-4 top-4 z-20" />
         {/* Decorative ambient glows */}
         <div className="absolute -left-20 -top-20 h-80 w-80 rounded-full bg-acp-bronze/5 blur-[100px] pointer-events-none" />
         <div className="absolute -right-20 -bottom-20 h-80 w-80 rounded-full bg-acp-bronze/5 blur-[100px] pointer-events-none" />
 
         <form
           onSubmit={handleLogin}
-          className="w-full max-w-md relative z-10 rounded-2xl border border-white/[0.02] bg-[#161B22] backdrop-blur-xl p-8 shadow-2xl card-sheen"
+          className="w-full max-w-md relative z-10 rounded-2xl border border-white/[0.02] bg-acp-card backdrop-blur-xl p-8 shadow-2xl card-sheen"
         >
           <div className="flex flex-col items-center text-center">
             <div className="relative mb-6 flex items-center justify-center h-20 w-20">
@@ -226,15 +229,15 @@ export function LenderPortalPage() {
               >
                 <circle cx="50" cy="50" r="45" stroke="currentColor" strokeWidth="1" strokeDasharray="6 4" fill="none" />
               </svg>
-              <div className="relative z-10 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-acp-bronze to-acp-bronze-dark text-white shadow-lg border border-white/[0.02]">
+              <div className="relative z-10 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-acp-bronze to-acp-bronze-dark text-snow shadow-lg border border-white/[0.02]">
                 <LockKeyhole className="h-5 w-5" aria-hidden="true" />
               </div>
             </div>
 
-            <h2 className="font-display text-2xl text-white font-normal italic tracking-wide">
-              Aysan Capital Partners
+            <h2 className="text-white">
+              <BrandLogo className="h-8" />
             </h2>
-            <p className="mt-1 text-[10px] font-extrabold uppercase tracking-[0.2em] text-acp-bronze">
+            <p className="mt-3 text-[10px] font-extrabold uppercase tracking-[0.2em] text-acp-bronze">
               Secure Lender Portal
             </p>
           </div>
@@ -278,7 +281,7 @@ export function LenderPortalPage() {
             <button
               type="submit"
               disabled={loggingIn || !passcode}
-              className="w-full inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-acp-bronze to-acp-bronze-dark px-4 text-xs font-bold uppercase tracking-wider text-white shadow-md hover:shadow-glow-bronze disabled:opacity-40"
+              className="w-full inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-acp-bronze to-acp-bronze-dark px-4 text-xs font-bold uppercase tracking-wider text-snow shadow-md hover:shadow-glow-bronze disabled:opacity-40"
             >
               {loggingIn ? "Verifying..." : "Access Portal"}
             </button>
@@ -295,24 +298,17 @@ export function LenderPortalPage() {
           the staff AppLayout). On the inner div it never pinned: this column's
           own `overflow-hidden` made it the scroll container, so the panel just
           rode the page down. */}
-      <aside className="hidden h-screen sticky top-0 border-r border-white/[0.02] bg-[#161B22] text-white lg:block relative overflow-hidden">
+      <aside className="hidden h-screen sticky top-0 border-r border-white/[0.02] bg-acp-card text-white lg:block relative overflow-hidden">
         <div className="absolute -left-12 -top-12 h-48 w-48 rounded-full bg-acp-bronze/5 blur-3xl pointer-events-none" />
         <div className="absolute -right-20 bottom-10 h-64 w-64 rounded-full bg-acp-bronze/5 blur-3xl pointer-events-none" />
 
         <div className="relative flex h-full flex-col px-6 py-7 z-10">
           {/* Logo */}
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="flex shrink-0 h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-[#C6A66B]/20 to-[#C6A66B]/20 text-white shadow-md border border-[#C6A66B]/30">
-              <Building2 className="h-5 w-5 text-white" aria-hidden="true" />
-            </div>
-            <div className="min-w-0">
-              <p className="truncate font-heading text-base font-black tracking-tight text-white uppercase">
-                Aysan Capital
-              </p>
-              <p className="truncate text-[10px] font-extrabold uppercase tracking-[0.18em] text-acp-bronze">
-                Investor Relations
-              </p>
-            </div>
+          <div className="min-w-0 text-white">
+            <BrandLogo className="h-6 max-w-full" />
+            <p className="mt-2.5 truncate text-[10px] font-extrabold uppercase tracking-[0.18em] text-acp-bronze">
+              Lender Portal
+            </p>
           </div>
 
           {/* Profile Card */}
@@ -365,7 +361,7 @@ export function LenderPortalPage() {
           />
           
           {/* Drawer Sidebar */}
-          <aside className="relative flex w-[284px] max-w-[85vw] flex-col border-r border-white/[0.02] bg-[#161B22] text-white h-full px-6 py-7 shadow-2xl animate-slide-in-left overflow-hidden">
+          <aside className="relative flex w-[284px] max-w-[85vw] flex-col border-r border-white/[0.02] bg-acp-card text-white h-full px-6 py-7 shadow-2xl animate-slide-in-left overflow-hidden">
             {/* Ambient glows matching styling */}
             <div className="absolute -left-12 -top-12 h-48 w-48 rounded-full bg-acp-bronze/5 blur-3xl pointer-events-none" />
             <div className="absolute -right-20 bottom-10 h-64 w-64 rounded-full bg-acp-bronze/5 blur-3xl pointer-events-none" />
@@ -373,18 +369,11 @@ export function LenderPortalPage() {
             <div className="flex h-full flex-col z-10">
               {/* Header inside drawer */}
               <div className="flex items-center justify-between gap-3">
-                <div className="flex min-w-0 items-center gap-3">
-                  <div className="flex shrink-0 h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#C6A66B]/20 to-[#C6A66B]/20 text-white shadow-md border border-[#C6A66B]/30">
-                    <Building2 className="h-5 w-5 text-white" aria-hidden="true" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="truncate font-heading text-sm font-black tracking-tight text-white uppercase">
-                      Aysan Capital
-                    </p>
-                    <p className="truncate text-[9px] font-extrabold uppercase tracking-[0.18em] text-acp-bronze">
-                      Investor Relations
-                    </p>
-                  </div>
+                <div className="min-w-0 text-white">
+                  <BrandLogo className="h-6 max-w-full" />
+                  <p className="mt-2.5 truncate text-[9px] font-extrabold uppercase tracking-[0.18em] text-acp-bronze">
+                    Lender Portal
+                  </p>
                 </div>
 
                 <button
@@ -444,7 +433,7 @@ export function LenderPortalPage() {
 
       {/* Main Content Area */}
       <div className="min-w-0 flex flex-col min-h-screen relative z-10">
-        <header className="sticky top-0 z-20 border-b border-white/[0.02] bg-[#0F1115]/45 backdrop-blur-md shadow-soft">
+        <header className="sticky top-0 z-20 border-b border-white/[0.02] bg-acp-ink/45 backdrop-blur-md shadow-soft">
           <div className="flex items-center justify-between gap-4 px-6 py-4 sm:px-8">
             <div className="lg:hidden flex shrink-0 items-center gap-2 min-w-0">
               <button
@@ -455,9 +444,7 @@ export function LenderPortalPage() {
               >
                 <Menu className="h-5 w-5 text-white" />
               </button>
-              <div className="h-8 w-8 flex items-center justify-center rounded bg-gradient-to-br from-acp-bronze/20 to-acp-bronze/20 border border-acp-bronze/35 text-white shrink-0">
-                <Building2 className="h-4 w-4" />
-              </div>
+              <BrandMark className="h-6 text-white" />
               <p className="font-heading text-xs font-black uppercase text-white tracking-wider truncate">Lender Portal</p>
             </div>
 
@@ -467,6 +454,7 @@ export function LenderPortalPage() {
             </div>
 
             <div className="flex items-center gap-3">
+              <ThemeToggle />
               <span className="hidden md:inline-flex h-8 items-center gap-2 rounded-full border border-white/[0.02] bg-white/[0.02] px-3.5 text-xs font-bold text-slate-300">
                 <ShieldCheck className="h-3.5 w-3.5 text-acp-emerald" />
                 Lender-Safe Sandbox
@@ -499,7 +487,7 @@ export function LenderPortalPage() {
             {!loadingData && !error && deals.length > 0 && selectedDeal ? (
               <div className="space-y-8">
                 {/* Deal Selection Banner */}
-                <div className="rounded-2xl border border-white/[0.08] bg-[#161B22] p-6 shadow-premium-card card-sheen flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div className="rounded-2xl border border-white/[0.08] bg-acp-card p-6 shadow-premium-card card-sheen flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                   <div>
                     <span className="text-[10px] font-extrabold uppercase tracking-widest text-acp-bronze">Deal Room Review</span>
                     <h1 className="text-xl font-bold text-white mt-1 leading-none">
@@ -518,7 +506,7 @@ export function LenderPortalPage() {
                         const target = deals.find(d => d.id === e.target.value);
                         if (target) setSelectedDeal(target);
                       }}
-                      className="h-10 rounded-xl border border-white/[0.02] bg-[#0F1115] px-4 text-xs font-bold text-white outline-none focus:border-acp-bronze cursor-pointer shadow-sm"
+                      className="h-10 rounded-xl border border-white/[0.02] bg-acp-ink px-4 text-xs font-bold text-white outline-none focus:border-acp-bronze cursor-pointer shadow-sm"
                     >
                       {deals.map(deal => (
                         <option key={deal.id} value={deal.id}>
@@ -543,12 +531,12 @@ export function LenderPortalPage() {
                 </div>
 
                 {/* Tab Switcher */}
-                <div className="flex gap-1.5 overflow-x-auto rounded-xl border border-white/[0.02] bg-[#161B22] p-1.5 shadow-inner backdrop-blur-md">
+                <div className="flex gap-1.5 overflow-x-auto rounded-xl border border-white/[0.02] bg-acp-card p-1.5 shadow-inner backdrop-blur-md">
                   <button
                     className={cx(
                       "inline-flex min-h-9 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-4 text-xs font-extrabold uppercase tracking-wider transition-all duration-300 flex-1 sm:flex-initial cursor-pointer",
                       activeTab === "overview"
-                        ? "bg-gradient-to-r from-acp-bronze to-acp-bronze-dark text-white shadow-md shadow-glow-purple-card"
+                        ? "bg-gradient-to-r from-acp-bronze to-acp-bronze-dark text-snow shadow-md shadow-glow-purple-card"
                         : "text-slate-400 hover:bg-white/[0.015] hover:text-white",
                     )}
                     onClick={() => setActiveTab("overview")}
@@ -562,7 +550,7 @@ export function LenderPortalPage() {
                     className={cx(
                       "inline-flex min-h-9 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-4 text-xs font-extrabold uppercase tracking-wider transition-all duration-300 flex-1 sm:flex-initial cursor-pointer relative",
                       activeTab === "chat"
-                        ? "bg-gradient-to-r from-acp-bronze to-acp-bronze-dark text-white shadow-md shadow-glow-purple-card"
+                        ? "bg-gradient-to-r from-acp-bronze to-acp-bronze-dark text-snow shadow-md shadow-glow-purple-card"
                         : "text-slate-400 hover:bg-white/[0.015] hover:text-white",
                     )}
                     onClick={() => setActiveTab("chat")}
@@ -595,7 +583,7 @@ export function LenderPortalPage() {
                       {selectedDeal.ndaApproved ? (
                         <DocumentChecklist documents={activeDocs} audience="lender" />
                       ) : (
-                        <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-8 text-center relative overflow-hidden shadow-premium-card card-sheen max-w-2xl mx-auto my-4 animate-scale-in">
+                        <div className="rounded-2xl border border-white/[0.02] bg-acp-card p-8 text-center relative overflow-hidden shadow-premium-card card-sheen max-w-2xl mx-auto my-4 animate-scale-in">
                           <div className="absolute -left-12 -top-12 h-32 w-32 rounded-full bg-amber-500/5 blur-2xl pointer-events-none" />
                           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 mx-auto mb-4 animate-pulse">
                             <LockKeyhole className="h-6 w-6" />
@@ -607,7 +595,7 @@ export function LenderPortalPage() {
                           <div className="mt-6 flex flex-col sm:flex-row justify-center gap-3">
                             <button
                               onClick={() => setActiveTab("chat")}
-                              className="inline-flex h-9 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-acp-bronze to-acp-bronze-dark px-4 text-xs font-bold uppercase tracking-wider text-white shadow-md hover:shadow-glow-bronze transition cursor-pointer"
+                              className="inline-flex h-9 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-acp-bronze to-acp-bronze-dark px-4 text-xs font-bold uppercase tracking-wider text-snow shadow-md hover:shadow-glow-bronze transition cursor-pointer"
                               type="button"
                             >
                               <MessageSquare className="h-4 w-4" />

@@ -172,7 +172,7 @@ export function TranscriptIntelTab({ deal }: TranscriptIntelTabProps) {
                 const matched = analyses.find((a) => a.id === e.target.value);
                 if (matched) setSelectedAnalysis(matched);
               }}
-              className="rounded-lg border border-white/[0.02] bg-[#161B22] px-3 py-1.5 text-xs font-semibold text-slate-200 outline-none hover:border-white/20 focus:border-amber-500/50"
+              className="rounded-lg border border-white/[0.02] bg-acp-card px-3 py-1.5 text-xs font-semibold text-slate-200 outline-none hover:border-white/20 focus:border-amber-500/50"
             >
               {analyses.map((a) => (
                 <option key={a.id} value={a.id}>
@@ -230,7 +230,7 @@ export function TranscriptIntelTab({ deal }: TranscriptIntelTabProps) {
           {/* Main analysis block */}
           <div className="space-y-6">
             {/* Top overview row */}
-            <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-6 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between shadow-premium">
+            <div className="rounded-2xl border border-white/[0.02] bg-acp-card p-6 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between shadow-premium">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <h4 className="text-base font-bold text-white">{selectedAnalysis.name.split(" - ")[0]}</h4>
@@ -279,7 +279,7 @@ export function TranscriptIntelTab({ deal }: TranscriptIntelTabProps) {
             </div>
 
             {/* Executive Summary Card */}
-            <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] overflow-hidden shadow-premium">
+            <div className="rounded-2xl border border-white/[0.02] bg-acp-card overflow-hidden shadow-premium">
               <button
                 onClick={() => setIsSummaryCollapsed(!isSummaryCollapsed)}
                 className="w-full px-6 py-4 flex items-center justify-between border-b border-white/[0.02] hover:bg-white/[0.02] transition"
@@ -292,7 +292,7 @@ export function TranscriptIntelTab({ deal }: TranscriptIntelTabProps) {
               </button>
               
               {!isSummaryCollapsed && (
-                <div className="p-6 text-sm text-slate-300 leading-relaxed font-medium bg-[#161B22]">
+                <div className="p-6 text-sm text-slate-300 leading-relaxed font-medium bg-acp-card">
                   {selectedAnalysis.summary}
                 </div>
               )}
@@ -301,7 +301,7 @@ export function TranscriptIntelTab({ deal }: TranscriptIntelTabProps) {
             {/* Risks vs Opportunities Side-by-Side */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Opportunities Panel */}
-              <div className="rounded-2xl border border-emerald-500/10 bg-[#161B22] p-6 space-y-4 shadow-premium">
+              <div className="rounded-2xl border border-emerald-500/10 bg-acp-card p-6 space-y-4 shadow-premium">
                 <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-2 border-b border-white/5 pb-3">
                   <TrendingUp className="h-4 w-4" />
                   Opportunities Identified
@@ -321,7 +321,7 @@ export function TranscriptIntelTab({ deal }: TranscriptIntelTabProps) {
               </div>
 
               {/* Risks Panel */}
-              <div className="rounded-2xl border border-rose-500/10 bg-[#161B22] p-6 space-y-4 shadow-premium">
+              <div className="rounded-2xl border border-rose-500/10 bg-acp-card p-6 space-y-4 shadow-premium">
                 <h4 className="text-xs font-bold uppercase tracking-wider text-rose-400 flex items-center gap-2 border-b border-white/5 pb-3">
                   <ShieldAlert className="h-4 w-4" />
                   Risks & Constraints
@@ -342,7 +342,7 @@ export function TranscriptIntelTab({ deal }: TranscriptIntelTabProps) {
             </div>
 
             {/* Key Discussion Points */}
-            <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-6 space-y-4 shadow-premium">
+            <div className="rounded-2xl border border-white/[0.02] bg-acp-card p-6 space-y-4 shadow-premium">
               <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 border-b border-white/5 pb-3 flex items-center gap-2 select-none">
                 <HelpCircle className="h-4 w-4 text-blue-500" />
                 Key Discussion Points
@@ -361,7 +361,7 @@ export function TranscriptIntelTab({ deal }: TranscriptIntelTabProps) {
           </div>
 
           {/* Sidebar Action Items List */}
-          <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-6 space-y-4 shadow-premium lg:sticky lg:top-6">
+          <div className="rounded-2xl border border-white/[0.02] bg-acp-card p-6 space-y-4 shadow-premium lg:sticky lg:top-6">
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 border-b border-white/5 pb-3 flex items-center gap-2 select-none">
               <CheckSquare className="h-4 w-4 text-amber-500" />
               Action Items
@@ -410,7 +410,7 @@ export function TranscriptIntelTab({ deal }: TranscriptIntelTabProps) {
               onDrop={handleDrop}
               className={cx(
                 "rounded-2xl border-2 border-dashed p-10 flex flex-col items-center justify-center space-y-4 transition-all min-h-[250px]",
-                dragActive ? "border-amber-500 bg-amber-500/5" : "border-white/[0.02] bg-[#161B22] hover:border-white/20"
+                dragActive ? "border-amber-500 bg-amber-500/5" : "border-white/[0.02] bg-acp-card hover:border-white/20"
               )}
             >
               {uploadedFileName ? (
@@ -477,14 +477,14 @@ export function TranscriptIntelTab({ deal }: TranscriptIntelTabProps) {
                   value={pastedText}
                   onChange={(e) => setPastedText(e.target.value)}
                   placeholder="Paste raw conversation transcript here..."
-                  className="w-full min-h-[160px] rounded-xl border border-white/[0.02] bg-[#161B22] p-4 text-xs font-medium text-slate-200 outline-none placeholder:text-slate-600 focus:border-amber-500/50 resize-y"
+                  className="w-full min-h-[160px] rounded-xl border border-white/[0.02] bg-acp-card p-4 text-xs font-medium text-slate-200 outline-none placeholder:text-slate-600 focus:border-amber-500/50 resize-y"
                 />
               </div>
             )}
           </div>
 
           {/* Action Trigger Card */}
-          <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-6 space-y-4 shadow-premium">
+          <div className="rounded-2xl border border-white/[0.02] bg-acp-card p-6 space-y-4 shadow-premium">
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 border-b border-white/5 pb-3 flex items-center gap-2 select-none">
               <Sparkles className="h-4 w-4 text-amber-500" />
               AI Summary Engine
@@ -495,7 +495,7 @@ export function TranscriptIntelTab({ deal }: TranscriptIntelTabProps) {
             <button
               disabled={!uploadedText.trim() && !pastedText.trim()}
               onClick={handleAnalyze}
-              className="w-full py-2.5 rounded-xl bg-amber-500 text-[#07090e] text-xs font-bold flex items-center justify-center gap-2 hover:bg-amber-400 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-amber-500 transition-all shadow-lg shadow-amber-500/10"
+              className="w-full py-2.5 rounded-xl bg-amber-500 text-acp-on-accent text-xs font-bold flex items-center justify-center gap-2 hover:bg-amber-400 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-amber-500 transition-all shadow-lg shadow-amber-500/10"
             >
               <Sparkles className="h-4 w-4" />
               Analyze Call Transcript

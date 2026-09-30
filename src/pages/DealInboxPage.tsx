@@ -596,7 +596,7 @@ export function DealInboxPage() {
   };
 
   return (
-    <div className="space-y-8 text-[#E2E8F0] font-sans animate-fade-in-up">
+    <div className="space-y-8 text-slate-200 font-sans animate-fade-in-up">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/[0.02] pb-5">
         <div className="space-y-2">
@@ -631,7 +631,7 @@ export function DealInboxPage() {
               className={cx(
                 "px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition-all border",
                 activeFilter === f 
-                  ? "bg-acp-bronze text-[#0B0B0C] border-acp-bronze shadow-[0_0_15px_rgba(198,166,107,0.3)]" 
+                  ? "bg-acp-bronze text-acp-on-accent border-acp-bronze shadow-[0_0_15px_rgba(198,166,107,0.3)]" 
                   : "bg-white/[0.02] text-slate-400 border-white/[0.05] hover:bg-white/[0.05] hover:text-white"
               )}
             >
@@ -653,7 +653,7 @@ export function DealInboxPage() {
               setSearchQuery(e.target.value);
               setCurrentPage(1);
             }}
-            className="h-9 w-64 rounded-xl border border-white/[0.02] bg-[#0B0B0C] pl-9 pr-3 text-xs text-white placeholder-slate-500 outline-none transition focus:border-acp-bronze shadow-inner"
+            className="h-9 w-64 rounded-xl border border-white/[0.02] bg-acp-deep pl-9 pr-3 text-xs text-white placeholder-slate-500 outline-none transition focus:border-acp-bronze shadow-inner"
           />
         </div>
         
@@ -667,7 +667,7 @@ export function DealInboxPage() {
           </div>
           <button 
             onClick={openAddModal}
-            className="flex items-center gap-2 px-4 py-2 bg-[#C6A66B] hover:bg-[#b0925c] text-[#0B0B0C] font-bold text-[10px] uppercase tracking-wider rounded-xl transition"
+            className="flex items-center gap-2 px-4 py-2 bg-acp-bronze hover:bg-acp-bronze text-acp-on-accent font-bold text-[10px] uppercase tracking-wider rounded-xl transition"
           >
             <Plus className="w-4 h-4" /> Add Deal
           </button>
@@ -838,19 +838,19 @@ export function DealInboxPage() {
                   value={selectedDeal.fields.Status || ""}
                   onChange={handleStatusChange}
                   disabled={isUpdatingStatus || promotingId === selectedDeal.id}
-                  className="h-9 w-full appearance-none rounded-xl border border-[#C6A66B]/30 bg-[#C6A66B]/10 pl-4 pr-10 text-xs font-bold text-[#C6A66B] uppercase tracking-wider outline-none transition hover:bg-[#C6A66B]/20 cursor-pointer disabled:opacity-50"
+                  className="h-9 w-full appearance-none rounded-xl border border-acp-bronze/30 bg-acp-bronze/10 pl-4 pr-10 text-xs font-bold text-acp-bronze uppercase tracking-wider outline-none transition hover:bg-acp-bronze/20 cursor-pointer disabled:opacity-50"
                 >
                   <option value="" disabled>Set Status...</option>
                   {statusOptions.map(o => (
-                    <option key={String(o)} value={String(o)} className="bg-[#161B22] text-white">
+                    <option key={String(o)} value={String(o)} className="bg-acp-card text-white">
                       {String(o)}
                     </option>
                   ))}
                 </select>
-                <ChevronRight className="absolute right-3 top-1/2 h-3 w-3 -translate-y-1/2 text-[#C6A66B] rotate-90 pointer-events-none" />
+                <ChevronRight className="absolute right-3 top-1/2 h-3 w-3 -translate-y-1/2 text-acp-bronze rotate-90 pointer-events-none" />
               </div>
               {promotingId === selectedDeal.id && (
-                <RefreshCw className="w-4 h-4 text-[#C6A66B] animate-spin" />
+                <RefreshCw className="w-4 h-4 text-acp-bronze animate-spin" />
               )}
               <div className="flex items-center gap-2">
                 <button
@@ -896,15 +896,15 @@ export function DealInboxPage() {
 
             {/* AI Verdict Premium Card */}
             {selectedDeal.fields["AI_Verdict"] && (
-              <div className="relative overflow-hidden rounded-2xl border border-[#C6A66B]/20 bg-gradient-to-br from-[#C6A66B]/10 to-transparent p-6 shadow-inner">
+              <div className="relative overflow-hidden rounded-2xl border border-acp-bronze/20 bg-gradient-to-br from-acp-bronze/10 to-transparent p-6 shadow-inner">
                 <div className="absolute -top-10 -right-10 opacity-5 blur-3xl pointer-events-none">
-                  <Sparkles className="w-40 h-40 text-[#C6A66B]" />
+                  <Sparkles className="w-40 h-40 text-acp-bronze" />
                 </div>
                 <div className="flex items-center gap-2 mb-4 relative z-10">
-                  <Sparkles className="w-5 h-5 text-[#C6A66B]" />
-                  <h3 className="text-sm font-bold text-[#C6A66B] uppercase tracking-widest">AI Verdict</h3>
+                  <Sparkles className="w-5 h-5 text-acp-bronze" />
+                  <h3 className="text-sm font-bold text-acp-bronze uppercase tracking-widest">AI Verdict</h3>
                 </div>
-                <div className="text-sm text-[#E2E8F0] leading-relaxed whitespace-pre-wrap relative z-10 font-medium break-words">
+                <div className="text-sm text-slate-200 leading-relaxed whitespace-pre-wrap relative z-10 font-medium break-words">
                   {selectedDeal.fields["AI_Verdict"]}
                 </div>
               </div>
@@ -970,12 +970,12 @@ export function DealInboxPage() {
                   </div>
                   {(selectedDeal.fields["Listing Link"] || selectedDeal.fields["Source"]) && (
                     <div className="flex items-center gap-3 text-xs mt-4 pt-4 border-t border-white/[0.05] min-w-0">
-                      <ExternalLink className="w-4 h-4 text-[#C6A66B] flex-shrink-0" />
+                      <ExternalLink className="w-4 h-4 text-acp-bronze flex-shrink-0" />
                       <a 
                         href={selectedDeal.fields["Listing Link"] || selectedDeal.fields["Source"]} 
                         target="_blank" 
                         rel="noreferrer"
-                        className="text-[#C6A66B] font-semibold hover:underline truncate block"
+                        className="text-acp-bronze font-semibold hover:underline truncate block"
                       >
                         View Listing Source
                       </a>
@@ -1014,7 +1014,7 @@ export function DealInboxPage() {
                 <div className="flex items-center justify-between gap-3">
                   <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-500">IM & Review Documents</h4>
                   <label className={cx(
-                    "flex items-center gap-2 px-3 h-8 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 text-[11px] font-bold text-[#C6A66B] transition select-none",
+                    "flex items-center gap-2 px-3 h-8 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 text-[11px] font-bold text-acp-bronze transition select-none",
                     detailDocs.isUploading ? "opacity-50 cursor-wait" : "cursor-pointer",
                   )}>
                     <Upload className="h-3.5 w-3.5" />
@@ -1060,7 +1060,7 @@ export function DealInboxPage() {
                               type="button"
                               onClick={() => detailDocs.download(att)}
                               disabled={detailDocs.downloadingId === att.id}
-                              className="text-xs text-[#C6A66B] hover:text-white font-bold select-none disabled:opacity-50 disabled:cursor-wait"
+                              className="text-xs text-acp-bronze hover:text-white font-bold select-none disabled:opacity-50 disabled:cursor-wait"
                             >
                               {detailDocs.downloadingId === att.id ? "Preparing…" : isLink ? "Open" : "Download"}
                             </button>
@@ -1092,7 +1092,7 @@ export function DealInboxPage() {
         title={isAddModalOpen ? "Add New Deal to Inbox" : "Edit Deal"}
         onSubmit={handleSaveDeal}
         footer={(
-          <button type="submit" disabled={submittingDeal || isUploading} className="w-full flex items-center justify-center h-10 bg-acp-bronze hover:bg-acp-bronze-dark text-white rounded-xl text-xs font-bold uppercase tracking-wider transition disabled:opacity-50 cursor-pointer">
+          <button type="submit" disabled={submittingDeal || isUploading} className="w-full flex items-center justify-center h-10 bg-acp-bronze hover:bg-acp-bronze-dark text-snow rounded-xl text-xs font-bold uppercase tracking-wider transition disabled:opacity-50 cursor-pointer">
             {submittingDeal || isUploading ? "Saving..." : "Save Deal"}
           </button>
         )}
@@ -1182,11 +1182,11 @@ export function DealInboxPage() {
                 {formData.imReviewDocs.map((att: any, idx: number) => (
                   <div key={att.id || idx} className="flex items-center justify-between p-2 rounded-lg bg-white/[0.015] border border-white/5 text-[11px]">
                     <div className="flex items-center gap-2 min-w-0">
-                      <FileText className="h-3.5 w-3.5 text-[#C6A66B] shrink-0" />
+                      <FileText className="h-3.5 w-3.5 text-acp-bronze shrink-0" />
                       <span className="text-white truncate font-medium">{att.filename || "IM_Document"}</span>
                     </div>
                     <div className="flex items-center gap-3">
-                      <label className="text-[10px] font-bold text-[#C6A66B] hover:text-white cursor-pointer select-none">
+                      <label className="text-[10px] font-bold text-acp-bronze hover:text-white cursor-pointer select-none">
                         Replace
                         {/* No `accept` filter: the store takes any format, and
                             the old .pdf/.doc/.xls list greyed out the decks,
@@ -1213,7 +1213,7 @@ export function DealInboxPage() {
             {/* Add new attachment input */}
             <div className="flex flex-col gap-2">
               <div className="flex items-center gap-2">
-                <label className="flex-1 h-9 rounded-xl border border-dashed border-white/10 hover:border-white/20 bg-[#0B0B0C]/40 flex items-center justify-center gap-2 text-xs text-slate-450 cursor-pointer select-none">
+                <label className="flex-1 h-9 rounded-xl border border-dashed border-white/10 hover:border-white/20 bg-acp-deep/40 flex items-center justify-center gap-2 text-xs text-slate-450 cursor-pointer select-none">
                   <Upload className="h-3.5 w-3.5 text-slate-500" />
                   <span>Upload New Attachment</span>
                   <input

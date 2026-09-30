@@ -22,11 +22,12 @@ import {
   Eye,
   EyeOff,
   FileText,
-  Landmark,
   LayoutGrid,
   LogOut,
   UserRound,
 } from "lucide-react";
+import { BrandLogo } from "../components/ui/BrandLogo";
+import { ThemeToggle } from "../components/ui/ThemeToggle";
 import {
   acceptTerms,
   getAccount,
@@ -117,7 +118,7 @@ export function InvestorPortalPage() {
 
   if (checking) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#0e1420]">
+      <div className="flex min-h-screen items-center justify-center bg-acp-portal-bg">
         <LoadingState label="Loading the portal" />
       </div>
     );
@@ -126,7 +127,7 @@ export function InvestorPortalPage() {
   if (!signedIn) return <PortalLogin onSignedIn={() => setSignedIn(true)} />;
   if (!account) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#0e1420]">
+      <div className="flex min-h-screen items-center justify-center bg-acp-portal-bg">
         <LoadingState label="Loading your record" />
       </div>
     );
@@ -185,19 +186,15 @@ export function InvestorPortalPage() {
 // ==========================================================================
 
 const AuthCard = ({ title, step, children }: { title: string; step?: string; children: React.ReactNode }) => (
-  <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#0e1420] p-4 text-slate-100">
+  <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-acp-portal-bg p-4 text-slate-100">
     <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,#c9a25715_0%,transparent_55%)]" />
-    <div className="relative w-full max-w-md rounded-2xl border border-white/5 bg-[#161d2c]/95 p-8 shadow-2xl">
+    <ThemeToggle className="absolute right-4 top-4 z-20" />
+    <div className="relative w-full max-w-md rounded-2xl border border-white/5 bg-acp-portal-card/95 p-8 shadow-2xl">
       <div className="mb-7 flex flex-col items-center text-center">
-        <div className="mb-4 flex h-13 w-13 items-center justify-center rounded-xl bg-gradient-to-br from-[#c9a257] to-[#b8924f] p-3">
-          <Landmark className="h-6 w-6 text-[#0e1420]" />
-        </div>
-        <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#c9a257]">
-          Aysan Capital Partners
-        </p>
-        <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">Partner Portal</p>
+        <BrandLogo className="h-8 text-white" />
+        <p className="mt-3 text-[10px] font-bold uppercase tracking-[0.18em] text-acp-portal-gold">Partner Portal</p>
         {step ? <p className="mt-4 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">{step}</p> : null}
-        <h1 className="mt-2 font-display text-2xl font-semibold text-white">{title}</h1>
+        <h1 className="mt-4 font-display text-2xl font-semibold text-white">{title}</h1>
       </div>
       {children}
     </div>
@@ -205,10 +202,10 @@ const AuthCard = ({ title, step, children }: { title: string; step?: string; chi
 );
 
 const fieldClass =
-  "w-full rounded border border-white/10 bg-[#0a0f18] px-3 py-2.5 text-sm text-white outline-none transition focus:border-[#c9a257] focus:ring-2 focus:ring-[#c9a257]/40";
+  "w-full rounded border border-white/10 bg-acp-portal-sunken px-3 py-2.5 text-sm text-white outline-none transition focus:border-acp-portal-gold focus:ring-2 focus:ring-acp-portal-gold/40";
 const labelClass = "mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-400";
 const buttonClass =
-  "w-full rounded bg-[#c9a257] px-4 py-2.5 text-sm font-semibold text-[#0e1420] transition hover:bg-[#d4b06a] disabled:cursor-not-allowed disabled:opacity-50";
+  "w-full rounded bg-acp-portal-gold px-4 py-2.5 text-sm font-semibold text-acp-on-accent transition hover:bg-acp-bronze-light disabled:cursor-not-allowed disabled:opacity-50";
 const errorClass =
   "rounded border border-rose-500/25 bg-rose-500/10 px-3 py-2.5 text-center text-xs font-medium text-rose-300";
 
@@ -223,7 +220,7 @@ function PasswordInput(props: Omit<InputHTMLAttributes<HTMLInputElement>, "type"
         onClick={() => setVisible((v) => !v)}
         aria-label={visible ? "Hide password" : "Show password"}
         title={visible ? "Hide password" : "Show password"}
-        className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded text-slate-500 transition hover:text-[#c9a257]"
+        className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded text-slate-500 transition hover:text-acp-portal-gold"
       >
         {visible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
       </button>
@@ -310,7 +307,7 @@ function PortalLogin({ onSignedIn }: { onSignedIn: () => void }) {
         <button
           type="button"
           onClick={() => setForgot(true)}
-          className="text-[11px] font-semibold text-[#c9a257] hover:underline"
+          className="text-[11px] font-semibold text-acp-portal-gold hover:underline"
         >
           Forgotten your password?
         </button>
@@ -351,7 +348,7 @@ function ForgotPassword({ initialEmail, onBack }: { initialEmail: string; onBack
           <p className="text-xs leading-relaxed text-slate-300">{COPY.resetSent}</p>
           <p className="text-[11px] leading-relaxed text-slate-500">
             The link is good for one hour. If it does not arrive, email{" "}
-            <a href={`mailto:${COPY.contact}`} className="text-[#c9a257] hover:underline">
+            <a href={`mailto:${COPY.contact}`} className="text-acp-portal-gold hover:underline">
               {COPY.contact}
             </a>
             .
@@ -531,12 +528,12 @@ function TermsScreen({ version, onDone }: { version: number; onDone: () => Promi
           This portal shows actuals only. ACP publishes no forecasts, target returns or dates. Investment in unlisted
           companies places your capital at risk and is illiquid.
         </p>
-        <label className="flex cursor-pointer items-start gap-3 rounded border border-white/10 bg-[#0a0f18] p-3">
+        <label className="flex cursor-pointer items-start gap-3 rounded border border-white/10 bg-acp-portal-sunken p-3">
           <input
             type="checkbox"
             checked={ticked}
             onChange={(e) => setTicked(e.target.checked)}
-            className="mt-0.5 h-4 w-4 accent-[#c9a257]"
+            className="mt-0.5 h-4 w-4 accent-acp-portal-gold"
           />
           <span className="text-xs leading-relaxed text-slate-300">
             I have read and accept the portal terms and privacy notice.
@@ -568,24 +565,29 @@ function PortalShell({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-[#0e1420] text-slate-100">
-      <header className="sticky top-0 z-20 border-b border-white/5 bg-[#0a0f18]/95 backdrop-blur">
+    <div className="min-h-screen bg-acp-portal-bg text-slate-100">
+      <header className="sticky top-0 z-20 border-b border-white/5 bg-acp-portal-sunken/95 backdrop-blur">
         <div className="mx-auto flex max-w-[1280px] items-center justify-between gap-4 px-4 py-3">
-          <p className="truncate text-[10px] font-black uppercase tracking-[0.18em] text-[#c9a257]">
-            Aysan Capital Partners
-            <span className="ml-2 hidden text-slate-500 sm:inline">· Partner Portal</span>
-          </p>
-          <button
-            type="button"
-            onClick={() => onView("account")}
-            className={cx(
-              "flex items-center gap-2 rounded px-2 py-1 text-xs transition hover:bg-white/5",
-              view === "account" ? "text-[#c9a257]" : "text-slate-300",
-            )}
-          >
-            <UserRound className="h-4 w-4" />
-            <span className="max-w-[10rem] truncate">{account.name}</span>
-          </button>
+          <div className="flex min-w-0 items-center gap-3 text-white">
+            <BrandLogo className="h-5" />
+            <span className="hidden truncate text-[10px] font-black uppercase tracking-[0.18em] text-acp-portal-gold sm:inline">
+              Partner Portal
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <button
+              type="button"
+              onClick={() => onView("account")}
+              className={cx(
+                "flex items-center gap-2 rounded px-2 py-1 text-xs transition hover:bg-white/5",
+                view === "account" ? "text-acp-portal-gold" : "text-slate-300",
+              )}
+            >
+              <UserRound className="h-4 w-4" />
+              <span className="max-w-[10rem] truncate">{account.name}</span>
+            </button>
+          </div>
         </div>
       </header>
 
@@ -603,7 +605,7 @@ function PortalShell({
                     className={cx(
                       "flex w-full items-center gap-2.5 rounded px-3 py-2 text-left text-sm transition",
                       active
-                        ? "bg-[#c9a257]/10 font-semibold text-[#c9a257]"
+                        ? "bg-acp-portal-gold/10 font-semibold text-acp-portal-gold"
                         : "text-slate-400 hover:bg-white/5 hover:text-slate-200",
                     )}
                   >
@@ -638,7 +640,7 @@ function PortalShell({
       </div>
 
       {/* Under 768px the side nav becomes a bottom bar. */}
-      <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-white/5 bg-[#0a0f18]/95 backdrop-blur md:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-white/5 bg-acp-portal-sunken/95 backdrop-blur md:hidden">
         <ul className="mx-auto flex max-w-lg">
           {NAV.map((item) => {
             const Icon = item.icon;
@@ -650,7 +652,7 @@ function PortalShell({
                   onClick={() => onView(item.key)}
                   className={cx(
                     "flex w-full flex-col items-center gap-1 py-2.5 text-[10px] font-semibold transition",
-                    active ? "text-[#c9a257]" : "text-slate-500",
+                    active ? "text-acp-portal-gold" : "text-slate-500",
                   )}
                 >
                   <Icon className="h-4 w-4" />
@@ -670,7 +672,7 @@ const PageTitle = ({ children }: { children: React.ReactNode }) => (
 );
 
 const Panel = ({ title, children }: { title?: string; children: React.ReactNode }) => (
-  <section className="rounded-lg border border-white/5 bg-[#161B22] p-5">
+  <section className="rounded-lg border border-white/5 bg-acp-card p-5">
     {title ? <h2 className="mb-3 text-sm font-semibold text-white">{title}</h2> : null}
     {children}
   </section>
@@ -778,7 +780,7 @@ function DashboardView({
               <button
                 type="button"
                 onClick={onSeeAllActivity}
-                className="mt-3 text-xs font-semibold text-[#c9a257] hover:underline"
+                className="mt-3 text-xs font-semibold text-acp-portal-gold hover:underline"
               >
                 View all activity
               </button>
@@ -898,7 +900,7 @@ function AcquisitionCard({ row, onOpen }: { row: PortalAcquisition; onOpen: (key
     <button
       type="button"
       onClick={() => onOpen(row.deal_key)}
-      className="w-full rounded-lg border border-white/5 bg-[#161B22] p-5 text-left transition hover:border-[#c9a257]/30"
+      className="w-full rounded-lg border border-white/5 bg-acp-card p-5 text-left transition hover:border-acp-portal-gold/30"
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
@@ -974,7 +976,7 @@ function AcquisitionDetail({ dealKey, onBack }: { dealKey: string; onBack: () =>
             className={cx(
               "shrink-0 border-b-2 px-3 py-2 text-sm transition",
               tab === t
-                ? "border-[#c9a257] font-semibold text-[#c9a257]"
+                ? "border-acp-portal-gold font-semibold text-acp-portal-gold"
                 : "border-transparent text-slate-400 hover:text-slate-200",
             )}
           >
@@ -1107,7 +1109,7 @@ function AcquisitionDetail({ dealKey, onBack }: { dealKey: string; onBack: () =>
                             {r.published_at ? (
                               formatDate(r.published_at)
                             ) : (
-                              <span className="font-semibold text-[#c9a257]">
+                              <span className="font-semibold text-acp-portal-gold">
                                 Publishes {formatDate(r.publishes_on)}
                               </span>
                             )}
@@ -1184,7 +1186,7 @@ function AcquisitionDetail({ dealKey, onBack }: { dealKey: string; onBack: () =>
         </div>
 
         <aside className="lg:sticky lg:top-24 lg:self-start">
-          <div className="rounded-lg border border-white/5 bg-[#161B22] p-5">
+          <div className="rounded-lg border border-white/5 bg-acp-card p-5">
             <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Your position</p>
             <RailRow label="Instrument" value={a.instrument === "spv_equity_conversion" ? "SPV equity" : a.instrument} />
             <RailRow label="Conversion right" value="Holdco" />
@@ -1238,7 +1240,7 @@ function DocumentsView() {
           <select
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
-            className="rounded border border-white/10 bg-[#0a0f18] px-3 py-2 text-xs text-slate-300"
+            className="rounded border border-white/10 bg-acp-portal-sunken px-3 py-2 text-xs text-slate-300"
           >
             <option value="all">All acquisitions</option>
             {names.map((n) => (
@@ -1473,7 +1475,7 @@ function AccountView({
             <button
               type="button"
               onClick={() => setOpen(true)}
-              className="rounded border border-white/10 px-4 py-2 text-sm text-slate-200 transition hover:border-[#c9a257]/40"
+              className="rounded border border-white/10 px-4 py-2 text-sm text-slate-200 transition hover:border-acp-portal-gold/40"
             >
               Change password
             </button>

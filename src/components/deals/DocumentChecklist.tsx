@@ -447,7 +447,7 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
               <button
                 type="button"
                 onClick={() => setIsAddDocOpen(true)}
-                className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-acp-bronze to-acp-bronze-dark px-4 text-xs font-bold uppercase tracking-wider text-white shadow-md hover:shadow-glow-bronze cursor-pointer transition-all duration-300"
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-acp-bronze to-acp-bronze-dark px-4 text-xs font-bold uppercase tracking-wider text-snow shadow-md hover:shadow-glow-bronze cursor-pointer transition-all duration-300"
               >
                 <Plus className="h-4 w-4" />
                 Add Document
@@ -462,7 +462,7 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
           {/* Toolbar. Progress, actions and both filter rows used to be three
               stacked cards — two stat panels plus a p-6 filter deck — which
               pushed the table itself below the fold. */}
-          <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] px-4 py-3 space-y-2.5">
+          <div className="rounded-2xl border border-white/[0.02] bg-acp-card px-4 py-3 space-y-2.5">
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2.5">
               {audience === "internal" && (
                 <>
@@ -490,7 +490,7 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
                   <button
                     type="button"
                     onClick={() => setIsAddDocOpen(true)}
-                    className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-acp-bronze to-acp-bronze-dark px-3 text-[10px] font-bold uppercase tracking-wider text-white shadow-sm hover:shadow-glow-bronze cursor-pointer transition-all shrink-0"
+                    className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-acp-bronze to-acp-bronze-dark px-3 text-[10px] font-bold uppercase tracking-wider text-snow shadow-sm hover:shadow-glow-bronze cursor-pointer transition-all shrink-0"
                   >
                     <Plus className="h-3.5 w-3.5" />
                     Add
@@ -575,7 +575,7 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
             <button
               onClick={() => handleBatchStatusUpdate("Sent to Lender")}
               disabled={isBatchUpdating}
-              className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 px-4 text-xs font-bold uppercase tracking-wider text-white shadow-md hover:shadow-glow-emerald disabled:opacity-40 cursor-pointer transition-all duration-300"
+              className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 px-4 text-xs font-bold uppercase tracking-wider text-snow shadow-md hover:shadow-glow-emerald disabled:opacity-40 cursor-pointer transition-all duration-300"
               type="button"
             >
               Approve Selected
@@ -767,7 +767,7 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
             aria-label={"Document " + selectedDoc.indexRef}
           >
             <div
-              className="w-full max-w-lg max-h-[85vh] rounded-2xl border border-white/[0.07] bg-[#12161C] shadow-2xl flex flex-col overflow-hidden animate-scale-in"
+              className="w-full max-w-lg max-h-[85vh] rounded-2xl border border-white/[0.07] bg-acp-navy shadow-2xl flex flex-col overflow-hidden animate-scale-in"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header */}
@@ -808,9 +808,9 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
                           onChange={(e) => handleStatusChange(e.target.value)}
                           className="text-[11px] bg-slate-900 border border-white/10 rounded-lg px-2 py-1 text-white font-semibold cursor-pointer outline-none focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze transition"
                         >
-                          <option value="Outstanding" className="bg-[#161B22] text-white">Outstanding</option>
-                          <option value="Review" className="bg-[#161B22] text-white">Review</option>
-                          <option value="Sent to Lender" className="bg-[#161B22] text-white">Sent to Lender</option>
+                          <option value="Outstanding" className="bg-acp-card text-white">Outstanding</option>
+                          <option value="Review" className="bg-acp-card text-white">Review</option>
+                          <option value="Sent to Lender" className="bg-acp-card text-white">Sent to Lender</option>
                         </select>
                       ) : (
                         <StatusBadge status={selectedDoc.status} />
@@ -852,7 +852,7 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
                         type="button"
                         onClick={handleSaveLink}
                         disabled={isSavingLink || draftLink === (selectedDoc.driveLink || "")}
-                        className="h-8 px-3 rounded-lg bg-gradient-to-r from-acp-bronze to-acp-bronze-dark text-white text-[10px] font-bold uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none hover:shadow-glow-bronze cursor-pointer shrink-0 transition-all"
+                        className="h-8 px-3 rounded-lg bg-gradient-to-r from-acp-bronze to-acp-bronze-dark text-snow text-[10px] font-bold uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none hover:shadow-glow-bronze cursor-pointer shrink-0 transition-all"
                       >
                         {isSavingLink ? "Saving…" : "Save"}
                       </button>
@@ -893,7 +893,7 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
       {isAddDocOpen && (
         <ModalPortal>
         <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
-          <div className="w-full max-w-sm rounded-2xl border border-white/[0.02] bg-[#161B22] p-6 shadow-2xl relative animate-scale-in max-h-[90vh] overflow-y-auto">
+          <div className="w-full max-w-sm rounded-2xl border border-white/[0.02] bg-acp-card p-6 shadow-2xl relative animate-scale-in max-h-[90vh] overflow-y-auto">
             <button
               onClick={() => setIsAddDocOpen(false)}
               className="absolute right-4 top-4 text-slate-400 hover:text-white cursor-pointer"
@@ -925,7 +925,7 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
                   value={newDocName}
                   onChange={(e) => setNewDocName(e.target.value)}
                   placeholder="e.g. FY25 Management Accounts"
-                  className="h-9 w-full rounded-xl border border-white/[0.02] bg-[#161B22] px-3 text-white placeholder-slate-650 outline-none focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze transition-all"
+                  className="h-9 w-full rounded-xl border border-white/[0.02] bg-acp-card px-3 text-white placeholder-slate-650 outline-none focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze transition-all"
                 />
               </div>
 
@@ -937,13 +937,13 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
                   <select
                     value={newDocCategory}
                     onChange={(e) => setNewDocCategory(e.target.value)}
-                    className="h-9 w-full rounded-xl border border-white/[0.02] bg-[#161B22] px-3 text-white outline-none focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze transition-all cursor-pointer"
+                    className="h-9 w-full rounded-xl border border-white/[0.02] bg-acp-card px-3 text-white outline-none focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze transition-all cursor-pointer"
                   >
-                    <option value="Financial" className="bg-[#161B22] text-white">Financial</option>
-                    <option value="Debtors-ABL" className="bg-[#161B22] text-white">Debtors-ABL</option>
-                    <option value="Commercial" className="bg-[#161B22] text-white">Commercial</option>
-                    <option value="Operational" className="bg-[#161B22] text-white">Operational</option>
-                    <option value="Internal Only" className="bg-[#161B22] text-white">Internal Only</option>
+                    <option value="Financial" className="bg-acp-card text-white">Financial</option>
+                    <option value="Debtors-ABL" className="bg-acp-card text-white">Debtors-ABL</option>
+                    <option value="Commercial" className="bg-acp-card text-white">Commercial</option>
+                    <option value="Operational" className="bg-acp-card text-white">Operational</option>
+                    <option value="Internal Only" className="bg-acp-card text-white">Internal Only</option>
                   </select>
                 </div>
 
@@ -954,11 +954,11 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
                   <select
                     value={newDocStatus}
                     onChange={(e) => setNewDocStatus(e.target.value)}
-                    className="h-9 w-full rounded-xl border border-white/[0.02] bg-[#161B22] px-3 text-white outline-none focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze transition-all cursor-pointer"
+                    className="h-9 w-full rounded-xl border border-white/[0.02] bg-acp-card px-3 text-white outline-none focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze transition-all cursor-pointer"
                   >
-                    <option value="Outstanding" className="bg-[#161B22] text-white">Outstanding</option>
-                    <option value="Review" className="bg-[#161B22] text-white">Review</option>
-                    <option value="Sent to Lender" className="bg-[#161B22] text-white">Sent to Lender</option>
+                    <option value="Outstanding" className="bg-acp-card text-white">Outstanding</option>
+                    <option value="Review" className="bg-acp-card text-white">Review</option>
+                    <option value="Sent to Lender" className="bg-acp-card text-white">Sent to Lender</option>
                   </select>
                 </div>
               </div>
@@ -974,7 +974,7 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
                     onClick={() => { setUploadMode("link"); setSelectedFile(null); setSelectedFileDataBase64(""); }}
                     className={cx(
                       "h-8 rounded-lg text-[10px] uppercase font-black tracking-wider transition cursor-pointer",
-                      uploadMode === "link" ? "bg-[#C6A66B] text-slate-950" : "text-slate-400 hover:text-white"
+                      uploadMode === "link" ? "bg-acp-bronze text-acp-on-accent" : "text-slate-400 hover:text-white"
                     )}
                   >
                     Link URL
@@ -984,7 +984,7 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
                     onClick={() => setUploadMode("upload")}
                     className={cx(
                       "h-8 rounded-lg text-[10px] uppercase font-black tracking-wider transition cursor-pointer",
-                      uploadMode === "upload" ? "bg-[#C6A66B] text-slate-950" : "text-slate-400 hover:text-white"
+                      uploadMode === "upload" ? "bg-acp-bronze text-acp-on-accent" : "text-slate-400 hover:text-white"
                     )}
                   >
                     File Upload
@@ -1002,7 +1002,7 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
                     value={newDocLink}
                     onChange={(e) => setNewDocLink(e.target.value)}
                     placeholder="https://drive.google.com/..."
-                    className="h-9 w-full rounded-xl border border-white/[0.02] bg-[#161B22] px-3 text-white placeholder-slate-650 outline-none focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze transition-all"
+                    className="h-9 w-full rounded-xl border border-white/[0.02] bg-acp-card px-3 text-white placeholder-slate-650 outline-none focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze transition-all"
                   />
                 </div>
               ) : (
@@ -1060,7 +1060,7 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
                 <button
                   type="submit"
                   disabled={isSubmittingDoc}
-                  className="h-10 px-5 rounded-xl bg-gradient-to-r from-acp-bronze to-acp-bronze-dark text-white text-xs font-bold uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none hover:shadow-glow-bronze cursor-pointer transition-all"
+                  className="h-10 px-5 rounded-xl bg-gradient-to-r from-acp-bronze to-acp-bronze-dark text-snow text-xs font-bold uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none hover:shadow-glow-bronze cursor-pointer transition-all"
                 >
                   {isSubmittingDoc ? "Adding..." : "Add Document"}
                 </button>
@@ -1075,7 +1075,7 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
       {docToDelete && (
         <ModalPortal>
         <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
-          <div className="w-full max-w-sm rounded-2xl border border-white/[0.02] bg-[#161B22] p-6 shadow-2xl relative animate-scale-in">
+          <div className="w-full max-w-sm rounded-2xl border border-white/[0.02] bg-acp-card p-6 shadow-2xl relative animate-scale-in">
             <h3 className="text-base font-bold text-white uppercase tracking-wider mb-3">
               Delete Document
             </h3>
@@ -1095,7 +1095,7 @@ export function DocumentChecklist({ documents, audience, onRefresh, dealId }: Do
                 type="button"
                 onClick={handleDeleteDocConfirm}
                 disabled={isDeletingDoc}
-                className="h-10 px-5 rounded-xl bg-red-650 hover:bg-red-700 text-white text-xs font-bold uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none hover:shadow-glow-red cursor-pointer transition-all"
+                className="h-10 px-5 rounded-xl bg-red-650 hover:bg-red-700 text-snow text-xs font-bold uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none hover:shadow-glow-red cursor-pointer transition-all"
               >
                 {isDeletingDoc ? "Deleting..." : "Delete Document"}
               </button>
@@ -1126,7 +1126,7 @@ function FilterPill({
       className={cx(
         "inline-flex items-center gap-2 rounded-xl px-3 py-1.5 text-xs font-bold tracking-wide transition-all duration-300 transform active:scale-95 border",
         active
-          ? "bg-gradient-to-r from-acp-bronze to-acp-bronze-dark text-white border-transparent shadow-md shadow-acp-bronze/10"
+          ? "bg-gradient-to-r from-acp-bronze to-acp-bronze-dark text-snow border-transparent shadow-md shadow-acp-bronze/10"
           : "bg-white/[0.015] border-white/[0.02] text-slate-350 hover:bg-white/[0.02] hover:text-white"
       )}
     >

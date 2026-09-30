@@ -6,7 +6,7 @@ type StatCardTone = "default" | "bronze" | "emerald" | "rose" | "blue";
 
 const toneAccents: Record<StatCardTone, string> = {
   default: "text-white",
-  bronze: "text-[#C6A66B]",
+  bronze: "text-acp-bronze",
   emerald: "text-emerald-400/90",
   rose: "text-rose-400/90",
   blue: "text-blue-400/90",
@@ -14,7 +14,7 @@ const toneAccents: Record<StatCardTone, string> = {
 
 const toneIconBg: Record<StatCardTone, string> = {
   default: "bg-white/[0.02] text-slate-400",
-  bronze: "bg-[#C6A66B]/5 text-[#C6A66B]",
+  bronze: "bg-acp-bronze/5 text-acp-bronze",
   emerald: "bg-emerald-500/5 text-emerald-400",
   rose: "bg-rose-500/5 text-rose-400",
   blue: "bg-blue-500/5 text-blue-400",

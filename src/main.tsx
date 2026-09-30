@@ -25,8 +25,8 @@ const EditDealPage = lazy(() => import("./pages/EditDealPage").then(m => ({ defa
 const NotFoundPage = lazy(() => import("./pages/NotFoundPage").then(m => ({ default: m.NotFoundPage })));
 
 const PageLoading = () => (
-  <div className="flex min-h-[60vh] flex-col items-center justify-center bg-[#0F1115]/50 text-slate-400">
-    <div className="animate-pulse text-xs font-bold uppercase tracking-widest text-[#C6A66B]">
+  <div className="flex min-h-[60vh] flex-col items-center justify-center bg-acp-ink/50 text-slate-400">
+    <div className="animate-pulse text-xs font-bold uppercase tracking-widest text-acp-bronze">
       Loading page...
     </div>
   </div>
@@ -64,7 +64,7 @@ function CurrentDealRedirect() {
 
   if (!redirectPath) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#0F1115] text-slate-400">
+      <div className="flex min-h-screen items-center justify-center bg-acp-ink text-slate-400">
         <div className="animate-pulse text-xs font-bold uppercase tracking-widest text-acp-bronze">
           Loading Active Deal...
         </div>

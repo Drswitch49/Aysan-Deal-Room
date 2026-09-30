@@ -90,12 +90,12 @@ export function UpdateBanner() {
   if (!stale) return null;
 
   return (
-    <div className="fixed bottom-4 left-1/2 z-[100] flex w-[calc(100%-2rem)] max-w-md -translate-x-1/2 items-center justify-between gap-3 rounded-lg border border-[#C6A66B]/40 bg-[#161B22] px-4 py-3 shadow-2xl">
+    <div className="fixed bottom-4 left-1/2 z-[100] flex w-[calc(100%-2rem)] max-w-md -translate-x-1/2 items-center justify-between gap-3 rounded-lg border border-acp-bronze/40 bg-acp-card px-4 py-3 shadow-2xl">
       <p className="text-xs text-slate-300">A new version of the Deal Room is available.</p>
       <button
         type="button"
         onClick={() => window.location.reload()}
-        className="flex shrink-0 items-center gap-1.5 rounded bg-[#C6A66B] px-3 py-1.5 text-xs font-bold text-[#0F1115] transition hover:brightness-110"
+        className="flex shrink-0 items-center gap-1.5 rounded bg-acp-bronze px-3 py-1.5 text-xs font-bold text-acp-on-accent transition hover:brightness-110"
       >
         <RefreshCw className="h-3.5 w-3.5" /> Reload
       </button>

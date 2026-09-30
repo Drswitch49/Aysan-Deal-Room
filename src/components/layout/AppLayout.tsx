@@ -13,6 +13,8 @@ import { fetchRecentAdminChat, subscribeAllChat } from "../../api/chat";
 import { clearRealtimeAuth } from "../../lib/supabase";
 import { countLendersWithUnread, onMessagesRead, type ReadableMessage } from "../../lib/messageReads";
 import { ChatNotificationWatcher } from "../ui/ChatNotificationWatcher";
+import { BrandLogo, BrandMark } from "../ui/BrandLogo";
+import { ThemeToggle } from "../ui/ThemeToggle";
 import { Modal } from "../ui/Modal";
 import { FormField, inputClass } from "../ui/FormField";
 import { useAuth } from "../../context/AuthContext";
@@ -137,7 +139,7 @@ export function AppLayout() {
     <div className="min-h-screen text-slate-100 lg:grid lg:grid-cols-[auto_minmax(0,1fr)] bg-acp-ink">
       {/* ── Desktop Sidebar ───────────────────────────────────────────── */}
       <aside className={cx(
-        "hidden h-screen sticky top-0 border-r border-white/[0.03] bg-gradient-to-b from-[#111419] via-[#0D1013] to-[#08090C] text-white lg:flex flex-col relative overflow-hidden transition-all duration-300 ease-in-out shrink-0",
+        "hidden h-screen sticky top-0 border-r border-white/[0.03] bg-gradient-to-b from-acp-navy via-acp-deep to-acp-deep text-white lg:flex flex-col relative overflow-hidden transition-all duration-300 ease-in-out shrink-0",
         isCollapsed ? "w-[68px]" : "w-[260px]"
       )}>
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(198,166,107,0.04),transparent_45%)] pointer-events-none" />
@@ -196,7 +198,7 @@ export function AppLayout() {
           />
 
           {/* Drawer */}
-          <aside className="relative flex w-[260px] max-w-[88vw] flex-col border-r border-white/[0.03] bg-gradient-to-b from-[#111419] via-[#0D1013] to-[#08090C] text-white h-full px-5 py-7 shadow-2xl animate-slide-in-left overflow-hidden">
+          <aside className="relative flex w-[260px] max-w-[88vw] flex-col border-r border-white/[0.03] bg-gradient-to-b from-acp-navy via-acp-deep to-acp-deep text-white h-full px-5 py-7 shadow-2xl animate-slide-in-left overflow-hidden">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(198,166,107,0.05),transparent_45%)] pointer-events-none" />
             <div className="flex flex-col h-full z-10 relative">
               <div className="flex items-center justify-between mb-6">
@@ -226,7 +228,7 @@ export function AppLayout() {
       {/* ── Main Content Area ─────────────────────────────────────────── */}
       <div className="min-w-0 flex flex-col min-h-screen relative z-10">
         {/* Top Header */}
-        <header className="sticky top-0 z-20 border-b border-white/[0.02] bg-[#0F1115]/60 backdrop-blur-xl">
+        <header className="sticky top-0 z-20 border-b border-white/[0.02] bg-acp-ink/60 backdrop-blur-xl">
           <div className="flex items-center justify-between gap-4 px-5 py-3.5 sm:px-8">
             {/* Mobile: Hamburger + Brand */}
             <div className="lg:hidden flex shrink-0 items-center gap-3 min-w-0">
@@ -252,6 +254,7 @@ export function AppLayout() {
               </span>
             </div>
 
+            <ThemeToggle className="ml-auto" />
 
           </div>
         </header>
@@ -291,40 +294,25 @@ function getBreadcrumb(pathname: string): string {
 function BrandBlock({ compact = false, isCollapsed = false }: { compact?: boolean; isCollapsed?: boolean }) {
   if (isCollapsed) {
     return (
-      <Link to="/" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#D4AF37]/10 to-[#996515]/5 border border-[#C6A66B]/20 shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_0_8px_rgba(198,166,107,0.15)] mx-auto hover:opacity-90 transition">
-        <Building2 className="h-4.5 w-4.5 text-[#C6A66B]" aria-hidden="true" />
+      <Link to="/" className="flex h-9 w-9 shrink-0 items-center justify-center mx-auto text-white hover:opacity-80 transition" title="Aysan Capital Partners">
+        <BrandMark className="h-7" />
       </Link>
     );
   }
 
   if (compact) {
     return (
-      <Link to="/" className="flex min-w-0 items-center gap-2.5 hover:opacity-85 transition">
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-[#D4AF37]/10 to-[#996515]/5 border border-[#C6A66B]/20 shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_0_8px_rgba(198,166,107,0.15)]">
-          <Building2 className="h-4 w-4 text-[#C6A66B]" aria-hidden="true" />
-        </div>
-        <div className="min-w-0">
-          <p className="truncate font-heading text-xs font-semibold tracking-tight text-white uppercase leading-none">
-            Aysan Capital
-          </p>
-          <p className="truncate text-[8px] font-bold uppercase tracking-widest text-[#C6A66B]/90 leading-none mt-0.5">
-            Deal OS
-          </p>
-        </div>
+      <Link to="/" className="flex min-w-0 items-center text-white hover:opacity-85 transition">
+        <BrandLogo className="h-5" />
       </Link>
     );
   }
 
   return (
-    <Link to="/" className="block hover:opacity-85 transition select-none group">
-      <p className="text-[8.5px] font-bold uppercase tracking-[0.22em] text-slate-405 leading-none transition-colors duration-300 group-hover:text-slate-300">
-        Aysan Capital Partners
-      </p>
-      <h1 className="font-heading text-[16px] font-black leading-none uppercase tracking-tight mt-2 bg-clip-text text-transparent bg-gradient-to-r from-white via-slate-100 to-slate-350">
-        ACP DEAL OS
-      </h1>
-      <p className="text-[8px] font-extrabold tracking-[0.18em] bg-gradient-to-r from-[#C6A66B] via-[#E2C999] to-[#C6A66B] bg-clip-text text-transparent uppercase mt-1">
-        Operational Intelligence
+    <Link to="/" className="block text-white hover:opacity-85 transition select-none">
+      <BrandLogo className="h-6 max-w-full" />
+      <p className="text-[8px] font-extrabold tracking-[0.22em] text-acp-bronze uppercase mt-3">
+        Deal OS
       </p>
       <div className="h-px w-full bg-gradient-to-r from-white/[0.06] via-white/[0.015] to-transparent mt-5" />
     </Link>
@@ -381,9 +369,9 @@ function NavContent({
             const badge =
               item.to === "/admin/messages" && unreadMessages > 0 ? (
                 isCollapsed ? (
-                  <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-[#C6A66B] shadow-[0_0_6px_rgba(198,166,107,0.5)]" />
+                  <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-acp-bronze shadow-[0_0_6px_rgba(198,166,107,0.5)]" />
                 ) : (
-                  <span className="inline-flex h-4.5 min-w-[18px] items-center justify-center rounded-full bg-[#C6A66B]/15 border border-[#C6A66B]/30 px-1 text-[8.5px] font-black text-[#C6A66B] ml-auto">
+                  <span className="inline-flex h-4.5 min-w-[18px] items-center justify-center rounded-full bg-acp-bronze/15 border border-acp-bronze/30 px-1 text-[8.5px] font-black text-acp-bronze ml-auto">
                     {unreadMessages}
                   </span>
                 )
@@ -454,12 +442,12 @@ function SideNavItem({
         return (
           <>
             {isCurrentActive && !isCollapsed && (
-              <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r bg-[#C6A66B] shadow-[0_0_6px_rgba(198,166,107,0.4)]" />
+              <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r bg-acp-bronze shadow-[0_0_6px_rgba(198,166,107,0.4)]" />
             )}
             {isCurrentActive && isCollapsed && (
-              <span className="absolute left-1 top-2 bottom-2 w-[3px] rounded bg-[#C6A66B] shadow-[0_0_6px_rgba(198,166,107,0.4)]" />
+              <span className="absolute left-1 top-2 bottom-2 w-[3px] rounded bg-acp-bronze shadow-[0_0_6px_rgba(198,166,107,0.4)]" />
             )}
-            <span className={cx("shrink-0 transition-all duration-250", isCurrentActive ? "text-[#C6A66B]" : "text-slate-500 group-hover:text-[#C6A66B]")}>
+            <span className={cx("shrink-0 transition-all duration-250", isCurrentActive ? "text-acp-bronze" : "text-slate-500 group-hover:text-acp-bronze")}>
               {icon}
             </span>
             {!isCollapsed && <span className="flex-1 truncate tracking-wide">{label}</span>}
@@ -468,7 +456,7 @@ function SideNavItem({
 
             {/* Hover Tooltip Reveal when Collapsed */}
             {isCollapsed && (
-              <div className="absolute left-full ml-3.5 top-1/2 -translate-y-1/2 opacity-0 scale-95 pointer-events-none group-hover:opacity-100 group-hover:scale-100 group-hover:pointer-events-auto transition-all duration-150 origin-left z-50 bg-[#161B22]/95 border border-white/[0.08] text-slate-200 font-semibold text-[11px] py-1.5 px-3 rounded-lg shadow-[0_4px_16px_rgba(0,0,0,0.6)] backdrop-blur-md whitespace-nowrap">
+              <div className="absolute left-full ml-3.5 top-1/2 -translate-y-1/2 opacity-0 scale-95 pointer-events-none group-hover:opacity-100 group-hover:scale-100 group-hover:pointer-events-auto transition-all duration-150 origin-left z-50 bg-acp-card/95 border border-white/[0.08] text-slate-200 font-semibold text-[11px] py-1.5 px-3 rounded-lg shadow-[0_4px_16px_rgba(0,0,0,0.6)] backdrop-blur-md whitespace-nowrap">
                 {label}
               </div>
             )}
@@ -520,17 +508,17 @@ function UserFooter({
       <div className="mt-auto pt-4 border-t border-white/[0.03] flex flex-col items-center gap-3 relative group/footer">
         {/* User initials bubble acting as trigger */}
         <div className="relative cursor-pointer">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#D4AF37] to-[#AA771C] text-[#101317] font-black text-xs shadow-md border border-[#C6A66B]/20">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-acp-bronze to-acp-bronze-dark text-acp-on-accent font-black text-xs shadow-md border border-acp-bronze/20">
             {initials}
           </div>
-          <span className="absolute bottom-0 right-0 h-2 w-2 rounded-full bg-emerald-500 border border-[#101317]" />
+          <span className="absolute bottom-0 right-0 h-2 w-2 rounded-full bg-emerald-500 border border-acp-navy" />
         </div>
 
         {/* Hover popover controls */}
-        <div className="absolute bottom-10 left-full ml-3 opacity-0 scale-95 pointer-events-none group-hover/footer:opacity-100 group-hover/footer:scale-100 group-hover/footer:pointer-events-auto transition-all duration-150 origin-bottom-left z-50 bg-[#161B22]/95 border border-white/[0.08] p-3.5 rounded-xl shadow-[0_6px_24px_rgba(0,0,0,0.7)] backdrop-blur-md min-w-[170px] space-y-3">
+        <div className="absolute bottom-10 left-full ml-3 opacity-0 scale-95 pointer-events-none group-hover/footer:opacity-100 group-hover/footer:scale-100 group-hover/footer:pointer-events-auto transition-all duration-150 origin-bottom-left z-50 bg-acp-card/95 border border-white/[0.08] p-3.5 rounded-xl shadow-[0_6px_24px_rgba(0,0,0,0.7)] backdrop-blur-md min-w-[170px] space-y-3">
           <div className="border-b border-white/5 pb-2">
             <p className="text-xs font-bold text-white tracking-wide leading-none">{name}</p>
-            <p className="text-[9px] font-extrabold uppercase tracking-wider text-[#C6A66B]/80 leading-none mt-1">{(user?.role || "member").replace(/_/g, " ")}</p>
+            <p className="text-[9px] font-extrabold uppercase tracking-wider text-acp-bronze/80 leading-none mt-1">{(user?.role || "member").replace(/_/g, " ")}</p>
           </div>
           <div className="flex flex-col gap-1.5 pt-0.5">
             <button
@@ -559,14 +547,14 @@ function UserFooter({
     <div className="mt-auto pt-4 border-t border-white/[0.03] relative">
       <div className="flex items-center justify-between gap-2.5 rounded-xl border border-white/[0.02] bg-white/[0.005] p-2 hover:bg-white/[0.015] hover:border-white/[0.04] transition-all duration-300">
         <div className="flex items-center gap-2.5 min-w-0">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#D4AF37] to-[#AA771C] text-[#101317] font-black shadow-[0_0_12px_rgba(198,166,107,0.25)] text-[10px]">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-acp-bronze to-acp-bronze-dark text-acp-on-accent font-black shadow-[0_0_12px_rgba(198,166,107,0.25)] text-[10px]">
             {initials}
           </div>
           <div className="min-w-0">
             <p className="truncate text-xs font-semibold text-white tracking-wide leading-none mb-0.5">
               {name}
             </p>
-            <p className="truncate text-[9px] font-bold uppercase tracking-wider text-[#C6A66B]/80 leading-none">
+            <p className="truncate text-[9px] font-bold uppercase tracking-wider text-acp-bronze/80 leading-none">
               {(user?.role || "member").replace(/_/g, " ")}
             </p>
           </div>
@@ -574,7 +562,7 @@ function UserFooter({
         <div className="flex items-center gap-1 shrink-0">
           <button
             onClick={onChangePassword}
-            className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/[0.03] bg-white/[0.02] text-slate-400 hover:text-[#C6A66B] hover:bg-[#C6A66B]/15 hover:border-[#C6A66B]/30 hover:scale-105 transition-all duration-200 cursor-pointer"
+            className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/[0.03] bg-white/[0.02] text-slate-400 hover:text-acp-bronze hover:bg-acp-bronze/15 hover:border-acp-bronze/30 hover:scale-105 transition-all duration-200 cursor-pointer"
             title="Change Passcode"
             type="button"
             aria-label="Change passcode"
@@ -715,7 +703,7 @@ function ChangePasswordModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
           <button
             type="submit"
             disabled={isSubmitting || success}
-            className="h-9 px-4 rounded-xl bg-gradient-to-r from-acp-bronze to-acp-bronze-dark text-white text-xs font-bold uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none hover:shadow-glow-bronze transition cursor-pointer"
+            className="h-9 px-4 rounded-xl bg-gradient-to-r from-acp-bronze to-acp-bronze-dark text-snow text-xs font-bold uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none hover:shadow-glow-bronze transition cursor-pointer"
           >
             {isSubmitting ? "Updating..." : "Update Passcode"}
           </button>

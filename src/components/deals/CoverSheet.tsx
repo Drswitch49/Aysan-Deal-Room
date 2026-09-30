@@ -39,7 +39,7 @@ export function CoverSheet({ deal, audience }: CoverSheetProps) {
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_1.15fr]">
       {/* Company card */}
-      <section className="rounded-2xl border border-white/[0.02] bg-[#161B22] backdrop-blur-md p-6 shadow-premium-card hover:border-white/15 card-sheen transition-all duration-300">
+      <section className="rounded-2xl border border-white/[0.02] bg-acp-card backdrop-blur-md p-6 shadow-premium-card hover:border-white/15 card-sheen transition-all duration-300">
         <SectionTitle icon={<MapPin className="h-5 w-5" />} title="Company Details" />
         <dl className="mt-6 grid gap-4 sm:grid-cols-2">
           <Field label="Company Name" value={deal.companyName} emphasis />
@@ -50,7 +50,7 @@ export function CoverSheet({ deal, audience }: CoverSheetProps) {
       </section>
 
       {/* Transaction card */}
-      <section className="rounded-2xl border border-white/[0.02] bg-[#161B22] backdrop-blur-md p-6 shadow-premium-card hover:border-white/15 card-sheen transition-all duration-300">
+      <section className="rounded-2xl border border-white/[0.02] bg-acp-card backdrop-blur-md p-6 shadow-premium-card hover:border-white/15 card-sheen transition-all duration-300">
         <SectionTitle icon={<TrendingUp className="h-5 w-5" />} title="Transaction Overview" />
         <dl className="mt-6 grid gap-4 sm:grid-cols-2">
           <Field label="Enterprise Value (EV)" value={deal.ev} emphasis />
@@ -75,7 +75,7 @@ export function CoverSheet({ deal, audience }: CoverSheetProps) {
 
         {/* Visual Stack Chart */}
         {capitalStructure.length > 0 && totalStackVal > 0 ? (
-          <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] backdrop-blur-md p-6 shadow-premium-card card-sheen">
+          <div className="rounded-2xl border border-white/[0.02] bg-acp-card backdrop-blur-md p-6 shadow-premium-card card-sheen">
             <h3 className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-slate-400 mb-4">Funding breakdown</h3>
             <div className="h-4 w-full flex rounded-full overflow-hidden bg-white/[0.015] border border-white/[0.02] shadow-inner">
               {stackWithValues.map((row) => {

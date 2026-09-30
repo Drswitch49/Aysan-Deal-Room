@@ -225,7 +225,7 @@ export function AdminMessagesPage() {
         <div className="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-6 h-[calc(100vh-210px)] min-h-[550px] items-stretch">
           
           {/* Left Pane: Conversations List */}
-          <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-4 flex flex-col h-full overflow-hidden shadow-premium-card card-sheen">
+          <div className="rounded-2xl border border-white/[0.02] bg-acp-card p-4 flex flex-col h-full overflow-hidden shadow-premium-card card-sheen">
             
             {/* Search conversations */}
             <div className="relative mb-4 shrink-0">
@@ -235,7 +235,7 @@ export function AdminMessagesPage() {
                 placeholder="Search inbox..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-10 w-full rounded-xl border border-white/[0.02] bg-[#0d0c1d] pl-9 pr-4 text-xs text-white placeholder-slate-500 outline-none transition focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze"
+                className="h-10 w-full rounded-xl border border-white/[0.02] bg-acp-portal-sunken pl-9 pr-4 text-xs text-white placeholder-slate-500 outline-none transition focus:border-acp-bronze focus:ring-1 focus:ring-acp-bronze"
               />
             </div>
 
@@ -258,7 +258,7 @@ export function AdminMessagesPage() {
                           "w-full text-left p-3.5 rounded-xl border transition-all duration-300 relative block cursor-pointer card-sheen",
                           isSelected
                             ? "bg-acp-bronze/10 border-acp-bronze/50 shadow-glow-bronze/5"
-                            : "border-white/[0.02] bg-[#0c1122]/15 hover:bg-[#0c1122]/55 hover:border-white/12"
+                            : "border-white/[0.02] bg-acp-portal-bg/15 hover:bg-acp-portal-bg/55 hover:border-white/12"
                         )}
                       >
                         {/* Name + Time */}
@@ -285,7 +285,7 @@ export function AdminMessagesPage() {
                               {conv.totalCount} {conv.totalCount === 1 ? "msg" : "msgs"}
                             </span>
                             {conv.unreadCount > 0 && (
-                              <span className="inline-flex items-center justify-center h-4.5 min-w-[18px] text-[8px] font-black uppercase bg-[#C6A66B] text-white px-1.5 rounded-full shadow-[0_2px_8px_rgba(197,160,89,0.3)] animate-pulse">
+                              <span className="inline-flex items-center justify-center h-4.5 min-w-[18px] text-[8px] font-black uppercase bg-acp-bronze text-snow px-1.5 rounded-full shadow-[0_2px_8px_rgba(197,160,89,0.3)] animate-pulse">
                                 {conv.unreadCount}
                               </span>
                             )}
@@ -330,7 +330,7 @@ export function AdminMessagesPage() {
                                   </span>
                                   <div className="flex items-center gap-1 shrink-0">
                                     {dealConv.unreadCount > 0 && (
-                                      <span className="h-3.5 min-w-[14px] inline-flex items-center justify-center text-[7px] font-black bg-[#C6A66B] text-white px-1 rounded-full animate-pulse">
+                                      <span className="h-3.5 min-w-[14px] inline-flex items-center justify-center text-[7px] font-black bg-acp-bronze text-snow px-1 rounded-full animate-pulse">
                                         {dealConv.unreadCount}
                                       </span>
                                     )}
@@ -349,7 +349,7 @@ export function AdminMessagesPage() {
           </div>
 
           {/* Right Pane: Split-pane Chat Frame */}
-          <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] overflow-hidden flex flex-col h-full shadow-premium-card card-sheen">
+          <div className="rounded-2xl border border-white/[0.02] bg-acp-card overflow-hidden flex flex-col h-full shadow-premium-card card-sheen">
             {selectedConversation && activeDealId ? (
               <div className="flex-1 h-full flex flex-col min-h-0">
                 <DealChat

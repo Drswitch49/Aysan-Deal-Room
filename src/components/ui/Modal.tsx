@@ -107,7 +107,7 @@ export function Modal({
 
       {/* Modal Panel */}
       <div
-        className={`relative z-10 w-full ${maxWidth} flex flex-col rounded-2xl border border-white/[0.1] bg-[#161B22] shadow-2xl animate-scale-in max-h-[85vh] overflow-hidden`}
+        className={`relative z-10 w-full ${maxWidth} flex flex-col rounded-2xl border border-white/[0.1] bg-acp-card shadow-2xl animate-scale-in max-h-[85vh] overflow-hidden`}
       >
         {onSubmit ? (
           <form onSubmit={onSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">

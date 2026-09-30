@@ -81,7 +81,7 @@ export function SearchableDropdown({
       </div>
 
       {isOpen && (
-        <div className="absolute z-50 mt-1.5 max-h-56 w-full overflow-y-auto rounded-xl border border-white/10 bg-[#0F1115] py-1 shadow-2xl backdrop-blur-lg animate-fade-in-up">
+        <div className="absolute z-50 mt-1.5 max-h-56 w-full overflow-y-auto rounded-xl border border-white/10 bg-acp-ink py-1 shadow-2xl backdrop-blur-lg animate-fade-in-up">
           {filteredOptions.length > 0 ? (
             filteredOptions.map((option, idx) => (
               <button
@@ -90,7 +90,7 @@ export function SearchableDropdown({
                 onClick={() => handleSelect(option)}
                 className={cx(
                   "w-full px-3.5 py-2.5 text-left text-xs transition-colors hover:bg-white/[0.03]",
-                  option === value ? "text-[#C6A66B] font-bold" : "text-slate-350 hover:text-white"
+                  option === value ? "text-acp-bronze font-bold" : "text-slate-350 hover:text-white"
                 )}
               >
                 {option}

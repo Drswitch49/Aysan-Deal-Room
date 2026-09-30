@@ -69,7 +69,7 @@ function AirtablePermissionState({ message }: { message: string }) {
           </div>
         </div>
 
-        <div className="p-6 sm:p-8 bg-[#0a0f1d]/40">
+        <div className="p-6 sm:p-8 bg-acp-portal-bg/40">
           <div className="rounded-lg border border-white/[0.02] bg-white/[0.015] p-4">
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-400">Required token setup</p>
             <div className="mt-4 grid gap-3">
@@ -132,7 +132,7 @@ function AirtableConfigState({ message }: { message: string }) {
           </div>
         </div>
 
-        <div className="p-6 sm:p-8 bg-[#0a0f1d]/40">
+        <div className="p-6 sm:p-8 bg-acp-portal-bg/40">
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-400">Required variables</p>
           <div className="mt-4 grid gap-2">
             {required.map((item) => (

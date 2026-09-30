@@ -2,6 +2,8 @@ import { FormEvent, useState } from "react";
 import { LockKeyhole, ShieldCheck, Key, ArrowLeft, CheckCircle2, Mail, Loader2, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { clearApiCache } from "../../api/http";
+import { BrandLogo } from "../ui/BrandLogo";
+import { ThemeToggle } from "../ui/ThemeToggle";
 
 type AdminGuardProps = {
   children: React.ReactNode;
@@ -149,7 +151,7 @@ export function AdminGuard({ children }: AdminGuardProps) {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#0F1115] flex items-center justify-center relative overflow-hidden">
+      <div className="min-h-screen bg-acp-ink flex items-center justify-center relative overflow-hidden">
         <div className="absolute -left-20 -top-20 h-80 w-80 rounded-full bg-acp-bronze/5 blur-[100px] pointer-events-none" />
         <div className="absolute -right-20 -bottom-20 h-80 w-80 rounded-full bg-acp-bronze/5 blur-[100px] pointer-events-none" />
         <div className="flex flex-col items-center gap-4 text-slate-400">
@@ -165,15 +167,16 @@ export function AdminGuard({ children }: AdminGuardProps) {
   }
 
   return (
-    <div className="min-h-screen bg-[#0F1115] flex items-center justify-center p-4 relative overflow-hidden">
+    <div className="min-h-screen bg-acp-ink flex items-center justify-center p-4 relative overflow-hidden">
       {/* Decorative ambient glows */}
       <div className="absolute -left-20 -top-20 h-80 w-80 rounded-full bg-acp-bronze/5 blur-[100px] pointer-events-none" />
       <div className="absolute -right-20 -bottom-20 h-80 w-80 rounded-full bg-acp-bronze/5 blur-[100px] pointer-events-none" />
+      <ThemeToggle className="absolute right-4 top-4 z-20" />
 
       {isResetting ? (
         <form
           onSubmit={handleResetSubmit}
-          className="w-full max-w-md relative z-10 rounded-2xl border border-white/[0.02] bg-[#161B22] backdrop-blur-xl p-8 shadow-2xl card-sheen"
+          className="w-full max-w-md relative z-10 rounded-2xl border border-white/[0.02] bg-acp-card backdrop-blur-xl p-8 shadow-2xl card-sheen"
         >
           {/* Recovery Form Header */}
           <div className="flex flex-col items-center text-center">
@@ -184,15 +187,15 @@ export function AdminGuard({ children }: AdminGuardProps) {
               >
                 <circle cx="50" cy="50" r="45" stroke="currentColor" strokeWidth="1" strokeDasharray="6 4" fill="none" />
               </svg>
-              <div className="relative z-10 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-acp-bronze to-acp-bronze-dark text-white shadow-lg border border-white/[0.02]">
+              <div className="relative z-10 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-acp-bronze to-acp-bronze-dark text-snow shadow-lg border border-white/[0.02]">
                 <Key className="h-5 w-5" aria-hidden="true" />
               </div>
             </div>
 
-            <h2 className="font-display text-2xl text-white font-normal italic tracking-wide">
-              Aysan Capital Partners
+            <h2 className="text-white">
+              <BrandLogo className="h-8" />
             </h2>
-            <p className="mt-1 text-[10px] font-extrabold uppercase tracking-[0.2em] text-acp-bronze">
+            <p className="mt-3 text-[10px] font-extrabold uppercase tracking-[0.2em] text-acp-bronze">
               Passcode Recovery
             </p>
           </div>
@@ -268,7 +271,7 @@ export function AdminGuard({ children }: AdminGuardProps) {
                   <button
                     type="submit"
                     disabled={isResetSubmitting}
-                    className="w-full inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-acp-bronze to-acp-bronze-dark px-4 text-xs font-bold uppercase tracking-wider text-white shadow-md hover:shadow-glow-bronze transition-all duration-300 transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                    className="w-full inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-acp-bronze to-acp-bronze-dark px-4 text-xs font-bold uppercase tracking-wider text-snow shadow-md hover:shadow-glow-bronze transition-all duration-300 transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                   >
                     <ShieldCheck className="h-4 w-4" aria-hidden="true" />
                     {isResetSubmitting ? "Resetting Passcode..." : "Reset and Enter"}
@@ -293,7 +296,7 @@ export function AdminGuard({ children }: AdminGuardProps) {
       ) : (
         <form
           onSubmit={handleSubmit}
-          className="w-full max-w-md relative z-10 rounded-2xl border border-white/[0.02] bg-[#161B22] backdrop-blur-xl p-8 shadow-2xl card-sheen"
+          className="w-full max-w-md relative z-10 rounded-2xl border border-white/[0.02] bg-acp-card backdrop-blur-xl p-8 shadow-2xl card-sheen"
         >
           {/* Header */}
           <div className="flex flex-col items-center text-center">
@@ -305,15 +308,15 @@ export function AdminGuard({ children }: AdminGuardProps) {
               >
                 <circle cx="50" cy="50" r="45" stroke="currentColor" strokeWidth="1" strokeDasharray="6 4" fill="none" />
               </svg>
-              <div className="relative z-10 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-acp-bronze to-acp-bronze-dark text-white shadow-lg border border-white/[0.02]">
+              <div className="relative z-10 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-acp-bronze to-acp-bronze-dark text-snow shadow-lg border border-white/[0.02]">
                 <LockKeyhole className="h-5 w-5" aria-hidden="true" />
               </div>
             </div>
 
-            <h2 className="font-display text-2xl text-white font-normal italic tracking-wide">
-              Aysan Capital Partners
+            <h2 className="text-white">
+              <BrandLogo className="h-8" />
             </h2>
-            <p className="mt-1 text-[10px] font-extrabold uppercase tracking-[0.2em] text-acp-bronze">
+            <p className="mt-3 text-[10px] font-extrabold uppercase tracking-[0.2em] text-acp-bronze">
               Admin Control Panel
             </p>
           </div>
@@ -390,7 +393,7 @@ export function AdminGuard({ children }: AdminGuardProps) {
             <button
               type="submit"
               disabled={isVerifying}
-              className="w-full inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-acp-bronze to-acp-bronze-dark px-4 text-xs font-bold uppercase tracking-wider text-white shadow-md hover:shadow-glow-bronze transition-all duration-300 transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+              className="w-full inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-acp-bronze to-acp-bronze-dark px-4 text-xs font-bold uppercase tracking-wider text-snow shadow-md hover:shadow-glow-bronze transition-all duration-300 transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
               <ShieldCheck className="h-4 w-4" aria-hidden="true" />
               {isVerifying ? "Verifying..." : "Verify and Access"}

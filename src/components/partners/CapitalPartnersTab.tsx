@@ -66,10 +66,10 @@ const PORTAL_LABEL: Record<string, string> = {
 };
 
 const input =
-  "w-full rounded border border-white/10 bg-[#0F1115] px-3 py-2 text-sm text-white outline-none focus:border-acp-bronze";
+  "w-full rounded border border-white/10 bg-acp-ink px-3 py-2 text-sm text-white outline-none focus:border-acp-bronze";
 const label = "mb-1 block text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500";
 const primaryBtn =
-  "rounded bg-acp-bronze px-3.5 py-2 text-xs font-bold text-[#0F1115] transition hover:bg-acp-bronze-light disabled:cursor-not-allowed disabled:opacity-40";
+  "rounded bg-acp-bronze px-3.5 py-2 text-xs font-bold text-acp-on-accent transition hover:bg-acp-bronze-light disabled:cursor-not-allowed disabled:opacity-40";
 const ghostBtn =
   "rounded border border-white/10 px-3.5 py-2 text-xs font-semibold text-slate-300 transition hover:border-acp-bronze/40 disabled:opacity-40";
 
@@ -1042,7 +1042,7 @@ function EraseDialog({
             type="button"
             disabled={!understood || !matches || busy}
             onClick={() => void erase()}
-            className="rounded bg-rose-600 px-3.5 py-2 text-xs font-bold text-white transition hover:bg-rose-500 disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded bg-rose-600 px-3.5 py-2 text-xs font-bold text-snow transition hover:bg-rose-500 disabled:cursor-not-allowed disabled:opacity-40"
           >
             {busy ? (
               <Loader2 className="mr-1 inline h-3.5 w-3.5 animate-spin" />
@@ -1169,7 +1169,7 @@ function Overlay({
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/70 p-4 backdrop-blur-sm">
       <div
         className={cx(
-          "my-8 w-full rounded-xl border border-white/10 bg-[#161B22] p-6 shadow-2xl",
+          "my-8 w-full rounded-xl border border-white/10 bg-acp-card p-6 shadow-2xl",
           wide ? "max-w-3xl" : "max-w-lg",
         )}
       >

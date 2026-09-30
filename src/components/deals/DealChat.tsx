@@ -337,7 +337,7 @@ export function DealChat({
           <button
             type="submit"
             disabled={!inputText.trim() || submitting || inputText.length > maxChars}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-acp-bronze text-white transition-all hover:bg-acp-bronze-dark disabled:bg-white/[0.015] disabled:text-slate-500 disabled:cursor-not-allowed hover:shadow-glow-bronze"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-acp-bronze text-snow transition-all hover:bg-acp-bronze-dark disabled:bg-white/[0.015] disabled:text-slate-500 disabled:cursor-not-allowed hover:shadow-glow-bronze"
             title="Send message"
           >
             {submitting ? (

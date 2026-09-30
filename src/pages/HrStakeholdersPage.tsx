@@ -116,7 +116,7 @@ const accentDot = (accent?: string) =>
 function AccessPill({ level }: { level: string }) {
   const l = (level || "").toLowerCase();
   const tone = l.includes("full")
-    ? "border-[#C6A66B]/25 bg-[#C6A66B]/10 text-[#C6A66B]"
+    ? "border-acp-bronze/25 bg-acp-bronze/10 text-acp-bronze"
     : l.includes("write")
       ? "border-blue-500/25 bg-blue-500/10 text-blue-300"
       : "border-white/[0.06] bg-white/[0.03] text-slate-400";
@@ -153,10 +153,10 @@ function SummaryTile({
       <span
         className={cx(
           "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border",
-          active ? "border-[#C6A66B]/30 bg-[#C6A66B]/10" : "border-white/[0.06] bg-white/[0.02]",
+          active ? "border-acp-bronze/30 bg-acp-bronze/10" : "border-white/[0.06] bg-white/[0.02]",
         )}
       >
-        <Icon className={cx("h-4 w-4", active ? "text-[#C6A66B]" : "text-slate-400")} />
+        <Icon className={cx("h-4 w-4", active ? "text-acp-bronze" : "text-slate-400")} />
       </span>
       <span className="min-w-0">
         <span className="block text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">{label}</span>
@@ -170,8 +170,8 @@ function SummaryTile({
     </>
   );
   const cls = cx(
-    "flex items-center gap-3 rounded-xl border bg-[#161B22] px-3.5 py-2.5 text-left transition",
-    active ? "border-[#C6A66B]/30" : "border-white/[0.04]",
+    "flex items-center gap-3 rounded-xl border bg-acp-card px-3.5 py-2.5 text-left transition",
+    active ? "border-acp-bronze/30" : "border-white/[0.04]",
   );
   return onClick ? (
     <button type="button" onClick={onClick} className={cx(cls, "cursor-pointer hover:border-white/10")}>
@@ -184,7 +184,7 @@ function SummaryTile({
 
 const RegistryLoading = ({ label }: { label: string }) => (
   <div className="flex items-center justify-center gap-2 py-10 text-xs text-slate-500">
-    <Loader2 className="h-4 w-4 animate-spin text-[#C6A66B]" /> {label}
+    <Loader2 className="h-4 w-4 animate-spin text-acp-bronze" /> {label}
   </div>
 );
 
@@ -784,12 +784,12 @@ function HrStakeholdersPage({ mode }: { mode: "hr" | "investors" }) {
   }
 
   return (
-    <div className="space-y-5 text-[#E2E8F0] font-sans">
+    <div className="space-y-5 text-slate-200 font-sans">
       {/* Header: title, live counts, and one Add menu instead of a row of buttons */}
       <div className="flex flex-col gap-3 border-b border-white/5 pb-4 md:flex-row md:items-center md:justify-between">
         <div className="min-w-0">
           <h1 className="text-xl font-bold tracking-tight text-white">
-            {isInvestors ? <span className="text-[#C6A66B]">Investors</span> : <>HR <span className="text-[#C6A66B]">& Hiring</span></>}
+            {isInvestors ? <span className="text-acp-bronze">Investors</span> : <>HR <span className="text-acp-bronze">& Hiring</span></>}
           </h1>
           <p className="mt-0.5 text-xs font-medium text-slate-500">
             {isLoading ? (
@@ -814,13 +814,13 @@ function HrStakeholdersPage({ mode }: { mode: "hr" | "investors" }) {
                 type="button"
                 onClick={() => setAddMenuOpen((v) => !v)}
                 aria-expanded={addMenuOpen}
-                className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-lg bg-[#C6A66B] px-3 text-[11px] font-bold text-[#0F1115] transition hover:brightness-110"
+                className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-lg bg-acp-bronze px-3 text-[11px] font-bold text-acp-on-accent transition hover:brightness-110"
               >
                 <Plus className="h-3.5 w-3.5" /> Add
                 <ChevronDown className={cx("h-3 w-3 transition", addMenuOpen && "rotate-180")} />
               </button>
               {addMenuOpen ? (
-                <div className="absolute right-0 z-30 mt-1.5 w-52 overflow-hidden rounded-xl border border-white/10 bg-[#161B22] p-1 shadow-2xl animate-fade-in">
+                <div className="absolute right-0 z-30 mt-1.5 w-52 overflow-hidden rounded-xl border border-white/10 bg-acp-card p-1 shadow-2xl animate-fade-in">
                   {addItems.map((item) => (
                     <button
                       key={item.label}
@@ -831,7 +831,7 @@ function HrStakeholdersPage({ mode }: { mode: "hr" | "investors" }) {
                       }}
                       className="flex w-full cursor-pointer items-start gap-2.5 rounded-lg px-2.5 py-2 text-left transition hover:bg-white/[0.04]"
                     >
-                      <item.icon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#C6A66B]" />
+                      <item.icon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-acp-bronze" />
                       <span className="min-w-0">
                         <span className="block text-xs font-semibold text-slate-200">{item.label}</span>
                         <span className="block text-[10px] text-slate-500">{item.hint}</span>
@@ -951,7 +951,7 @@ function HrStakeholdersPage({ mode }: { mode: "hr" | "investors" }) {
       {/* Main: HR shows the team and hiring; Investors shows the registries —
           capital partners, stakeholders and shareholders — in one tabbed panel. */}
       {isInvestors ? (
-        <section className="col-span-12 overflow-hidden rounded-2xl border border-white/[0.04] bg-[#161B22] shadow-premium-card">
+        <section className="col-span-12 overflow-hidden rounded-2xl border border-white/[0.04] bg-acp-card shadow-premium-card">
           <header className="flex flex-col gap-2 border-b border-white/[0.04] px-3 pt-2 sm:flex-row sm:items-end sm:justify-between">
             <nav className="-mb-px flex gap-0.5 overflow-x-auto" aria-label="Registry">
               {(
@@ -969,7 +969,7 @@ function HrStakeholdersPage({ mode }: { mode: "hr" | "investors" }) {
                   className={cx(
                     "flex shrink-0 cursor-pointer items-center gap-1.5 border-b-2 px-3 py-2.5 text-xs font-semibold transition",
                     registryTab === key
-                      ? "border-[#C6A66B] text-[#C6A66B]"
+                      ? "border-acp-bronze text-acp-bronze"
                       : "border-transparent text-slate-400 hover:text-slate-200",
                   )}
                 >
@@ -978,7 +978,7 @@ function HrStakeholdersPage({ mode }: { mode: "hr" | "investors" }) {
                     <span
                       className={cx(
                         "rounded-full px-1.5 py-px text-[9px] font-bold tabular-nums",
-                        registryTab === key ? "bg-[#C6A66B]/15 text-[#C6A66B]" : "bg-white/5 text-slate-500",
+                        registryTab === key ? "bg-acp-bronze/15 text-acp-bronze" : "bg-white/5 text-slate-500",
                       )}
                     >
                       {count}
@@ -996,7 +996,7 @@ function HrStakeholdersPage({ mode }: { mode: "hr" | "investors" }) {
                   onChange={(e) => setRegistryQuery(e.target.value)}
                   placeholder={`Search ${registryTab}`}
                   aria-label={`Search ${registryTab}`}
-                  className="h-8 w-full rounded-lg border border-white/[0.06] bg-[#0F1115] pl-8 pr-2.5 text-xs text-white outline-none transition placeholder:text-slate-600 focus:border-[#C6A66B]/60"
+                  className="h-8 w-full rounded-lg border border-white/[0.06] bg-acp-ink pl-8 pr-2.5 text-xs text-white outline-none transition placeholder:text-slate-600 focus:border-acp-bronze/60"
                 />
               </label>
             ) : null}
@@ -1131,7 +1131,7 @@ function HrStakeholdersPage({ mode }: { mode: "hr" | "investors" }) {
       ) : (
       <div className="grid items-start gap-5 lg:grid-cols-12">
         {/* ACP TEAM */}
-        <section className="col-span-12 overflow-hidden rounded-2xl border border-white/[0.04] bg-[#161B22] shadow-premium-card lg:col-span-7">
+        <section className="col-span-12 overflow-hidden rounded-2xl border border-white/[0.04] bg-acp-card shadow-premium-card lg:col-span-7">
           <header className="flex items-center justify-between border-b border-white/[0.04] px-4 py-3">
             <h3 className="select-none text-[10px] font-extrabold uppercase tracking-[0.18em] text-slate-400">
               ACP Team
@@ -1141,7 +1141,7 @@ function HrStakeholdersPage({ mode }: { mode: "hr" | "investors" }) {
 
           {isLoading ? (
             <div className="flex items-center justify-center gap-2 py-10 text-xs text-slate-500">
-              <Loader2 className="h-4 w-4 animate-spin text-[#C6A66B]" /> Loading team...
+              <Loader2 className="h-4 w-4 animate-spin text-acp-bronze" /> Loading team...
             </div>
           ) : team.length === 0 ? (
             <p className="select-none py-10 text-center text-xs text-slate-500">No team members configured.</p>
@@ -1190,7 +1190,7 @@ function HrStakeholdersPage({ mode }: { mode: "hr" | "investors" }) {
         </section>
 
         {/* OPEN HIRING — PortCo CEO & operators */}
-        <section className="col-span-12 overflow-hidden rounded-2xl border border-white/[0.04] bg-[#161B22] shadow-premium-card lg:col-span-5">
+        <section className="col-span-12 overflow-hidden rounded-2xl border border-white/[0.04] bg-acp-card shadow-premium-card lg:col-span-5">
           <header className="flex items-center justify-between border-b border-white/[0.04] px-4 py-3">
             <h3 className="select-none text-[10px] font-extrabold uppercase tracking-[0.18em] text-slate-400">
               Open hiring — PortCo CEO & operators
@@ -1255,18 +1255,18 @@ function HrStakeholdersPage({ mode }: { mode: "hr" | "investors" }) {
       {isDrawerOpen && drawerUser && (
         <div className="fixed inset-0 z-50 flex justify-end">
           <div 
-            className="fixed inset-0 bg-[#07090c]/85 backdrop-blur-sm transition-opacity" 
+            className="fixed inset-0 bg-acp-deep/85 backdrop-blur-sm transition-opacity" 
             onClick={() => {
               setIsDrawerOpen(false);
               setDrawerUser(null);
             }} 
           />
           
-          <div className="relative w-full max-w-lg bg-[#0F1115] border-l border-white/10 h-full p-6 flex flex-col justify-between shadow-2xl z-10 text-slate-100 overflow-y-auto font-sans animate-fade-in-right">
+          <div className="relative w-full max-w-lg bg-acp-ink border-l border-white/10 h-full p-6 flex flex-col justify-between shadow-2xl z-10 text-slate-100 overflow-y-auto font-sans animate-fade-in-right">
             <div>
               <div className="flex items-center justify-between border-b border-white/5 pb-4 mb-6">
                 <div className="space-y-1">
-                  <span className="text-[9px] font-extrabold uppercase tracking-widest text-[#C6A66B]">
+                  <span className="text-[9px] font-extrabold uppercase tracking-widest text-acp-bronze">
                     {drawerUser.type === "team" ? "Team Member Portal" : "Stakeholder Configuration"}
                   </span>
                   <h2 className="text-lg font-bold text-white tracking-tight">{drawerUser.name}</h2>
@@ -1316,7 +1316,7 @@ function HrStakeholdersPage({ mode }: { mode: "hr" | "investors" }) {
                 <div className="space-y-1.5">
                   <label className="block text-[8px] font-extrabold uppercase tracking-wider text-slate-550">Secure Access Login Link</label>
                   <div className="flex items-center gap-2 mt-1">
-                    <span className="text-[10px] font-mono text-slate-400 truncate flex-1 bg-[#0F1115] border border-white/5 rounded-xl px-3 py-2.5 select-all">
+                    <span className="text-[10px] font-mono text-slate-400 truncate flex-1 bg-acp-ink border border-white/5 rounded-xl px-3 py-2.5 select-all">
                       {drawerUser.loginLink || (isPortalType(drawerUser.type) ? "Awaiting Setup" : "Registry-only — no portal account")}
                     </span>
                     {drawerUser.loginLink && (
@@ -1336,7 +1336,7 @@ function HrStakeholdersPage({ mode }: { mode: "hr" | "investors" }) {
                         onClick={handleGenerateLink}
                         disabled={isProvisioning || !drawerUser.email}
                         title={drawerUser.email ? "Create or re-sync this portal account and issue a single-use sign-in link" : "Add an email address first"}
-                        className="h-10 px-4 rounded-xl bg-[#C6A66B]/10 border border-[#C6A66B]/20 text-[10px] font-extrabold text-[#C6A66B] hover:bg-[#C6A66B]/20 transition cursor-pointer shrink-0 disabled:opacity-40 disabled:pointer-events-none inline-flex items-center gap-1.5"
+                        className="h-10 px-4 rounded-xl bg-acp-bronze/10 border border-acp-bronze/20 text-[10px] font-extrabold text-acp-bronze hover:bg-acp-bronze/20 transition cursor-pointer shrink-0 disabled:opacity-40 disabled:pointer-events-none inline-flex items-center gap-1.5"
                       >
                         {isProvisioning && <Loader2 className="h-3 w-3 animate-spin" />}
                         {drawerUser.loginLink ? "New Link" : "Generate Link"}
@@ -1417,7 +1417,7 @@ function HrStakeholdersPage({ mode }: { mode: "hr" | "investors" }) {
         footer={(
           <>
             <button type="button" onClick={() => setIsEditModalOpen(false)} className="h-9 px-4 rounded-xl border border-white/[0.02] text-slate-400 text-xs font-bold uppercase tracking-wider hover:bg-white/[0.015] transition cursor-pointer">Cancel</button>
-            <button type="submit" disabled={isEditSaving} className="h-9 px-5 rounded-xl bg-gradient-to-r from-[#C6A66B] to-[#B8924F] text-slate-950 text-xs font-bold uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none hover:shadow-glow-bronze transition cursor-pointer">
+            <button type="submit" disabled={isEditSaving} className="h-9 px-5 rounded-xl bg-gradient-to-r from-acp-bronze to-acp-bronze-dark text-acp-on-accent text-xs font-bold uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none hover:shadow-glow-bronze transition cursor-pointer">
               {isEditSaving ? "Saving..." : "Save Changes"}
             </button>
           </>
@@ -1502,7 +1502,7 @@ function HrStakeholdersPage({ mode }: { mode: "hr" | "investors" }) {
           </p>
           <div className="flex justify-end gap-2.5 pt-2 select-none">
             <button type="button" onClick={() => setIsResetConfirmOpen(false)} className="h-9 px-4 rounded-xl border border-white/[0.02] text-slate-450 hover:text-white transition cursor-pointer">Cancel</button>
-            <button type="button" onClick={handleResetPassword} disabled={isProvisioning} className="h-9 px-5 rounded-xl bg-amber-500 text-slate-950 font-bold hover:shadow-glow-bronze transition cursor-pointer disabled:opacity-50 disabled:pointer-events-none">
+            <button type="button" onClick={handleResetPassword} disabled={isProvisioning} className="h-9 px-5 rounded-xl bg-amber-500 text-acp-on-accent font-bold hover:shadow-glow-bronze transition cursor-pointer disabled:opacity-50 disabled:pointer-events-none">
               {isProvisioning ? "Resetting..." : "Reset Password"}
             </button>
           </div>
@@ -1522,7 +1522,7 @@ function HrStakeholdersPage({ mode }: { mode: "hr" | "investors" }) {
           </p>
           <div className="flex justify-end gap-2.5 pt-2 select-none">
             <button type="button" onClick={() => setIsDeleteConfirmOpen(false)} className="h-9 px-4 rounded-xl border border-white/[0.02] text-slate-450 hover:text-white transition cursor-pointer">Cancel</button>
-            <button type="button" onClick={handleDeleteUser} className="h-9 px-5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold transition cursor-pointer">
+            <button type="button" onClick={handleDeleteUser} className="h-9 px-5 rounded-xl bg-rose-600 hover:bg-rose-700 text-snow font-bold transition cursor-pointer">
               {isSuperAdmin ? "Confirm Permanent Delete" : "Confirm Soft Delete"}
             </button>
           </div>
@@ -1538,7 +1538,7 @@ function HrStakeholdersPage({ mode }: { mode: "hr" | "investors" }) {
         footer={(
           <>
             <button type="button" onClick={() => setIsModalOpen(false)} className="h-9 rounded-lg border border-white/[0.02] bg-transparent px-4 text-[10px] font-extrabold uppercase tracking-wider text-slate-400 hover:text-white transition cursor-pointer">Cancel</button>
-            <button type="submit" disabled={isSaving} className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-[#C6A66B] px-4 text-[10px] font-extrabold uppercase tracking-wider text-slate-950 shadow-sm hover:bg-[#C6A66B]/90 disabled:opacity-50 cursor-pointer transition">
+            <button type="submit" disabled={isSaving} className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-acp-bronze px-4 text-[10px] font-extrabold uppercase tracking-wider text-acp-on-accent shadow-sm hover:bg-acp-bronze/90 disabled:opacity-50 cursor-pointer transition">
               {isSaving ? (
                 <>
                   <Loader2 className="h-3 w-3 animate-spin" />
@@ -1594,7 +1594,7 @@ function HrStakeholdersPage({ mode }: { mode: "hr" | "investors" }) {
         footer={(
           <>
             <button type="button" onClick={() => setIsAddTeamMemberOpen(false)} className="h-9 px-4 rounded-xl border border-white/[0.02] text-slate-400 text-xs font-bold uppercase tracking-wider hover:bg-white/[0.015] transition cursor-pointer">Cancel</button>
-            <button type="submit" disabled={isTeamSaving} className="h-9 px-5 rounded-xl bg-gradient-to-r from-[#C6A66B] to-[#B8924F] text-slate-950 text-xs font-bold uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none hover:shadow-glow-bronze transition cursor-pointer">
+            <button type="submit" disabled={isTeamSaving} className="h-9 px-5 rounded-xl bg-gradient-to-r from-acp-bronze to-acp-bronze-dark text-acp-on-accent text-xs font-bold uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none hover:shadow-glow-bronze transition cursor-pointer">
               {isTeamSaving ? "Adding..." : "Add Member"}
             </button>
           </>
@@ -1649,7 +1649,7 @@ function HrStakeholdersPage({ mode }: { mode: "hr" | "investors" }) {
         footer={(
           <>
             <button type="button" onClick={() => setIsAddStakeholderOpen(false)} className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-white transition">Cancel</button>
-            <button type="submit" disabled={isStakeholderSaving} className="px-3 py-1.5 bg-[#C6A66B] text-[#07090c] text-[10px] font-black uppercase tracking-wider rounded border border-[#C6A66B] hover:bg-[#b0935d] transition">
+            <button type="submit" disabled={isStakeholderSaving} className="px-3 py-1.5 bg-acp-bronze text-acp-on-accent text-[10px] font-black uppercase tracking-wider rounded border border-acp-bronze hover:bg-acp-bronze transition">
               {isStakeholderSaving ? "Saving..." : "Add Stakeholder"}
             </button>
           </>
@@ -1703,7 +1703,7 @@ function HrStakeholdersPage({ mode }: { mode: "hr" | "investors" }) {
         footer={(
           <>
             <button type="button" onClick={() => setIsAddShareholderOpen(false)} className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-white transition">Cancel</button>
-            <button type="submit" disabled={isShareholderSaving} className="px-3 py-1.5 bg-[#C6A66B] text-[#07090c] text-[10px] font-black uppercase tracking-wider rounded border border-[#C6A66B] hover:bg-[#b0935d] transition">
+            <button type="submit" disabled={isShareholderSaving} className="px-3 py-1.5 bg-acp-bronze text-acp-on-accent text-[10px] font-black uppercase tracking-wider rounded border border-acp-bronze hover:bg-acp-bronze transition">
               {isShareholderSaving ? "Saving..." : "Add Shareholder"}
             </button>
           </>
@@ -1742,7 +1742,7 @@ function HrStakeholdersPage({ mode }: { mode: "hr" | "investors" }) {
       >
         {createdCredentials && (
           <div className="space-y-4 font-sans text-slate-200">
-            <div className="rounded-lg bg-[#C6A66B]/10 border border-[#C6A66B]/20 p-3 text-xs text-white">
+            <div className="rounded-lg bg-acp-bronze/10 border border-acp-bronze/20 p-3 text-xs text-white">
               Temporary credentials have been generated for {createdCredentials.name} ({createdCredentials.type}).
             </div>
             
@@ -1751,7 +1751,7 @@ function HrStakeholdersPage({ mode }: { mode: "hr" | "investors" }) {
                 <label className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-550 mb-1">
                   Name
                 </label>
-                <div className="w-full h-9 rounded-xl border border-white/[0.02] bg-[#161B22] px-3 flex items-center text-xs text-white">
+                <div className="w-full h-9 rounded-xl border border-white/[0.02] bg-acp-card px-3 flex items-center text-xs text-white">
                   {createdCredentials.name}
                 </div>
               </div>
@@ -1760,7 +1760,7 @@ function HrStakeholdersPage({ mode }: { mode: "hr" | "investors" }) {
                 <label className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-550 mb-1">
                   Email / Username
                 </label>
-                <div className="w-full h-9 rounded-xl border border-white/[0.02] bg-[#161B22] px-3 flex items-center text-xs text-white">
+                <div className="w-full h-9 rounded-xl border border-white/[0.02] bg-acp-card px-3 flex items-center text-xs text-white">
                   {createdCredentials.email}
                 </div>
               </div>
@@ -1774,7 +1774,7 @@ function HrStakeholdersPage({ mode }: { mode: "hr" | "investors" }) {
                     type="text"
                     readOnly
                     value={createdCredentials.pass}
-                    className="flex-1 h-9 rounded-xl border border-white/[0.02] bg-[#161B22] px-3 text-xs text-white outline-none"
+                    className="flex-1 h-9 rounded-xl border border-white/[0.02] bg-acp-card px-3 text-xs text-white outline-none"
                   />
                   <button
                     type="button"
@@ -1800,7 +1800,7 @@ function HrStakeholdersPage({ mode }: { mode: "hr" | "investors" }) {
                     type="text"
                     readOnly
                     value={createdCredentials.loginLink || `${window.location.origin}/login`}
-                    className="flex-1 h-9 rounded-xl border border-white/[0.02] bg-[#161B22] px-3 text-xs text-slate-400 outline-none"
+                    className="flex-1 h-9 rounded-xl border border-white/[0.02] bg-acp-card px-3 text-xs text-slate-400 outline-none"
                   />
                   <button
                     type="button"
@@ -1824,7 +1824,7 @@ function HrStakeholdersPage({ mode }: { mode: "hr" | "investors" }) {
               <button
                 type="button"
                 onClick={() => setCreatedCredentials(null)}
-                className="h-9 px-5 rounded-xl bg-[#C6A66B] hover:bg-[#B8924F] text-slate-950 text-xs font-black uppercase tracking-wider transition cursor-pointer"
+                className="h-9 px-5 rounded-xl bg-acp-bronze hover:bg-acp-bronze-dark text-acp-on-accent text-xs font-black uppercase tracking-wider transition cursor-pointer"
               >
                 Done
               </button>

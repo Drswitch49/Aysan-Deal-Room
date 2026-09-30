@@ -117,7 +117,7 @@ export function DashboardPage() {
       {/* Top Header Block */}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 pb-6 border-b border-white/[0.02]">
         <div className="space-y-2">
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#C6A66B] select-none">
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-acp-bronze select-none">
             ACP Deal Intelligence
           </p>
           <h1 className="font-heading text-2xl font-bold text-white uppercase tracking-tight leading-none select-none">
@@ -160,7 +160,7 @@ export function DashboardPage() {
               </div>
               <Link 
                 to="/admin/lenders"
-                className="inline-flex h-8 items-center justify-center rounded-xl bg-rose-500 hover:bg-rose-600 px-4 text-[10px] font-bold uppercase tracking-wider text-white transition cursor-pointer self-start sm:self-auto"
+                className="inline-flex h-8 items-center justify-center rounded-xl bg-rose-500 hover:bg-rose-600 px-4 text-[10px] font-bold uppercase tracking-wider text-snow transition cursor-pointer self-start sm:self-auto"
               >
                 Open Chat Portal
               </Link>
@@ -211,7 +211,7 @@ export function DashboardPage() {
                   {stats.recentMovements && stats.recentMovements.map((move: any) => {
                     // Muted color dots based on update type
                     let dotColor = "bg-slate-500";
-                    if (move.type === "loi_sent") dotColor = "bg-[#C6A66B]";
+                    if (move.type === "loi_sent") dotColor = "bg-acp-bronze";
                     else if (move.type === "dd_started" || move.type === "dd_completed") dotColor = "bg-emerald-500/80";
                     else if (move.type === "deal_archived") dotColor = "bg-rose-500/70";
                     else if (move.type === "lender_engaged") dotColor = "bg-amber-500/70";
@@ -227,7 +227,7 @@ export function DashboardPage() {
 
                           {/* Status detail */}
                           <div className="min-w-0">
-                            <p className="text-xs font-medium text-white leading-normal truncate group-hover/move:text-[#C6A66B] transition-colors">
+                            <p className="text-xs font-medium text-white leading-normal truncate group-hover/move:text-acp-bronze transition-colors">
                               {move.title}
                             </p>
                             <p className="mt-1 text-[10px] text-slate-450 leading-relaxed truncate">
@@ -307,7 +307,7 @@ export function DashboardPage() {
                       {/* Action Detail */}
                       <div className="min-w-0 flex-1">
                         <p
-                          className="text-xs font-medium text-white leading-tight group-hover/act:text-[#C6A66B] transition-colors truncate"
+                          className="text-xs font-medium text-white leading-tight group-hover/act:text-acp-bronze transition-colors truncate"
                           title={act.title}
                         >
                           {truncate(act.title, 58)}
@@ -397,9 +397,9 @@ export function DashboardPage() {
                 
                 <div className="mt-5 space-y-4 font-sans">
                   {[
-                    { label: "Inbound", count: stats.stageDistribution.inbound, color: "bg-[#717680]/50" },
-                    { label: "Seller Call", count: stats.stageDistribution.sellerCall, color: "bg-[#717680]/70" },
-                    { label: "IM Review", count: stats.stageDistribution.imReview, color: "bg-[#C6A66B]/80" },
+                    { label: "Inbound", count: stats.stageDistribution.inbound, color: "bg-slate-500/50" },
+                    { label: "Seller Call", count: stats.stageDistribution.sellerCall, color: "bg-slate-500/70" },
+                    { label: "IM Review", count: stats.stageDistribution.imReview, color: "bg-acp-bronze/80" },
                     { label: "Due Diligence", count: stats.stageDistribution.dueDiligence, color: "bg-emerald-500/60" },
                   ].map(({ label, count, color }) => {
                     const pct = Math.round((count / Math.max(stats.activePipelineCount, 1)) * 100);

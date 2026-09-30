@@ -101,14 +101,14 @@ const STAGE_BADGE_COLORS: Record<string, string> = {
   "Intro": "bg-indigo-500/10 text-indigo-400 border-indigo-500/20 hover:border-indigo-550/40 hover:bg-indigo-500/20",
   "NDA Signed": "bg-blue-500/10 text-blue-400 border-blue-500/20 hover:border-blue-550/40 hover:bg-blue-500/20",
   "Information Requested": "bg-purple-500/10 text-purple-400 border-purple-500/20 hover:border-purple-550/40 hover:bg-purple-500/20",
-  "LOI Drafted": "bg-amber-500/10 text-amber-550 border-amber-550/20 hover:border-amber-550/40 hover:bg-[#C6A66B]/20",
+  "LOI Drafted": "bg-amber-500/10 text-amber-550 border-amber-550/20 hover:border-amber-550/40 hover:bg-acp-bronze/20",
   "LOI Submitted": "bg-amber-500/10 text-amber-500 border-amber-500/20 hover:border-amber-550/40 hover:bg-amber-500/20",
   "Killed": "bg-red-500/10 text-red-400 border-red-500/20 hover:border-red-550/40 hover:bg-red-500/20",
   "Due Diligence": "bg-purple-500/10 text-purple-400 border-purple-500/20 hover:border-purple-550/40 hover:bg-purple-500/20",
   "IC Decision": "bg-emerald-500/10 text-emerald-450 border-emerald-500/20 hover:border-emerald-550/40 hover:bg-emerald-500/20",
   "IM Review": "bg-purple-500/10 text-purple-400 border-purple-500/20 hover:border-purple-550/40 hover:bg-purple-500/20",
   "Seller Call": "bg-blue-500/10 text-blue-400 border-blue-500/20 hover:border-blue-550/40 hover:bg-blue-500/20",
-  "Offer Submitted": "bg-[#C6A66B]/10 text-[#C6A66B] border-[#C6A66B]/20 hover:border-[#C6A66B]/40 hover:bg-[#C6A66B]/20",
+  "Offer Submitted": "bg-acp-bronze/10 text-acp-bronze border-acp-bronze/20 hover:border-acp-bronze/40 hover:bg-acp-bronze/20",
   "Active": "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:border-emerald-500/40 hover:bg-emerald-500/20",
 };
 
@@ -696,19 +696,19 @@ export function DealDetailPage() {
 
 
   return (
-    <div className="space-y-6 text-[#E2E8F0] font-sans">
+    <div className="space-y-6 text-slate-200 font-sans">
       <div>
         {/* Simplified Premium Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/5 pb-4">
           <div className="flex items-center gap-3.5 min-w-0">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr from-[#C6A66B]/20 to-[#D4B06A]/10 border border-[#C6A66B]/30 text-white shadow-inner">
-              <Building2 className="h-5 w-5 text-[#C6A66B]" aria-hidden="true" />
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr from-acp-bronze/20 to-acp-bronze-light/10 border border-acp-bronze/30 text-white shadow-inner">
+              <Building2 className="h-5 w-5 text-acp-bronze" aria-hidden="true" />
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2 select-none text-[9px] font-extrabold uppercase tracking-widest text-slate-500">
                 <span>Deals</span>
                 <span className="text-slate-700 text-[10px] font-bold">/</span>
-                <span className="text-[#C6A66B] font-mono">{joinedDeal.dealRef}</span>
+                <span className="text-acp-bronze font-mono">{joinedDeal.dealRef}</span>
               </div>
               <h1 className="text-xl font-black text-white tracking-tight mt-1 truncate leading-tight">
                 {joinedDeal.companyName || joinedDeal.dealRef}
@@ -729,7 +729,7 @@ export function DealDetailPage() {
                 <span className="text-slate-700 font-bold">·</span>
                 <span>{joinedDeal.location}</span>
                 <span className="text-slate-700 font-bold">·</span>
-                <span>Asking EV: <span className="text-[#C6A66B] font-extrabold">{joinedDeal.evAsk ? formatGBP(Number(joinedDeal.evAsk)) : "TBC"}</span></span>
+                <span>Asking EV: <span className="text-acp-bronze font-extrabold">{joinedDeal.evAsk ? formatGBP(Number(joinedDeal.evAsk)) : "TBC"}</span></span>
               </div>
             </div>
             <div className="flex items-center gap-2 shrink-0 ml-1">
@@ -766,13 +766,13 @@ export function DealDetailPage() {
               className={cx(
                 "inline-flex h-9 items-center justify-center gap-2 whitespace-nowrap text-[10px] font-bold uppercase tracking-widest transition-all duration-150 cursor-pointer border-b-2 pb-2.5 px-1",
                 activeTab === tab.id
-                  ? "border-[#C6A66B] text-white"
+                  ? "border-acp-bronze text-white"
                   : "border-transparent text-slate-450 hover:text-slate-200",
               )}
               onClick={() => setActiveTab(tab.id)}
               type="button"
             >
-              <tab.icon className={cx("h-3.5 w-3.5 transition-colors duration-150", activeTab === tab.id ? "text-[#C6A66B]" : "text-slate-500")} aria-hidden="true" />
+              <tab.icon className={cx("h-3.5 w-3.5 transition-colors duration-150", activeTab === tab.id ? "text-acp-bronze" : "text-slate-500")} aria-hidden="true" />
               {tab.label}
             </button>
           ))}
@@ -856,7 +856,7 @@ export function DealDetailPage() {
         {activeTab === "chat" && (
           <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-6 items-start animate-fade-in-up">
             {/* Lenders List */}
-            <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-4 space-y-4">
+            <div className="rounded-2xl border border-white/[0.02] bg-acp-card p-4 space-y-4">
               <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 select-none pb-2 border-b border-white/5">
                 Assigned Lenders
               </h4>
@@ -880,7 +880,7 @@ export function DealDetailPage() {
                         className={cx(
                           "w-full text-left px-3 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all border block cursor-pointer",
                           isActive
-                            ? "bg-[#C6A66B]/10 border-[#C6A66B] text-white shadow-glow-bronze/5"
+                            ? "bg-acp-bronze/10 border-acp-bronze text-white shadow-glow-bronze/5"
                             : "bg-white/[0.02] border-white/5 text-slate-350 hover:bg-white/[0.04] hover:text-white"
                         )}
                       >
@@ -1004,7 +1004,7 @@ export function DealDetailPage() {
                   setErrorMessage("");
                   setAssignmentSuccess(false);
                 }}
-                className="text-[10px] font-black uppercase tracking-wider text-[#C6A66B] hover:underline cursor-pointer"
+                className="text-[10px] font-black uppercase tracking-wider text-acp-bronze hover:underline cursor-pointer"
                 type="button"
               >
                 {isCreatingNew ? "Use Existing" : "Create New"}
@@ -1074,7 +1074,7 @@ export function DealDetailPage() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="mt-2 w-full h-10 rounded-xl bg-gradient-to-r from-acp-bronze to-acp-bronze-dark text-white font-black text-xs uppercase tracking-wider hover:opacity-90 transition disabled:opacity-50 flex items-center justify-center cursor-pointer"
+                  className="mt-2 w-full h-10 rounded-xl bg-gradient-to-r from-acp-bronze to-acp-bronze-dark text-snow font-black text-xs uppercase tracking-wider hover:opacity-90 transition disabled:opacity-50 flex items-center justify-center cursor-pointer"
                 >
                   {submitting ? "Creating & Assigning..." : "Create & Assign"}
                 </button>
@@ -1105,7 +1105,7 @@ export function DealDetailPage() {
                 <button
                   type="submit"
                   disabled={submitting || !selectedLenderId || isLoadingLenders}
-                  className="mt-4 w-full h-10 rounded-xl bg-gradient-to-r from-acp-bronze to-acp-bronze-dark text-white font-black text-xs uppercase tracking-wider hover:opacity-90 transition disabled:opacity-50 flex items-center justify-center cursor-pointer"
+                  className="mt-4 w-full h-10 rounded-xl bg-gradient-to-r from-acp-bronze to-acp-bronze-dark text-snow font-black text-xs uppercase tracking-wider hover:opacity-90 transition disabled:opacity-50 flex items-center justify-center cursor-pointer"
                 >
                   {submitting ? "Assigning..." : "Assign Lender"}
                 </button>
@@ -1140,7 +1140,7 @@ export function DealDetailPage() {
               </>
             ) : (
               <>
-                You are changing the deal stage from <span className="font-bold text-white">{currentStage}</span> to <span className="font-bold text-[#C6A66B]">{targetStage || ""}</span>.
+                You are changing the deal stage from <span className="font-bold text-white">{currentStage}</span> to <span className="font-bold text-acp-bronze">{targetStage || ""}</span>.
                 This action will record an entry in the immutable audit trail and trigger downstream workflows.
               </>
             )}
@@ -1185,7 +1185,7 @@ export function DealDetailPage() {
                 "h-9 px-4 rounded-xl text-xs font-bold uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none transition cursor-pointer",
                 targetStage === "Killed"
                   ? "border border-rose-500/30 bg-rose-500/15 text-rose-300 hover:bg-rose-500/25"
-                  : "bg-gradient-to-r from-[#C6A66B] to-[#B8924F] text-slate-950 hover:shadow-glow-bronze"
+                  : "bg-gradient-to-r from-acp-bronze to-acp-bronze-dark text-acp-on-accent hover:shadow-glow-bronze"
               )}
             >
               {isTransitioning
@@ -1206,7 +1206,7 @@ export function DealDetailPage() {
         footer={(
           <>
             <button type="button" onClick={() => setIsEditDealOpen(false)} className="h-9 px-4 rounded-xl border border-white/[0.02] text-slate-400 text-xs font-bold uppercase tracking-wider hover:bg-white/[0.015] transition cursor-pointer">Cancel</button>
-            <button type="submit" disabled={isEditSaving} className="h-9 px-5 rounded-xl bg-gradient-to-r from-[#C6A66B] to-[#B8924F] text-slate-950 text-xs font-bold uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none hover:shadow-glow-bronze transition cursor-pointer">
+            <button type="submit" disabled={isEditSaving} className="h-9 px-5 rounded-xl bg-gradient-to-r from-acp-bronze to-acp-bronze-dark text-acp-on-accent text-xs font-bold uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none hover:shadow-glow-bronze transition cursor-pointer">
               {isEditSaving ? "Saving..." : "Save Changes"}
             </button>
           </>
@@ -1273,7 +1273,7 @@ export function DealDetailPage() {
                 >
                   <option value="">Unassigned</option>
                   {eligibleUsers.map((name: string) => (
-                    <option key={name} value={name} className="bg-[#0B0B0C]">{name}</option>
+                    <option key={name} value={name} className="bg-acp-deep">{name}</option>
                   ))}
                 </select>
               </FormField>
@@ -1333,11 +1333,11 @@ export function DealDetailPage() {
                 {editImDocs.docs.map((att, idx) => (
                   <div key={att.id || idx} className="flex items-center justify-between p-2 rounded-lg bg-white/[0.015] border border-white/5 text-[11px]">
                     <div className="flex items-center gap-2 min-w-0">
-                      <FileText className="h-3.5 w-3.5 text-[#C6A66B] shrink-0" />
+                      <FileText className="h-3.5 w-3.5 text-acp-bronze shrink-0" />
                       <span className="text-white truncate font-medium">{att.filename}</span>
                     </div>
                     <div className="flex items-center gap-3">
-                      <label className="text-[10px] font-bold text-[#C6A66B] hover:text-white cursor-pointer select-none">
+                      <label className="text-[10px] font-bold text-acp-bronze hover:text-white cursor-pointer select-none">
                         {editImDocs.busyId === att.id ? "Working…" : "Replace"}
                         <input
                           type="file"
@@ -1396,7 +1396,7 @@ export function DealDetailPage() {
       {/* Delete Confirmation Modal for Edit Modal IM Attachment */}
       {editImToDelete !== null && (
         <div className="fixed inset-0 bg-slate-950/65 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-sm rounded-2xl border border-white/[0.02] bg-[#161B22] p-6 shadow-2xl relative animate-scale-in">
+          <div className="w-full max-w-sm rounded-2xl border border-white/[0.02] bg-acp-card p-6 shadow-2xl relative animate-scale-in">
             <h3 className="text-base font-bold text-white uppercase tracking-wider mb-3">
               Delete Attachment
             </h3>
@@ -1447,7 +1447,7 @@ function BackLink() {
   return (
     <Link 
       to="/deals" 
-      className="group mb-5 inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-400 hover:text-[#C6A66B] transition-colors duration-300"
+      className="group mb-5 inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-400 hover:text-acp-bronze transition-colors duration-300"
     >
       <ArrowLeft className="h-3.5 w-3.5 transition-transform duration-300 group-hover:-translate-x-1" aria-hidden="true" />
       Back to Pipeline
@@ -1473,7 +1473,7 @@ function AccordionPanel({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] overflow-hidden transition-all duration-200">
+    <div className="rounded-2xl border border-white/[0.02] bg-acp-card overflow-hidden transition-all duration-200">
       <button
         type="button"
         onClick={onToggle}
@@ -1523,7 +1523,7 @@ function renderRichText(text: string) {
         if (isBullet) {
           return (
             <div key={idx} className="flex items-start gap-1.5 text-xs text-slate-300 pl-1 select-text">
-              <span className="text-[#C6A66B] select-none mt-1 shrink-0 text-[10px]">•</span>
+              <span className="text-acp-bronze select-none mt-1 shrink-0 text-[10px]">•</span>
               <span className="leading-relaxed">{renderedLine}</span>
             </div>
           );
@@ -1580,7 +1580,7 @@ function ContactRow({
             href={href}
             className={cx(
               "text-[11px] font-semibold truncate hover:underline transition",
-              accent ? "text-[#C6A66B] hover:text-[#B8924F]" : "text-slate-200 hover:text-white",
+              accent ? "text-acp-bronze hover:text-acp-bronze-dark" : "text-slate-200 hover:text-white",
             )}
             title={text}
           >
@@ -1655,7 +1655,7 @@ function SimpleMarkdown({ content }: { content: string }) {
                 const cleanText = t.replace(/^[-*•]\s+/, "").replace(/^\d+\.\s+/, "");
                 return (
                   <li key={lIdx} className="flex items-start gap-2 text-xs text-slate-300 leading-relaxed">
-                    <span className="text-[#C6A66B] mt-1 shrink-0 text-[10px]">•</span>
+                    <span className="text-acp-bronze mt-1 shrink-0 text-[10px]">•</span>
                     <span>{parseInlineMarkdown(cleanText)}</span>
                   </li>
                 );
@@ -1841,11 +1841,11 @@ function OverviewTab({
       {/* Transaction snapshot — one strip of divided cells rather than four tall
           cards, so the numbers read as a single row of figures and the fold
           arrives at the deal content instead of below it. */}
-      <div className="rounded-2xl border border-white/[0.04] bg-[#161B22] shadow-premium-card card-sheen overflow-hidden">
+      <div className="rounded-2xl border border-white/[0.04] bg-acp-card shadow-premium-card card-sheen overflow-hidden">
         <div className="grid grid-cols-2 md:grid-cols-5 divide-x divide-white/[0.04]">
           {[
             { label: "Location", value: deal.location || "TBC", tone: "text-white" },
-            { label: "Turnover", value: formatGBPVal(deal.turnover || deal.revenue), tone: "text-[#C6A66B]" },
+            { label: "Turnover", value: formatGBPVal(deal.turnover || deal.revenue), tone: "text-acp-bronze" },
             { label: "EBITDA", value: formatGBPVal(deal.ebitda), tone: "text-white" },
             { label: "Asking Price", value: formatGBPVal(deal.evAsk), tone: "text-white" },
             { label: "EV Multiple", value: multVal > 0 ? `${multVal.toFixed(1)}x` : "TBC", tone: multVal > 0 && multVal <= 9 ? "text-emerald-400" : "text-white" },
@@ -1868,12 +1868,12 @@ function OverviewTab({
           {/* Company profile — Business Description and Executive Summary share
               one card. As two cards they cost ~300px of chrome even when both
               are empty, which is the common case on a freshly-intaken deal. */}
-          <div className="rounded-2xl border border-white/[0.04] bg-[#161B22] p-5 shadow-premium-card card-sheen relative overflow-hidden">
+          <div className="rounded-2xl border border-white/[0.04] bg-acp-card p-5 shadow-premium-card card-sheen relative overflow-hidden">
             <div className="relative z-10 space-y-4">
               <div className="flex items-center justify-between gap-3 pb-3 border-b border-white/5">
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="h-7 w-7 shrink-0 rounded-lg bg-[#C6A66B]/10 border border-[#C6A66B]/20 flex items-center justify-center">
-                    <Building2 className="h-4 w-4 text-[#C6A66B]" />
+                  <div className="h-7 w-7 shrink-0 rounded-lg bg-acp-bronze/10 border border-acp-bronze/20 flex items-center justify-center">
+                    <Building2 className="h-4 w-4 text-acp-bronze" />
                   </div>
                   <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-350 truncate">Company Profile</h4>
                 </div>
@@ -1897,14 +1897,14 @@ function OverviewTab({
           </div>
 
           {/* Card 1: Claude AI Verdict & Key Risks (Visible by default) */}
-          <div className="rounded-2xl border border-white/[0.04] bg-[#161B22] p-5 shadow-premium-card card-sheen relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-[#C6A66B]/5 blur-3xl pointer-events-none" />
+          <div className="rounded-2xl border border-white/[0.04] bg-acp-card p-5 shadow-premium-card card-sheen relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-acp-bronze/5 blur-3xl pointer-events-none" />
             <div className="relative z-10 space-y-4">
 
               <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-white/5">
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="h-7 w-7 shrink-0 rounded-lg bg-[#C6A66B]/10 border border-[#C6A66B]/20 flex items-center justify-center">
-                    <BrainCircuit className="h-4 w-4 text-[#C6A66B]" />
+                  <div className="h-7 w-7 shrink-0 rounded-lg bg-acp-bronze/10 border border-acp-bronze/20 flex items-center justify-center">
+                    <BrainCircuit className="h-4 w-4 text-acp-bronze" />
                   </div>
                   <div className="min-w-0">
                     <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-350 truncate">Claude AI Investment Verdict</h4>
@@ -1934,7 +1934,7 @@ function OverviewTab({
                     <button
                       onClick={handleGenerateVerdict}
                       disabled={isGeneratingVerdict}
-                      className="h-7 px-2.5 rounded-lg border border-[#C6A66B]/30 bg-[#C6A66B]/10 hover:bg-[#C6A66B]/20 text-[#C6A66B] text-[9px] font-black uppercase tracking-widest transition-colors inline-flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
+                      className="h-7 px-2.5 rounded-lg border border-acp-bronze/30 bg-acp-bronze/10 hover:bg-acp-bronze/20 text-acp-bronze text-[9px] font-black uppercase tracking-widest transition-colors inline-flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
                     >
                       {isGeneratingVerdict ? (
                         <>
@@ -1951,7 +1951,7 @@ function OverviewTab({
                   )}
                   <div className="pl-3 border-l border-white/[0.06]">
                     <span className="block text-[8px] font-bold text-slate-500 uppercase tracking-wider">Post-call</span>
-                    <span className="text-base font-black text-[#C6A66B] font-mono tracking-tight block leading-tight">
+                    <span className="text-base font-black text-acp-bronze font-mono tracking-tight block leading-tight">
                       {overallDisplayScore}
                     </span>
                   </div>
@@ -1973,7 +1973,7 @@ function OverviewTab({
                   // — nothing has been analysed, so there is nothing to head up.
                   return (
                     <p className="text-xs leading-relaxed text-slate-400 font-normal">
-                      Not analysed yet. Run <span className="font-semibold text-[#C6A66B]">Generate Verdict</span> to score this deal against ACP's criteria using the latest deal data, documents and SOPs.
+                      Not analysed yet. Run <span className="font-semibold text-acp-bronze">Generate Verdict</span> to score this deal against ACP's criteria using the latest deal data, documents and SOPs.
                     </p>
                   );
                 }
@@ -2160,12 +2160,12 @@ function OverviewTab({
               <div className="space-y-2 pt-3 border-t border-white/5">
                 <span className="block text-[9px] font-extrabold uppercase tracking-widest text-slate-400 select-none">Proposed Capital Structure</span>
                 
-                <div className="h-6 w-full rounded-lg overflow-hidden flex text-[8px] font-black uppercase tracking-wider text-slate-950 border border-white/[0.02] shadow-inner select-none">
+                <div className="h-6 w-full rounded-lg overflow-hidden flex text-[8px] font-black uppercase tracking-wider text-acp-on-accent border border-white/[0.02] shadow-inner select-none">
                   {capitalStack.map((item: any, idx: number) => {
                     const colors = [
-                      "bg-[#13161C] text-slate-300 border-r border-white/5",
-                      "bg-[#C6A66B] text-slate-950 border-r border-white/5",
-                      "bg-[#E8DEC9] text-slate-950"
+                      "bg-acp-navy text-slate-300 border-r border-white/5",
+                      "bg-acp-bronze text-acp-on-accent border-r border-white/5",
+                      "bg-[#E8DEC9] text-acp-on-accent"
                     ];
                     return (
                       <div 
@@ -2208,7 +2208,7 @@ function OverviewTab({
                     </div>
                     <div className="h-1.5 w-full bg-white/[0.015] rounded-full overflow-hidden">
                       <div 
-                        className="h-full rounded-full bg-[#C6A66B]" 
+                        className="h-full rounded-full bg-acp-bronze" 
                         style={{ width: `${item.value}%` }} 
                       />
                     </div>
@@ -2320,7 +2320,7 @@ function OverviewTab({
 
           {/* Sourcing & Contact — a label/value list with icons. Empty fields
               show a dash on one line instead of a stacked "No … provided". */}
-          <div className="rounded-2xl border border-white/[0.04] bg-[#161B22] p-5 space-y-3 shadow-premium-card card-sheen relative overflow-hidden">
+          <div className="rounded-2xl border border-white/[0.04] bg-acp-card p-5 space-y-3 shadow-premium-card card-sheen relative overflow-hidden">
             <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 select-none block font-sans">Sourcing &amp; Contact</span>
             <div className="space-y-2">
               <ContactRow icon={<User className="h-3.5 w-3.5" />} label="Contact" value={deal.broker || deal.rawFields?.["Contact Name"]} />
@@ -2364,9 +2364,9 @@ function OverviewTab({
 
           {/* Ownership + stage — the two controls that actually get changed,
               in one card rather than two stacked headers. */}
-          <div className="rounded-2xl border border-white/[0.04] bg-[#161B22] p-5 space-y-4 shadow-premium-card card-sheen">
+          <div className="rounded-2xl border border-white/[0.04] bg-acp-card p-5 space-y-4 shadow-premium-card card-sheen">
             <div className="flex items-center gap-3">
-              <div className="h-9 w-9 shrink-0 rounded-xl bg-[#C6A66B]/10 border border-[#C6A66B]/20 flex items-center justify-center text-[#C6A66B] font-bold text-xs tracking-wide font-mono select-none">
+              <div className="h-9 w-9 shrink-0 rounded-xl bg-acp-bronze/10 border border-acp-bronze/20 flex items-center justify-center text-acp-bronze font-bold text-xs tracking-wide font-mono select-none">
                 {ownerInitials}
               </div>
               <div className="flex-1 min-w-0">
@@ -2383,11 +2383,11 @@ function OverviewTab({
                       }
                     }
                   }}
-                  className="w-full bg-transparent border-0 p-0 text-xs font-bold text-white focus:ring-0 focus:outline-none cursor-pointer outline-none hover:text-[#C6A66B] transition-colors appearance-none"
+                  className="w-full bg-transparent border-0 p-0 text-xs font-bold text-white focus:ring-0 focus:outline-none cursor-pointer outline-none hover:text-acp-bronze transition-colors appearance-none"
                 >
-                  <option value="" className="bg-[#161B22] text-slate-400">Unassigned</option>
+                  <option value="" className="bg-acp-card text-slate-400">Unassigned</option>
                   {eligibleUsers.map((name: string) => (
-                    <option key={name} value={name} className="bg-[#161B22] text-white">{name}</option>
+                    <option key={name} value={name} className="bg-acp-card text-white">{name}</option>
                   ))}
                 </select>
               </div>
@@ -2413,7 +2413,7 @@ function OverviewTab({
               >
                 <option value={currentStage}>{currentStage}</option>
                 {availableStages.filter((stg) => stg.toLowerCase() !== currentStage.toLowerCase()).map((stg) => (
-                  <option key={stg} value={stg} className="bg-[#0e0e10] text-slate-250">
+                  <option key={stg} value={stg} className="bg-acp-deep text-slate-250">
                     → Move to {stg}
                   </option>
                 ))}
@@ -2423,7 +2423,7 @@ function OverviewTab({
 
 
           {/* Section 2: Essential Actions */}
-          <div className="rounded-2xl border border-white/[0.04] bg-[#161B22] p-5 space-y-4 shadow-premium-card card-sheen">
+          <div className="rounded-2xl border border-white/[0.04] bg-acp-card p-5 space-y-4 shadow-premium-card card-sheen">
             <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 select-none block font-sans">Essential Actions</span>
 
             <div className="space-y-3">
@@ -2437,7 +2437,7 @@ function OverviewTab({
                     body: loiEmailBody(deal, loiTermsFromDeal(deal), deal.rawFields?.["Contact Name"] || deal.rawFields?.["Broker Name"] || ""),
                     generatedBy: "precall_brief_engine"
                   })}
-                  className="h-9 rounded-xl bg-[#C6A66B] hover:bg-[#B8924F] text-slate-950 font-black text-[10px] uppercase tracking-wider transition flex items-center justify-center gap-1.5 cursor-pointer shadow-glow-bronze/10"
+                  className="h-9 rounded-xl bg-acp-bronze hover:bg-acp-bronze-dark text-acp-on-accent font-black text-[10px] uppercase tracking-wider transition flex items-center justify-center gap-1.5 cursor-pointer shadow-glow-bronze/10"
                 >
                   <Send className="h-3.5 w-3.5" />
                   Send LOI
@@ -2465,7 +2465,7 @@ function OverviewTab({
                   <button 
                     type="button"
                     onClick={openAddLenderModal}
-                    className="text-xs font-bold text-[#C6A66B] hover:underline"
+                    className="text-xs font-bold text-acp-bronze hover:underline"
                   >
                     Link Lender
                   </button>
@@ -2486,9 +2486,9 @@ function OverviewTab({
           </div>
 
           {/* Section 3: Next Action & Key Dates */}
-          <div id="deal-section-timeline" className="rounded-2xl border border-white/[0.04] bg-[#161B22] p-5 space-y-3 shadow-premium-card card-sheen">
+          <div id="deal-section-timeline" className="rounded-2xl border border-white/[0.04] bg-acp-card p-5 space-y-3 shadow-premium-card card-sheen">
             <h4 className="text-[9px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-1.5 select-none font-sans">
-              <Clock className="h-3.5 w-3.5 text-[#C6A66B]" />
+              <Clock className="h-3.5 w-3.5 text-acp-bronze" />
               Next Action Details
             </h4>
             
@@ -2509,7 +2509,7 @@ function OverviewTab({
           </div>
 
           {/* Section 4: Due Diligence Progress */}
-          <div className="rounded-2xl border border-white/[0.04] bg-[#161B22] p-5 space-y-4 shadow-premium-card card-sheen">
+          <div className="rounded-2xl border border-white/[0.04] bg-acp-card p-5 space-y-4 shadow-premium-card card-sheen">
             {(() => {
               const docList = documents || [];
               const checks = [
@@ -2545,17 +2545,17 @@ function OverviewTab({
                 <>
                   <div className="flex items-center justify-between border-b border-white/5 pb-3">
                     <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5 select-none font-sans">
-                      <ClipboardList className="h-4 w-4 text-[#C6A66B]" />
+                      <ClipboardList className="h-4 w-4 text-acp-bronze" />
                       Due Diligence Progress
                     </h4>
-                    <span className="text-xs font-bold text-[#C6A66B]">{computedReadiness}%</span>
+                    <span className="text-xs font-bold text-acp-bronze">{computedReadiness}%</span>
                   </div>
 
                   {/* Premium Progress Bar */}
                   <div className="space-y-1">
                     <div className="h-1.5 w-full bg-white/[0.03] rounded-full overflow-hidden border border-white/[0.02]">
                       <div 
-                        className="h-full bg-gradient-to-r from-[#C6A66B] to-[#E3C185] rounded-full transition-all duration-500" 
+                        className="h-full bg-gradient-to-r from-acp-bronze to-acp-bronze-light rounded-full transition-all duration-500" 
                         style={{ width: `${computedReadiness}%` }}
                       />
                     </div>
@@ -2785,7 +2785,7 @@ function PreCallBriefTab({ deal, openComposer }: { deal: any; openComposer: (opt
   if (isLoading) {
     return (
       <div className="flex h-64 items-center justify-center">
-        <Loader2 className="h-8 w-8 text-[#C6A66B] animate-spin" />
+        <Loader2 className="h-8 w-8 text-acp-bronze animate-spin" />
         <span className="text-xs text-slate-400 ml-2 font-sans">Loading briefs...</span>
       </div>
     );
@@ -2798,7 +2798,7 @@ function PreCallBriefTab({ deal, openComposer }: { deal: any; openComposer: (opt
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-white/5 pb-3">
           <div>
             <h3 className="text-sm font-bold text-white flex items-center gap-2">
-              <FileText className="h-4 w-4 text-[#C6A66B]" />
+              <FileText className="h-4 w-4 text-acp-bronze" />
               Pre-call Intelligence
             </h3>
           </div>
@@ -2818,7 +2818,7 @@ function PreCallBriefTab({ deal, openComposer }: { deal: any; openComposer: (opt
                   if (matched) setSelectedBrief(matched);
                 }
               }}
-              className="rounded-lg border border-white/[0.02] bg-[#161B22] px-3 py-1.5 text-xs font-semibold text-slate-200 outline-none hover:border-white/20 focus:border-[#C6A66B]/50"
+              className="rounded-lg border border-white/[0.02] bg-acp-card px-3 py-1.5 text-xs font-semibold text-slate-200 outline-none hover:border-white/20 focus:border-acp-bronze/50"
             >
               {briefs.map((b) => (
                 <option key={b.id} value={b.id}>
@@ -2852,12 +2852,12 @@ function PreCallBriefTab({ deal, openComposer }: { deal: any; openComposer: (opt
         /* Progress loader */
         <div className="rounded-2xl border border-white/15 bg-acp-card backdrop-blur-md p-10 flex flex-col items-center justify-center space-y-6 min-h-[350px]">
           <div className="relative flex items-center justify-center">
-            <RefreshCw className="h-12 w-12 text-[#C6A66B] animate-spin" />
-            <div className="absolute h-6 w-6 rounded-full bg-[#C6A66B]/10 animate-ping" />
+            <RefreshCw className="h-12 w-12 text-acp-bronze animate-spin" />
+            <div className="absolute h-6 w-6 rounded-full bg-acp-bronze/10 animate-ping" />
           </div>
           <div className="text-center space-y-2">
             <h4 className="text-base font-bold text-white font-sans">Generating Intelligence Brief</h4>
-            <p className="text-xs text-[#C6A66B] font-medium select-none tracking-wide animate-pulse font-sans">
+            <p className="text-xs text-acp-bronze font-medium select-none tracking-wide animate-pulse font-sans">
               {steps[loadingStep]}
             </p>
             {/* The real queue state, under the animated step list. Without it a
@@ -2871,7 +2871,7 @@ function PreCallBriefTab({ deal, openComposer }: { deal: any; openComposer: (opt
           </div>
           <div className="w-full max-w-xs bg-white/[0.015] rounded-full h-1.5 overflow-hidden">
             <div 
-              className="bg-[#C6A66B] h-1.5 rounded-full transition-all duration-700 ease-out" 
+              className="bg-acp-bronze h-1.5 rounded-full transition-all duration-700 ease-out" 
               style={{ width: `${((loadingStep + 1) / steps.length) * 100}%` }}
             />
           </div>
@@ -2885,7 +2885,7 @@ function PreCallBriefTab({ deal, openComposer }: { deal: any; openComposer: (opt
         <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-6 items-start font-sans animate-fade-in-up">
           {/* Left Pane: Config used — pinned below the header, its own scroll
               area, so "Generate new brief" stays reachable at the footer. */}
-          <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 space-y-6 flex flex-col justify-between lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)]">
+          <div className="rounded-2xl border border-white/[0.02] bg-acp-card p-5 space-y-6 flex flex-col justify-between lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)]">
             <div className="space-y-5 flex-1 min-h-0 overflow-y-auto pr-1">
               <h3 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 pb-2 border-b border-white/5">
                 BRIEF PARAMETERS
@@ -2914,7 +2914,7 @@ function PreCallBriefTab({ deal, openComposer }: { deal: any; openComposer: (opt
                 <div className="space-y-2 mt-4 pt-4 border-t border-white/5">
                   <span className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-500">COVERAGE SCENARIO</span>
                   <div className="flex items-center gap-2">
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-[10px] font-semibold bg-[#C6A66B]/20 text-[#C6A66B] border border-[#C6A66B]/20">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-[10px] font-semibold bg-acp-bronze/20 text-acp-bronze border border-acp-bronze/20">
                       {ACP_SCENARIOS[selectedBrief.selectedScenario]?.name || selectedBrief.selectedScenario}
                     </span>
                   </div>
@@ -2924,7 +2924,7 @@ function PreCallBriefTab({ deal, openComposer }: { deal: any; openComposer: (opt
               {/* Call Type */}
               <div className="space-y-2">
                 <span className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-500">CALL TYPE</span>
-                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-extrabold uppercase tracking-wider bg-[#C6A66B]/10 border border-[#C6A66B]/20 text-[#C6A66B]">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-extrabold uppercase tracking-wider bg-acp-bronze/10 border border-acp-bronze/20 text-acp-bronze">
                   {selectedBrief.selectedCallType === "1st" ? "1st Seller Call" : selectedBrief.selectedCallType === "2nd" ? "2nd Call" : "Negotiation"}
                 </span>
               </div>
@@ -2994,7 +2994,7 @@ function PreCallBriefTab({ deal, openComposer }: { deal: any; openComposer: (opt
           </div>
 
           {/* Right Pane: Content */}
-          <div className="rounded-2xl border border-white/[0.04] bg-[#0E1524] p-6 flex flex-col justify-between min-h-[500px] flex-1 shadow-premium-card card-sheen">
+          <div className="rounded-2xl border border-white/[0.04] bg-acp-portal-bg p-6 flex flex-col justify-between min-h-[500px] flex-1 shadow-premium-card card-sheen">
             <div className="flex-1 space-y-6">
               
               <div className="flex items-center justify-between pb-3.5 border-b border-white/5">
@@ -3020,7 +3020,7 @@ function PreCallBriefTab({ deal, openComposer }: { deal: any; openComposer: (opt
                     body: loiEmailBody(deal, loiTermsFromDeal(deal), deal.rawFields?.["Contact Name"] || deal.rawFields?.["Broker Name"] || ""),
                     generatedBy: "precall_brief_engine"
                   })}
-                  className="h-8 px-3 rounded-lg bg-[#C6A66B] hover:bg-[#B8924F] text-slate-950 font-bold text-[10px] uppercase tracking-wider transition flex items-center justify-center gap-1.5 cursor-pointer shadow-glow-bronze/10"
+                  className="h-8 px-3 rounded-lg bg-acp-bronze hover:bg-acp-bronze-dark text-acp-on-accent font-bold text-[10px] uppercase tracking-wider transition flex items-center justify-center gap-1.5 cursor-pointer shadow-glow-bronze/10"
                 >
                   <Send className="h-3 w-3" />
                   Send LOI
@@ -3100,8 +3100,8 @@ function PreCallBriefTab({ deal, openComposer }: { deal: any; openComposer: (opt
               {selectedBrief.financialIntelligence && (
                 <div className="rounded-xl border border-white/[0.03] bg-white/[0.005] p-5 space-y-3 shadow-inner">
                   <div className="flex items-center gap-2 border-b border-white/5 pb-2">
-                    <LineChart className="h-4 w-4 text-[#C6A66B]" />
-                    <span className="text-[9px] font-black uppercase tracking-widest text-[#C6A66B]">6. Financial Intelligence</span>
+                    <LineChart className="h-4 w-4 text-acp-bronze" />
+                    <span className="text-[9px] font-black uppercase tracking-widest text-acp-bronze">6. Financial Intelligence</span>
                   </div>
                   {renderRichText(selectedBrief.financialIntelligence)}
                 </div>
@@ -3122,15 +3122,15 @@ function PreCallBriefTab({ deal, openComposer }: { deal: any; openComposer: (opt
               {selectedBrief.teamDeploymentPlan?.length > 0 && (
                 <div className="space-y-3">
                   <div className="flex items-center gap-2 pb-1 border-b border-white/5">
-                    <Users className="h-4 w-4 text-[#C6A66B]" />
-                    <span className="text-[9px] font-black uppercase tracking-widest text-[#C6A66B]">8. Team Deployment Plan</span>
+                    <Users className="h-4 w-4 text-acp-bronze" />
+                    <span className="text-[9px] font-black uppercase tracking-widest text-acp-bronze">8. Team Deployment Plan</span>
                   </div>
                   <div className="grid grid-cols-1 gap-3">
                     {selectedBrief.teamDeploymentPlan.map((plan: any, idx: number) => (
-                      <div key={idx} className="p-4 rounded-xl border border-[#C6A66B]/10 bg-gradient-to-r from-[#C6A66B]/5 to-transparent space-y-3">
-                        <div className="flex justify-between items-center border-b border-[#C6A66B]/10 pb-2">
-                          <h5 className="text-xs font-bold text-[#C6A66B] uppercase tracking-wider">{plan.name}</h5>
-                          <span className="px-2 py-0.5 rounded text-[9px] bg-[#C6A66B]/20 text-[#C6A66B] font-semibold">{plan.roleOnCall}</span>
+                      <div key={idx} className="p-4 rounded-xl border border-acp-bronze/10 bg-gradient-to-r from-acp-bronze/5 to-transparent space-y-3">
+                        <div className="flex justify-between items-center border-b border-acp-bronze/10 pb-2">
+                          <h5 className="text-xs font-bold text-acp-bronze uppercase tracking-wider">{plan.name}</h5>
+                          <span className="px-2 py-0.5 rounded text-[9px] bg-acp-bronze/20 text-acp-bronze font-semibold">{plan.roleOnCall}</span>
                         </div>
                         <div className="space-y-2">
                           {plan.primaryResponsibilities?.length > 0 && (
@@ -3263,8 +3263,8 @@ function PreCallBriefTab({ deal, openComposer }: { deal: any; openComposer: (opt
               {selectedBrief.callStrategy && (
                 <div className="rounded-xl border border-white/[0.03] bg-white/[0.005] p-5 space-y-3 shadow-inner">
                   <div className="flex items-center gap-2 border-b border-white/5 pb-2">
-                    <Lightbulb className="h-4 w-4 text-[#C6A66B]" />
-                    <span className="text-[9px] font-black uppercase tracking-widest text-[#C6A66B]">14. Call Strategy</span>
+                    <Lightbulb className="h-4 w-4 text-acp-bronze" />
+                    <span className="text-[9px] font-black uppercase tracking-widest text-acp-bronze">14. Call Strategy</span>
                   </div>
                   {renderRichText(selectedBrief.callStrategy)}
                 </div>
@@ -3272,10 +3272,10 @@ function PreCallBriefTab({ deal, openComposer }: { deal: any; openComposer: (opt
 
               {/* 15. The Call Script */}
               {selectedBrief.callScript && (
-                <div className="rounded-xl border border-[#C6A66B]/20 bg-gradient-to-r from-[#C6A66B]/5 to-transparent p-5 space-y-3 border-l-2 border-l-[#C6A66B] shadow-inner">
-                  <div className="flex items-center gap-2 pb-1 border-b border-[#C6A66B]/10">
-                    <BookOpen className="h-4 w-4 text-[#C6A66B]" />
-                    <span className="text-[9px] font-black uppercase tracking-widest text-[#C6A66B]">15. The Call Script</span>
+                <div className="rounded-xl border border-acp-bronze/20 bg-gradient-to-r from-acp-bronze/5 to-transparent p-5 space-y-3 border-l-2 border-l-acp-bronze shadow-inner">
+                  <div className="flex items-center gap-2 pb-1 border-b border-acp-bronze/10">
+                    <BookOpen className="h-4 w-4 text-acp-bronze" />
+                    <span className="text-[9px] font-black uppercase tracking-widest text-acp-bronze">15. The Call Script</span>
                   </div>
                   {renderRichText(selectedBrief.callScript)}
                 </div>
@@ -3285,14 +3285,14 @@ function PreCallBriefTab({ deal, openComposer }: { deal: any; openComposer: (opt
               {selectedBrief.recommendedNextActions?.length > 0 && (
                 <div className="space-y-3">
                   <div className="flex items-center gap-2 pb-1 border-b border-white/5">
-                    <ListTodo className="h-4 w-4 text-[#C6A66B]" />
-                    <span className="text-[9px] font-black uppercase tracking-widest text-[#C6A66B]">16. Recommended Next Actions</span>
+                    <ListTodo className="h-4 w-4 text-acp-bronze" />
+                    <span className="text-[9px] font-black uppercase tracking-widest text-acp-bronze">16. Recommended Next Actions</span>
                   </div>
                   <div className="grid grid-cols-1 gap-2.5">
                     {selectedBrief.recommendedNextActions.map((action: string, idx: number) => (
-                      <div key={idx} className="flex items-center gap-3.5 p-3 rounded-xl border border-[#C6A66B]/10 bg-[#C6A66B]/5">
-                        <ArrowRight className="h-3 w-3 text-[#C6A66B] shrink-0" />
-                        <p className="text-xs text-[#C6A66B] font-semibold">{action}</p>
+                      <div key={idx} className="flex items-center gap-3.5 p-3 rounded-xl border border-acp-bronze/10 bg-acp-bronze/5">
+                        <ArrowRight className="h-3 w-3 text-acp-bronze shrink-0" />
+                        <p className="text-xs text-acp-bronze font-semibold">{action}</p>
                       </div>
                     ))}
                   </div>
@@ -3307,11 +3307,11 @@ function PreCallBriefTab({ deal, openComposer }: { deal: any; openComposer: (opt
                     {selectedBrief.aiAnswers.map((item: any, idx: number) => (
                       <div key={idx} className="space-y-1.5">
                         <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-semibold font-sans">
-                          <Users className="h-3.5 w-3.5 text-[#C6A66B]" />
+                          <Users className="h-3.5 w-3.5 text-acp-bronze" />
                           <span>Ayo: "{item.q}"</span>
                         </div>
-                        <div className="flex items-start gap-2 bg-[#101012]/30 border border-white/[0.02] rounded-xl p-3 text-[11px] leading-relaxed text-slate-300 font-sans">
-                          <BrainCircuit className="h-4 w-4 text-[#C6A66B] shrink-0 mt-0.5" />
+                        <div className="flex items-start gap-2 bg-acp-deep/30 border border-white/[0.02] rounded-xl p-3 text-[11px] leading-relaxed text-slate-300 font-sans">
+                          <BrainCircuit className="h-4 w-4 text-acp-bronze shrink-0 mt-0.5" />
                           <p>{item.a}</p>
                         </div>
                       </div>
@@ -3330,12 +3330,12 @@ function PreCallBriefTab({ deal, openComposer }: { deal: any; openComposer: (opt
                 value={chatQuestion}
                 onChange={(e) => setChatQuestion(e.target.value)}
                 placeholder="Ask Claude your own question regarding TUPE, notice periods, assets..."
-                className="flex-1 h-9 rounded-xl border border-white/[0.02] bg-white/[0.015] px-3 text-xs text-white placeholder-slate-500 outline-none focus:border-[#C6A66B] disabled:opacity-50 font-sans"
+                className="flex-1 h-9 rounded-xl border border-white/[0.02] bg-white/[0.015] px-3 text-xs text-white placeholder-slate-500 outline-none focus:border-acp-bronze disabled:opacity-50 font-sans"
               />
               <button
                 type="submit"
                 disabled={isAsking || !chatQuestion.trim()}
-                className="h-9 w-9 shrink-0 flex items-center justify-center rounded-xl bg-gradient-to-r from-[#C6A66B] to-[#B8924F] text-white hover:opacity-90 disabled:opacity-50 cursor-pointer shadow-glow-bronze/10"
+                className="h-9 w-9 shrink-0 flex items-center justify-center rounded-xl bg-gradient-to-r from-acp-bronze to-acp-bronze-dark text-snow hover:opacity-90 disabled:opacity-50 cursor-pointer shadow-glow-bronze/10"
               >
                 {isAsking ? (
                   <RefreshCw className="h-3.5 w-3.5 animate-spin" />
@@ -3353,7 +3353,7 @@ function PreCallBriefTab({ deal, openComposer }: { deal: any; openComposer: (opt
         <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-6 items-start font-sans animate-fade-in-up">
 
           {/* Left Pane: Configuration */}
-          <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 space-y-6 flex flex-col justify-between lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)]">
+          <div className="rounded-2xl border border-white/[0.02] bg-acp-card p-5 space-y-6 flex flex-col justify-between lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)]">
             <div className="space-y-5 flex-1 min-h-0 overflow-y-auto pr-1">
               <h3 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 pb-2 border-b border-white/5">
                 PRE-CALL CONFIGURATION
@@ -3378,7 +3378,7 @@ function PreCallBriefTab({ deal, openComposer }: { deal: any; openComposer: (opt
                         }}
                         className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-semibold transition-colors cursor-pointer ${
                           isSelected 
-                            ? "bg-[#10B981] text-slate-950" 
+                            ? "bg-emerald-500 text-acp-on-accent" 
                             : "bg-white/[0.015] border border-white/[0.02] text-slate-400 hover:text-slate-200"
                         }`}
                       >
@@ -3401,7 +3401,7 @@ function PreCallBriefTab({ deal, openComposer }: { deal: any; openComposer: (opt
                       onClick={() => setSelectedScenario(scenario.id)}
                       className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-semibold transition-colors cursor-pointer ${
                         selectedScenario === scenario.id 
-                          ? "bg-[#10B981] text-slate-950" 
+                          ? "bg-emerald-500 text-acp-on-accent" 
                           : "bg-white/[0.015] border border-white/[0.02] text-slate-400 hover:text-slate-200"
                       }`}
                     >
@@ -3421,7 +3421,7 @@ function PreCallBriefTab({ deal, openComposer }: { deal: any; openComposer: (opt
                     onClick={() => setSelectedCallType("1st")}
                     className={`h-7 rounded-lg text-[10px] font-bold uppercase tracking-wider transition cursor-pointer ${
                       selectedCallType === "1st" 
-                        ? "bg-[#10B981] text-slate-950 font-bold" 
+                        ? "bg-emerald-500 text-acp-on-accent font-bold" 
                         : "text-slate-500 hover:text-white"
                     }`}
                   >
@@ -3432,7 +3432,7 @@ function PreCallBriefTab({ deal, openComposer }: { deal: any; openComposer: (opt
                     onClick={() => setSelectedCallType("2nd")}
                     className={`h-7 rounded-lg text-[10px] font-bold uppercase tracking-wider transition cursor-pointer ${
                       selectedCallType === "2nd" 
-                        ? "bg-[#10B981] text-slate-950 font-bold" 
+                        ? "bg-emerald-500 text-acp-on-accent font-bold" 
                         : "text-slate-500 hover:text-white"
                     }`}
                   >
@@ -3443,7 +3443,7 @@ function PreCallBriefTab({ deal, openComposer }: { deal: any; openComposer: (opt
                     onClick={() => setSelectedCallType("neg")}
                     className={`h-7 rounded-lg text-[10px] font-bold uppercase tracking-wider transition cursor-pointer ${
                       selectedCallType === "neg" 
-                        ? "bg-[#10B981] text-slate-950 font-bold" 
+                        ? "bg-emerald-500 text-acp-on-accent font-bold" 
                         : "text-slate-500 hover:text-white"
                     }`}
                   >
@@ -3461,7 +3461,7 @@ function PreCallBriefTab({ deal, openComposer }: { deal: any; openComposer: (opt
                   onDrop={handleDrop}
                   className={`border border-dashed rounded-xl p-6 text-center transition cursor-pointer relative ${
                     isDragging
-                      ? "border-[#10B981] bg-[#10B981]/5"
+                      ? "border-emerald-500 bg-emerald-500/5"
                       : "border-white/[0.02] hover:border-white/20 bg-white/[0.01]"
                   }`}
                 >
@@ -3480,14 +3480,14 @@ function PreCallBriefTab({ deal, openComposer }: { deal: any; openComposer: (opt
                       />
                     ) : (
                       <div className="space-y-2">
-                        <RefreshCw className="h-4 w-4 text-[#10B981] mx-auto animate-spin" />
+                        <RefreshCw className="h-4 w-4 text-emerald-500 mx-auto animate-spin" />
                         <p className="text-[10px] text-slate-400 font-semibold">Attaching to the deal…</p>
                       </div>
                     )
                   ) : isDragging ? (
                     <div className="space-y-1">
-                      <Upload className="h-5 w-5 text-[#10B981] mx-auto animate-bounce" />
-                      <p className="text-[10px] text-[#10B981] font-bold">Drop to attach</p>
+                      <Upload className="h-5 w-5 text-emerald-500 mx-auto animate-bounce" />
+                      <p className="text-[10px] text-emerald-500 font-bold">Drop to attach</p>
                     </div>
                   ) : (
                     <div className="space-y-2 py-2">
@@ -3529,7 +3529,7 @@ function PreCallBriefTab({ deal, openComposer }: { deal: any; openComposer: (opt
                     value={pastedText}
                     onChange={(e) => setPastedText(e.target.value)}
                     placeholder="Paste Information Memorandum summary here..."
-                    className="w-full h-20 rounded-xl border border-white/[0.02] bg-[#161B22] p-2 text-xs font-medium text-slate-200 outline-none focus:border-[#C6A66B]/50 resize-none font-sans"
+                    className="w-full h-20 rounded-xl border border-white/[0.02] bg-acp-card p-2 text-xs font-medium text-slate-200 outline-none focus:border-acp-bronze/50 resize-none font-sans"
                   />
                 </div>
               )}
@@ -3577,7 +3577,7 @@ function PreCallBriefTab({ deal, openComposer }: { deal: any; openComposer: (opt
           </div>
 
           {/* Right Pane: Preview */}
-          <div className="rounded-2xl border border-white/[0.02] bg-[#0E1524] p-6 flex flex-col justify-center items-center min-h-[500px] flex-1 text-center">
+          <div className="rounded-2xl border border-white/[0.02] bg-acp-portal-bg p-6 flex flex-col justify-center items-center min-h-[500px] flex-1 text-center">
             <BrainCircuit className="h-12 w-12 text-slate-655 mb-3 animate-pulse" />
             <h5 className="text-xs font-bold text-slate-350 uppercase tracking-wider">No Brief Selected</h5>
             <p className="text-[10px] text-slate-450 max-w-xs mt-1.5 leading-relaxed font-sans">
@@ -3730,7 +3730,7 @@ function FinancialsTab({
             className={cx(
               "px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition cursor-pointer",
               subTab === "report"
-                ? "bg-[#C6A66B]/10 border border-[#C6A66B] text-white"
+                ? "bg-acp-bronze/10 border border-acp-bronze text-white"
                 : "text-slate-400 hover:text-white"
             )}
             type="button"
@@ -3742,7 +3742,7 @@ function FinancialsTab({
             className={cx(
               "px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition cursor-pointer",
               subTab === "sandbox"
-                ? "bg-[#C6A66B]/10 border border-[#C6A66B] text-white"
+                ? "bg-acp-bronze/10 border border-acp-bronze text-white"
                 : "text-slate-400 hover:text-white"
             )}
             type="button"
@@ -3762,7 +3762,7 @@ function FinancialsTab({
         <div className="space-y-6">
           {/* Status states */}
           {financialStatus === "Processing" && (
-            <div className="rounded-2xl border border-blue-500/10 bg-[#0E1524] p-8 text-center space-y-4">
+            <div className="rounded-2xl border border-blue-500/10 bg-acp-portal-bg p-8 text-center space-y-4">
               <Loader2 className="h-8 w-8 text-blue-400 animate-spin mx-auto" />
               <div className="space-y-1">
                 <h4 className="text-sm font-bold text-white uppercase tracking-wider">Underwriting Analysis in Progress</h4>
@@ -3793,7 +3793,7 @@ function FinancialsTab({
 
           {/* Trigger screen if empty */}
           {(financialStatus === "unknown" || !financialStatus) && (
-            <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-6 text-center space-y-5">
+            <div className="rounded-2xl border border-white/[0.02] bg-acp-card p-6 text-center space-y-5">
               <div className="max-w-md mx-auto space-y-2">
                 <BrainCircuit className="h-10 w-10 text-slate-500 mx-auto" />
                 <h4 className="text-sm font-bold text-white uppercase tracking-wider">Deterministic Underwriting Engine</h4>
@@ -3850,7 +3850,7 @@ function FinancialsTab({
               {/* Top Scorecard Card */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Score Summary */}
-                <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 flex flex-col justify-between items-center text-center">
+                <div className="rounded-2xl border border-white/[0.02] bg-acp-card p-5 flex flex-col justify-between items-center text-center">
                   <div className="space-y-1 w-full">
                     <h3 className="text-[10px] font-bold uppercase tracking-widest text-slate-450 border-b border-white/5 pb-2">
                       Acquisition Viability Score
@@ -3873,7 +3873,7 @@ function FinancialsTab({
                 </div>
 
                 {/* Weighted Factors */}
-                <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 lg:col-span-2 space-y-4">
+                <div className="rounded-2xl border border-white/[0.02] bg-acp-card p-5 lg:col-span-2 space-y-4">
                   <h3 className="text-xs font-bold uppercase tracking-wider text-slate-350 pb-2 border-b border-white/5">
                     Scoring Breakdown
                   </h3>
@@ -3941,19 +3941,19 @@ function FinancialsTab({
 
               {/* Key Calculated Metrics Cards */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="rounded-xl border border-white/[0.02] bg-[#0A0D14] p-4 text-center">
+                <div className="rounded-xl border border-white/[0.02] bg-acp-deep p-4 text-center">
                   <span className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-500">NORMALIZED EBITDA</span>
                   <span className="block text-lg font-bold text-white mt-1">{formatGBP(reportEbitda)}</span>
                 </div>
-                <div className="rounded-xl border border-white/[0.02] bg-[#0A0D14] p-4 text-center">
+                <div className="rounded-xl border border-white/[0.02] bg-acp-deep p-4 text-center">
                   <span className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-500">DEBT COVERAGE (DSCR)</span>
                   <span className="block text-lg font-bold text-white mt-1">{reportDscr ? `${reportDscr.toFixed(2)}x` : "N/A"}</span>
                 </div>
-                <div className="rounded-xl border border-white/[0.02] bg-[#0A0D14] p-4 text-center">
+                <div className="rounded-xl border border-white/[0.02] bg-acp-deep p-4 text-center">
                   <span className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-500">LEVERAGE RATIO</span>
                   <span className="block text-lg font-bold text-white mt-1">{reportLeverage ? `${reportLeverage.toFixed(2)}x` : "N/A"}</span>
                 </div>
-                <div className="rounded-xl border border-white/[0.02] bg-[#0F1115] p-4 text-center">
+                <div className="rounded-xl border border-white/[0.02] bg-acp-ink p-4 text-center">
                   <span className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-500">ENTERPRISE VALUE</span>
                   <span className="block text-lg font-bold text-white mt-1">{formatGBP(reportEV)}</span>
                 </div>
@@ -3961,9 +3961,9 @@ function FinancialsTab({
 
               {/* Claude Credit Commentary */}
               {reportCommentary && (
-                <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 space-y-4">
+                <div className="rounded-2xl border border-white/[0.02] bg-acp-card p-5 space-y-4">
                   <div className="flex items-center gap-2 font-bold text-white text-xs uppercase tracking-wider border-b border-white/5 pb-2">
-                    <BrainCircuit className="h-4.5 w-4.5 text-[#C6A66B]" />
+                    <BrainCircuit className="h-4.5 w-4.5 text-acp-bronze" />
                     Claude AI Credit Underwriting commentary
                   </div>
                   <div className="text-slate-300 text-xs leading-relaxed space-y-4 font-sans">
@@ -3976,7 +3976,7 @@ function FinancialsTab({
 
               {/* In-Context Anomalies */}
               {reportAnomaliesText && (
-                <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 space-y-3">
+                <div className="rounded-2xl border border-white/[0.02] bg-acp-card p-5 space-y-3">
                   <h4 className="text-xs font-bold uppercase tracking-wider text-rose-400 pb-2 border-b border-white/5">
                     Detected System Anomalies
                   </h4>
@@ -4002,7 +4002,7 @@ function FinancialsTab({
                   <select
                     value={selectedDocId}
                     onChange={(e) => setSelectedDocId(e.target.value)}
-                    className={cx(selectClass, "text-[10px] py-1 h-8 bg-[#161B22] w-full sm:w-48")}
+                    className={cx(selectClass, "text-[10px] py-1 h-8 bg-acp-card w-full sm:w-48")}
                   >
                     <option value="">Scan all documents</option>
                     {financialDocs.map((doc) => (
@@ -4038,7 +4038,7 @@ function FinancialsTab({
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
             
             {/* Column 1: P&L SUMMARY */}
-            <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 flex flex-col justify-between h-full">
+            <div className="rounded-2xl border border-white/[0.02] bg-acp-card p-5 flex flex-col justify-between h-full">
               <div>
                 <h3 className="text-xs font-bold uppercase tracking-wider text-slate-350 pb-3 border-b border-white/5">
                   P&L SUMMARY (DRAFT)
@@ -4071,14 +4071,14 @@ function FinancialsTab({
                 </ul>
               </div>
 
-              <div className="bg-[#121A2E] border border-blue-500/10 rounded-xl p-3.5 text-center mt-5">
+              <div className="bg-acp-portal-card border border-blue-500/10 rounded-xl p-3.5 text-center mt-5">
                 <span className="block text-[8px] font-extrabold uppercase tracking-widest text-blue-400">EBITDA NORMALIZED</span>
                 <span className="block text-xl font-bold text-white mt-0.5">£190k</span>
               </div>
             </div>
 
             {/* Column 2: DSCR ANALYSIS */}
-            <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 flex flex-col justify-between h-full">
+            <div className="rounded-2xl border border-white/[0.02] bg-acp-card p-5 flex flex-col justify-between h-full">
               <div>
                 <h3 className="text-xs font-bold uppercase tracking-wider text-slate-350 pb-3 border-b border-white/5">
                   DSCR ANALYSIS (DRAFT)
@@ -4115,7 +4115,7 @@ function FinancialsTab({
             </div>
 
             {/* Column 3: CAPITAL STACK */}
-            <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 flex flex-col justify-between h-full">
+            <div className="rounded-2xl border border-white/[0.02] bg-acp-card p-5 flex flex-col justify-between h-full">
               <div>
                 <h3 className="text-xs font-bold uppercase tracking-wider text-slate-350 pb-3 border-b border-white/5">
                   CAPITAL STACK (DRAFT)
@@ -4156,9 +4156,9 @@ function FinancialsTab({
                 {/* Stack bar visual */}
                 <div className="h-2 w-full bg-white/[0.015] rounded-full overflow-hidden flex">
                   <div className="h-full bg-blue-500" style={{ width: `${leverage}%` }} />
-                  <div className="h-full bg-[#C6A66B]" style={{ width: "20%" }} />
+                  <div className="h-full bg-acp-bronze" style={{ width: "20%" }} />
                   <div className="h-full bg-[#E8DEC9]" style={{ width: "15%" }} />
-                  <div className="h-full bg-[#10B981]" style={{ width: "20%" }} />
+                  <div className="h-full bg-emerald-500" style={{ width: "20%" }} />
                 </div>
               </div>
             </div>
@@ -4166,7 +4166,7 @@ function FinancialsTab({
           </div>
 
           {/* Interactive Controls */}
-          <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 space-y-4">
+          <div className="rounded-2xl border border-white/[0.02] bg-acp-card p-5 space-y-4">
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-350 pb-2 border-b border-white/5">
               Valuation Controls
             </h4>
@@ -4399,7 +4399,7 @@ function LOIStructureTab({ deal, openComposer, onSaved }: { deal: any; openCompo
     <div className="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-6 items-stretch font-sans animate-fade-in-up">
       
       {/* Left Pane Parameters */}
-      <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 space-y-5 flex flex-col justify-between h-full">
+      <div className="rounded-2xl border border-white/[0.02] bg-acp-card p-5 space-y-5 flex flex-col justify-between h-full">
         <div className="space-y-4.5">
           <h3 className="text-xs font-bold uppercase tracking-wider text-slate-350 pb-2 border-b border-white/5">
             DEAL STRUCTURE PARAMETERS
@@ -4499,7 +4499,7 @@ function LOIStructureTab({ deal, openComposer, onSaved }: { deal: any; openCompo
           <button
             type="button"
             onClick={downloadLoiDraft}
-            className="flex-1 h-10 rounded-xl bg-[#161B22] hover:bg-white/[0.02] border border-white/[0.04] text-white font-bold text-xs uppercase tracking-wider transition flex items-center justify-center gap-1.5 cursor-pointer"
+            className="flex-1 h-10 rounded-xl bg-acp-card hover:bg-white/[0.02] border border-white/[0.04] text-white font-bold text-xs uppercase tracking-wider transition flex items-center justify-center gap-1.5 cursor-pointer"
           >
             <BrainCircuit className="h-4 w-4" />
             Download LOI
@@ -4514,7 +4514,7 @@ function LOIStructureTab({ deal, openComposer, onSaved }: { deal: any; openCompo
               body: loiEmailBody(deal, terms, deal.rawFields?.["Contact Name"] || deal.rawFields?.["Broker Name"] || ""),
               generatedBy: "precall_brief_engine"
             })}
-            className="flex-1 h-10 rounded-xl bg-[#C6A66B] hover:bg-[#B8924F] text-slate-950 font-black text-xs uppercase tracking-wider transition flex items-center justify-center gap-1.5 cursor-pointer shadow-glow-bronze/10"
+            className="flex-1 h-10 rounded-xl bg-acp-bronze hover:bg-acp-bronze-dark text-acp-on-accent font-black text-xs uppercase tracking-wider transition flex items-center justify-center gap-1.5 cursor-pointer shadow-glow-bronze/10"
           >
             <Send className="h-3.5 w-3.5" />
             Send LOI
@@ -4523,7 +4523,7 @@ function LOIStructureTab({ deal, openComposer, onSaved }: { deal: any; openCompo
       </div>
 
       {/* Right Pane Preview */}
-      <div className="rounded-2xl border border-white/[0.02] bg-[#0E1524] p-6 space-y-6 flex flex-col flex-1 h-full min-h-[500px]">
+      <div className="rounded-2xl border border-white/[0.02] bg-acp-portal-bg p-6 space-y-6 flex flex-col flex-1 h-full min-h-[500px]">
         <div className="flex items-center gap-2.5 pb-3 border-b border-white/5">
           <span className="h-1.5 w-1.5 rounded-full bg-blue-400" />
           <h4 className="text-xs font-bold uppercase tracking-wider text-slate-350">
@@ -4531,7 +4531,7 @@ function LOIStructureTab({ deal, openComposer, onSaved }: { deal: any; openCompo
           </h4>
         </div>
 
-        <div className="flex-1 rounded-xl bg-[#090D14] p-6 font-sans text-xs text-slate-300 space-y-5 overflow-y-auto leading-relaxed border border-white/[0.02]">
+        <div className="flex-1 rounded-xl bg-acp-deep p-6 font-sans text-xs text-slate-300 space-y-5 overflow-y-auto leading-relaxed border border-white/[0.02]">
           <div className="text-center font-bold text-sm text-white tracking-widest uppercase border-b border-white/5 pb-2">
             LETTER OF INTENT
           </div>
@@ -4592,8 +4592,8 @@ function ImAttachmentsTab({
   };
 
   return (
-    <div className="space-y-6 font-sans animate-fade-in-up text-[#E2E8F0]">
-      <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 space-y-4">
+    <div className="space-y-6 font-sans animate-fade-in-up text-slate-200">
+      <div className="rounded-2xl border border-white/[0.02] bg-acp-card p-5 space-y-4">
         <div className="flex items-center justify-between border-b border-white/5 pb-3">
           <div>
             <h3 className="text-sm font-bold text-white uppercase tracking-wider">IM & Supporting Attachments</h3>
@@ -4627,8 +4627,8 @@ function ImAttachmentsTab({
                 <div key={att.id || idx} className="flex items-center justify-between p-3.5 rounded-xl border border-white/5 bg-white/[0.01] hover:bg-white/[0.02] transition">
                   <div className="flex items-center gap-3 min-w-0">
                     {isLink
-                      ? <ExternalLink className="h-4 w-4 text-[#C6A66B] shrink-0" />
-                      : <FileText className="h-4 w-4 text-[#C6A66B] shrink-0" />}
+                      ? <ExternalLink className="h-4 w-4 text-acp-bronze shrink-0" />
+                      : <FileText className="h-4 w-4 text-acp-bronze shrink-0" />}
                     <div className="min-w-0">
                       <span className="block text-xs font-semibold text-white truncate">{att.filename}</span>
                       {isLink && (
@@ -4648,7 +4648,7 @@ function ImAttachmentsTab({
                     </button>
 
                     <label className={cx(
-                      "relative inline-flex h-7 items-center justify-center rounded-lg border border-white/[0.08] px-3 text-[10px] font-bold uppercase tracking-wider text-[#C6A66B] hover:text-white hover:bg-[#C6A66B]/10 transition",
+                      "relative inline-flex h-7 items-center justify-center rounded-lg border border-white/[0.08] px-3 text-[10px] font-bold uppercase tracking-wider text-acp-bronze hover:text-white hover:bg-acp-bronze/10 transition",
                       isBusy ? "opacity-50 pointer-events-none" : "cursor-pointer",
                     )}>
                       {isBusy ? "Working…" : "Replace"}
@@ -4693,7 +4693,7 @@ function ImAttachmentsTab({
           className={cx(
             "border border-dashed rounded-xl p-8 text-center transition cursor-pointer select-none relative",
             dragActive
-              ? "border-[#C6A66B] bg-[#C6A66B]/5 text-white"
+              ? "border-acp-bronze bg-acp-bronze/5 text-white"
               : "border-white/10 bg-white/[0.005] hover:border-white/20 text-slate-400"
           )}
         >
@@ -4715,7 +4715,7 @@ function ImAttachmentsTab({
             <label htmlFor="im-attachment-file-upload" className="cursor-pointer space-y-3 block">
               <div className="flex justify-center">
                 {isUploading ? (
-                  <RefreshCw className="h-6 w-6 text-[#C6A66B] animate-spin" />
+                  <RefreshCw className="h-6 w-6 text-acp-bronze animate-spin" />
                 ) : (
                   <Upload className="h-6 w-6 text-slate-500" />
                 )}
@@ -4736,7 +4736,7 @@ function ImAttachmentsTab({
       {/* Delete Confirmation Modal */}
       {imToDelete !== null && (
         <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-sm rounded-2xl border border-white/[0.02] bg-[#161B22] p-6 shadow-2xl relative animate-scale-in">
+          <div className="w-full max-w-sm rounded-2xl border border-white/[0.02] bg-acp-card p-6 shadow-2xl relative animate-scale-in">
             <h3 className="text-base font-bold text-white uppercase tracking-wider mb-3">
               Delete Attachment
             </h3>
@@ -4756,7 +4756,7 @@ function ImAttachmentsTab({
                 type="button"
                 onClick={handleDeleteFileConfirm}
                 disabled={isDeleting}
-                className="h-10 px-5 rounded-xl bg-red-650 hover:bg-red-700 text-white text-xs font-bold uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none hover:shadow-glow-red cursor-pointer transition-all"
+                className="h-10 px-5 rounded-xl bg-red-650 hover:bg-red-700 text-snow text-xs font-bold uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none hover:shadow-glow-red cursor-pointer transition-all"
               >
                 {isDeleting ? "Deleting..." : "Delete Attachment"}
               </button>
@@ -4816,7 +4816,7 @@ function DocumentsTab({ deal, documentState, setRefreshTrigger }: { deal: any; d
       {/* Core documents and the folder index share one frame — they were two
           separate cards whose padding and headers cost more height than their
           contents, which are usually empty. */}
-      <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-4 space-y-3.5">
+      <div className="rounded-2xl border border-white/[0.02] bg-acp-card p-4 space-y-3.5">
         {uploadError && (
           <div className="text-[11px] text-rose-400 bg-rose-500/10 px-3 py-2 rounded-lg border border-rose-500/20">{uploadError}</div>
         )}
@@ -4834,7 +4834,7 @@ function DocumentsTab({ deal, documentState, setRefreshTrigger }: { deal: any; d
           <div className="space-y-1.5">
             <div className="flex items-center justify-between gap-2">
               <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Information Memorandums</span>
-              <label className="text-[10px] uppercase font-bold text-[#C6A66B] cursor-pointer hover:text-white flex items-center gap-1 shrink-0">
+              <label className="text-[10px] uppercase font-bold text-acp-bronze cursor-pointer hover:text-white flex items-center gap-1 shrink-0">
                 {isUploadingIm ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />} Add IM
                 <input type="file" className="hidden" onChange={handleUploadCoreDoc} disabled={isUploadingIm} />
               </label>
@@ -4850,7 +4850,7 @@ function DocumentsTab({ deal, documentState, setRefreshTrigger }: { deal: any; d
                         onClick={() => imDocs.download(doc)}
                         disabled={imDocs.downloadingId === doc.id}
                         title="Download"
-                        className="text-[11px] text-white truncate hover:text-[#C6A66B] hover:underline cursor-pointer disabled:opacity-50"
+                        className="text-[11px] text-white truncate hover:text-acp-bronze hover:underline cursor-pointer disabled:opacity-50"
                       >
                         {doc.filename}
                       </button>
@@ -4870,7 +4870,7 @@ function DocumentsTab({ deal, documentState, setRefreshTrigger }: { deal: any; d
           <div className="space-y-1.5">
             <div className="flex items-center justify-between gap-2">
               <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Financial Packs &amp; Attachments</span>
-              <label className="text-[10px] uppercase font-bold text-[#C6A66B] cursor-pointer hover:text-white flex items-center gap-1 shrink-0">
+              <label className="text-[10px] uppercase font-bold text-acp-bronze cursor-pointer hover:text-white flex items-center gap-1 shrink-0">
                 {isUploadingIm ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />} Add Pack
                 <input type="file" className="hidden" onChange={handleUploadCoreDoc} disabled={isUploadingIm} />
               </label>
@@ -4901,11 +4901,11 @@ function DocumentsTab({ deal, documentState, setRefreshTrigger }: { deal: any; d
                   className={cx(
                     "flex items-center gap-2 px-2.5 py-2 rounded-lg border text-left transition cursor-pointer min-w-0",
                     isActive
-                      ? "bg-[#C6A66B]/10 border-[#C6A66B]/60 text-white"
+                      ? "bg-acp-bronze/10 border-acp-bronze/60 text-white"
                       : "bg-white/[0.01] border-white/5 text-slate-350 hover:bg-white/[0.03]"
                   )}
                 >
-                  <FolderClosed className={cx("h-3.5 w-3.5 shrink-0", isActive ? "text-[#C6A66B]" : "text-slate-500")} />
+                  <FolderClosed className={cx("h-3.5 w-3.5 shrink-0", isActive ? "text-acp-bronze" : "text-slate-500")} />
                   <span className="min-w-0 flex-1 text-[10.5px] font-bold truncate leading-none">
                     {cat.name.replace(/^\d+_/, "").replace(/_/g, " ")}
                   </span>
@@ -4923,7 +4923,7 @@ function DocumentsTab({ deal, documentState, setRefreshTrigger }: { deal: any; d
       </div>
 
       {/* checklist files listing */}
-      <div id="deal-section-tasks" className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-4">
+      <div id="deal-section-tasks" className="rounded-2xl border border-white/[0.02] bg-acp-card p-4">
         <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-2">
           {selectedCategory ? `Checklist · ${selectedCategory}` : "All document checklists"}
           {selectedCategory && (
@@ -4971,7 +4971,7 @@ function LenderMatchTab({
   return (
     <div className="space-y-6 font-sans animate-fade-in-up">
       {/* Dynamic intelligence overview */}
-      <div className="rounded-xl border border-blue-500/10 bg-[#0E1524] p-4.5 space-y-2 leading-relaxed">
+      <div className="rounded-xl border border-blue-500/10 bg-acp-portal-bg p-4.5 space-y-2 leading-relaxed">
         <div className="flex items-center gap-2 text-xs font-bold text-slate-205">
           <Sparkles className="h-4 w-4 text-blue-400" />
           AI LENDER MATCH — CLEAR WATER CLEANING
@@ -4985,7 +4985,7 @@ function LenderMatchTab({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch">
         
         {/* Moorfields Commercial */}
-        <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 flex flex-col justify-between h-full">
+        <div className="rounded-2xl border border-white/[0.02] bg-acp-card p-5 flex flex-col justify-between h-full">
           <div className="space-y-4">
             <div className="flex items-start justify-between border-b border-white/5 pb-3">
               <div>
@@ -5002,10 +5002,10 @@ function LenderMatchTab({
               <span className="text-[9px] uppercase font-bold text-slate-500">FIT SCORE / 10</span>
             </div>
 
-            <div className="flex flex-wrap gap-2 text-[8px] font-black uppercase tracking-widest text-[#10B981]">
-              <span className="px-2 py-0.5 rounded border border-[#10B981]/25 bg-[#10B981]/5">SECTOR ✓</span>
-              <span className="px-2 py-0.5 rounded border border-[#10B981]/25 bg-[#10B981]/5">TICKET ✓</span>
-              <span className="px-2 py-0.5 rounded border border-[#10B981]/25 bg-[#10B981]/5">STRUCTURE ✓</span>
+            <div className="flex flex-wrap gap-2 text-[8px] font-black uppercase tracking-widest text-emerald-500">
+              <span className="px-2 py-0.5 rounded border border-emerald-500/25 bg-emerald-500/5">SECTOR ✓</span>
+              <span className="px-2 py-0.5 rounded border border-emerald-500/25 bg-emerald-500/5">TICKET ✓</span>
+              <span className="px-2 py-0.5 rounded border border-emerald-500/25 bg-emerald-500/5">STRUCTURE ✓</span>
             </div>
             
             <p className="text-[10px] text-slate-450 leading-relaxed pt-2">
@@ -5042,7 +5042,7 @@ Ayo
         </div>
 
         {/* HSBC Commercial */}
-        <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 flex flex-col justify-between h-full">
+        <div className="rounded-2xl border border-white/[0.02] bg-acp-card p-5 flex flex-col justify-between h-full">
           <div className="space-y-4">
             <div className="flex items-start justify-between border-b border-white/5 pb-3">
               <div>
@@ -5060,8 +5060,8 @@ Ayo
             </div>
 
             <div className="flex flex-wrap gap-2 text-[8px] font-black uppercase tracking-widest">
-              <span className="px-2 py-0.5 rounded border border-[#10B981]/25 bg-[#10B981]/5 text-[#10B981]">SECTOR ✓</span>
-              <span className="px-2 py-0.5 rounded border border-[#10B981]/25 bg-[#10B981]/5 text-[#10B981]">STRUCTURE ✓</span>
+              <span className="px-2 py-0.5 rounded border border-emerald-500/25 bg-emerald-500/5 text-emerald-500">SECTOR ✓</span>
+              <span className="px-2 py-0.5 rounded border border-emerald-500/25 bg-emerald-500/5 text-emerald-500">STRUCTURE ✓</span>
               <span className="px-2 py-0.5 rounded border border-amber-500/20 bg-amber-500/5 text-amber-500">▲ TICKET</span>
             </div>
             
@@ -5177,7 +5177,7 @@ function EmailComposerModal({
     >
       {success ? (
         <div className="flex flex-col items-center justify-center py-8 space-y-3 font-sans text-center animate-scale-in">
-          <div className="h-12 w-12 rounded-full bg-[#C6A66B]/10 border border-[#C6A66B]/20 flex items-center justify-center text-[#C6A66B]">
+          <div className="h-12 w-12 rounded-full bg-acp-bronze/10 border border-acp-bronze/20 flex items-center justify-center text-acp-bronze">
             <Check className="h-6 w-6" />
           </div>
           <h4 className="text-sm font-bold text-white uppercase tracking-wider">
@@ -5215,7 +5215,7 @@ function EmailComposerModal({
                   setBody((prev) => readdressGreeting(prev, name));
                 }
               }}
-              className="w-full h-9 rounded-xl border border-white/[0.02] bg-[#161B22] px-3 text-xs text-white focus:border-[#C6A66B] outline-none cursor-pointer"
+              className="w-full h-9 rounded-xl border border-white/[0.02] bg-acp-card px-3 text-xs text-white focus:border-acp-bronze outline-none cursor-pointer"
             >
               <option value="">-- Choose Lender from Database --</option>
               {allLenders.map((lender) => (
@@ -5237,7 +5237,7 @@ function EmailComposerModal({
                 value={recipientName}
                 onChange={(e) => setRecipientName(e.target.value)}
                 placeholder="e.g. John Doe"
-                className="w-full h-9 rounded-xl border border-white/[0.02] bg-[#161B22] px-3 text-xs text-white focus:border-[#C6A66B] outline-none"
+                className="w-full h-9 rounded-xl border border-white/[0.02] bg-acp-card px-3 text-xs text-white focus:border-acp-bronze outline-none"
               />
             </div>
             <div>
@@ -5250,7 +5250,7 @@ function EmailComposerModal({
                 value={recipientEmail}
                 onChange={(e) => setRecipientEmail(e.target.value)}
                 placeholder="e.g. john@example.com"
-                className="w-full h-9 rounded-xl border border-white/[0.02] bg-[#161B22] px-3 text-xs text-white focus:border-[#C6A66B] outline-none"
+                className="w-full h-9 rounded-xl border border-white/[0.02] bg-acp-card px-3 text-xs text-white focus:border-acp-bronze outline-none"
               />
             </div>
             <div>
@@ -5262,7 +5262,7 @@ function EmailComposerModal({
                 value={lenderCompany}
                 onChange={(e) => setLenderCompany(e.target.value)}
                 placeholder="e.g. ABL Bank Ltd"
-                className="w-full h-9 rounded-xl border border-white/[0.02] bg-[#161B22] px-3 text-xs text-white focus:border-[#C6A66B] outline-none"
+                className="w-full h-9 rounded-xl border border-white/[0.02] bg-acp-card px-3 text-xs text-white focus:border-acp-bronze outline-none"
               />
             </div>
           </div>
@@ -5277,7 +5277,7 @@ function EmailComposerModal({
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
               placeholder="Enter subject..."
-              className="w-full h-9 rounded-xl border border-white/[0.02] bg-[#161B22] px-3 text-xs text-white focus:border-[#C6A66B] outline-none"
+              className="w-full h-9 rounded-xl border border-white/[0.02] bg-acp-card px-3 text-xs text-white focus:border-acp-bronze outline-none"
             />
           </div>
 
@@ -5291,7 +5291,7 @@ function EmailComposerModal({
               onChange={(e) => setBody(e.target.value)}
               placeholder="Compose your message..."
               rows={12}
-              className="w-full rounded-xl border border-white/[0.02] bg-[#161B22] p-3 text-xs text-white focus:border-[#C6A66B] outline-none resize-none font-sans leading-relaxed"
+              className="w-full rounded-xl border border-white/[0.02] bg-acp-card p-3 text-xs text-white focus:border-acp-bronze outline-none resize-none font-sans leading-relaxed"
             />
           </div>
 
@@ -5307,7 +5307,7 @@ function EmailComposerModal({
             <button
               type="submit"
               disabled={sending}
-              className="h-9 px-5 rounded-xl bg-[#C6A66B] hover:bg-[#B8924F] text-slate-950 font-black text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 cursor-pointer shadow-glow-bronze/10"
+              className="h-9 px-5 rounded-xl bg-acp-bronze hover:bg-acp-bronze-dark text-acp-on-accent font-black text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 cursor-pointer shadow-glow-bronze/10"
             >
               {sending ? (
                 <>

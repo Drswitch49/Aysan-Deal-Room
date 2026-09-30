@@ -37,7 +37,7 @@ function formatTimestamp(timestampStr: string): string {
 }
 
 const EVENT_COLORS = {
-  bronze:  "border-[#C6A66B]/20 bg-[#C6A66B]/5 text-[#C6A66B]",
+  bronze:  "border-acp-bronze/20 bg-acp-bronze/5 text-acp-bronze",
   blue:    "border-blue-500/20 bg-blue-500/5 text-blue-400",
   emerald: "border-emerald-500/20 bg-emerald-500/5 text-emerald-400",
   purple:  "border-purple-500/20 bg-purple-500/5 text-purple-400",
@@ -124,7 +124,7 @@ export function ActivityFeed({ dealId, limit = 20, showFilters = false }: Activi
                 className={cx(
                   "px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border transition cursor-pointer",
                   filterType === f.id
-                    ? "border-[#C6A66B] bg-[#C6A66B]/5 text-[#C6A66B]"
+                    ? "border-acp-bronze bg-acp-bronze/5 text-acp-bronze"
                     : "border-white/[0.02] bg-white/[0.01] text-slate-500 hover:text-white"
                 )}
               >
@@ -146,7 +146,7 @@ export function ActivityFeed({ dealId, limit = 20, showFilters = false }: Activi
       {/* Loading state */}
       {isLoading && (
         <div className="py-8 text-center text-xs font-semibold text-slate-500 flex items-center justify-center gap-2 select-none">
-          <RefreshCw className="h-4 w-4 animate-spin text-[#C6A66B]" />
+          <RefreshCw className="h-4 w-4 animate-spin text-acp-bronze" />
           <span>Syncing activity logs...</span>
         </div>
       )}
@@ -211,7 +211,7 @@ export function ActivityFeed({ dealId, limit = 20, showFilters = false }: Activi
                     {!dealId && event.dealId && (
                       <Link
                         to={`/deals/${encodeURIComponent(event.dealRef || event.dealId)}`}
-                        className="text-slate-500 hover:text-[#C6A66B] font-semibold transition"
+                        className="text-slate-500 hover:text-acp-bronze font-semibold transition"
                       >
                         {event.companyName || event.dealRef || "View Deal"}
                       </Link>

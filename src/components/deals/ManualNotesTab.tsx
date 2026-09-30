@@ -104,7 +104,7 @@ export function ManualNotesTab({ dealRef }: ManualNotesTabProps) {
 
   return (
     <div className="space-y-6 animate-fade-in-up">
-      <div className="flex items-center justify-between bg-[#161B22] p-4 rounded-xl border border-white/5">
+      <div className="flex items-center justify-between bg-acp-card p-4 rounded-xl border border-white/5">
         <div>
           <h3 className="text-sm font-semibold text-white tracking-wide">Working CRM Notes</h3>
           <p className="text-xs text-slate-400 mt-1">
@@ -113,7 +113,7 @@ export function ManualNotesTab({ dealRef }: ManualNotesTabProps) {
         </div>
         <button
           onClick={() => setIsAdding(!isAdding)}
-          className="flex items-center gap-2 bg-[#C6A66B]/10 hover:bg-[#C6A66B]/20 text-[#C6A66B] border border-[#C6A66B]/30 px-4 py-2 rounded-lg text-xs font-semibold transition-colors"
+          className="flex items-center gap-2 bg-acp-bronze/10 hover:bg-acp-bronze/20 text-acp-bronze border border-acp-bronze/30 px-4 py-2 rounded-lg text-xs font-semibold transition-colors"
         >
           {isAdding ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
           {isAdding ? "Cancel" : "Add Note"}
@@ -121,18 +121,18 @@ export function ManualNotesTab({ dealRef }: ManualNotesTabProps) {
       </div>
 
       {isAdding && (
-        <div className="bg-[#161B22] p-4 rounded-xl border border-white/5 space-y-3">
+        <div className="bg-acp-card p-4 rounded-xl border border-white/5 space-y-3">
           <textarea
             value={newContent}
             onChange={(e) => setNewContent(e.target.value)}
             placeholder="Write your note here... (Supports multiple lines)"
-            className="w-full bg-black/40 border border-white/10 rounded-lg p-3 text-sm text-slate-300 placeholder-slate-600 focus:outline-none focus:border-[#C6A66B]/50 min-h-[120px]"
+            className="w-full bg-black/40 border border-white/10 rounded-lg p-3 text-sm text-slate-300 placeholder-slate-600 focus:outline-none focus:border-acp-bronze/50 min-h-[120px]"
           />
           <div className="flex justify-end">
             <button
               onClick={handleAdd}
               disabled={isSubmitting || !newContent.trim()}
-              className="flex items-center gap-2 bg-[#C6A66B] hover:bg-[#B5955A] disabled:opacity-50 disabled:cursor-not-allowed text-black px-4 py-2 rounded-lg text-xs font-bold transition-all"
+              className="flex items-center gap-2 bg-acp-bronze hover:bg-acp-bronze disabled:opacity-50 disabled:cursor-not-allowed text-black px-4 py-2 rounded-lg text-xs font-bold transition-all"
             >
               {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
               Save Note
@@ -143,16 +143,16 @@ export function ManualNotesTab({ dealRef }: ManualNotesTabProps) {
 
       {isLoading ? (
         <div className="flex justify-center py-12">
-          <Loader2 className="h-6 w-6 text-[#C6A66B] animate-spin" />
+          <Loader2 className="h-6 w-6 text-acp-bronze animate-spin" />
         </div>
       ) : notes.length === 0 ? (
-        <div className="text-center py-12 bg-[#161B22] rounded-xl border border-white/5">
+        <div className="text-center py-12 bg-acp-card rounded-xl border border-white/5">
           <p className="text-slate-500 text-sm">No notes recorded for this deal yet.</p>
         </div>
       ) : (
         <div className="space-y-4">
           {notes.map((note) => (
-            <div key={note.id} className="bg-[#161B22] p-5 rounded-xl border border-white/5 relative group">
+            <div key={note.id} className="bg-acp-card p-5 rounded-xl border border-white/5 relative group">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-3">
                   <div className="h-8 w-8 rounded-full bg-slate-800 flex items-center justify-center text-xs font-bold text-slate-300 uppercase border border-white/10">
@@ -195,7 +195,7 @@ export function ManualNotesTab({ dealRef }: ManualNotesTabProps) {
                   <textarea
                     value={editContent}
                     onChange={(e) => setEditContent(e.target.value)}
-                    className="w-full bg-black/40 border border-white/10 rounded-lg p-3 text-sm text-slate-300 focus:outline-none focus:border-[#C6A66B]/50 min-h-[100px]"
+                    className="w-full bg-black/40 border border-white/10 rounded-lg p-3 text-sm text-slate-300 focus:outline-none focus:border-acp-bronze/50 min-h-[100px]"
                   />
                   <div className="flex justify-end gap-2">
                     <button
@@ -206,7 +206,7 @@ export function ManualNotesTab({ dealRef }: ManualNotesTabProps) {
                     </button>
                     <button
                       onClick={() => handleEditSubmit(note.id)}
-                      className="flex items-center gap-1.5 bg-[#C6A66B]/20 text-[#C6A66B] border border-[#C6A66B]/30 px-3 py-1.5 rounded-md text-xs font-bold transition-colors hover:bg-[#C6A66B]/30"
+                      className="flex items-center gap-1.5 bg-acp-bronze/20 text-acp-bronze border border-acp-bronze/30 px-3 py-1.5 rounded-md text-xs font-bold transition-colors hover:bg-acp-bronze/30"
                     >
                       <Check className="h-3.5 w-3.5" />
                       Save

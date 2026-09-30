@@ -122,7 +122,7 @@ export function DealForm({ initialData, onSubmit, isLoading }: DealFormProps) {
     <form onSubmit={handleSubmit} className="space-y-6 font-sans">
       {/* Company Information */}
       <div className="space-y-4 rounded-xl border border-white/[0.02] bg-white/[0.01] p-5">
-        <h3 className="text-xs font-bold uppercase tracking-widest text-[#C6A66B]">Company Information</h3>
+        <h3 className="text-xs font-bold uppercase tracking-widest text-acp-bronze">Company Information</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <FormField label="Company Name" id="companyName" required>
             <input name="companyName" id="companyName" required value={formData.companyName} onChange={handleChange} className={inputClass} placeholder="e.g. Acme Corp" />
@@ -146,7 +146,7 @@ export function DealForm({ initialData, onSubmit, isLoading }: DealFormProps) {
 
       {/* Ownership */}
       <div className="space-y-4 rounded-xl border border-white/[0.02] bg-white/[0.01] p-5">
-        <h3 className="text-xs font-bold uppercase tracking-widest text-[#C6A66B]">Ownership & Sourcing</h3>
+        <h3 className="text-xs font-bold uppercase tracking-widest text-acp-bronze">Ownership & Sourcing</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <FormField label="Owner" id="owner" required>
             <SearchableDropdown
@@ -178,7 +178,7 @@ export function DealForm({ initialData, onSubmit, isLoading }: DealFormProps) {
 
       {/* Financials */}
       <div className="space-y-4 rounded-xl border border-white/[0.02] bg-white/[0.01] p-5">
-        <h3 className="text-xs font-bold uppercase tracking-widest text-[#C6A66B]">Financials</h3>
+        <h3 className="text-xs font-bold uppercase tracking-widest text-acp-bronze">Financials</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <FormField label="Revenue" id="revenue">
             <input type="number" name="revenue" id="revenue" value={formData.revenue || ""} onChange={handleChange} className={inputClass} />
@@ -197,7 +197,7 @@ export function DealForm({ initialData, onSubmit, isLoading }: DealFormProps) {
 
       {/* Workflow */}
       <div className="space-y-4 rounded-xl border border-white/[0.02] bg-white/[0.01] p-5">
-        <h3 className="text-xs font-bold uppercase tracking-widest text-[#C6A66B]">Workflow</h3>
+        <h3 className="text-xs font-bold uppercase tracking-widest text-acp-bronze">Workflow</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <FormField label="Stage" id="stage" required>
             <select name="stage" id="stage" value={formData.stage} onChange={handleChange} className={selectClass}>
@@ -225,7 +225,7 @@ export function DealForm({ initialData, onSubmit, isLoading }: DealFormProps) {
 
       {/* Documents */}
       <div className="space-y-4 rounded-xl border border-white/[0.02] bg-white/[0.01] p-5">
-        <h3 className="text-xs font-bold uppercase tracking-widest text-[#C6A66B]">Documents</h3>
+        <h3 className="text-xs font-bold uppercase tracking-widest text-acp-bronze">Documents</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <FormField label="Information Memorandum (IM)" id="imDocumentUrl">
             <div className="flex flex-col gap-2">
@@ -267,7 +267,7 @@ export function DealForm({ initialData, onSubmit, isLoading }: DealFormProps) {
 
       {/* Notes */}
       <div className="space-y-4 rounded-xl border border-white/[0.02] bg-white/[0.01] p-5">
-        <h3 className="text-xs font-bold uppercase tracking-widest text-[#C6A66B]">Internal Notes</h3>
+        <h3 className="text-xs font-bold uppercase tracking-widest text-acp-bronze">Internal Notes</h3>
         <FormField label="Notes" id="internalNotes">
           <textarea name="internalNotes" id="internalNotes" rows={4} value={formData.internalNotes || ""} onChange={handleChange} className={textareaClass} />
         </FormField>
@@ -277,7 +277,7 @@ export function DealForm({ initialData, onSubmit, isLoading }: DealFormProps) {
         <button
           type="submit"
           disabled={isLoading}
-          className="h-10 px-6 rounded-xl bg-gradient-to-r from-acp-bronze to-acp-bronze-dark text-white text-xs font-bold uppercase tracking-wider disabled:opacity-50 disabled:pointer-events-none hover:shadow-glow-bronze transition cursor-pointer"
+          className="h-10 px-6 rounded-xl bg-gradient-to-r from-acp-bronze to-acp-bronze-dark text-snow text-xs font-bold uppercase tracking-wider disabled:opacity-50 disabled:pointer-events-none hover:shadow-glow-bronze transition cursor-pointer"
         >
           {isLoading ? "Saving..." : "Save Deal"}
         </button>

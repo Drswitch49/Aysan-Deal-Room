@@ -39,7 +39,7 @@ const STAGE_COLORS: Record<DealStage, { bg: string; border: string; text: string
   LOI:           { bg: "bg-amber-500/8",   border: "border-amber-500/20",  text: "text-amber-400",   badge: "bg-amber-500/12 text-amber-400 border-amber-500/20" },
   DUE_DILIGENCE: { bg: "bg-purple-500/8",  border: "border-purple-500/20", text: "text-purple-400",  badge: "bg-purple-500/12 text-purple-400 border-purple-500/20" },
   CLOSING:       { bg: "bg-emerald-500/8", border: "border-emerald-500/20",text: "text-emerald-400", badge: "bg-emerald-500/12 text-emerald-400 border-emerald-500/20" },
-  PORTFOLIO:     { bg: "bg-[#C6A66B]/8",   border: "border-[#C6A66B]/20",  text: "text-[#C6A66B]",   badge: "bg-[#C6A66B]/12 text-[#C6A66B] border-[#C6A66B]/20" },
+  PORTFOLIO:     { bg: "bg-acp-bronze/8",   border: "border-acp-bronze/20",  text: "text-acp-bronze",   badge: "bg-acp-bronze/12 text-acp-bronze border-acp-bronze/20" },
   KILLED:        { bg: "bg-red-500/8",     border: "border-red-500/20",    text: "text-red-400",     badge: "bg-red-500/12 text-red-400 border-red-500/20" },
 };
 
@@ -78,7 +78,7 @@ function normalizeStage(raw: string): DealStage {
 
 const getOwnerAvatar = (initials: string) => {
   if (initials === "AY") {
-    return <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-[#C6A66B] to-[#D4B06A] text-slate-950 text-[8px] font-bold border border-[#C6A66B]/10 shadow-inner select-none">AY</div>;
+    return <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-acp-bronze to-acp-bronze-light text-acp-on-accent text-[8px] font-bold border border-acp-bronze/10 shadow-inner select-none">AY</div>;
   }
   if (initials === "CH") {
     return <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-purple-500/80 to-purple-400/80 text-white text-[8px] font-bold border border-purple-500/10 shadow-inner select-none">CH</div>;
@@ -87,7 +87,7 @@ const getOwnerAvatar = (initials: string) => {
     return <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-blue-500/80 to-blue-400/80 text-white text-[8px] font-bold border border-blue-500/10 shadow-inner select-none">PR</div>;
   }
   if (initials === "DA" || initials === "DM") {
-    return <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-emerald-500/80 to-[#10b981] text-slate-950 text-[8px] font-bold border border-emerald-500/10 shadow-inner select-none">DM</div>;
+    return <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-emerald-500/80 to-emerald-500 text-acp-on-accent text-[8px] font-bold border border-emerald-500/10 shadow-inner select-none">DM</div>;
   }
   return <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/[0.015] border border-white/[0.02] text-slate-400 text-[8px] font-bold shadow-sm select-none">?</div>;
 };
@@ -122,8 +122,8 @@ function DealCard({ deal, isDragging = false, isTransitioning = false }: DealCar
       ref={setNodeRef}
       style={style}
       className={cx(
-        "group relative rounded-xl border bg-[#0B0B0C] p-3.5 transition-all duration-200 space-y-2.5",
-        "hover:border-white/[0.12] hover:bg-[#121214] shadow-md",
+        "group relative rounded-xl border bg-acp-deep p-3.5 transition-all duration-200 space-y-2.5",
+        "hover:border-white/[0.12] hover:bg-acp-deep shadow-md",
         isDragging
           ? "opacity-50 scale-95 border-white/[0.02]"
           : "border-white/[0.04]",
@@ -152,7 +152,7 @@ function DealCard({ deal, isDragging = false, isTransitioning = false }: DealCar
           className="block font-sans"
           onClick={(e) => e.stopPropagation()}
         >
-          <p className="text-[12px] font-semibold text-white leading-snug hover:text-[#C6A66B] transition line-clamp-2">
+          <p className="text-[12px] font-semibold text-white leading-snug hover:text-acp-bronze transition line-clamp-2">
             {deal.companyName || deal.dealRef}
           </p>
         </Link>
@@ -184,8 +184,8 @@ function DealCard({ deal, isDragging = false, isTransitioning = false }: DealCar
 
       {/* Background AI crawler state */}
       {deal.isProcessing && (
-        <div className="flex items-center gap-1.5 rounded-lg border border-[#C6A66B]/15 bg-[#C6A66B]/5 px-2 py-1 text-[9px] text-[#C6A66B]">
-          <Loader2 className="h-2.5 w-2.5 animate-spin text-[#C6A66B] shrink-0" />
+        <div className="flex items-center gap-1.5 rounded-lg border border-acp-bronze/15 bg-acp-bronze/5 px-2 py-1 text-[9px] text-acp-bronze">
+          <Loader2 className="h-2.5 w-2.5 animate-spin text-acp-bronze shrink-0" />
           <span className="truncate font-medium">{deal.processingStatusText || "AI enriching..."}</span>
         </div>
       )}
@@ -194,11 +194,11 @@ function DealCard({ deal, isDragging = false, isTransitioning = false }: DealCar
       <div className="space-y-1.5 py-0.5">
         <div className="flex items-center justify-between text-[9px] font-bold uppercase tracking-wider text-slate-455">
           <span>Due Diligence Progress</span>
-          <span className="text-[#C6A66B] font-extrabold">{deal.readiness || 0}%</span>
+          <span className="text-acp-bronze font-extrabold">{deal.readiness || 0}%</span>
         </div>
         <div className="h-1 w-full bg-white/[0.03] rounded-full overflow-hidden border border-white/[0.02]">
           <div 
-            className="h-full bg-gradient-to-r from-[#C6A66B] to-[#E3C185] rounded-full transition-all duration-300"
+            className="h-full bg-gradient-to-r from-acp-bronze to-acp-bronze-light rounded-full transition-all duration-300"
             style={{ width: `${deal.readiness || 0}%` }}
           />
         </div>
@@ -449,7 +449,7 @@ export function DealKanban({ deals, onStageChanged }: DealKanbanProps) {
         {/* Drag overlay — ghost card while dragging */}
         <DragOverlay>
           {activeDeal && (
-            <div className="rounded-xl border border-white/20 bg-[#141417] p-3.5 shadow-2xl ring-1 ring-white/10 w-[280px] opacity-95 rotate-2 scale-105">
+            <div className="rounded-xl border border-white/20 bg-acp-deep p-3.5 shadow-2xl ring-1 ring-white/10 w-[280px] opacity-95 rotate-2 scale-105">
               <p className="text-[12px] font-semibold text-white line-clamp-2">
                 {activeDeal.companyName || activeDeal.dealRef}
               </p>

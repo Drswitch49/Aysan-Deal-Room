@@ -32,7 +32,7 @@ const STAGE_STYLES: Record<string, { bg: string; text: string; border: string; b
   LOI:           { bg: "bg-amber-500/10",   text: "text-amber-400",   border: "border-amber-500/20",  badge: "bg-amber-500/12 text-amber-400 border-amber-500/20" },
   DUE_DILIGENCE: { bg: "bg-purple-500/10",  text: "text-purple-400",  border: "border-purple-500/20", badge: "bg-purple-500/12 text-purple-400 border-purple-500/20" },
   CLOSING:       { bg: "bg-emerald-500/10", text: "text-emerald-400", border: "border-emerald-500/20",badge: "bg-emerald-500/12 text-emerald-400 border-emerald-500/20" },
-  PORTFOLIO:     { bg: "bg-[#C6A66B]/10",   text: "text-[#C6A66B]",   border: "border-[#C6A66B]/20",  badge: "bg-[#C6A66B]/12 text-[#C6A66B] border-[#C6A66B]/20" },
+  PORTFOLIO:     { bg: "bg-acp-bronze/10",   text: "text-acp-bronze",   border: "border-acp-bronze/20",  badge: "bg-acp-bronze/12 text-acp-bronze border-acp-bronze/20" },
   KILLED:        { bg: "bg-red-500/10",     text: "text-red-400",     border: "border-red-500/20",    badge: "bg-red-500/12 text-red-400 border-red-500/20" },
 };
 
@@ -119,7 +119,7 @@ export function StageHistory({ dealId }: StageHistoryProps) {
 
       {isLoading && (
         <div className="py-8 text-center text-xs font-semibold text-slate-500 flex items-center justify-center gap-2 select-none">
-          <RefreshCw className="h-4 w-4 animate-spin text-[#C6A66B]" />
+          <RefreshCw className="h-4 w-4 animate-spin text-acp-bronze" />
           <span>Loading transition history...</span>
         </div>
       )}
@@ -152,22 +152,22 @@ export function StageHistory({ dealId }: StageHistoryProps) {
               <div key={item.id} className="relative group">
                 {/* Timeline Dot Indicator */}
                 <span className={cx(
-                  "absolute -left-[31px] top-1 flex h-4 w-4 items-center justify-center rounded-full border bg-[#09090b] transition duration-200",
+                  "absolute -left-[31px] top-1 flex h-4 w-4 items-center justify-center rounded-full border bg-acp-deep transition duration-200",
                   isCurrent 
-                    ? "border-[#C6A66B] ring-4 ring-[#C6A66B]/10" 
+                    ? "border-acp-bronze ring-4 ring-acp-bronze/10" 
                     : "border-white/[0.02] group-hover:border-white/30"
                 )}>
                   <span className={cx(
                     "h-1.5 w-1.5 rounded-full",
-                    isCurrent ? "bg-[#C6A66B]" : "bg-slate-750"
+                    isCurrent ? "bg-acp-bronze" : "bg-slate-750"
                   )} />
                 </span>
 
                 {/* Main Card */}
                 <div className={cx(
-                  "rounded-xl border p-4 transition-all duration-200 bg-[#0c0c0e]/50",
+                  "rounded-xl border p-4 transition-all duration-200 bg-acp-deep/50",
                   isCurrent 
-                    ? "border-white/[0.08] bg-[#0c0c0e]" 
+                    ? "border-white/[0.08] bg-acp-deep" 
                     : "border-white/[0.02] hover:border-white/[0.08]"
                 )}>
                   {/* Transition path Header */}

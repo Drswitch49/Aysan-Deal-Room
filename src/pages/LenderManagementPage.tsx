@@ -429,13 +429,13 @@ export function LenderManagementPage() {
   }, [selectedLenderInfo]);
 
   return (
-    <div className="space-y-6 text-[#E2E8F0] font-sans">
+    <div className="space-y-6 text-slate-200 font-sans">
       
       {/* Title block */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/5 pb-4">
         <div className="space-y-1">
           <h1 className="text-xl font-bold text-white tracking-tight">
-            Lender <span className="text-[#C6A66B]">Intelligence</span>
+            Lender <span className="text-acp-bronze">Intelligence</span>
           </h1>
           <p className="text-xs text-slate-400 font-medium">
             {activeLendersCount} active lenders tracked — {staleLendersCount} stale record{staleLendersCount !== 1 ? 's' : ''}
@@ -468,20 +468,20 @@ export function LenderManagementPage() {
           {/* Summary metrics row */}
           <div className="grid gap-4 sm:grid-cols-3">
             {/* Active Lenders */}
-            <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 shadow-premium-card card-sheen select-none">
+            <div className="rounded-2xl border border-white/[0.02] bg-acp-card p-5 shadow-premium-card card-sheen select-none">
               <p className="text-[9px] font-extrabold uppercase tracking-wider text-slate-550">Active Lenders</p>
               <h2 className="text-3xl font-black text-white mt-1.5 tracking-tight">{activeLendersCount}</h2>
             </div>
 
             {/* Stale Records */}
-            <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 shadow-premium-card card-sheen select-none">
+            <div className="rounded-2xl border border-white/[0.02] bg-acp-card p-5 shadow-premium-card card-sheen select-none">
               <p className="text-[9px] font-extrabold uppercase tracking-wider text-slate-550">Stale Records</p>
               <h2 className="text-3xl font-black text-white mt-1.5 tracking-tight">{staleLendersCount}</h2>
               <p className="text-[10px] font-bold text-amber-500 mt-1">&gt;90 days — {staleLenderName}</p>
             </div>
 
             {/* Live Submissions */}
-            <div className="rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 shadow-premium-card card-sheen select-none">
+            <div className="rounded-2xl border border-white/[0.02] bg-acp-card p-5 shadow-premium-card card-sheen select-none">
               <p className="text-[9px] font-extrabold uppercase tracking-wider text-slate-550">Live Submissions</p>
               <h2 className="text-3xl font-black text-white mt-1.5 tracking-tight">{liveSubmissionsCount}</h2>
               <p className="text-[10px] font-bold text-slate-550 mt-1">Total active deal assignments</p>
@@ -489,7 +489,7 @@ export function LenderManagementPage() {
           </div>
 
           {/* Search & Filters Controls Bar */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-[#161B22] border border-white/[0.04] p-4 rounded-2xl">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-acp-card border border-white/[0.04] p-4 rounded-2xl">
             <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
               <input
@@ -497,7 +497,7 @@ export function LenderManagementPage() {
                 placeholder="Search by company, contact, email..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-10 w-full rounded-xl border border-white/[0.08] bg-[#0F1115] pl-10 pr-4 text-xs text-white placeholder-slate-500 outline-none focus:border-[#C6A66B] transition"
+                className="h-10 w-full rounded-xl border border-white/[0.08] bg-acp-ink pl-10 pr-4 text-xs text-white placeholder-slate-500 outline-none focus:border-acp-bronze transition"
               />
             </div>
             
@@ -505,7 +505,7 @@ export function LenderManagementPage() {
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="h-10 rounded-xl border border-white/[0.08] bg-[#0F1115] px-3.5 text-xs text-slate-300 outline-none cursor-pointer focus:border-[#C6A66B] transition"
+                className="h-10 rounded-xl border border-white/[0.08] bg-acp-ink px-3.5 text-xs text-slate-300 outline-none cursor-pointer focus:border-acp-bronze transition"
               >
                 <option value="all">All Statuses</option>
                 <option value="active">Active Status</option>
@@ -516,7 +516,7 @@ export function LenderManagementPage() {
               <select
                 value={appetiteFilter}
                 onChange={(e) => setAppetiteFilter(e.target.value)}
-                className="h-10 rounded-xl border border-white/[0.08] bg-[#0F1115] px-3.5 text-xs text-slate-300 outline-none cursor-pointer focus:border-[#C6A66B] transition"
+                className="h-10 rounded-xl border border-white/[0.08] bg-acp-ink px-3.5 text-xs text-slate-300 outline-none cursor-pointer focus:border-acp-bronze transition"
               >
                 <option value="all">All Appetite Sizes</option>
                 <option value="small">Small Tier (&lt; £250k)</option>
@@ -527,7 +527,7 @@ export function LenderManagementPage() {
               <select
                 value={sortOrder}
                 onChange={(e) => setSortOrder(e.target.value)}
-                className="h-10 rounded-xl border border-white/[0.08] bg-[#0F1115] px-3.5 text-xs text-slate-300 outline-none cursor-pointer focus:border-[#C6A66B] transition"
+                className="h-10 rounded-xl border border-white/[0.08] bg-acp-ink px-3.5 text-xs text-slate-300 outline-none cursor-pointer focus:border-acp-bronze transition"
               >
                 <option value="name">Sort: Company Name</option>
                 <option value="assignments">Sort: Active Deals</option>
@@ -543,7 +543,7 @@ export function LenderManagementPage() {
             </h3>
             <button
               onClick={() => setIsAddModalOpen(true)}
-              className="inline-flex h-7 items-center gap-1 rounded-full border border-[#C6A66B]/35 bg-[#C6A66B]/5 px-3.5 text-[9px] font-black uppercase text-[#C6A66B] hover:bg-[#C6A66B]/10 transition cursor-pointer"
+              className="inline-flex h-7 items-center gap-1 rounded-full border border-acp-bronze/35 bg-acp-bronze/5 px-3.5 text-[9px] font-black uppercase text-acp-bronze hover:bg-acp-bronze/10 transition cursor-pointer"
             >
               + Create Lender Portal
             </button>
@@ -568,8 +568,8 @@ export function LenderManagementPage() {
                   key={lender.id}
                   onClick={() => setSelectedOsintLenderId(lender.id)}
                   className={cx(
-                    "rounded-2xl border bg-[#161B22] p-5 shadow-premium-card card-sheen flex flex-col justify-between transition-all cursor-pointer relative group",
-                    isSelected ? "border-[#C6A66B]/40 bg-[#0c1122]/30 shadow-inner" : "border-white/[0.02] hover:border-white/12"
+                    "rounded-2xl border bg-acp-card p-5 shadow-premium-card card-sheen flex flex-col justify-between transition-all cursor-pointer relative group",
+                    isSelected ? "border-acp-bronze/40 bg-acp-portal-bg/30 shadow-inner" : "border-white/[0.02] hover:border-white/12"
                   )}
                 >
                   <div>
@@ -609,7 +609,7 @@ export function LenderManagementPage() {
                       {getCriteriaPills(lender.Criteria_Pills).map((pill, idx) => (
                         <span 
                           key={idx} 
-                          className="inline-flex items-center rounded-md bg-[#131E35] border border-blue-500/10 px-2 py-0.5 text-[9px] font-black text-blue-400"
+                          className="inline-flex items-center rounded-md bg-acp-portal-card border border-blue-500/10 px-2 py-0.5 text-[9px] font-black text-blue-400"
                         >
                           {pill}
                         </span>
@@ -649,7 +649,7 @@ export function LenderManagementPage() {
 
           {/* OSINT Intelligence Log Section */}
           {selectedLenderInfo && (
-            <div className="mt-8 rounded-2xl border border-white/[0.02] bg-[#161B22] p-5 shadow-premium-card card-sheen">
+            <div className="mt-8 rounded-2xl border border-white/[0.02] bg-acp-card p-5 shadow-premium-card card-sheen">
               <h3 className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-400 border-b border-white/[0.02] pb-2.5 select-none">
                 OSINT Intelligence Log — {selectedLenderInfo.Company_Name.toUpperCase()}
               </h3>
@@ -688,7 +688,7 @@ export function LenderManagementPage() {
         <div className="fixed inset-0 z-50 flex justify-end">
           {/* Backdrop with transition */}
           <div 
-            className="fixed inset-0 bg-[#07090c]/85 backdrop-blur-sm transition-opacity" 
+            className="fixed inset-0 bg-acp-deep/85 backdrop-blur-sm transition-opacity" 
             onClick={() => {
               setIsDrawerOpen(false);
               setDrawerLender(null);
@@ -696,12 +696,12 @@ export function LenderManagementPage() {
           />
           
           {/* Drawer panel */}
-          <div className="relative w-full max-w-lg bg-[#0F1115] border-l border-white/10 h-full p-6 flex flex-col justify-between shadow-2xl z-10 text-slate-100 overflow-y-auto font-sans">
+          <div className="relative w-full max-w-lg bg-acp-ink border-l border-white/10 h-full p-6 flex flex-col justify-between shadow-2xl z-10 text-slate-100 overflow-y-auto font-sans">
             <div>
               {/* Header */}
               <div className="flex items-center justify-between border-b border-white/5 pb-4 mb-6">
                 <div className="space-y-1">
-                  <span className="text-[9px] font-extrabold uppercase tracking-widest text-[#C6A66B]">Portal Administration</span>
+                  <span className="text-[9px] font-extrabold uppercase tracking-widest text-acp-bronze">Portal Administration</span>
                   <h2 className="text-lg font-bold text-white tracking-tight">{drawerLender.Company_Name}</h2>
                 </div>
                 <button 
@@ -747,7 +747,7 @@ export function LenderManagementPage() {
                     <label className="block text-[8px] font-extrabold uppercase tracking-wider text-slate-550">Portal Passcode</label>
                     <div className="flex items-center justify-between gap-1.5 bg-white/[0.02] border border-white/5 rounded-lg px-2.5 py-1.5 text-[10px] font-mono text-slate-450">
                       <div className="flex items-center gap-1.5 truncate">
-                        <KeyRound className="h-3.5 w-3.5 text-[#C6A66B] shrink-0" />
+                        <KeyRound className="h-3.5 w-3.5 text-acp-bronze shrink-0" />
                         <span className="truncate text-slate-300 select-all">
                           {passcodeVisibleLenderId === drawerLender.id ? passcodeText : "••••••••"}
                         </span>
@@ -769,7 +769,7 @@ export function LenderManagementPage() {
                       value={drawerLender.ndaApproved ? "Yes" : "No"}
                       onChange={(e) => handleToggleLenderNda(drawerLender.id, e.target.value === "Yes")}
                       className={cx(
-                        "h-8.5 w-full bg-[#161B22] border rounded-lg px-2.5 text-[10px] font-bold outline-none cursor-pointer text-center",
+                        "h-8.5 w-full bg-acp-card border rounded-lg px-2.5 text-[10px] font-bold outline-none cursor-pointer text-center",
                         drawerLender.ndaApproved 
                           ? "text-emerald-400 border-emerald-500/20 bg-emerald-500/5" 
                           : "text-amber-400 border-amber-500/20 bg-amber-500/5"
@@ -820,7 +820,7 @@ export function LenderManagementPage() {
                         setModalNdaApproved(drawerLender.ndaApproved);
                         setIsAssignModalOpen(true);
                       }}
-                      className="inline-flex items-center justify-center h-6.5 px-3 rounded-full bg-[#C6A66B]/10 border border-[#C6A66B]/20 text-[#C6A66B] hover:bg-[#C6A66B] hover:text-white transition cursor-pointer shrink-0 font-extrabold uppercase text-[9px] tracking-wide"
+                      className="inline-flex items-center justify-center h-6.5 px-3 rounded-full bg-acp-bronze/10 border border-acp-bronze/20 text-acp-bronze hover:bg-acp-bronze hover:text-white transition cursor-pointer shrink-0 font-extrabold uppercase text-[9px] tracking-wide"
                       title="Assign deal"
                     >
                       + Assign Deal
@@ -878,7 +878,7 @@ export function LenderManagementPage() {
           <button
             type="submit"
             disabled={submitting}
-            className="w-full inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-acp-bronze to-acp-bronze-dark text-xs font-bold uppercase tracking-wider text-white shadow-md hover:shadow-glow-bronze disabled:opacity-40 select-none cursor-pointer"
+            className="w-full inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-acp-bronze to-acp-bronze-dark text-xs font-bold uppercase tracking-wider text-snow shadow-md hover:shadow-glow-bronze disabled:opacity-40 select-none cursor-pointer"
           >
             {submitting ? "Creating..." : "Generate Portal Access"}
           </button>
@@ -993,7 +993,7 @@ export function LenderManagementPage() {
           <button
             type="submit"
             disabled={submitting || !selectedDealRef}
-            className="w-full inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-acp-bronze to-acp-bronze-dark text-xs font-bold uppercase tracking-wider text-white shadow-md hover:shadow-glow-bronze disabled:opacity-40 cursor-pointer"
+            className="w-full inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-acp-bronze to-acp-bronze-dark text-xs font-bold uppercase tracking-wider text-snow shadow-md hover:shadow-glow-bronze disabled:opacity-40 cursor-pointer"
           >
             {submitting ? "Assigning..." : "Assign Access"}
           </button>
@@ -1019,7 +1019,7 @@ export function LenderManagementPage() {
             </FormField>
 
             {/* Searchable Scroll Container */}
-            <div className="max-h-48 overflow-y-auto rounded-xl border border-white/[0.02] bg-[#0F1115] divide-y divide-white/[0.04] custom-scrollbar select-none">
+            <div className="max-h-48 overflow-y-auto rounded-xl border border-white/[0.02] bg-acp-ink divide-y divide-white/[0.04] custom-scrollbar select-none">
               {deals
                 .filter(deal => !selectedLender.assignments.some(a => a.dealRef === deal.dealRef))
                 .filter(deal => {
@@ -1107,7 +1107,7 @@ export function LenderManagementPage() {
                   <button
                     onClick={handleResetPassword}
                     disabled={submitting}
-                    className="flex-1 inline-flex h-10 items-center justify-center rounded-xl bg-rose-500 text-xs font-bold uppercase tracking-wider text-white hover:bg-rose-650 disabled:opacity-40 cursor-pointer"
+                    className="flex-1 inline-flex h-10 items-center justify-center rounded-xl bg-rose-500 text-xs font-bold uppercase tracking-wider text-snow hover:bg-rose-650 disabled:opacity-40 cursor-pointer"
                   >
                     {submitting ? "Resetting..." : "Confirm Reset"}
                   </button>
@@ -1182,7 +1182,7 @@ export function LenderManagementPage() {
               <button
                 onClick={handleDeleteLender}
                 disabled={submitting || deleteConfirmText.trim() !== selectedLender.Company_Name.trim()}
-                className="flex-1 inline-flex h-10 items-center justify-center rounded-xl bg-rose-500 text-xs font-bold uppercase tracking-wider text-white hover:bg-rose-600 disabled:opacity-40 cursor-pointer"
+                className="flex-1 inline-flex h-10 items-center justify-center rounded-xl bg-rose-500 text-xs font-bold uppercase tracking-wider text-snow hover:bg-rose-600 disabled:opacity-40 cursor-pointer"
                 type="button"
               >
                 {submitting ? "Deleting..." : "Confirm Delete"}

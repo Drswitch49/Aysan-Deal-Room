@@ -28,7 +28,7 @@ import { cx } from "../../utils/cx";
 const PROVENANCE_TONE: Record<Provenance, string> = {
   verified: "border-emerald-500/30 text-emerald-300",
   verified_ledger: "border-emerald-500/30 text-emerald-300",
-  cfo_certified: "border-[#C6A66B]/40 text-[#C6A66B]",
+  cfo_certified: "border-acp-bronze/40 text-acp-bronze",
   filed: "border-sky-500/30 text-sky-300",
   pending: "border-white/10 text-slate-400",
 };
@@ -83,7 +83,7 @@ export function PortalStatCard({
   hint?: string;
 }) {
   return (
-    <div className="rounded-lg border border-white/5 bg-[#161B22] p-5">
+    <div className="rounded-lg border border-white/5 bg-acp-card p-5">
       <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">{label}</p>
       <p className="mt-2 text-[32px] font-semibold leading-none tabular-nums text-white">{value}</p>
       <div className="mt-3 min-h-[20px]">
@@ -186,7 +186,7 @@ export function DocRow({
   };
 
   const action =
-    "inline-flex items-center gap-1 rounded border border-white/10 px-2.5 py-1 text-[11px] font-semibold text-slate-200 transition hover:border-[#C6A66B]/50 hover:text-[#C6A66B] disabled:opacity-50";
+    "inline-flex items-center gap-1 rounded border border-white/10 px-2.5 py-1 text-[11px] font-semibold text-slate-200 transition hover:border-acp-bronze/50 hover:text-acp-bronze disabled:opacity-50";
 
   return (
     <div className="flex flex-wrap items-center gap-3 border-b border-white/5 py-3 last:border-b-0">
@@ -212,7 +212,7 @@ export function DocRow({
         ) : available ? (
           <span className="text-slate-500">{viewOnly ? "View only" : "File to follow"}</span>
         ) : (
-          <span className="font-semibold text-[#C6A66B]">
+          <span className="font-semibold text-acp-bronze">
             Publishes {publishesOn ? formatDate(publishesOn) : "soon"}
           </span>
         )}
@@ -246,7 +246,7 @@ export function DocOpenButton({ id, label }: { id: string; label: string }) {
         type="button"
         onClick={() => void open()}
         disabled={busy}
-        className="inline-flex items-center gap-1 whitespace-nowrap rounded border border-white/10 px-2 py-1 text-[11px] font-semibold text-slate-200 transition hover:border-[#C6A66B]/50 hover:text-[#C6A66B] disabled:opacity-50"
+        className="inline-flex items-center gap-1 whitespace-nowrap rounded border border-white/10 px-2 py-1 text-[11px] font-semibold text-slate-200 transition hover:border-acp-bronze/50 hover:text-acp-bronze disabled:opacity-50"
       >
         {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <Eye className="h-3 w-3" />} {label}
       </button>

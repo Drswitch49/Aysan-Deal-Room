@@ -537,19 +537,19 @@ export function PortCoMonitorPage() {
   if (isLoading) {
     return (
       <div className="flex h-[400px] flex-col items-center justify-center space-y-4 text-slate-400">
-        <RefreshCw className="h-8 w-8 animate-spin text-[#C6A66B]" />
+        <RefreshCw className="h-8 w-8 animate-spin text-acp-bronze" />
         <p className="text-sm font-semibold tracking-wide">Loading portfolio intelligence feed...</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 text-[#E2E8F0] font-sans">
+    <div className="space-y-6 text-slate-200 font-sans">
       {/* Title Block & Control */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/5 pb-4">
         <div className="space-y-1">
           <h1 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
-            PortCo <span className="text-[#C6A66B]">Intelligence Monitor</span>
+            PortCo <span className="text-acp-bronze">Intelligence Monitor</span>
             {isLocalFallbackActive && (
               <span className="inline-flex items-center rounded bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-500">
                 Fallback Database
@@ -572,7 +572,7 @@ export function PortCoMonitorPage() {
           <button
             onClick={handleRunAnalysis}
             disabled={isProcessing}
-            className="inline-flex h-9 items-center gap-2 rounded-xl border border-white/[0.02] bg-[#C6A66B]/10 hover:bg-[#C6A66B]/20 px-4 text-xs font-extrabold uppercase tracking-wider text-[#C6A66B] shadow-sm cursor-pointer disabled:opacity-50 transition"
+            className="inline-flex h-9 items-center gap-2 rounded-xl border border-white/[0.02] bg-acp-bronze/10 hover:bg-acp-bronze/20 px-4 text-xs font-extrabold uppercase tracking-wider text-acp-bronze shadow-sm cursor-pointer disabled:opacity-50 transition"
           >
             <RefreshCw className={cx("h-3.5 w-3.5", isProcessing && "animate-spin")} />
             <span>{isProcessing ? "Analyzing..." : "Run Portfolio Analysis"}</span>
@@ -589,8 +589,8 @@ export function PortCoMonitorPage() {
       )}
 
       {isProcessing && (
-        <div className="rounded-3xl border border-white/[0.02] bg-[#161B22]/50 p-6 flex flex-col items-center justify-center text-center space-y-4 animate-pulse relative overflow-hidden backdrop-blur-sm">
-          <RefreshCw className="h-7 w-7 animate-spin text-[#C6A66B]" />
+        <div className="rounded-3xl border border-white/[0.02] bg-acp-card/50 p-6 flex flex-col items-center justify-center text-center space-y-4 animate-pulse relative overflow-hidden backdrop-blur-sm">
+          <RefreshCw className="h-7 w-7 animate-spin text-acp-bronze" />
           <div className="space-y-1">
             <p className="text-sm font-black text-white">{processStatusText}</p>
             <p className="text-[10px] text-slate-500 uppercase tracking-widest font-extrabold">Inngest Worker Pipeline Active</p>
@@ -652,11 +652,11 @@ export function PortCoMonitorPage() {
           {/* Claude Portfolio Briefing & Alert Center */}
           <div className="grid gap-6 grid-cols-1 lg:grid-cols-3">
             {/* Claude Summary Briefing */}
-            <div className="lg:col-span-2 rounded-3xl border border-[#C6A66B]/20 bg-gradient-to-br from-[#161B22] to-[#121622] p-6 shadow-premium-card relative overflow-hidden flex flex-col justify-between">
-              <div className="absolute top-0 right-0 w-64 h-64 bg-[#C6A66B]/5 blur-3xl pointer-events-none" />
+            <div className="lg:col-span-2 rounded-3xl border border-acp-bronze/20 bg-gradient-to-br from-acp-card to-acp-navy p-6 shadow-premium-card relative overflow-hidden flex flex-col justify-between">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-acp-bronze/5 blur-3xl pointer-events-none" />
               <div className="relative z-10 space-y-4">
                 <div className="flex items-center gap-2">
-                  <Sparkles className="h-4.5 w-4.5 text-[#C6A66B]" />
+                  <Sparkles className="h-4.5 w-4.5 text-acp-bronze" />
                   <h3 className="text-xs font-extrabold uppercase tracking-widest text-slate-350">
                     Claude AI Review & Briefing
                   </h3>
@@ -678,7 +678,7 @@ export function PortCoMonitorPage() {
             </div>
 
             {/* Alert Center */}
-            <div className="rounded-3xl border border-white/[0.02] bg-[#161B22] p-6 shadow-premium-card space-y-4 max-h-[350px] overflow-y-auto">
+            <div className="rounded-3xl border border-white/[0.02] bg-acp-card p-6 shadow-premium-card space-y-4 max-h-[350px] overflow-y-auto">
               <div className="flex items-center gap-2 pb-2 border-b border-white/5">
                 <ShieldAlert className="h-4.5 w-4.5 text-rose-500" />
                 <h3 className="text-xs font-extrabold uppercase tracking-widest text-white">
@@ -755,7 +755,7 @@ export function PortCoMonitorPage() {
                   placeholder="Search PortCo..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full h-9 rounded-xl border border-white/[0.04] bg-[#0B0B0C] pl-9 pr-3 text-xs text-white placeholder-slate-500 outline-none focus:border-[#C6A66B] transition shadow-inner"
+                  className="w-full h-9 rounded-xl border border-white/[0.04] bg-acp-deep pl-9 pr-3 text-xs text-white placeholder-slate-500 outline-none focus:border-acp-bronze transition shadow-inner"
                 />
               </div>
 
@@ -764,7 +764,7 @@ export function PortCoMonitorPage() {
                 <select
                   value={riskFilter}
                   onChange={(e) => setRiskFilter(e.target.value)}
-                  className="h-9 rounded-xl border border-white/[0.04] bg-[#0B0B0C] px-3 text-xs text-slate-300 outline-none focus:border-[#C6A66B] transition cursor-pointer shadow-inner"
+                  className="h-9 rounded-xl border border-white/[0.04] bg-acp-deep px-3 text-xs text-slate-300 outline-none focus:border-acp-bronze transition cursor-pointer shadow-inner"
                 >
                   <option value="All">All Risks</option>
                   <option value="low">Low Risk</option>
@@ -776,7 +776,7 @@ export function PortCoMonitorPage() {
                 <select
                   value={sectorFilter}
                   onChange={(e) => setSectorFilter(e.target.value)}
-                  className="h-9 rounded-xl border border-white/[0.04] bg-[#0B0B0C] px-3 text-xs text-slate-300 outline-none focus:border-[#C6A66B] transition cursor-pointer shadow-inner"
+                  className="h-9 rounded-xl border border-white/[0.04] bg-acp-deep px-3 text-xs text-slate-300 outline-none focus:border-acp-bronze transition cursor-pointer shadow-inner"
                 >
                   {uniqueSectors.map((sec) => (
                     <option key={sec} value={sec}>
@@ -789,7 +789,7 @@ export function PortCoMonitorPage() {
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value)}
-                  className="h-9 rounded-xl border border-white/[0.04] bg-[#0B0B0C] px-3 text-xs text-slate-300 outline-none focus:border-[#C6A66B] transition cursor-pointer shadow-inner"
+                  className="h-9 rounded-xl border border-white/[0.04] bg-acp-deep px-3 text-xs text-slate-300 outline-none focus:border-acp-bronze transition cursor-pointer shadow-inner"
                 >
                   <option value="health_desc">Sort: Health H-to-L</option>
                   <option value="health_asc">Sort: Health L-to-H</option>
@@ -815,10 +815,10 @@ export function PortCoMonitorPage() {
                     className={cx(
                       "rounded-3xl border p-6 sm:p-8 shadow-premium-card relative overflow-hidden transition-all duration-300",
                       health.riskLevel === "high"
-                        ? "border-rose-500/20 bg-gradient-to-br from-[#161B22] to-[#201517]"
+                        ? "border-rose-500/20 bg-gradient-to-br from-acp-card to-[#201517]"
                         : health.riskLevel === "medium"
-                        ? "border-amber-500/20 bg-gradient-to-br from-[#161B22] to-[#201d15]"
-                        : "border-white/[0.02] bg-[#161B22] card-sheen"
+                        ? "border-amber-500/20 bg-gradient-to-br from-acp-card to-[#201d15]"
+                        : "border-white/[0.02] bg-acp-card card-sheen"
                     )}
                   >
                     <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-white/[0.01] to-transparent pointer-events-none blur-3xl" />
@@ -994,7 +994,7 @@ export function PortCoMonitorPage() {
 
                           {/* Operational KPI Inputs */}
                           <div className="md:col-span-3 rounded-2xl border border-white/[0.02] bg-white/[0.005] p-4.5 space-y-1">
-                            <p className="text-[9px] font-extrabold uppercase tracking-widest text-[#C6A66B]">
+                            <p className="text-[9px] font-extrabold uppercase tracking-widest text-acp-bronze">
                               Operational KPI Inputs
                             </p>
                             <p className="text-xs text-slate-300 font-semibold leading-relaxed whitespace-pre-wrap mt-1">
@@ -1004,7 +1004,7 @@ export function PortCoMonitorPage() {
 
                           {/* Document Activity Inputs */}
                           <div className="md:col-span-3 rounded-2xl border border-white/[0.02] bg-white/[0.005] p-4.5 space-y-1">
-                            <p className="text-[9px] font-extrabold uppercase tracking-widest text-[#C6A66B]">
+                            <p className="text-[9px] font-extrabold uppercase tracking-widest text-acp-bronze">
                               Document Activity Inputs
                             </p>
                             <p className="text-xs text-slate-300 font-semibold leading-relaxed whitespace-pre-wrap mt-1">
@@ -1058,7 +1058,7 @@ export function PortCoMonitorPage() {
               })}
 
               {filteredAndSortedCompanies.length === 0 && (
-                <div className="rounded-3xl border border-white/[0.02] bg-[#161B22] p-12 text-center text-xs font-semibold text-slate-550 select-none">
+                <div className="rounded-3xl border border-white/[0.02] bg-acp-card p-12 text-center text-xs font-semibold text-slate-550 select-none">
                   No portfolio companies found matching your filters.
                 </div>
               )}
@@ -1077,7 +1077,7 @@ export function PortCoMonitorPage() {
         footer={(
           <>
             <button type="button" onClick={() => setIsAddCompanyOpen(false)} className="h-9 px-4 rounded-xl border border-white/[0.02] text-slate-405 text-xs font-bold uppercase tracking-wider hover:bg-white/[0.015] transition cursor-pointer">Cancel</button>
-            <button type="submit" disabled={isCompanySaving} className="h-9 px-5 rounded-xl bg-gradient-to-r from-[#C6A66B] to-[#B8924F] text-slate-950 text-xs font-bold uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none hover:shadow-glow-bronze transition cursor-pointer">
+            <button type="submit" disabled={isCompanySaving} className="h-9 px-5 rounded-xl bg-gradient-to-r from-acp-bronze to-acp-bronze-dark text-acp-on-accent text-xs font-bold uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none hover:shadow-glow-bronze transition cursor-pointer">
               {isCompanySaving ? "Adding..." : "Add Company"}
             </button>
           </>
@@ -1164,7 +1164,7 @@ export function PortCoMonitorPage() {
         footer={(
           <>
             <button type="button" onClick={() => setIsEditCompanyOpen(false)} className="h-9 px-4 rounded-xl border border-white/[0.02] text-slate-405 text-xs font-bold uppercase tracking-wider hover:bg-white/[0.015] transition cursor-pointer">Cancel</button>
-            <button type="submit" disabled={isEditSaving} className="h-9 px-5 rounded-xl bg-gradient-to-r from-[#C6A66B] to-[#B8924F] text-slate-950 text-xs font-bold uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none hover:shadow-glow-bronze transition cursor-pointer">
+            <button type="submit" disabled={isEditSaving} className="h-9 px-5 rounded-xl bg-gradient-to-r from-acp-bronze to-acp-bronze-dark text-acp-on-accent text-xs font-bold uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none hover:shadow-glow-bronze transition cursor-pointer">
               {isEditSaving ? "Saving..." : "Save Changes"}
             </button>
           </>

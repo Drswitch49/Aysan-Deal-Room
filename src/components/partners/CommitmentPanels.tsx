@@ -33,10 +33,10 @@ import { IN_PORTAL } from "../../lib/portal/commitments";
 import { cx } from "../../utils/cx";
 
 const input =
-  "w-full rounded border border-white/10 bg-[#0F1115] px-3 py-2 text-sm text-white outline-none transition focus:border-acp-bronze";
+  "w-full rounded border border-white/10 bg-acp-ink px-3 py-2 text-sm text-white outline-none transition focus:border-acp-bronze";
 const label = "mb-1 block text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500";
 const primaryBtn =
-  "rounded bg-acp-bronze px-3.5 py-2 text-xs font-bold text-[#0F1115] transition hover:bg-acp-bronze-light disabled:cursor-not-allowed disabled:opacity-40";
+  "rounded bg-acp-bronze px-3.5 py-2 text-xs font-bold text-acp-on-accent transition hover:bg-acp-bronze-light disabled:cursor-not-allowed disabled:opacity-40";
 const ghostBtn =
   "rounded border border-white/10 px-3 py-1.5 text-[11px] font-semibold text-slate-300 transition hover:border-acp-bronze/40 disabled:opacity-40";
 
@@ -338,7 +338,7 @@ export function NewCommitmentForm({
           type="checkbox"
           checked={completeNow}
           onChange={(e) => setCompleteNow(e.target.checked)}
-          className="mt-0.5 accent-[#C6A66B]"
+          className="mt-0.5 accent-acp-bronze"
         />
         <span>
           Subscription documents are executed — mark it completed now.
@@ -616,7 +616,7 @@ function TransactionForm({
       </div>
 
       <label className="flex cursor-pointer items-center gap-2 text-xs text-slate-300">
-        <input type="checkbox" checked={settled} onChange={(e) => setSettled(e.target.checked)} className="accent-[#C6A66B]" />
+        <input type="checkbox" checked={settled} onChange={(e) => setSettled(e.target.checked)} className="accent-acp-bronze" />
         Already settled (money has moved)
       </label>
       {settled ? (
