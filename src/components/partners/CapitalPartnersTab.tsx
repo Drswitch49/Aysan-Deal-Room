@@ -185,7 +185,7 @@ export function CapitalPartnersTab({ canManage, canErase = false }: { canManage:
               <tr className="text-[10px] uppercase tracking-[0.12em] text-slate-500">
                 <th className="px-3 py-2.5 font-semibold">Partner</th>
                 <th className="px-3 py-2.5 font-semibold">Type</th>
-                <th className="px-3 py-2.5 text-right font-semibold">Committed</th>
+                <th className="px-3 py-2.5 text-right font-semibold">Subscribed</th>
                 <th className="hidden px-3 py-2.5 font-semibold 2xl:table-cell">Perimeter</th>
                 <th className="px-3 py-2.5 font-semibold">Certification</th>
                 <th className="px-3 py-2.5 font-semibold">Portal</th>
@@ -200,7 +200,10 @@ export function CapitalPartnersTab({ canManage, canErase = false }: { canManage:
                   className="cursor-pointer border-t border-white/5 transition hover:bg-white/[0.03]"
                 >
                   <td className="max-w-[200px] px-3 py-2.5">
-                    <p className="truncate text-xs font-semibold text-slate-200">{row.name}</p>
+                    <p className="truncate text-xs font-semibold text-slate-200">
+                      {row.name}
+                      {row.is_test ? <span className="ml-1.5 text-[10px] font-semibold text-amber-300">Test</span> : null}
+                    </p>
                     <p className="truncate text-[10px] text-slate-500">{row.email}</p>
                   </td>
                   <td className="whitespace-nowrap px-3 py-2.5 text-xs text-slate-400">{TYPE_LABEL[row.type] ?? row.type}</td>
@@ -697,6 +700,7 @@ function DetailsTab({
     type: p.type,
     warmth: p.warmth ?? 0,
     perimeter_flag: p.perimeter_flag,
+    is_test: Boolean(p.is_test),
     last_touch: p.last_touch ?? "",
     notes: p.notes ?? "",
   });
@@ -759,6 +763,17 @@ function DetailsTab({
         />
         Inside the perimeter
         <span className="text-slate-500">— admin knowledge only; unlocks nothing in the portal</span>
+      </label>
+
+      <label className="flex items-center gap-2 text-xs text-slate-300">
+        <input
+          type="checkbox"
+          checked={form.is_test}
+          onChange={(e) => setForm({ ...form, is_test: e.target.checked })}
+          className="h-4 w-4 accent-acp-bronze"
+        />
+        Test account
+        <span className="text-slate-500">— sees test holdings; real partners never do</span>
       </label>
 
       <div>

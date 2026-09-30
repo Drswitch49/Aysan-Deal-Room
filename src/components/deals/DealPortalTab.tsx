@@ -5,8 +5,10 @@
  *   1. How partners see the deal: the display name (never the company's real
  *      name before announcement — rule R3), the Business tab profile, and the
  *      reporting fields their dashboard shows.
- *   2. Who is in it: the capital partners committed to this deal. A partner
- *      sees the deal in their portal only once their commitment is completed.
+ *   2. Who is in it: the capital partners subscribing to this deal. A partner
+ *      sees the deal in their portal only once their subscription is completed.
+ *   3. Its documents: the 11 standard documents in 7 category folders
+ *      (DealPortalDocuments), for Active-stage deals.
  *
  * Coverage status has one author, the CFO (rule R4); other roles see it read
  * only, and the database refuses them even if this control is bypassed.
@@ -26,7 +28,8 @@ import { gbp } from "../../lib/portal/format";
 import { cx } from "../../utils/cx";
 import { IN_PORTAL } from "../../lib/portal/commitments";
 import { CommitmentCard, NewCommitmentForm } from "../partners/CommitmentPanels";
-import { DealPortalDocuments } from "./DealPortalDocuments";
+import { DealPortalDocuments, type DealPartner } from "./DealPortalDocuments";
+import { LANE_LABEL } from "../../../lib/core/investor-docs";
 import { isActiveStageDeal } from "../../../lib/core/schemas/deal";
 
 
@@ -60,6 +63,8 @@ interface Form {
   amort_status: string;
   next_report_date: string;
   contracted_pct: string;
+  lane: string;
+  acquisition_no: string;
 }
 
 function toForm(s: PartnerDealSettings): Form {
@@ -78,6 +83,8 @@ function toForm(s: PartnerDealSettings): Form {
       s.deal.contracted_bp_verified !== null && s.deal.contracted_bp_verified !== undefined
         ? String(s.deal.contracted_bp_verified / 100)
         : "",
+    lane: s.deal.lane ? String(s.deal.lane) : "",
+    acquisition_no: s.deal.acquisition_no ? String(s.deal.acquisition_no) : "",
   };
 }
 
@@ -146,12 +153,19 @@ export function DealPortalTab({ dealId }: { dealId: string }) {
       setError("Founded year must be a four-digit year.");
       return;
     }
+    const acqNo = form.acquisition_no.trim() === "" ? null : Number(form.acquisition_no);
+    if (acqNo !== null && (!Number.isInteger(acqNo) || acqNo < 1)) {
+      setError("The acquisition number is a whole number, e.g. 1 for Acquisition 01.");
+      return;
+    }
     setSaving(true);
     setError("");
     try {
       await savePartnerDealSettings({
         deal_id: dealId,
         partner_display_name: form.partner_display_name.trim() || null,
+        lane: form.lane ? (Number(form.lane) as 1 | 2) : null,
+        acquisition_no: acqNo,
         amort_status: form.amort_status,
         next_report_date: form.next_report_date || null,
         contracted_bp_verified: pctNum === null ? null : Math.round(pctNum * 100),
@@ -203,13 +217,13 @@ export function DealPortalTab({ dealId }: { dealId: string }) {
             <p className="text-[11px] text-slate-500">
               {live.length
                 ? `Partners see it as “${settings.deal.partner_display_name || settings.deal.acp_ref_no || "Acquisition"}”.`
-                : "Add a partner commitment below and mark it completed to publish this deal to them."}
-              {pending.length ? ` ${pending.length} pending commitment${pending.length === 1 ? "" : "s"}.` : ""}
+                : "Add a partner subscription below and mark it completed to publish this deal to them."}
+              {pending.length ? ` ${pending.length} pending subscription${pending.length === 1 ? "" : "s"}.` : ""}
             </p>
           </div>
         </div>
         <div className="text-right">
-          <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">Committed</p>
+          <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">Subscribed</p>
           <p className="text-lg font-bold tabular-nums text-white">{committedTotal ? gbp(committedTotal) : "—"}</p>
           {pendingTotal ? <p className="text-[10px] tabular-nums text-slate-500">+ {gbp(pendingTotal)} pending</p> : null}
         </div>
@@ -243,6 +257,25 @@ export function DealPortalTab({ dealId }: { dealId: string }) {
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label className={label}>Lane</label>
+              <select value={form.lane} onChange={set("lane")} className={input} disabled={!canManage}>
+                <option value="">Not set</option>
+                <option value="1">{LANE_LABEL[1]}</option>
+                <option value="2">{LANE_LABEL[2]}</option>
+              </select>
+            </div>
+            <div>
+              <label className={label}>Acquisition number</label>
+              <input
+                inputMode="numeric"
+                value={form.acquisition_no}
+                onChange={set("acquisition_no")}
+                placeholder="1 for Acquisition 01"
+                className={input}
+                disabled={!canManage}
+              />
+            </div>
             <div>
               <label className={label}>Sector</label>
               <input value={form.sector} onChange={set("sector")} placeholder="Domiciliary care" className={input} disabled={!canManage} />
@@ -346,7 +379,7 @@ export function DealPortalTab({ dealId }: { dealId: string }) {
         <section className={cx(card, "space-y-3 xl:col-span-3")}>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h3 className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-400">
-              Partner commitments{commitments.length ? ` · ${commitments.length}` : ""}
+              Partner subscriptions{commitments.length ? ` · ${commitments.length}` : ""}
             </h3>
             {canManage && !adding && investable ? (
               <button
@@ -354,7 +387,7 @@ export function DealPortalTab({ dealId }: { dealId: string }) {
                 onClick={() => setAdding(true)}
                 className="inline-flex items-center gap-1.5 rounded-lg bg-acp-bronze px-3 py-1.5 text-xs font-bold text-acp-on-accent transition hover:brightness-110"
               >
-                <Plus className="h-3.5 w-3.5" /> Add partner commitment
+                <Plus className="h-3.5 w-3.5" /> Add partner subscription
               </button>
             ) : null}
           </div>
@@ -381,7 +414,8 @@ export function DealPortalTab({ dealId }: { dealId: string }) {
             <div className="rounded-xl border border-dashed border-white/10 px-6 py-10 text-center">
               <p className="text-sm text-slate-300">No capital partners in this deal yet.</p>
               <p className="mt-1.5 text-xs text-slate-500">
-                Add a partner commitment, then mark it completed when subscription documents are executed.
+                Add a partner subscription. It can be marked completed once the partner's Completion and Ownership
+                Statement and Share Certificate are filed under Ownership below.
               </p>
             </div>
           ) : (
@@ -399,9 +433,26 @@ export function DealPortalTab({ dealId }: { dealId: string }) {
         </section>
       </div>
 
-      <DealPortalDocuments dealId={dealId} canManage={canManage} partnerCount={live.length} />
+      <DealPortalDocuments
+        dealId={dealId}
+        canManage={canManage}
+        partners={dealPartners(commitments)}
+        acquisitionNo={settings.deal.acquisition_no}
+        investable={investable}
+      />
     </div>
   );
+}
+
+/** Everyone subscribing to the deal, once each, for partner-scoped documents. */
+function dealPartners(commitments: Array<Record<string, any>>): DealPartner[] {
+  const seen = new Map<string, DealPartner>();
+  for (const c of commitments) {
+    const id = c.investors?.id ?? c.investor_id;
+    if (!id || seen.has(id)) continue;
+    seen.set(id, { investor_id: id, name: c.investors?.name ?? "Capital partner", status: c.status });
+  }
+  return Array.from(seen.values());
 }
 
 /** Coverage status — CFO only (rule R4). Everyone else sees it read only. */

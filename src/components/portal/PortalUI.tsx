@@ -7,9 +7,18 @@
  * does not say when it will fill are all defects here, not style choices.
  */
 import { ReactNode, useState } from "react";
-import { Download, Eye, Loader2 } from "lucide-react";
-import { openDocument } from "../../api/investorPortal";
+import { Download, Eye, FolderOpen, Loader2 } from "lucide-react";
+import { openDocument, type PortalDocument } from "../../api/investorPortal";
 import {
+  CATEGORY_INFO,
+  DOC_CATEGORIES,
+  DOC_TYPE_INFO,
+  acquisitionLabel,
+  docTypeLabel,
+  isDocType,
+} from "../../../lib/core/investor-docs";
+import {
+  COPY,
   COVERAGE_EXPLAINER,
   COVERAGE_LABEL,
   COVERAGE_TONE,
@@ -33,18 +42,37 @@ const PROVENANCE_TONE: Record<Provenance, string> = {
   pending: "border-white/10 text-slate-400",
 };
 
-/** An unknown kind renders nothing: a badge nobody defined asserts nothing. */
-export function ProvenanceBadge({ kind }: { kind: Provenance | string | null | undefined }) {
+/**
+ * An unknown kind renders nothing: a badge nobody defined asserts nothing.
+ * With `onEvidence`, the badge links to the documents that prove the figure.
+ */
+export function ProvenanceBadge({
+  kind,
+  onEvidence,
+}: {
+  kind: Provenance | string | null | undefined;
+  onEvidence?: () => void;
+}) {
   const key = kind as Provenance;
   if (!key || !(key in PROVENANCE_LABEL)) return null;
+  const className = cx(
+    "inline-flex items-center rounded-full border px-2 py-[3px] text-[9px] font-bold uppercase tracking-[0.12em]",
+    PROVENANCE_TONE[key],
+  );
+  if (onEvidence) {
+    return (
+      <button
+        type="button"
+        onClick={onEvidence}
+        title={`${PROVENANCE_TOOLTIP[key]} Open the evidence.`}
+        className={cx(className, "cursor-pointer underline-offset-2 hover:underline")}
+      >
+        {PROVENANCE_LABEL[key]} ↗
+      </button>
+    );
+  }
   return (
-    <span
-      title={PROVENANCE_TOOLTIP[key]}
-      className={cx(
-        "inline-flex items-center rounded-full border px-2 py-[3px] text-[9px] font-bold uppercase tracking-[0.12em]",
-        PROVENANCE_TONE[key],
-      )}
-    >
+    <span title={PROVENANCE_TOOLTIP[key]} className={className}>
       {PROVENANCE_LABEL[key]}
     </span>
   );
@@ -76,18 +104,21 @@ export function PortalStatCard({
   value,
   provenance,
   hint,
+  onEvidence,
 }: {
   label: string;
   value: string;
   provenance?: Provenance;
   hint?: string;
+  /** Where the figure's evidence lives; makes the badge a link. */
+  onEvidence?: () => void;
 }) {
   return (
     <div className="rounded-lg border border-white/5 bg-acp-card p-5">
       <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">{label}</p>
       <p className="mt-2 text-[32px] font-semibold leading-none tabular-nums text-white">{value}</p>
       <div className="mt-3 min-h-[20px]">
-        {provenance ? <ProvenanceBadge kind={provenance} /> : hint ? (
+        {provenance ? <ProvenanceBadge kind={provenance} onEvidence={onEvidence} /> : hint ? (
           <span className="text-[11px] text-slate-500">{hint}</span>
         ) : null}
       </div>
@@ -130,6 +161,10 @@ export function DocRow({
   publishesOn,
   viewOnly,
   hasFile = false,
+  noticeType = null,
+  version = 1,
+  superseded = false,
+  eventDate = null,
 }: {
   id: string;
   title: string;
@@ -139,8 +174,20 @@ export function DocRow({
   publishesOn: string | null;
   viewOnly: boolean;
   hasFile?: boolean;
+  noticeType?: string | null;
+  version?: number;
+  /** A newer version corrects this one. It stays visible, marked. */
+  superseded?: boolean;
+  eventDate?: string | null;
 }) {
-  const typeLabel = docType.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  const typeLabel = [
+    isDocType(docType) ? DOC_TYPE_INFO[docType].code : null,
+    docTypeLabel(docType, noticeType),
+    `v${version}`,
+    eventDate ? `event ${formatDate(eventDate)}` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
   const [busy, setBusy] = useState<"view" | "download" | null>(null);
   const [error, setError] = useState("");
 
@@ -191,7 +238,14 @@ export function DocRow({
   return (
     <div className="flex flex-wrap items-center gap-3 border-b border-white/5 py-3 last:border-b-0">
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm text-slate-200">{title}</p>
+        <p className={cx("break-words text-sm", superseded ? "text-slate-500" : "text-slate-200")}>
+          {title}
+          {superseded ? (
+            <span className="ml-2 rounded-full border border-white/10 px-1.5 py-0.5 align-middle text-[10px] font-semibold text-slate-400">
+              Superseded
+            </span>
+          ) : null}
+        </p>
         <p className="mt-0.5 text-[11px] uppercase tracking-[0.1em] text-slate-500">{typeLabel}</p>
         {error ? <p className="mt-1 text-[11px] text-rose-300">{error}</p> : null}
       </div>
@@ -210,7 +264,7 @@ export function DocRow({
             )}
           </>
         ) : available ? (
-          <span className="text-slate-500">{viewOnly ? "View only" : "File to follow"}</span>
+          <span className="text-slate-500">File to follow</span>
         ) : (
           <span className="font-semibold text-acp-bronze">
             Publishes {publishesOn ? formatDate(publishesOn) : "soon"}
@@ -290,7 +344,8 @@ export function ReadOnlyBanner({ until }: { until: string | null }) {
 export function PortalFooter() {
   return (
     <footer className="mt-10 border-t border-white/5 pt-5 text-[11px] leading-relaxed text-slate-500">
-      <p>Private and confidential. Capital at risk. Figures are actuals; ACP publishes no forecasts.</p>
+      <p className="font-semibold text-slate-400">{COPY.footerRisk}</p>
+      <p className="mt-1">Private and confidential. Capital at risk.</p>
       <p className="mt-1">partnerships@aysancapital.com</p>
     </footer>
   );
@@ -302,16 +357,18 @@ export function MetricRow({
   label,
   value,
   provenance,
+  onEvidence,
 }: {
   label: string;
   value: ReactNode;
   provenance?: Provenance;
+  onEvidence?: () => void;
 }) {
   return (
     <div className="flex flex-wrap items-center gap-3 border-b border-white/5 py-3 last:border-b-0">
       <span className="min-w-0 flex-1 text-sm text-slate-300">{label}</span>
       <span className="text-sm font-medium tabular-nums text-white">{value}</span>
-      <span className="w-32 text-right">{provenance ? <ProvenanceBadge kind={provenance} /> : null}</span>
+      <span className="w-32 text-right">{provenance ? <ProvenanceBadge kind={provenance} onEvidence={onEvidence} /> : null}</span>
     </div>
   );
 }
@@ -324,5 +381,62 @@ export function RailRow({ label, value }: { label: string; value: ReactNode }) {
     </div>
   );
 }
+
+// ─── Document folders ──────────────────────────────────────────────────────
+
+/**
+ * A partner's documents in the standard's 7 numbered categories. Only folders
+ * that hold something are drawn: the server has already held back every
+ * category the partner has not reached, so an empty folder would only
+ * advertise what is still to come.
+ */
+export function DocumentFolders({ docs }: { docs: PortalDocument[] }) {
+  return (
+    <div className="space-y-4">
+      {DOC_CATEGORIES.map((cat) => {
+        const inFolder = docs.filter((d) => d.category === cat);
+        if (!inFolder.length) return null;
+        const info = CATEGORY_INFO[cat];
+        return (
+          <div key={cat} className="rounded-lg border border-white/5 bg-white/[0.015] px-4 py-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <FolderOpen className="h-4 w-4 text-acp-portal-gold" />
+              <p className="text-sm font-semibold text-white">
+                {info.n} · {info.label}
+              </p>
+              <span className="text-[11px] text-slate-500">{info.question}</span>
+              {!info.download ? (
+                <span className="ml-auto rounded-full border border-acp-portal-gold/30 px-2 py-0.5 text-[10px] font-semibold text-acp-portal-gold">
+                  View only, your numbered copy
+                </span>
+              ) : null}
+            </div>
+            {inFolder.map((d) => (
+              <DocRow
+                key={d.id}
+                id={d.id}
+                title={d.title}
+                docType={d.doc_type}
+                date={d.published_at}
+                available={d.available}
+                publishesOn={d.publishes_on}
+                viewOnly={d.view_only || !info.download}
+                hasFile={d.has_file}
+                noticeType={d.notice_type}
+                version={d.version}
+                superseded={d.superseded}
+                eventDate={d.event_date}
+              />
+            ))}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/** The heading for a document group: "Acquisition 01", else the deal's partner name. */
+export const docGroupName = (d: PortalDocument): string =>
+  acquisitionLabel(d.acquisition_no) ?? d.partner_display_name ?? "Your documents";
 
 export { gbp, formatDate };

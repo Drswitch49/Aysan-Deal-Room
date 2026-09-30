@@ -191,10 +191,10 @@ export function render(template: TemplateName | string, payload: Payload): Rende
 
     case "call_issued": {
       // Figures permitted here by the spec. Bank details never are.
-      const heading = "Capital call: action required";
+      const heading = "Subscription payment: action required";
       const lines = [
         greeting,
-        `A capital call has been issued for ${formatMoney(payload.amount_pence)}, due ${formatDate(payload.due_date)}.`,
+        `A subscription payment of ${formatMoney(payload.amount_pence)} is due ${formatDate(payload.due_date)}.`,
         "Payment details are in the portal. We will never send bank details by email.",
       ];
       return {
@@ -205,7 +205,7 @@ export function render(template: TemplateName | string, payload: Payload): Rende
     }
 
     case "call_settled": {
-      const heading = "Capital call received";
+      const heading = "Subscription payment received";
       const lines = [greeting, "Thank you. Your payment has been received and recorded."];
       return {
         subject: heading,

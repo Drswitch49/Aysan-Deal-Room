@@ -4,9 +4,14 @@
  *
  * A report is a period (Q3 2026), the date it publishes, ACP's one-line
  * trading summary, the coverage status at period end, and its files: the
- * report itself and, optionally, the covenant certificate. Files go straight
+ * report itself and, optionally, a coverage certificate. Files go straight
  * from the browser to Cloudinary; the server turns each into a deal-wide
- * partner document tied to the report.
+ * R1 Quarterly Report document (Reporting category) tied to the report.
+ *
+ * Sending is gated like any R1 release: the acquisition must have completed and
+ * the CFO must certify every figure, recorded on each file in the deal's
+ * Investor Portal folders. Until then a send comes back NOT READY and the
+ * report stays scheduled.
  *
  * "Publish & send" makes it visible to every partner with a completed
  * commitment in the deal, writes their feed line and emails them (no figures
@@ -211,7 +216,7 @@ export function QuarterlyReportsTab({ canManage }: { canManage: boolean }) {
                     <div className="mt-1.5 flex flex-wrap gap-1.5">
                       {files.map((f) => (
                         <button key={f.id} type="button" onClick={() => void view(f.id)} className={smallBtn}>
-                          <Eye className="h-3 w-3" /> {f.doc_type === "covenant_certificate" ? "Certificate" : "Report"}
+                          <Eye className="h-3 w-3" /> {f.report_part === "certificate" ? "Certificate" : "Report"}
                           {f.file_bytes ? <span className="text-slate-500">· {formatBytes(Number(f.file_bytes))}</span> : null}
                         </button>
                       ))}
@@ -370,7 +375,13 @@ function NewReportForm({
         publish,
         next_report_date: nextReport || undefined,
       });
-      await onDone(publish ? notifiedText(res.notified) : `${period.trim()} saved as a draft. Partners see it as “Publishes ${formatDate(publishesOn)}”.`);
+      await onDone(
+        publish && res.not_ready
+          ? `${period.trim()} saved but not sent. NOT READY: ${res.not_ready.join("; ")}. Record the CFO's certification on each file under Reporting on the deal's Investor Portal tab, then send.`
+          : publish
+            ? notifiedText(res.notified)
+            : `${period.trim()} saved as a draft. Partners see it as “Publishes ${formatDate(publishesOn)}”.`,
+      );
     } catch (err: any) {
       setError(err?.message || "Could not save the report.");
       setStage("");
@@ -453,8 +464,8 @@ function NewReportForm({
           disabled={busy}
         />
         <FileField
-          title="Covenant certificate (optional)"
-          hint="The signed certificate for the period, if there is one."
+          title="Coverage certificate (optional)"
+          hint="The CFO's coverage certificate for the period, against ACP's floor, if there is one."
           file={certFile}
           onPick={pick(setCertFile)}
           disabled={busy}

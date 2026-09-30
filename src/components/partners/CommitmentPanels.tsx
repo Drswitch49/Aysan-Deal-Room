@@ -8,7 +8,11 @@
  *
  *   record (pending)  →  mark completed (ownership set, figures lock, deal
  *   appears in the portal)  →  capital calls and distributions (count towards
- *   Drawn and Returned once settled)
+ *   Paid and Returned once settled)
+ *
+ * Completion needs that partner's Completion and Ownership Statement (payment
+ * receipt) and Share Certificate filed under Ownership first; Postgres refuses
+ * it otherwise. A test holding (is_test) reaches only test partners.
  *
  * The same pieces serve both doors in: the partner record (pick a deal) and the
  * deal's Investor Portal tab (pick a partner). The rules behind them — the
@@ -21,6 +25,7 @@ import { CheckCircle2, Eye, EyeOff, Loader2, Plus, Search, X } from "lucide-reac
 import {
   completeCommitment,
   createCommitment,
+  setCommitmentTest,
   listPartners,
   recordTransaction,
   searchDeals,
@@ -167,7 +172,7 @@ function DealPicker({ value, onChange }: { value: DealOption | null; onChange: (
           ))
         )}
       </div>
-      {!q ? <p className="mt-1 text-[10px] text-slate-500">Only deals at the Active stage can take commitments.</p> : null}
+      {!q ? <p className="mt-1 text-[10px] text-slate-500">Only deals at the Active stage can take subscriptions.</p> : null}
     </div>
   );
 }
@@ -263,27 +268,24 @@ export function NewCommitmentForm({
   const [deal, setDeal] = useState<DealOption | null>(null);
   const [partner, setPartner] = useState<PartnerListRow | null>(null);
   const [amount, setAmount] = useState("");
-  const [completeNow, setCompleteNow] = useState(false);
-  const [ownership, setOwnership] = useState("");
+  const [isTest, setIsTest] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
   const pence = toPence(amount);
-  const bp = toBp(ownership);
   const targetDeal = dealId ?? deal?.id;
   const targetInvestor = investorId ?? partner?.id;
-  const ready = Boolean(targetDeal && targetInvestor && pence && (!completeNow || bp !== null));
+  const ready = Boolean(targetDeal && targetInvestor && pence);
 
   const submit = async () => {
     if (!targetDeal || !targetInvestor || !pence) return;
     setBusy(true);
     setError("");
     try {
-      const created = await createCommitment({ investor_id: targetInvestor, deal_id: targetDeal, committed_pence: pence });
-      if (completeNow && bp !== null) await completeCommitment(created.id, bp);
+      await createCommitment({ investor_id: targetInvestor, deal_id: targetDeal, committed_pence: pence, is_test: isTest });
       await onDone();
     } catch (err: any) {
-      setError(err?.message || "The commitment could not be recorded.");
+      setError(err?.message || "The subscription could not be recorded.");
       setBusy(false);
     }
   };
@@ -291,7 +293,7 @@ export function NewCommitmentForm({
   return (
     <div className="space-y-3 rounded border border-acp-bronze/30 bg-acp-bronze/[0.04] p-4">
       <div className="flex items-center justify-between">
-        <p className="text-xs font-bold text-acp-bronze">Record a commitment</p>
+        <p className="text-xs font-bold text-acp-bronze">Record a subscription</p>
         <button type="button" onClick={onCancel} className="text-slate-500 hover:text-slate-200" aria-label="Cancel">
           <X className="h-4 w-4" />
         </button>
@@ -319,7 +321,7 @@ export function NewCommitmentForm({
 
       <div>
         <label className={label} htmlFor="commit-amount">
-          Amount committed (£)
+          Amount subscribed (£)
         </label>
         <input
           id="commit-amount"
@@ -336,38 +338,20 @@ export function NewCommitmentForm({
       <label className="flex cursor-pointer items-start gap-2 text-xs text-slate-300">
         <input
           type="checkbox"
-          checked={completeNow}
-          onChange={(e) => setCompleteNow(e.target.checked)}
+          checked={isTest}
+          onChange={(e) => setIsTest(e.target.checked)}
           className="mt-0.5 accent-acp-bronze"
         />
         <span>
-          Subscription documents are executed — mark it completed now.
-          <span className="block text-[10px] text-slate-500">
-            Completing puts the deal in the partner’s portal and locks the amount and ownership.
-          </span>
+          Test holding
+          <span className="block text-[10px] text-slate-500">Shown only to test partners, never to a real one.</span>
         </span>
       </label>
 
-      {completeNow ? (
-        <div>
-          <label className={label} htmlFor="commit-ownership">
-            Ownership (%)
-          </label>
-          <input
-            id="commit-ownership"
-            inputMode="decimal"
-            value={ownership}
-            onChange={(e) => setOwnership(e.target.value)}
-            placeholder="12.5"
-            className={input}
-          />
-          {ownership && bp === null ? <p className="mt-1 text-[10px] text-rose-300">Enter a percentage from 0 to 100.</p> : null}
-        </div>
-      ) : (
-        <p className="text-[10px] leading-relaxed text-slate-500">
-          It is saved as pending and stays out of the partner’s portal until you mark it completed.
-        </p>
-      )}
+      <p className="text-[10px] leading-relaxed text-slate-500">
+        It is saved as pending. Mark it completed once this partner’s Completion and Ownership Statement and Share
+        Certificate are filed under Ownership.
+      </p>
 
       {error ? <Err>{error}</Err> : null}
 
@@ -377,7 +361,7 @@ export function NewCommitmentForm({
         </button>
         <button type="button" className={primaryBtn} disabled={!ready || busy} onClick={() => void submit()}>
           {busy ? <Loader2 className="mr-1 inline h-3.5 w-3.5 animate-spin" /> : <Plus className="mr-1 inline h-3.5 w-3.5" />}
-          {completeNow ? "Record and complete" : "Record commitment"}
+          Record subscription
         </button>
       </div>
     </div>
@@ -418,6 +402,11 @@ export function CommitmentCard({
           {sub ? <p className="truncate text-[11px] text-slate-500">{sub}</p> : null}
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
+          {c.is_test ? (
+            <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-[3px] text-[10px] font-semibold text-amber-200">
+              Test holding
+            </span>
+          ) : null}
           <span className="rounded-full border border-white/10 bg-white/5 px-2 py-[3px] text-[10px] font-semibold text-slate-300">
             {STATUS_LABEL[c.status] ?? c.status}
           </span>
@@ -426,9 +415,9 @@ export function CommitmentCard({
       </div>
 
       <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Stat k="Committed" v={gbp(c.committed_pence)} />
+        <Stat k="Subscribed" v={gbp(c.committed_pence)} />
         <Stat k="Ownership" v={c.ownership_bp !== null && c.ownership_bp !== undefined ? pct(c.ownership_bp) : "—"} />
-        <Stat k="Drawn" v={settledCalls ? gbp(settledCalls) : "—"} />
+        <Stat k="Paid" v={settledCalls ? gbp(settledCalls) : "—"} />
         <Stat k="Returned" v={settledDist ? gbp(settledDist) : "—"} />
       </div>
 
@@ -455,6 +444,7 @@ export function CommitmentCard({
               <Plus className="mr-1 inline h-3.5 w-3.5" /> Capital call or distribution
             </button>
           ) : null}
+          <TestToggle id={c.id} isTest={Boolean(c.is_test)} onChanged={onChanged} />
         </div>
       ) : null}
 
@@ -482,6 +472,38 @@ export function CommitmentCard({
   );
 }
 
+/** Test holdings reach only test partners, never a real one. */
+function TestToggle({ id, isTest, onChanged }: { id: string; isTest: boolean; onChanged: () => Promise<void> | void }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  return (
+    <span className="inline-flex flex-col">
+      <button
+        type="button"
+        className={ghostBtn}
+        disabled={busy}
+        title={isTest ? "Show this holding to its partner as a real record" : "Hide this holding from real partners"}
+        onClick={async () => {
+          if (!isTest && !window.confirm("Mark this holding as test data? Real partners will no longer see it.")) return;
+          setBusy(true);
+          setError("");
+          try {
+            await setCommitmentTest(id, !isTest);
+            await onChanged();
+          } catch (err: any) {
+            setError(err?.message || "Could not change it.");
+          } finally {
+            setBusy(false);
+          }
+        }}
+      >
+        {isTest ? "Mark as real" : "Mark as test"}
+      </button>
+      {error ? <Err>{error}</Err> : null}
+    </span>
+  );
+}
+
 const Stat = ({ k, v }: { k: string; v: string }) => (
   <div>
     <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500">{k}</p>
@@ -500,6 +522,10 @@ function CompleteForm({ id, onDone, onCancel }: { id: string; onDone: () => Prom
       <p className="text-[11px] leading-relaxed text-slate-300">
         Completing puts this deal in the partner’s portal and <span className="font-semibold">locks</span> the amount
         and ownership — they cannot be edited afterwards.
+      </p>
+      <p className="text-[11px] leading-relaxed text-slate-400">
+        This partner’s Completion and Ownership Statement (payment receipt) and Share Certificate must be filed under
+        Ownership on the deal’s Investor Portal tab first.
       </p>
       <div>
         <label className={label} htmlFor={`own-${id}`}>
@@ -532,7 +558,7 @@ function CompleteForm({ id, onDone, onCancel }: { id: string; onDone: () => Prom
               await completeCommitment(id, bp);
               await onDone();
             } catch (err: any) {
-              setError(err?.message || "Could not complete the commitment.");
+              setError(err?.message || "Could not complete the subscription.");
               setBusy(false);
             }
           }}
@@ -589,7 +615,7 @@ function TransactionForm({
       </div>
       <p className="text-[10px] leading-relaxed text-slate-500">
         {type === "call"
-          ? "Money the partner pays in. It counts towards Drawn on their dashboard once settled."
+          ? "Money the partner pays in. It counts towards Paid on their dashboard once settled."
           : "Money returned to the partner. It needs a CFO sanction reference, and counts towards Returned once settled."}
       </p>
 

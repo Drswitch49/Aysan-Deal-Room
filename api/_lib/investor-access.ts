@@ -516,6 +516,31 @@ export function translateGateError(message: string): Error {
   if (m.includes("valid_cert_complete")) {
     return new BadRequestError("A valid certification needs a kind, a date signed and an evidence link.");
   }
+  if (m.includes("completion_needs_receipt_and_certificate")) {
+    return new BadRequestError(
+      "A subscription can only be marked completed once this partner's Completion and Ownership Statement (payment receipt) and Share Certificate are filed under Ownership.",
+    );
+  }
+  if (m.includes("released_document_locked")) {
+    return new BadRequestError("This document is released and locked. Issue a corrected version instead.");
+  }
+  if (m.includes("released_document_kept")) {
+    return new BadRequestError("A released document is never deleted. Revoke it, or issue a corrected version.");
+  }
+  if (m.includes("investor_documents_standard_type")) {
+    return new BadRequestError(
+      "Every partner document must be one of the 11 standard types. File it under one of the 7 categories before restoring it.",
+    );
+  }
+  if (m.includes("investor_documents_offer_view_only")) {
+    return new BadRequestError("Offer documents are view only.");
+  }
+  if (m.includes("investor_documents_notice_type")) {
+    return new BadRequestError("A partner notice needs its notice type, and only a partner notice has one.");
+  }
+  if (m.includes("uq_deals_acquisition_no")) {
+    return new BadRequestError("Another deal already uses that acquisition number.");
+  }
   if (m.includes("append_only_table")) {
     return new BadRequestError("That record is append only and cannot be edited or deleted.");
   }

@@ -42,7 +42,7 @@ export default createHandler({
       const { data, error } = await db
         .from("investors")
         .select(
-          "id, stakeholder_id, name, entity, type, email, phone, status, warmth, perimeter_flag, " +
+          "id, stakeholder_id, name, entity, type, email, phone, status, warmth, perimeter_flag, is_test, " +
             "certification_status, certification_kind, certification_date, last_touch, staleness_flag, " +
             "pass_reason, pass_category, created_at, " +
             "investor_auth_map(login_mode, last_login_at, terms_accepted_at)",

@@ -56,10 +56,10 @@ describe("formatDate", () => {
 });
 
 describe("activityLine", () => {
-  it("renders a settled capital call with its figure and acquisition", () => {
+  it("renders a settled subscription payment with its figure and acquisition", () => {
     expect(
       activityLine("call_settled", { amount_pence: 25_000_000, deal: "Acquisition 01" }),
-    ).toBe("Capital call settled · £250,000 · Acquisition 01");
+    ).toBe("Subscription payment received · £250,000 · Acquisition 01");
   });
 
   it("renders a distribution", () => {

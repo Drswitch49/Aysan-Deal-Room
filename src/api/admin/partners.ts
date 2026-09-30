@@ -31,6 +31,8 @@ export interface PartnerListRow {
   status: InvestorStatus;
   warmth: number;
   perimeter_flag: boolean;
+  /** A test account: sees test holdings, and is the only kind that does. */
+  is_test: boolean;
   certification_status: CertStatus;
   certification_kind: string | null;
   certification_date: string | null;
@@ -168,7 +170,12 @@ export const createCommitment = (body: {
   deal_id: string;
   committed_pence: number;
   instrument?: string;
+  is_test?: boolean;
 }) => api.post<Record<string, any>>("/api/commitments", body);
+
+/** Mark a holding as test data (shown only to test partners) or as real. */
+export const setCommitmentTest = (id: string, is_test: boolean) =>
+  api.patch<Record<string, any>>(`/api/commitments/${encodeURIComponent(id)}`, { action: "set_test", is_test });
 
 export const completeCommitment = (id: string, ownership_bp: number) =>
   api.patch<Record<string, any>>(`/api/commitments/${encodeURIComponent(id)}`, {
@@ -217,6 +224,8 @@ export interface PartnerDealSettings {
     contracted_bp_verified: number | null;
     amort_status: string;
     next_report_date: string | null;
+    lane: 1 | 2 | null;
+    acquisition_no: number | null;
   };
   profile: Record<string, any> | null;
   reports: Array<Record<string, any>>;
@@ -245,18 +254,52 @@ export const listPartnerDocuments = (
   opts?: { noCache?: boolean },
 ) => {
   const q = new URLSearchParams(params as Record<string, string>).toString();
-  return api.get<{ rows: Array<Record<string, any>>; total: number }>(`/api/investor-documents?${q}`, opts);
+  return api.get<{ rows: PartnerDocument[]; total: number; can_sign_cfo: boolean }>(`/api/investor-documents?${q}`, opts);
 };
 
-/** Deletes the row and the stored file. Revoking (updatePartnerDocument) keeps both. */
+/** One document version as staff see it, with its capital gate evaluated. */
+export interface PartnerDocument extends Record<string, any> {
+  id: string;
+  investor_id: string | null;
+  deal_id: string | null;
+  doc_type: string;
+  category: string | null;
+  notice_type: string | null;
+  event_date: string | null;
+  title: string;
+  version: number;
+  supersedes_id: string | null;
+  superseded_by: string | null;
+  published_at: string | null;
+  revoked_at: string | null;
+  signoffs: Record<string, { by: string; role: string; at: string; reference: string }>;
+  gate: { ready: boolean; blockers: string[]; warnings: string[] };
+  partner_blockers: string[];
+  copies_issued: number;
+  investors: { id: string; name: string; email: string } | null;
+}
+
+/** Release a draft. Refused with "NOT READY: …" and the blockers if a gate is not met. */
+export const releasePartnerDocument = (id: string) =>
+  api.patch<Record<string, any>>("/api/investor-documents", { action: "release", id });
+
+export const signoffPartnerDocument = (id: string, key: string, reference: string) =>
+  api.patch<Record<string, any>>("/api/investor-documents", { action: "signoff", id, key, reference });
+
+export const withdrawSignoff = (id: string, key: string) =>
+  api.patch<Record<string, any>>("/api/investor-documents", { action: "withdraw_signoff", id, key });
+
+/** Hide from every partner (keeps the file), or give access back. */
+export const revokePartnerDocument = (id: string, revoked: boolean) =>
+  api.patch<Record<string, any>>("/api/investor-documents", { action: "revoke", id, revoked });
+
+/** Deletes a draft and its file. A released document can only be revoked. */
 export const deletePartnerDocument = (id: string) =>
   api.del<{ deleted: true; id: string }>(`/api/investor-documents?id=${encodeURIComponent(id)}`);
 
 export const addPartnerDocument = (body: Record<string, unknown>) =>
   api.post<Record<string, any>>("/api/investor-documents", body);
 
-export const updatePartnerDocument = (body: { id: string } & Record<string, unknown>) =>
-  api.patch<Record<string, any>>("/api/investor-documents", body);
 
 /** A file already uploaded to Cloudinary, as the reports API takes it. */
 export interface ReportFile {
@@ -289,7 +332,7 @@ export const createDealReport = (body: {
   certificate_file?: ReportFile | null;
   publish?: boolean;
   next_report_date?: string | null;
-}) => api.post<Record<string, any> & { notified: ReportNotified | null }>("/api/deal-reports", body);
+}) => api.post<Record<string, any> & { notified: ReportNotified | null; not_ready: string[] | null }>("/api/deal-reports", body);
 
 export const updateDealReport = (body: { id: string } & Record<string, unknown>) =>
   api.patch<Record<string, any> & { notified: ReportNotified | null }>("/api/deal-reports", body);

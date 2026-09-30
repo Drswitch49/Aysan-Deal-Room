@@ -30,6 +30,10 @@ const patchSchema = z.object({
   contracted_bp_verified: z.number().int().min(0).max(10000).nullable().optional(),
   amort_status: z.enum(["not_started", "on_schedule", "ahead", "behind"]).optional(),
   next_report_date: z.string().nullable().optional(),
+  /** 1 = statutory compliance services, 2 = regulated clinical services. */
+  lane: z.union([z.literal(1), z.literal(2)]).nullable().optional(),
+  /** The "Acquisition nn" every partner document is named by. */
+  acquisition_no: z.number().int().positive().nullable().optional(),
   profile: z
     .object({
       sector: z.string().nullable().optional(),
@@ -65,7 +69,7 @@ export default createHandler({
           .from("deals")
           .select(
             "id, acp_ref_no, company_name, deal_name, partner_display_name, stage, pipeline_stage, dscr_status, " +
-              "contracted_bp_verified, amort_status, next_report_date",
+              "contracted_bp_verified, amort_status, next_report_date, lane, acquisition_no",
           )
           .eq("id", deal_id)
           .is("deleted_at", null)

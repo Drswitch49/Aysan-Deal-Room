@@ -53,6 +53,10 @@ export interface PortalAcquisition {
   milestones: Array<{ date: string; text: string }> | null;
   /** The deal's own business description, shown when no partner summary exists. */
   business_description: string | null;
+  /** 1 = statutory compliance services, 2 = regulated clinical services. */
+  lane: 1 | 2 | null;
+  /** Named "Acquisition nn" to partners. */
+  acquisition_no: number | null;
 }
 
 export interface PortalTransaction {
@@ -86,6 +90,16 @@ export interface PortalDocument {
   has_file: boolean;
   file_format: string | null;
   file_bytes: number | null;
+  /** One of the 7 categories of the Investor Portal Document Standard. */
+  category: string;
+  notice_type: string | null;
+  version: number;
+  supersedes_id: string | null;
+  /** A newer released version corrects this one. */
+  superseded: boolean;
+  event_date: string | null;
+  acquisition_no: number | null;
+  lane: 1 | 2 | null;
 }
 
 export interface PortalReport {

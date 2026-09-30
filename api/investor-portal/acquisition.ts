@@ -14,6 +14,7 @@ import { createHandler } from "../_lib/handler.js";
 import { InternalError, NotFoundError } from "../../lib/core/errors.js";
 import { adminClient } from "../../lib/data/supabase/client.js";
 import { resolveInvestorScope } from "../_lib/investor-context.js";
+import { partnerVisibleDocuments } from "../_lib/document-gates.js";
 
 const querySchema = z.object({
   deal_key: z.string().uuid("An acquisition id is required"),
@@ -38,12 +39,7 @@ export default createHandler({
     if (!acquisition) throw new NotFoundError("Acquisition not found");
 
     const [documents, reports, transactions, coverage] = await Promise.all([
-      db
-        .from("partner_documents")
-        .select("*")
-        .eq("investor_id", scope.investorId)
-        .eq("deal_key", deal_key)
-        .order("published_at", { ascending: false, nullsFirst: false }),
+      partnerVisibleDocuments(scope, deal_key),
       db
         .from("partner_reports")
         .select("*")
@@ -66,10 +62,23 @@ export default createHandler({
         .limit(12),
     ]);
 
+    // Reporting is a category like any other: it opens once Ownership is
+    // complete for this partner, and a report's files show only if their own
+    // gates are met.
+    const reportingOpen = documents.unlocked.get(deal_key)?.has("reporting") ?? false;
+    const visibleIds = new Set(documents.rows.filter((d) => d.available).map((d) => d.id));
+    const visibleReports = reportingOpen
+      ? (reports.data ?? []).map((r: any) => ({
+          ...r,
+          report_document_id: visibleIds.has(r.report_document_id) ? r.report_document_id : null,
+          certificate_document_id: visibleIds.has(r.certificate_document_id) ? r.certificate_document_id : null,
+        }))
+      : [];
+
     return {
       acquisition,
-      documents: documents.data ?? [],
-      reports: reports.data ?? [],
+      documents: documents.rows,
+      reports: visibleReports,
       transactions: transactions.data ?? [],
       coverage_history: coverage.data ?? [],
     };

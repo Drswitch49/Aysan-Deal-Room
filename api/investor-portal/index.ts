@@ -5,9 +5,10 @@
  * five most recent activity lines. Staff may inspect a partner with
  * ?investor_id=…, which resolveInvestorScope permits and a partner cannot.
  *
- * Every figure here is an actual. Committed counts pending and completed
- * commitments; Drawn and Distributed count settled transactions only, because
- * an unsettled call is a request, not money that has moved. There is no IRR,
+ * Every figure here is an actual. Subscribed counts pending and completed
+ * subscriptions; Paid and Distributed count settled transactions only, because
+ * an unsettled call is a request, not money that has moved. A test
+ * subscription never reaches a real partner's figures. There is no IRR,
  * multiple, yield, hold period or projection of any kind, and no column exists
  * to put one in.
  */
@@ -24,7 +25,7 @@ export default createHandler({
     const db = adminClient();
 
     const [commitments, transactions, acquisitions, activity, settings] = await Promise.all([
-      db.from("commitments").select("id, deal_id, committed_pence, status").eq("investor_id", scope.investorId),
+      db.from("commitments").select("id, deal_id, committed_pence, status, is_test").eq("investor_id", scope.investorId),
       db
         .from("partner_capital_transactions")
         .select("type, amount_pence, settled, txn_date, due_date, deal_key")
@@ -46,7 +47,8 @@ export default createHandler({
     if (commitments.error) throw new InternalError(`commitments: ${commitments.error.message}`);
     if (acquisitions.error) throw new InternalError(`acquisitions: ${acquisitions.error.message}`);
 
-    const committedPence = (commitments.data ?? [])
+    const ownCommitments = (commitments.data ?? []).filter((c: any) => scope.isTest || !c.is_test);
+    const committedPence = ownCommitments
       .filter((c: any) => c.status !== "bought_back")
       .reduce((sum: number, c: any) => sum + Number(c.committed_pence ?? 0), 0);
 
@@ -55,7 +57,7 @@ export default createHandler({
     const distributedPence = sumOf(settled, "distribution");
 
     const heldDealIds = new Set(
-      (commitments.data ?? [])
+      ownCommitments
         .filter((c: any) => c.status === "completed" || c.status === "converted")
         .map((c: any) => c.deal_id),
     );

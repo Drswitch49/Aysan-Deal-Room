@@ -66,6 +66,37 @@ export async function uploadFromUrl(
 }
 
 /**
+ * Upload a PDF built on the server (a watermarked partner copy) as an
+ * authenticated asset. Streamed rather than sent as a data URI, so a large
+ * memorandum is not inflated by base64 on the way. Stored with the "image"
+ * resource type, like every browser-uploaded PDF, so downloadUrl() with
+ * format "pdf" renders it inline.
+ */
+export async function uploadPdfBuffer(buffer: Uint8Array, opts: { folder?: string } = {}): Promise<UploadedAsset> {
+  ensureConfigured();
+  const res = await new Promise<any>((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      {
+        folder: opts.folder ?? DEFAULT_FOLDER,
+        resource_type: "image",
+        format: "pdf",
+        type: "authenticated",
+        unique_filename: true,
+      },
+      (err, result) => (err ? reject(err) : resolve(result)),
+    );
+    stream.end(Buffer.from(buffer));
+  });
+  return {
+    publicId: res.public_id,
+    secureUrl: res.secure_url,
+    resourceType: res.resource_type,
+    format: res.format,
+    bytes: res.bytes,
+  };
+}
+
+/**
  * API-key-signed URL for an authenticated asset.
  *
  * Works even while the account's "Allow delivery of PDF and ZIP files" security

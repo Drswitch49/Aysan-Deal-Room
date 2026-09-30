@@ -40,6 +40,8 @@ export interface InvestorScope {
   termsAcceptedAt: string | null;
   /** True when staff are inspecting this partner rather than the partner. */
   viewedByStaff: boolean;
+  /** A test account: the only kind of partner that sees test holdings. */
+  isTest: boolean;
 }
 
 const ACTIVE_LOGIN_MODES = new Set(["full", "read_only"]);
@@ -69,7 +71,7 @@ export async function resolveInvestorScope(
   const { data, error } = await adminClient()
     .from("investors")
     .select(
-      "id, name, email, status, certification_status, certification_date, investor_auth_map(login_mode, read_only_until, terms_version, terms_accepted_at)",
+      "id, name, email, status, is_test, certification_status, certification_date, investor_auth_map(login_mode, read_only_until, terms_version, terms_accepted_at)",
     )
     .eq("id", investorId)
     .is("deleted_at", null)
@@ -105,6 +107,38 @@ export async function resolveInvestorScope(
     termsVersion: map?.terms_version ?? null,
     termsAcceptedAt: map?.terms_accepted_at ?? null,
     viewedByStaff,
+    isTest: Boolean((data as any).is_test),
+  };
+}
+
+/**
+ * The scope a partner would have, for server-side fan-out only (deciding who a
+ * released document should be announced to). Never call this with an id taken
+ * from a request: request scoping goes through resolveInvestorScope.
+ */
+export async function scopeForAnnouncement(investorId: string): Promise<InvestorScope | null> {
+  const { data } = await adminClient()
+    .from("investors")
+    .select("id, name, email, status, is_test, certification_status, certification_date")
+    .eq("id", investorId)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (!data || DEAD_STATUSES.has(String(data.status))) return null;
+  return {
+    investorId: data.id,
+    name: data.name,
+    email: data.email,
+    status: String(data.status),
+    loginMode: "full",
+    certifiedNow: isCertifiedNow(data.certification_status, data.certification_date),
+    certificationStatus: String(data.certification_status),
+    certificationDate: data.certification_date ?? null,
+    readOnly: false,
+    readOnlyUntil: null,
+    termsVersion: null,
+    termsAcceptedAt: null,
+    viewedByStaff: false,
+    isTest: Boolean(data.is_test),
   };
 }
 

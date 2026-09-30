@@ -16,6 +16,12 @@
  * Publishing is the event partners see: the report and its files flip from
  * "Publishes 15 Oct" to available, the feed gets a line, and an email goes out
  * carrying no figures. Until then the view withholds the summary and coverage.
+ *
+ * Both files are R1 Quarterly Report documents (Reporting category) under the
+ * Investor Portal Document Standard. Publishing is gated like any R1 release:
+ * the acquisition must have completed and the CFO must have certified every
+ * figure, recorded on each file in the deal's Investor Portal folders. A report
+ * whose gate is not met stays scheduled and the blockers are named.
  */
 import { z } from "zod";
 import { createHandler } from "./_lib/handler.js";
@@ -25,6 +31,8 @@ import { adminClient } from "../lib/data/supabase/client.js";
 import { queueAndSend } from "../lib/email/send.js";
 import { deleteAsset } from "../lib/core/cloudinary.js";
 import { logActivity, recordAudit } from "./_lib/investor-access.js";
+import { loadGateDeals } from "./_lib/document-gates.js";
+import { evaluateDealGate } from "../lib/core/investor-docs.js";
 
 const coverage = z.enum(["not_yet_reported", "above_floor", "watch", "breach"]);
 
@@ -69,7 +77,7 @@ const patchSchema = z.object({
 
 const REPORT_SELECT =
   "*, deals(id, acp_ref_no, deal_name, company_name, partner_display_name), " +
-  "investor_documents(id, doc_type, title, file_name, file_bytes, revoked_at, published_at)";
+  "investor_documents(id, doc_type, report_part, title, file_name, file_bytes, revoked_at, published_at, signoffs)";
 
 export default createHandler({
   methods: ["GET", "POST", "PATCH", "DELETE"],
@@ -94,7 +102,6 @@ export default createHandler({
     if (req.method === "POST") {
       const { report_file, certificate_file, publish, next_report_date, ...input } = createSchema.parse(body ?? {});
       const row: Record<string, unknown> = { ...input };
-      if (publish) row.published_at = new Date().toISOString();
 
       const { data: created, error } = await db.from("deal_reports").insert(row).select("*").single();
       if (error) {
@@ -108,17 +115,30 @@ export default createHandler({
       if (next_report_date !== undefined) {
         await db.from("deals").update({ next_report_date }).eq("id", created.deal_id);
       }
-      const sent = created.published_at ? await announcePublication(created) : null;
+      // Publishing straight away goes through the same R1 gate as a later
+      // publish. If it is not met the report is kept, scheduled, and the
+      // blockers come back so the screen can name them.
+      let final = created;
+      let sent: Awaited<ReturnType<typeof announcePublication>> | null = null;
+      let notReady: string[] | null = null;
+      if (publish) {
+        const blockers = await reportBlockers(created);
+        if (blockers.length) notReady = blockers;
+        else {
+          final = await markPublished(created);
+          sent = await announcePublication(final);
+        }
+      }
 
       await recordAudit({
-        action: publish ? "PUBLISH_DEAL_REPORT" : "CREATE_DEAL_REPORT",
+        action: sent ? "PUBLISH_DEAL_REPORT" : "CREATE_DEAL_REPORT",
         entityId: created.id,
         entityType: "deal_reports",
         actor: user,
         details: sent ? `Published ${created.period_label} to ${sent.partners} partner(s), ${sent.emailed} emailed` : `Scheduled ${created.period_label}`,
-        newValue: created,
+        newValue: final,
       });
-      return { ...created, notified: sent };
+      return { ...final, notified: sent, not_ready: notReady };
     }
 
     if (req.method === "DELETE") {
@@ -161,9 +181,8 @@ export default createHandler({
     if (!before) throw new NotFoundError("Report not found");
 
     const patch: Record<string, unknown> = { ...rest };
-    if (publish && !before.published_at) patch.published_at = new Date().toISOString();
 
-    const { data: updated, error } = await db
+    const { data: saved, error } = await db
       .from("deal_reports")
       .update(patch)
       .eq("id", id)
@@ -171,7 +190,15 @@ export default createHandler({
       .single();
     if (error) throw new InternalError(`deal_reports: ${error.message}`);
 
-    await attachFiles(updated, { report_file, certificate_file }, user.id);
+    await attachFiles(saved, { report_file, certificate_file }, user.id);
+
+    let updated = saved;
+    if (publish && !before.published_at) {
+      const blockers = await reportBlockers(saved);
+      if (blockers.length) throw new ConflictError(`NOT READY: ${blockers.join("; ")}.`);
+      updated = await markPublished(saved);
+      patch.published_at = updated.published_at;
+    }
 
     if (next_report_date !== undefined) {
       await db.from("deals").update({ next_report_date }).eq("id", updated.deal_id);
@@ -183,14 +210,7 @@ export default createHandler({
     }
 
     let sent: Awaited<ReturnType<typeof announcePublication>> | null = null;
-    if (patch.published_at) {
-      await db
-        .from("investor_documents")
-        .update({ published_at: patch.published_at })
-        .eq("deal_report_id", id)
-        .is("published_at", null);
-      sent = await announcePublication(updated);
-    }
+    if (patch.published_at) sent = await announcePublication(updated);
 
     await recordAudit({
       action: publish ? "PUBLISH_DEAL_REPORT" : "UPDATE_DEAL_REPORT",
@@ -206,6 +226,39 @@ export default createHandler({
 });
 
 /**
+ * What stands between this report and its partners: the R1 gate on every one
+ * of its files. A report with no file cannot publish, because the CFO's
+ * certification of its figures is recorded on the file.
+ */
+async function reportBlockers(report: any): Promise<string[]> {
+  const { data: docs } = await adminClient()
+    .from("investor_documents")
+    .select("*")
+    .eq("deal_report_id", report.id)
+    .is("revoked_at", null);
+  if (!docs?.length) return ["Attach the report file first; the CFO certifies its figures on the file"];
+  const deals = await loadGateDeals([report.deal_id]);
+  const deal = deals.get(report.deal_id) ?? { dscr_status: null, commitments: [] };
+  const blockers = new Set<string>();
+  for (const doc of docs) {
+    for (const b of evaluateDealGate(doc, deal).blockers) {
+      blockers.add(doc.report_part === "certificate" ? `Certificate: ${b}` : b);
+    }
+  }
+  return Array.from(blockers);
+}
+
+/** Publish the report and release its files together. */
+async function markPublished(report: any): Promise<any> {
+  const db = adminClient();
+  const at = new Date().toISOString();
+  const { data, error } = await db.from("deal_reports").update({ published_at: at }).eq("id", report.id).select("*").single();
+  if (error) throw new InternalError(`deal_reports: ${error.message}`);
+  await db.from("investor_documents").update({ published_at: at }).eq("deal_report_id", report.id).is("published_at", null).is("revoked_at", null);
+  return data;
+}
+
+/**
  * Store the report's uploaded files as deal-wide partner documents. A new file
  * of the same kind replaces the old one's access (the old row is revoked, not
  * deleted, so the audit trail keeps what was sent).
@@ -216,25 +269,27 @@ async function attachFiles(
   uploadedBy: string | null,
 ): Promise<void> {
   const db = adminClient();
-  const kinds: Array<[UploadedFile | null | undefined, string, string]> = [
-    [files.report_file, "quarterly_report", `${report.period_label} quarterly report`],
-    [files.certificate_file, "covenant_certificate", `${report.period_label} covenant certificate`],
+  const kinds: Array<[UploadedFile | null | undefined, "report" | "certificate", string]> = [
+    [files.report_file, "report", `${report.period_label} quarterly report`],
+    [files.certificate_file, "certificate", `${report.period_label} coverage certificate`],
   ];
 
-  for (const [file, docType, title] of kinds) {
+  for (const [file, part, title] of kinds) {
     if (!file) continue;
     await db
       .from("investor_documents")
       .update({ revoked_at: new Date().toISOString() })
       .eq("deal_report_id", report.id)
-      .eq("doc_type", docType)
+      .eq("report_part", part)
       .is("revoked_at", null);
 
     const { error } = await db.from("investor_documents").insert({
       deal_id: report.deal_id,
       investor_id: null,
       deal_report_id: report.id,
-      doc_type: docType,
+      doc_type: "quarterly_report",
+      category: "reporting",
+      report_part: part,
       title,
       cloudinary_public_id: file.public_id,
       cloudinary_resource_type: file.resource_type,

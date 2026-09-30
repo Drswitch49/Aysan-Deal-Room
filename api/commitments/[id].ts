@@ -27,6 +27,11 @@ const bodySchema = z.discriminatedUnion("action", [
     completed_at: z.string().optional(),
   }),
   z.object({
+    /** Mark a holding as test data, or as real. Test holdings reach only test partners. */
+    action: z.literal("set_test"),
+    is_test: z.boolean(),
+  }),
+  z.object({
     action: z.literal("convert"),
     shares: z.number().positive(),
     issued_at: z.string(),
@@ -78,6 +83,20 @@ export default createHandler({
         entityType: "commitments",
         actor: user!,
         details: `Commitment completed for ${investor?.name ?? "partner"}`,
+        oldValue: commitment,
+        newValue: updated,
+      });
+      return updated;
+    }
+
+    if (body.action === "set_test") {
+      const updated = await patch(id, { is_test: body.is_test });
+      await recordAudit({
+        action: "SET_COMMITMENT_TEST_FLAG",
+        entityId: id,
+        entityType: "commitments",
+        actor: user!,
+        details: `${investor?.name ?? "Partner"}'s holding marked as ${body.is_test ? "test data" : "a real record"}`,
         oldValue: commitment,
         newValue: updated,
       });

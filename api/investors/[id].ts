@@ -38,6 +38,8 @@ const patchSchema = z
     notes: z.string().nullable().optional(),
     last_touch: z.string().nullable().optional(),
     perimeter_flag: z.boolean().optional(),
+    /** A test account: sees test holdings, and is the only kind that does. */
+    is_test: z.boolean().optional(),
 
     status: z.enum(["prospective", "certified", "invited", "active", "committed", "passed", "ended"]).optional(),
     pass_reason: z.string().nullable().optional(),
@@ -57,6 +59,7 @@ const RESTRICTED = new Set([
   "certification_date",
   "certification_evidence_link",
   "perimeter_flag",
+  "is_test",
   "status",
   "pass_reason",
   "pass_category",

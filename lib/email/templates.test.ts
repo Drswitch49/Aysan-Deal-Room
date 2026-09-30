@@ -47,7 +47,7 @@ describe("partner email templates", () => {
     }
   });
 
-  it("puts the amount and due date in a capital call, as the spec allows", () => {
+  it("puts the amount and due date in a subscription payment request, as the spec allows", () => {
     const mail = render("call_issued", { amount_pence: 25_000_000, due_date: "2026-08-12" });
     expect(mail.text).toContain("£250,000");
     expect(mail.text).toContain("12 Aug 2026");

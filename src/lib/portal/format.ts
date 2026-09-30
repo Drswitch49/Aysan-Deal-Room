@@ -57,11 +57,11 @@ export const COVERAGE_LABEL: Record<CoverageStatus, string> = {
 };
 
 export const COVERAGE_EXPLAINER: Record<CoverageStatus, string> = {
-  above_floor: "Above floor: debt service coverage cleared the covenant floor at the last certified test.",
+  above_floor: "Above floor: debt service coverage cleared ACP's floor at the last certified test.",
   watch:
     "Watch: coverage cleared the floor with limited headroom. Distributions are unlikely until headroom recovers.",
   breach:
-    "Breach: coverage fell below the covenant floor. No distributions are permitted. The quarterly report explains the position and the actions under way.",
+    "Breach: coverage fell below ACP's floor. No distributions are permitted. The quarterly report explains the position and the actions under way.",
   not_yet_reported:
     "Not yet reported: the first certified coverage test follows the first full quarter after completion.",
 };
@@ -113,7 +113,7 @@ export function activityLine(eventType: string, payload: Record<string, any> = {
   const deal = payload.deal ? ` · ${payload.deal}` : "";
   switch (eventType) {
     case "call_settled":
-      return `Capital call settled · ${gbp(payload.amount_pence)}${deal}`;
+      return `Subscription payment received · ${gbp(payload.amount_pence)}${deal}`;
     case "distribution":
       return `Distribution declared · ${gbp(payload.amount_pence)}${deal}`;
     case "document_added":
@@ -142,18 +142,19 @@ export function activityLine(eventType: string, payload: Record<string, any> = {
 // ─── Copy deck (Build Pack Appendix A) ─────────────────────────────────────
 
 export const COPY = {
-  footerRisk: "Private and confidential. Capital at risk. Figures are actuals; ACP publishes no forecasts.",
+  footerRisk: "This portal shows actuals only and holds no forecasts.",
   loginNote: "Access is by invitation only. Private and confidential.",
   loginError: "Email or password not recognised.",
   loginRateLimit: "Too many attempts. Try again in 15 minutes.",
   sessionExpired: "Your session has ended. Please sign in again.",
   resetSent: "If that email has portal access, a reset link is on its way.",
   dashEmpty:
-    "Your portfolio will appear here once your first acquisition completes. Commitments, capital calls, distributions and quarterly reports are recorded as they happen.",
+    "Your portfolio will appear here once your first acquisition completes. Subscriptions, payments, distributions and quarterly reports are recorded as they happen.",
   chartEmpty:
     "Distributions appear here when declared. Dividends are permitted with coverage headroom, never promised.",
-  dealActuals: "Actuals only. Coverage numbers are in the quarterly report. Long-term ownership, no fund clock.",
-  docsNote: "Documents open in a secure viewer. Each access is logged.",
+  dealActuals: "Actuals only. Coverage numbers are in the quarterly report. Long-term ownership.",
+  docsNote:
+    "Documents open in a secure viewer and each access is logged. Offer documents are view only: you read your own numbered copy, marked with your name.",
   accountUpdate: "To update your details, email partnerships@aysancapital.com.",
   contact: "partnerships@aysancapital.com",
 } as const;

@@ -21,6 +21,8 @@ const createSchema = z.object({
   /** Pence. Integer by construction — no floats in the money path. */
   committed_pence: z.number().int().positive("A commitment must be more than zero"),
   instrument: z.string().optional(),
+  /** A test holding: shown only to test partners, never to a real one. */
+  is_test: z.boolean().optional(),
 });
 
 const querySchema = z.object({

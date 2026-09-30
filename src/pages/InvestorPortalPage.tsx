@@ -50,8 +50,8 @@ import { COPY, AMORT_LABEL, activityLine, formatDate, gbp, pct } from "../lib/po
 import {
   ActivityItem,
   CoveragePill,
-  DocRow,
   DocOpenButton,
+  DocumentFolders,
   MetricRow,
   PortalEmpty,
   PortalFooter,
@@ -59,13 +59,26 @@ import {
   ProvenanceBadge,
   RailRow,
   ReadOnlyBanner,
+  docGroupName,
 } from "../components/portal/PortalUI";
+import { LANE_LABEL, acquisitionLabel } from "../../lib/core/investor-docs";
 import { LoadingState } from "../components/ui/LoadingState";
 import { ErrorState } from "../components/ui/ErrorState";
 import { cx } from "../utils/cx";
 import { clearRealtimeAuth } from "../lib/supabase";
 
 type View = "dashboard" | "acquisitions" | "documents" | "activity" | "account";
+
+/** A holding is titled by its acquisition ("Acquisition 01"), never by its lane. */
+const holdingTitle = (a: { acquisition_no: number | null; display_name: string | null }) =>
+  acquisitionLabel(a.acquisition_no) ?? a.display_name ?? "Acquisition";
+
+/** The sector label: lane and region. */
+const laneRegion = (a: { lane: 1 | 2 | null; sector: string | null; region: string | null }) =>
+  [a.lane ? LANE_LABEL[a.lane] : a.sector, a.region].filter(Boolean).join(" · ");
+
+const ownershipText = (bp: number | null) =>
+  bp !== null && bp !== undefined ? `${pct(bp)} of SPV ordinary shares, fully diluted` : "—";
 
 const NAV: Array<{ key: View; label: string; short: string; icon: typeof LayoutGrid }> = [
   { key: "dashboard", label: "Dashboard", short: "Home", icon: LayoutGrid },
@@ -166,6 +179,7 @@ export function InvestorPortalPage() {
             setView("acquisitions");
           }}
           onSeeAllActivity={() => setView("activity")}
+          onSeeEvidence={() => setView("documents")}
         />
       )}
       {view === "acquisitions" &&
@@ -708,9 +722,12 @@ function useAsync<T>(load: () => Promise<T>, deps: unknown[]) {
 function DashboardView({
   onOpenAcquisition,
   onSeeAllActivity,
+  onSeeEvidence,
 }: {
   onOpenAcquisition: (dealKey: string) => void;
   onSeeAllActivity: () => void;
+  /** Verified figures link to the documents that prove them. */
+  onSeeEvidence: () => void;
 }) {
   const { data, error, loading } = useAsync<PortalDashboard>(() => getDashboard({ noCache: true }), []);
 
@@ -727,9 +744,9 @@ function DashboardView({
       <PageTitle>Welcome back, {data.partner.name}</PageTitle>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <PortalStatCard label="Committed" value={gbp(summary.committed_pence)} provenance="verified" />
-        <PortalStatCard label="Drawn" value={gbp(summary.drawn_pence)} provenance="verified" />
-        <PortalStatCard label="Distributed" value={gbp(summary.distributed_pence)} provenance="verified" />
+        <PortalStatCard label="Subscribed" value={gbp(summary.committed_pence)} provenance="verified" onEvidence={onSeeEvidence} />
+        <PortalStatCard label="Paid" value={gbp(summary.drawn_pence)} provenance="verified" onEvidence={onSeeEvidence} />
+        <PortalStatCard label="Distributed" value={gbp(summary.distributed_pence)} provenance="verified" onEvidence={onSeeEvidence} />
         <PortalStatCard label="Acquisitions" value={String(summary.acquisitions)} hint="held" />
       </div>
 
@@ -737,7 +754,7 @@ function DashboardView({
         <div className="mt-5">
           <PortalEmpty
             title="Your portfolio will appear here once your first acquisition completes."
-            body="Commitments, capital calls, distributions and quarterly reports are recorded as they happen."
+            body="Subscriptions, payments, distributions and quarterly reports are recorded as they happen."
             icon={<Building2 className="h-6 w-6" />}
           />
         </div>
@@ -753,7 +770,7 @@ function DashboardView({
                 .map((t) => (
                   <li key={t.id} className="flex items-center justify-between py-2.5 text-sm">
                     <span className="text-slate-300">
-                      {t.type === "call" ? "Capital call" : "Distribution"} · {formatDate(t.txn_date)}
+                      {t.type === "call" ? "Subscription payment" : "Distribution"} · {formatDate(t.txn_date)}
                     </span>
                     <span className="tabular-nums text-white">{gbp(t.amount_pence)}</span>
                   </li>
@@ -787,7 +804,7 @@ function DashboardView({
             </>
           ) : (
             <p className="py-8 text-center text-xs text-slate-500">
-              Activity appears here as commitments, calls and reports are recorded.
+              Activity appears here as subscriptions, payments and reports are recorded.
             </p>
           )}
         </Panel>
@@ -818,7 +835,7 @@ function AcquisitionTable({
           <tr className="border-b border-white/5 text-[10px] uppercase tracking-[0.12em] text-slate-500">
             <th className="py-2 font-semibold">Acquisition</th>
             <th className="py-2 font-semibold">Coverage</th>
-            <th className="py-2 text-right font-semibold">Your commitment</th>
+            <th className="py-2 text-right font-semibold">Your subscription</th>
             <th className="py-2 text-right font-semibold">Next report</th>
           </tr>
         </thead>
@@ -830,12 +847,8 @@ function AcquisitionTable({
               className="cursor-pointer border-b border-white/5 transition last:border-b-0 hover:bg-white/[0.03]"
             >
               <td className="py-3 pr-3 text-sm text-slate-200">
-                {row.display_name ?? "Acquisition"}
-                {row.sector || row.region ? (
-                  <span className="block text-[11px] text-slate-500">
-                    {[row.sector, row.region].filter(Boolean).join(" · ")}
-                  </span>
-                ) : null}
+                {holdingTitle(row)}
+                {laneRegion(row) ? <span className="block text-[11px] text-slate-500">{laneRegion(row)}</span> : null}
               </td>
               <td className="py-3 pr-3">
                 <CoveragePill status={row.dscr_status} />
@@ -870,7 +883,7 @@ function AcquisitionsView({ onOpen }: { onOpen: (dealKey: string) => void }) {
       {held.length === 0 ? (
         <PortalEmpty
           title="No acquisitions yet."
-          body="Your holdings appear here once a commitment completes. Each one shows what you committed, what has been drawn, and whether the business is covering its debt."
+          body="Your holdings appear here once a subscription completes. Each one shows what you subscribed, what you have paid, and whether the business is covering its debt."
           icon={<Building2 className="h-6 w-6" />}
         />
       ) : (
@@ -904,10 +917,10 @@ function AcquisitionCard({ row, onOpen }: { row: PortalAcquisition; onOpen: (key
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="font-display text-lg font-semibold text-white">{row.display_name ?? "Acquisition"}</p>
+          <p className="font-display text-lg font-semibold text-white">{holdingTitle(row)}</p>
           <p className="mt-0.5 text-xs text-slate-500">
-            {[row.sector, row.region].filter(Boolean).join(" · ")}
-            {row.completed_at ? ` · Completed ${formatDate(row.completed_at)}` : ""}
+            {laneRegion(row)}
+            {row.completed_at ? `${laneRegion(row) ? " · " : ""}Completed ${formatDate(row.completed_at)}` : ""}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -920,8 +933,8 @@ function AcquisitionCard({ row, onOpen }: { row: PortalAcquisition; onOpen: (key
         </div>
       </div>
       <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <Figure label="Committed" value={gbp(row.committed_pence)} />
-        <Figure label="Ownership" value={row.ownership_bp !== null ? pct(row.ownership_bp) : "—"} />
+        <Figure label="Subscribed" value={gbp(row.committed_pence)} />
+        <Figure label="Ownership" value={ownershipText(row.ownership_bp)} />
         <Figure label="Contracted revenue" value={row.contracted_bp_verified !== null ? pct(row.contracted_bp_verified) : "—"} />
         <Figure label="Next report" value={formatDate(row.next_report_date) || "—"} />
       </div>
@@ -943,7 +956,7 @@ const TAB_LABEL: Record<Tab, string> = {
   business: "The Business",
   documents: "Documents",
   reporting: "Reporting",
-  covenants: "Covenants",
+  covenants: "Coverage",
 };
 
 function AcquisitionDetail({ dealKey, onBack }: { dealKey: string; onBack: () => void }) {
@@ -965,7 +978,7 @@ function AcquisitionDetail({ dealKey, onBack }: { dealKey: string; onBack: () =>
       <button type="button" onClick={onBack} className="mb-2 text-xs text-slate-500 hover:text-slate-300">
         ← Acquisitions
       </button>
-      <PageTitle>{a.display_name ?? "Acquisition"}</PageTitle>
+      <PageTitle>{holdingTitle(a)}</PageTitle>
 
       <div className="mb-5 flex gap-1 overflow-x-auto border-b border-white/5">
         {TABS.map((t) => (
@@ -990,7 +1003,7 @@ function AcquisitionDetail({ dealKey, onBack }: { dealKey: string; onBack: () =>
           {tab === "overview" ? (
             <Panel>
               <MetricRow
-                label="Debt service coverage vs covenant"
+                label="Debt service coverage against ACP's floor"
                 value={<CoveragePill status={a.dscr_status} />}
                 provenance="cfo_certified"
               />
@@ -1012,6 +1025,7 @@ function AcquisitionDetail({ dealKey, onBack }: { dealKey: string; onBack: () =>
                     .reduce((s, t) => s + Number(t.amount_pence), 0),
                 )}
                 provenance="verified"
+                onEvidence={() => setTab("documents")}
               />
               <MetricRow label="Next quarterly report" value={formatDate(a.next_report_date) || "Not yet scheduled"} />
               <p className="mt-4 text-[11px] leading-relaxed text-slate-500">{COPY.dealActuals}</p>
@@ -1037,7 +1051,7 @@ function AcquisitionDetail({ dealKey, onBack }: { dealKey: string; onBack: () =>
                 </div>
               ) : null}
               <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-3">
-                {a.sector ? <Figure label="Sector" value={a.sector} /> : null}
+                {a.lane ? <Figure label="Lane" value={LANE_LABEL[a.lane]} /> : a.sector ? <Figure label="Sector" value={a.sector} /> : null}
                 {a.headcount_band ? <Figure label="Headcount" value={a.headcount_band} /> : null}
                 {a.founded_year ? <Figure label="Founded" value={String(a.founded_year)} /> : null}
                 {a.region ? <Figure label="Region" value={a.region} /> : null}
@@ -1063,25 +1077,13 @@ function AcquisitionDetail({ dealKey, onBack }: { dealKey: string; onBack: () =>
             <Panel title="Documents">
               {data.documents.length ? (
                 <>
-                  {data.documents.map((d) => (
-                    <DocRow
-                      key={d.id}
-                      id={d.id}
-                      title={d.title}
-                      docType={d.doc_type}
-                      date={d.published_at}
-                      available={d.available}
-                      publishesOn={d.publishes_on}
-                      viewOnly={d.view_only}
-                      hasFile={d.has_file}
-                    />
-                  ))}
+                  <DocumentFolders docs={data.documents} />
                   <p className="mt-3 text-[11px] text-slate-500">{COPY.docsNote}</p>
                 </>
               ) : (
                 <PortalEmpty
                   title="No documents yet."
-                  body="Your subscription agreement, the SPV shareholders' agreement and each quarterly report appear here as they are executed and published."
+                  body="Your documents appear here in numbered folders, from certification through to notices, as each one is released to you."
                 />
               )}
             </Panel>
@@ -1145,7 +1147,7 @@ function AcquisitionDetail({ dealKey, onBack }: { dealKey: string; onBack: () =>
           ) : null}
 
           {tab === "covenants" ? (
-            <Panel title="Covenants">
+            <Panel title="Coverage">
               <div className="flex items-center gap-3">
                 <CoveragePill status={a.dscr_status} />
                 <ProvenanceBadge kind="cfo_certified" />
@@ -1154,18 +1156,18 @@ function AcquisitionDetail({ dealKey, onBack }: { dealKey: string; onBack: () =>
                 {
                   ({
                     above_floor:
-                      "Above floor: debt service coverage cleared the covenant floor at the last certified test.",
+                      "Above floor: debt service coverage cleared ACP's floor at the last certified test.",
                     watch:
                       "Watch: coverage cleared the floor with limited headroom. Distributions are unlikely until headroom recovers.",
                     breach:
-                      "Breach: coverage fell below the covenant floor. No distributions are permitted. The quarterly report explains the position and the actions under way.",
+                      "Breach: coverage fell below ACP's floor. No distributions are permitted. The quarterly report explains the position and the actions under way.",
                     not_yet_reported:
                       "Not yet reported: the first certified coverage test follows the first full quarter after completion.",
                   } as Record<string, string>)[a.dscr_status]
                 }
               </p>
               <p className="mt-2 text-[11px] text-slate-500">
-                The coverage figure itself is in the covenant certificate, which is where it is certified.
+                The coverage figure itself is in the quarterly report, where the CFO certifies it.
               </p>
 
               {data.coverage_history.length ? (
@@ -1190,14 +1192,14 @@ function AcquisitionDetail({ dealKey, onBack }: { dealKey: string; onBack: () =>
             <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Your position</p>
             <RailRow label="Instrument" value={a.instrument === "spv_equity_conversion" ? "SPV equity" : a.instrument} />
             <RailRow label="Conversion right" value="Holdco" />
-            <RailRow label="Your commitment" value={gbp(a.committed_pence)} />
+            <RailRow label="Your subscription" value={gbp(a.committed_pence)} />
             <RailRow
-              label="Drawn"
+              label="Paid"
               value={gbp(
                 data.transactions.filter((t) => t.type === "call" && t.settled).reduce((s, t) => s + Number(t.amount_pence), 0),
               )}
             />
-            <RailRow label="Ownership" value={a.ownership_bp !== null ? pct(a.ownership_bp) : "—"} />
+            <RailRow label="Ownership" value={ownershipText(a.ownership_bp)} />
             <RailRow label="Reporting" value="Quarterly" />
             <p className="mt-4 text-[11px] leading-relaxed text-slate-500">
               {latestReport
@@ -1225,7 +1227,7 @@ function DocumentsView() {
 
   const groups = new Map<string, PortalDocument[]>();
   for (const doc of data.rows) {
-    const key = doc.partner_display_name ?? "Your documents";
+    const key = docGroupName(doc);
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key)!.push(doc);
   }
@@ -1255,26 +1257,14 @@ function DocumentsView() {
       {data.rows.length === 0 ? (
         <PortalEmpty
           title="No documents yet."
-          body="Your subscription agreement, certification and each quarterly report appear here as they are executed and published."
+          body="Your documents appear here in numbered folders, from certification through to notices, as each one is released to you."
           icon={<FileText className="h-6 w-6" />}
         />
       ) : (
         <div className="space-y-5">
           {shown.map((name) => (
             <Panel key={name} title={name}>
-              {groups.get(name)!.map((d) => (
-                <DocRow
-                  key={d.id}
-                  id={d.id}
-                  title={d.title}
-                  docType={d.doc_type}
-                  date={d.published_at}
-                  available={d.available}
-                  publishesOn={d.publishes_on}
-                  viewOnly={d.view_only}
-                  hasFile={d.has_file}
-                />
-              ))}
+              <DocumentFolders docs={groups.get(name)!} />
             </Panel>
           ))}
           <p className="text-[11px] text-slate-500">{COPY.docsNote}</p>
@@ -1304,7 +1294,7 @@ function ActivityView() {
       {visible.length === 0 ? (
         <PortalEmpty
           title="Nothing recorded yet."
-          body="Every commitment, capital call, distribution and published report is written here as it happens."
+          body="Every subscription, payment, distribution and published report is written here as it happens."
           icon={<ActivityIcon className="h-6 w-6" />}
         />
       ) : (
