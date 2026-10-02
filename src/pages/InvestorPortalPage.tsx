@@ -654,7 +654,7 @@ function PortalShell({
       </div>
 
       {/* Under 768px the side nav becomes a bottom bar. */}
-      <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-white/5 bg-acp-portal-sunken/95 backdrop-blur md:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-white/5 bg-acp-portal-sunken/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
         <ul className="mx-auto flex max-w-lg">
           {NAV.map((item) => {
             const Icon = item.icon;
@@ -686,7 +686,7 @@ const PageTitle = ({ children }: { children: React.ReactNode }) => (
 );
 
 const Panel = ({ title, children }: { title?: string; children: React.ReactNode }) => (
-  <section className="rounded-lg border border-white/5 bg-acp-card p-5">
+  <section className="min-w-0 rounded-lg border border-white/5 bg-acp-card p-4 sm:p-5">
     {title ? <h2 className="mb-3 text-sm font-semibold text-white">{title}</h2> : null}
     {children}
   </section>

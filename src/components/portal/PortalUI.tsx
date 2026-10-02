@@ -236,9 +236,11 @@ export function DocRow({
     "inline-flex items-center gap-1 rounded border border-white/10 px-2.5 py-1 text-[11px] font-semibold text-slate-200 transition hover:border-acp-bronze/50 hover:text-acp-bronze disabled:opacity-50";
 
   return (
-    <div className="flex flex-wrap items-center gap-3 border-b border-white/5 py-3 last:border-b-0">
-      <div className="min-w-0 flex-1">
-        <p className={cx("break-words text-sm", superseded ? "text-slate-500" : "text-slate-200")}>
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-white/5 py-3 last:border-b-0">
+      {/* The floor on the title's width is what pushes the date and actions onto
+          their own line in a narrow folder, rather than crushing the title. */}
+      <div className="min-w-[min(100%,14rem)] flex-1">
+        <p className={cx("text-sm [overflow-wrap:anywhere]", superseded ? "text-slate-500" : "text-slate-200")}>
           {title}
           {superseded ? (
             <span className="ml-2 rounded-full border border-white/10 px-1.5 py-0.5 align-middle text-[10px] font-semibold text-slate-400">
@@ -250,7 +252,7 @@ export function DocRow({
         {error ? <p className="mt-1 text-[11px] text-rose-300">{error}</p> : null}
       </div>
       <div className="w-28 text-xs text-slate-400">{date ? formatDate(date) : ""}</div>
-      <div className="flex w-44 justify-end gap-1.5 text-right text-xs">
+      <div className="ml-auto flex w-44 justify-end gap-1.5 text-right text-xs">
         {available && hasFile ? (
           <>
             <button type="button" onClick={() => void view()} disabled={busy !== null} className={action}>
@@ -324,7 +326,7 @@ export function ActivityItem({
   if (!line) return null; // unknown types are hidden, not guessed at
   return (
     <div className="border-b border-white/5 py-3 last:border-b-0">
-      <p className="text-sm text-slate-200">{line}</p>
+      <p className="text-sm text-slate-200 [overflow-wrap:anywhere]">{line}</p>
       <p className="mt-0.5 text-[11px] text-slate-500">{formatDate(createdAt)}</p>
     </div>
   );
@@ -365,10 +367,10 @@ export function MetricRow({
   onEvidence?: () => void;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-3 border-b border-white/5 py-3 last:border-b-0">
-      <span className="min-w-0 flex-1 text-sm text-slate-300">{label}</span>
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-white/5 py-3 last:border-b-0">
+      <span className="min-w-[min(100%,12rem)] flex-1 text-sm text-slate-300">{label}</span>
       <span className="text-sm font-medium tabular-nums text-white">{value}</span>
-      <span className="w-32 text-right">{provenance ? <ProvenanceBadge kind={provenance} onEvidence={onEvidence} /> : null}</span>
+      <span className="ml-auto w-32 text-right">{provenance ? <ProvenanceBadge kind={provenance} onEvidence={onEvidence} /> : null}</span>
     </div>
   );
 }
@@ -377,7 +379,7 @@ export function RailRow({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="border-b border-white/5 py-3 last:border-b-0">
       <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">{label}</p>
-      <p className="mt-1 text-sm tabular-nums text-white">{value}</p>
+      <p className="mt-1 text-sm tabular-nums text-white [overflow-wrap:anywhere]">{value}</p>
     </div>
   );
 }
@@ -398,7 +400,7 @@ export function DocumentFolders({ docs }: { docs: PortalDocument[] }) {
         if (!inFolder.length) return null;
         const info = CATEGORY_INFO[cat];
         return (
-          <div key={cat} className="rounded-lg border border-white/5 bg-white/[0.015] px-4 py-3">
+          <div key={cat} className="rounded-lg border border-white/5 bg-white/[0.015] px-3 py-3 sm:px-4">
             <div className="flex flex-wrap items-center gap-2">
               <FolderOpen className="h-4 w-4 text-acp-portal-gold" />
               <p className="text-sm font-semibold text-white">
