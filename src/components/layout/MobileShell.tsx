@@ -9,7 +9,7 @@ import { ChevronLeft, ChevronRight, KeyRound, LogOut, Moon, MoreHorizontal, Sun 
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { cx } from "../../utils/cx";
 import { useTheme } from "../../hooks/useTheme";
-import type { LoaderPhase } from "../../hooks/useRouteTransition";
+import { phoneScroller, type LoaderPhase } from "../../hooks/useRouteTransition";
 import { BrandLogo, BrandMark } from "../ui/BrandLogo";
 import { LogoLoader } from "../ui/LogoLoader";
 
@@ -67,10 +67,12 @@ export function MobileTopBar({
   // always show their title next to the back arrow.
   const [scrolled, setScrolled] = useState(false);
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 64);
+    const scroller = phoneScroller();
+    if (!scroller) return;
+    const onScroll = () => setScrolled(scroller.scrollTop > 64);
     onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
+    scroller.addEventListener("scroll", onScroll, { passive: true });
+    return () => scroller.removeEventListener("scroll", onScroll);
   }, [pathname]);
   const showTitle = Boolean(parent) || scrolled;
 
@@ -84,7 +86,7 @@ export function MobileTopBar({
   };
 
   return (
-    <header className="app-chrome lg:hidden sticky top-0 z-30 pt-safe border-b border-white/[0.04] bg-acp-ink/80 backdrop-blur-xl">
+    <header className="app-chrome lg:hidden relative shrink-0 z-30 pt-safe border-b border-white/[0.04] bg-acp-ink/80 backdrop-blur-xl">
       <div className="flex h-14 items-center gap-2 px-3">
         {parent ? (
           <button
@@ -165,7 +167,9 @@ export function MobileTabBar({
 
   return (
     <nav
-      className="app-chrome lg:hidden fixed inset-x-0 bottom-0 z-40 pb-safe border-t border-white/[0.05] bg-acp-navy/90 backdrop-blur-xl shadow-[0_-8px_24px_rgb(0_0_0/calc(0.25*var(--shadow-k)))]"
+      // Not position:fixed — it is the last row of the shell's full-height
+      // column, below the scroll area, so nothing can scroll it away.
+      className="app-chrome lg:hidden relative shrink-0 z-40 pb-safe border-t border-white/[0.05] bg-acp-navy/90 backdrop-blur-xl shadow-[0_-8px_24px_rgb(0_0_0/calc(0.25*var(--shadow-k)))]"
       aria-label="Main"
     >
       <div className="mx-auto flex h-[60px] max-w-xl items-stretch">

@@ -758,7 +758,7 @@ export function DealDetailPage() {
       </div>
 
       {/* Tabs navigation with scroll support */}
-      <div className="border-b border-white/[0.02] w-full flex items-center mb-6 max-lg:sticky max-lg:top-[calc(env(safe-area-inset-top)+3.5rem)] max-lg:z-10 max-lg:-mx-4 max-lg:px-4 max-lg:pt-2 max-lg:bg-acp-ink/95 max-lg:backdrop-blur-xl">
+      <div className="border-b border-white/[0.02] w-full flex items-center mb-6 max-lg:sticky max-lg:-top-4 max-lg:z-10 max-lg:w-auto max-lg:-mx-4 max-lg:px-4 max-lg:pt-2 max-lg:bg-acp-ink/95 max-lg:backdrop-blur-xl">
         <div className="flex gap-8 overflow-x-auto flex-1 -mb-[1px]">
           {visibleTabs.map((tab) => (
             <button

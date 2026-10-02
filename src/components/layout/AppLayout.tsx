@@ -18,7 +18,7 @@ import { ThemeToggle } from "../ui/ThemeToggle";
 import { Modal } from "../ui/Modal";
 import { FormField, inputClass } from "../ui/FormField";
 import { useAuth } from "../../context/AuthContext";
-import { PHONE_QUERY, useRouteTransition } from "../../hooks/useRouteTransition";
+import { APP_SCROLL_ID, PHONE_QUERY, useRouteTransition } from "../../hooks/useRouteTransition";
 import { MobileTabBar, MobileTopBar, MoreSheet, RouteLoaderOverlay, type ShellNavItem } from "./MobileShell";
 
 // ─── Navigation items data ──────────────────────────────────────────────────
@@ -194,7 +194,9 @@ export function AppLayout() {
   const initials = initialsOf(displayName);
 
   return (
-    <div className="min-h-screen text-slate-100 lg:grid lg:grid-cols-[auto_minmax(0,1fr)] bg-acp-ink">
+    // Phone: the shell is exactly one screen tall and never scrolls itself —
+    // app bar, scroll area, tab bar — so the bars can't be dragged away.
+    <div className="min-h-screen text-slate-100 lg:grid lg:grid-cols-[auto_minmax(0,1fr)] bg-acp-ink max-lg:flex max-lg:flex-col max-lg:h-[100dvh] max-lg:min-h-0 max-lg:overflow-hidden">
       {/* ── Desktop Sidebar ───────────────────────────────────────────── */}
       <aside className={cx(
         "hidden h-screen sticky top-0 border-r border-white/[0.03] bg-gradient-to-b from-acp-navy via-acp-deep to-acp-deep text-white lg:flex flex-col relative overflow-hidden transition-all duration-300 ease-in-out shrink-0",
@@ -258,7 +260,7 @@ export function AppLayout() {
       />
 
       {/* ── Main Content Area ─────────────────────────────────────────── */}
-      <div className="min-w-0 flex flex-col min-h-screen relative z-10">
+      <div className="min-w-0 flex flex-col min-h-screen relative z-10 max-lg:flex-1 max-lg:min-h-0">
         {/* Phone: app bar */}
         <MobileTopBar
           title={phoneTitle(location.pathname)}
@@ -286,8 +288,11 @@ export function AppLayout() {
           </div>
         </header>
 
-        {/* Phone: the bottom padding keeps the last row clear of the tab bar. */}
-        <main className="flex-1 px-4 py-6 sm:px-8 sm:py-8 max-lg:!pt-4 max-lg:!pb-[calc(env(safe-area-inset-bottom)+5.5rem)]">
+        {/* Phone: this is the only thing that scrolls (see APP_SCROLL_ID). */}
+        <main
+          id={APP_SCROLL_ID}
+          className="flex-1 px-4 py-6 sm:px-8 sm:py-8 max-lg:!pt-4 max-lg:!pb-6 max-lg:min-h-0 max-lg:overflow-y-auto max-lg:overscroll-contain"
+        >
           <div ref={pageRef} className="mx-auto max-w-[1320px]">
             <Outlet />
           </div>

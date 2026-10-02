@@ -25,6 +25,18 @@ const ABANDON_MS = 1400;
 
 export const PHONE_QUERY = "(max-width: 1023.98px)";
 
+/**
+ * On phones the page itself never scrolls: the shell is a full-height column
+ * (app bar, this scroll area, tab bar), so the bars sit outside anything that
+ * moves and mobile browsers can't drag them off-screen. Anything that needs
+ * the phone's scroll position reads this element rather than `window`.
+ */
+export const APP_SCROLL_ID = "app-scroll";
+
+export function phoneScroller(): HTMLElement | null {
+  return document.getElementById(APP_SCROLL_ID);
+}
+
 export type LoaderPhase = "idle" | "shown" | "leaving";
 
 function isPhone() {
@@ -54,7 +66,7 @@ export function useRouteTransition() {
         if (nextKey !== null) {
           setRevealKey(nextKey);
           // A new screen starts at the top, like any native app.
-          window.scrollTo({ top: 0, left: 0, behavior: "instant" as ScrollBehavior });
+          phoneScroller()?.scrollTo({ top: 0, left: 0, behavior: "instant" as ScrollBehavior });
         }
         timers.current.push(window.setTimeout(() => setPhase("idle"), FADE_MS));
       }, wait),

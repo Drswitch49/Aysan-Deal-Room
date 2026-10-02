@@ -233,7 +233,7 @@ export function AdminMessagesPage() {
           // Phone: list and thread take turns at full height (list → thread → back),
           // the chat sized to the space between the app bar and the tab bar.
           phoneThreadOpen
-            ? "max-lg:min-h-0 max-lg:h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-10rem)]"
+            ? "max-lg:min-h-0 max-lg:h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-9.75rem)]"
             : "max-lg:min-h-0 max-lg:h-auto",
         )}>
 
