@@ -28,6 +28,8 @@ import {
   type FieldBox, type FieldStatus, type GateResult, type PlaybookConfig, type PlaybookKey,
   type Scorecard, type Verdict,
 } from "../../lib/acp/postcallSpec";
+import { LANE_LABELS, laneBadge, type RunType } from "../../lib/acp/wbsSpec";
+import { LaneCard, WbsConfigModal, WbsRunView } from "./WbsPostCall";
 
 const ADMIN_ROLES = ["owner", "managing_partner", "partner", "admin"];
 
@@ -88,6 +90,7 @@ const LOI_BLOCKER_TEXT: Record<string, string> = {
   dscr_sanction_missing: "DSCR sanction not recorded",
   verdict_kill: "Verdict is Kill",
   debtors_missing: "Aged debtors missing",
+  deferred_income_missing: "Deferred income missing (consumer-paid)",
 };
 
 const PLAYBOOK_LABELS: Record<PlaybookKey, string> = {
@@ -136,16 +139,28 @@ export function PostCallScorecardTab({
   deal,
   onVerdictChange,
   openComposer,
+  selectedRunId,
+  onSelectRun,
 }: {
   deal: DealLike;
   onVerdictChange: (verdict: string) => void;
   openComposer: (opts: ComposerOpts) => void;
+  /** Shared with the INTELLIGENCE tab's run selector. */
+  selectedRunId?: string | null;
+  onSelectRun?: (id: string | null) => void;
 }) {
   const { user } = useAuth();
   const isAdmin = ADMIN_ROLES.includes(normRole(user?.role));
 
   const [runs, setRuns] = useState<PostcallRun[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [localSelected, setLocalSelected] = useState<string | null>(null);
+  const selectedId = selectedRunId !== undefined ? selectedRunId : localSelected;
+  const setSelectedId = useCallback((id: string | null) => {
+    setLocalSelected(id);
+    onSelectRun?.(id);
+  }, [onSelectRun]);
+  const [runType, setRunType] = useState<RunType>("post_call");
+  const [wbsConfigOpen, setWbsConfigOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [mode, setMode] = useState<"view" | "new">("view");
 
@@ -171,7 +186,7 @@ export function PostCallScorecardTab({
     load()
       .then((r) => {
         if (!active) return;
-        setSelectedId(r[0]?.id ?? null);
+        if (!selectedId || !r.some((x) => x.id === selectedId)) setSelectedId(r[0]?.id ?? null);
         setMode(r.length ? "view" : "new");
       })
       .catch((err) => active && setErrorMsg(errText(err, "Failed to load post-call runs.")))
@@ -182,10 +197,14 @@ export function PostCallScorecardTab({
   }, [load]);
 
   const selected = runs.find((r) => r.id === selectedId) ?? null;
-  const activeConfig = versions[0] ?? null;
+  const lane = controls?.lane ?? "lane_1_cfs";
+  const lane1Versions = versions.filter((v) => (v.lane ?? "lane_1_cfs") === "lane_1_cfs");
+  const wbsVersions = versions.filter((v) => v.lane === "lane_2_wbs");
+  const activeConfig = lane1Versions[0] ?? null;
+  const laneConfig = lane === "lane_2_wbs" ? wbsVersions[0] ?? null : activeConfig;
 
   useEffect(() => {
-    onVerdictChange(runs[0]?.scorecard?.verdict ?? (runs.length ? "Legacy" : "Pending"));
+    onVerdictChange(runs[0]?.verdict ?? (runs.length ? "Legacy" : "Pending"));
   }, [runs, onVerdictChange]);
 
   if (loading) {
@@ -199,6 +218,25 @@ export function PostCallScorecardTab({
 
   return (
     <div className="space-y-6 font-sans animate-fade-in-up">
+      <LaneCard
+        dealId={deal.id}
+        isAdmin={isAdmin}
+        controls={controls}
+        onControlsChange={setControls}
+        runType={runType}
+        onRunTypeChange={setRunType}
+        laneConfig={laneConfig}
+        onOpenConfig={() => setWbsConfigOpen(true)}
+        onLaneChanged={() => setMode("new")}
+      />
+      <WbsConfigModal
+        isOpen={wbsConfigOpen}
+        onClose={() => setWbsConfigOpen(false)}
+        isAdmin={isAdmin}
+        versions={wbsVersions}
+        onCreated={(v) => setVersions((prev) => [v, ...prev])}
+      />
+
       <ControlsStrip
         deal={deal}
         isAdmin={isAdmin}
@@ -214,7 +252,9 @@ export function PostCallScorecardTab({
       {mode === "new" || !selected ? (
         <NewRunForm
           deal={deal}
-          activeConfig={activeConfig}
+          activeConfig={laneConfig}
+          laneLabel={LANE_LABELS[lane]}
+          runType={runType}
           canCancel={runs.length > 0}
           onCancel={() => setMode("view")}
           onDone={async () => {
@@ -235,7 +275,8 @@ export function PostCallScorecardTab({
               >
                 {runs.map((r) => (
                   <option key={r.id} value={r.id}>
-                    {r.scorecard ? `${r.scorecard.verdict} · ` : "Legacy · "}
+                    {r.verdict ? `${r.verdict} · ` : "Legacy · "}
+                    {r.lane === "lane_2_wbs" ? `${laneBadge(r.lane)} · ` : ""}
                     {r.name}
                   </option>
                 ))}
@@ -246,7 +287,9 @@ export function PostCallScorecardTab({
             </button>
           </div>
 
-          {selected.scorecard ? (
+          {selected.wbs ? (
+            <WbsRunView run={selected} sc={selected.wbs} deal={deal} controls={controls} openComposer={openComposer} />
+          ) : selected.scorecard ? (
             <RunView run={selected} sc={selected.scorecard} deal={deal} controls={controls} openComposer={openComposer} />
           ) : (
             <LegacyRunView run={selected} />
@@ -298,10 +341,11 @@ function ControlsStrip({
   const sanctioned = Boolean(controls?.dscr_sanctioned_at);
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-      <div className={cx(card, "space-y-2")}>
+    <div className={cx("grid grid-cols-1 gap-4", controls?.lane === "lane_2_wbs" ? "lg:grid-cols-2" : "lg:grid-cols-3")}>
+      {/* Lane 1's config card; a WBS deal's config lives in the lane card above. */}
+      {controls?.lane !== "lane_2_wbs" && <div className={cx(card, "space-y-2")}>
         <div className="flex items-center justify-between gap-2">
-          <h3 className={heading}>Playbook config</h3>
+          <h3 className={heading}>Playbook config · Lane 1</h3>
           <button type="button" onClick={() => setConfigOpen(true)} className="text-[10px] font-black uppercase text-acp-bronze hover:underline cursor-pointer">
             {isAdmin ? "View / new version" : "View"}
           </button>
@@ -314,7 +358,7 @@ function ControlsStrip({
         ) : (
           <p className="text-[11px] text-slate-500">All thresholds set.</p>
         )}
-      </div>
+      </div>}
 
       <div className={cx(card, "space-y-2")}>
         <h3 className={heading}>Institutional band (this deal)</h3>
@@ -523,10 +567,12 @@ function SanctionModal({
 
 // ─── New run ───────────────────────────────────────────────────────────────
 function NewRunForm({
-  deal, activeConfig, canCancel, onCancel, onDone,
+  deal, activeConfig, laneLabel, runType, canCancel, onCancel, onDone,
 }: {
   deal: DealLike;
   activeConfig: PlaybookConfig | null;
+  laneLabel: string;
+  runType: RunType;
   canCancel: boolean;
   onCancel: () => void;
   onDone: () => Promise<void>;
@@ -574,7 +620,7 @@ function NewRunForm({
     setErr("");
     setStatus("Queued…");
     try {
-      const { jobId } = await runPostcallScorecard({ dealId: deal.id, inputText: text, inputKind: kind, precallBriefId: briefId || null });
+      const { jobId } = await runPostcallScorecard({ dealId: deal.id, inputText: text, inputKind: kind, precallBriefId: briefId || null, runType });
       cancelWatch.current?.();
       cancelWatch.current = watchJob(jobId, {
         onProgress: setStatus,
@@ -599,7 +645,7 @@ function NewRunForm({
   return (
     <div className={cx(card, "space-y-4")}>
       <div className="flex items-center justify-between border-b border-white/5 pb-3">
-        <h3 className={heading}>New post-call run</h3>
+        <h3 className={heading}>New run · {laneLabel}</h3>
         {canCancel && (
           <button type="button" onClick={onCancel} className="text-[10px] font-black uppercase text-acp-bronze hover:underline cursor-pointer">Back to scorecard</button>
         )}
@@ -628,7 +674,7 @@ function NewRunForm({
         </label>
         <div className="space-y-1">
           <span className="block text-[9px] font-extrabold uppercase tracking-wider text-slate-400">Playbook config</span>
-          <p className="h-9 flex items-center text-xs text-slate-300">{activeConfig ? `Version ${activeConfig.version} (stamped on the run)` : "None — apply migration 0018"}</p>
+          <p className="h-9 flex items-center text-xs text-slate-300">{activeConfig ? `${laneLabel.split(" · ")[0]} · v${activeConfig.version}${activeConfig.lane === "lane_2_wbs" && !activeConfig.signed_at ? " (unsigned)" : ""} · stamped on the run` : "None — apply migrations 0018 and 0025"}</p>
         </div>
       </div>
 

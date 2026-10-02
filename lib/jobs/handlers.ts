@@ -7,16 +7,21 @@
  * Supabase. If ANTHROPIC_API_KEY is absent the handler throws AiUnavailableError
  * and the job fails visibly rather than hanging silently.
  */
-import { registerHandler } from "./queue.js";
+import { enqueue, registerHandler } from "./queue.js";
+import { generateBrief, generateP089 } from "../intelligence/generate.js";
+import { BRIEF_KEYS, P089_KEYS, SUMMARY_KEYS, type SectionKey } from "../../src/lib/acp/intelligence.js";
 import { adminClient } from "../data/supabase/client.js";
 import {
   analyzeTranscript,
   generateInvestmentVerdict,
   generatePrecallBrief,
   extractPostcallScorecard,
+  extractWbsFields,
   generatePortfolioBriefing,
 } from "../ai/tasks.js";
 import { buildScorecard } from "../postcall/scorecard.js";
+import { buildWbsScorecard } from "../postcall/wbs.js";
+import { RUN_TYPES, WBS_V2_PROPOSED, laneFromDeal, type Lane, type RunType, type WbsThresholds, type WbsWeights } from "../../src/lib/acp/wbsSpec.js";
 
 const db = () => adminClient();
 
@@ -144,10 +149,16 @@ registerHandler("postcall-brief", async (payload: any) => {
   const { data: deal, error } = await db().from("deals").select("*").eq("id", deal_id).single();
   if (error || !deal) throw new Error(`deal ${deal_id} not found`);
 
+  // Lane is set on the deal and inherited by the run (Optimisation Brief 1.1).
+  const lane: Lane = laneFromDeal(deal.lane);
+  const runType: RunType = (RUN_TYPES as readonly string[]).includes(payload?.run_type) ? payload.run_type : "post_call";
+
+  // Each lane scores against its own newest config. (Before 0025 there was one
+  // config table for one lane; scoping by lane keeps Lane 1 on Lane 1 values.)
   const { data: config, error: cfgErr } = await db()
-    .from("playbook_config").select("*").order("version", { ascending: false }).limit(1).maybeSingle();
+    .from("playbook_config").select("*").eq("lane", lane).order("version", { ascending: false }).limit(1).maybeSingle();
   if (cfgErr) throw new Error(`load playbook config: ${cfgErr.message}`);
-  if (!config) throw new Error("No Playbook config version exists — apply migration 0018.");
+  if (!config) throw new Error(`No Playbook config version exists for ${lane} — apply migrations 0018 and 0025.`);
 
   // The pre-call brief the caller chose, else the deal's latest.
   let briefQuery = db().from("precall_briefs").select("id, brief_data").eq("deal_id", deal_id).is("deleted_at", null);
@@ -157,8 +168,61 @@ registerHandler("postcall-brief", async (payload: any) => {
   const { data: briefs } = await briefQuery;
   const brief = briefs?.[0] ?? null;
 
-  const companyName = deal.company_name ?? deal.deal_name ?? deal_id;
+  const companyName = deal.company_name || deal.deal_name || deal_id;
   const institutionalBandPct = deal.institutional_band_pct == null ? null : Number(deal.institutional_band_pct);
+  const runName = `Post-call scorecard — ${companyName} — ${new Date().toISOString().slice(0, 16).replace("T", " ")} UTC`;
+
+  if (lane === "lane_2_wbs") {
+    const thresholds = (config.thresholds ?? WBS_V2_PROPOSED.thresholds) as WbsThresholds;
+    const raw = await extractWbsFields({
+      deal: { id: deal_id, companyName, subsector: deal.wbs_subsector, location: deal.location },
+      runType,
+      inputKind,
+      inputText,
+      precallBrief: brief?.brief_data ?? null,
+      h3Conditions: thresholds.h3_conditions ?? [],
+    });
+    const scorecard = buildWbsScorecard({
+      dealId: deal_id,
+      dealName: companyName,
+      brokerRef: deal.ref_no ?? null,
+      recipientName: deal.broker || null,
+      subsector: deal.wbs_subsector ?? null,
+      runType,
+      raw,
+      config: {
+        version: config.version,
+        thresholds,
+        weights: (config.weights ?? WBS_V2_PROPOSED.weights) as WbsWeights,
+        signed_by: config.signed_by ?? null,
+        signed_at: config.signed_at ?? null,
+      },
+      inputKind,
+      inputText,
+      precallBriefId: brief?.id ?? null,
+      dscrSanctioned: Boolean(deal.dscr_sanctioned_at),
+      dealColumns: { distance_rm11_miles: deal.distance_rm11_miles, indicative_dscr: deal.indicative_dscr },
+    });
+    const { data: created, error: insErr } = await db().from("postcall_briefs").insert({
+      deal_id,
+      name: runName,
+      brief_data: scorecard,
+      playbook_version: config.version,
+      input_kind: inputKind,
+      input_text: inputText,
+      precall_brief_id: brief?.id ?? null,
+      lane,
+      run_type: runType,
+      dimensions: scorecard.dimensions,
+      total_score: scorecard.total_score,
+      confidence_pct: scorecard.confidence_pct,
+      verdict: scorecard.verdict,
+      processing_status: "completed",
+      processed_at: new Date().toISOString(),
+    }).select("id").single();
+    if (insErr) throw new Error(`store postcall run: ${insErr.message}`);
+    return { brief_id: created.id, lane, verdict: scorecard.verdict, score: scorecard.total_score, completeness: scorecard.completeness.pct };
+  }
 
   const raw = await extractPostcallScorecard({
     deal: { id: deal_id, companyName, sector: deal.sector ?? deal.industry, location: deal.location },
@@ -180,21 +244,67 @@ registerHandler("postcall-brief", async (payload: any) => {
     inputText,
     precallBriefId: brief?.id ?? null,
     dscrSanctioned: Boolean(deal.dscr_sanctioned_at),
+    brokerRef: deal.ref_no ?? null,
   });
 
   const { data: created, error: insErr } = await db().from("postcall_briefs").insert({
     deal_id,
-    name: `Post-call scorecard — ${companyName} — ${new Date().toISOString().slice(0, 16).replace("T", " ")} UTC`,
+    name: runName,
     brief_data: scorecard,
     playbook_version: config.version,
     input_kind: inputKind,
     input_text: inputText,
     precall_brief_id: brief?.id ?? null,
+    lane,
+    run_type: runType,
+    verdict: scorecard.verdict,
     processing_status: "completed",
     processed_at: new Date().toISOString(),
   }).select("id").single();
   if (insErr) throw new Error(`store postcall run: ${insErr.message}`);
   return { brief_id: created.id, verdict: scorecard.verdict, completeness: scorecard.completeness.pct };
+});
+
+/**
+ * Deal Intelligence tab, stage A: sections 2-10, then BLUF and Actions.
+ * payload: { intelligence_run_id, only?: SectionKey[], p089?: P089Options }
+ * Stage B (P-089) runs as its own job so neither stage nears the worker's
+ * time limit; a section-level regenerate only runs the stage it belongs to.
+ */
+registerHandler("intelligence-run", async (payload: any) => {
+  const id = payload?.intelligence_run_id;
+  if (!id) throw new Error("intelligence_run_id required");
+  const only: SectionKey[] | undefined = Array.isArray(payload.only) ? payload.only : undefined;
+  const needsA = !only || only.some((k) => BRIEF_KEYS.includes(k) || SUMMARY_KEYS.includes(k));
+  const needsB = !only || only.some((k) => P089_KEYS.includes(k));
+
+  await db().from("intelligence_runs").update({ status: "running", error: null }).eq("id", id);
+  try {
+    if (needsA) await generateBrief(id, only);
+    if (needsB) {
+      await enqueue("negotiation-run", { intelligence_run_id: id, p089: payload.p089 ?? {} });
+    } else {
+      await db().from("intelligence_runs").update({ status: "done", generated_at: new Date().toISOString() }).eq("id", id);
+    }
+    return { intelligence_run_id: id, stage: "brief", next: needsB ? "negotiation-run" : null };
+  } catch (err) {
+    await db().from("intelligence_runs").update({ status: "failed", error: err instanceof Error ? err.message : String(err) }).eq("id", id);
+    throw err;
+  }
+});
+
+/** Deal Intelligence tab, stage B: P-089 sections 12-19. payload: { intelligence_run_id, p089 } */
+registerHandler("negotiation-run", async (payload: any) => {
+  const id = payload?.intelligence_run_id;
+  if (!id) throw new Error("intelligence_run_id required");
+  await db().from("intelligence_runs").update({ status: "running", error: null }).eq("id", id);
+  try {
+    await generateP089(id, payload.p089 ?? {});
+    return { intelligence_run_id: id, stage: "p089" };
+  } catch (err) {
+    await db().from("intelligence_runs").update({ status: "failed", error: err instanceof Error ? err.message : String(err) }).eq("id", id);
+    throw err;
+  }
 });
 
 /** payload: {} — portfolio intelligence briefing across all companies. */

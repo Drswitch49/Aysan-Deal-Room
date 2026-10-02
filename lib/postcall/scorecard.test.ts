@@ -252,17 +252,29 @@ describe("buildScorecard", () => {
   it("keeps figures and structure out of the broker email before the sanction", () => {
     const raw = passingRaw();
     delete raw.fields.b2b_share;
-    raw.fields.sale_reason = { value: null, status: "unknown", source: null, box: "none", next_action: "Would the seller accept a 20% vendor loan note?" };
-    raw.fields.sale_timing = { value: null, status: "unknown", source: null, box: "none", next_action: "Is £450k the asking price?" };
+    raw.fields.owner_pay_market = { value: null, status: "unknown", source: null, box: "none", next_action: "Would the seller accept a 20% vendor loan note?" };
+    raw.fields.years_trading = { value: null, status: "unknown", source: null, box: "none", next_action: "Is £450k the asking price?" };
     const before = run({}, raw);
     expect(containsFiguresOrStructure(before.broker_email.subject + before.broker_email.body)).toBe(false);
-    // The two above, plus the fallback earn-out question (structure).
-    expect(before.broker_email).toMatchObject({ figures_allowed: false, withheld: 3 });
-    expect(before.info_request.map((q) => q.field)).toEqual(expect.arrayContaining(["sale_reason", "sale_timing"]));
+    // The two above. The earn-out question is seller-only: it goes to call prep, never the broker.
+    expect(before.broker_email).toMatchObject({ figures_allowed: false, withheld: 2 });
+    expect(before.info_request.map((q) => q.field)).toEqual(expect.arrayContaining(["owner_pay_market", "years_trading"]));
 
     const after = run({ dscrSanctioned: true }, raw);
     expect(after.broker_email).toMatchObject({ figures_allowed: true, withheld: 0 });
     expect(after.broker_email.body).toContain("£450k");
+  });
+
+  it("routes behavioural and seller-only questions to call prep, ranks ≤ 12, and uses the subject formula", () => {
+    const raw = passingRaw();
+    delete raw.fields.sale_reason;
+    delete raw.fields.hapi_last_job_wrong;
+    const sc = run({ brokerRef: "172105" }, raw);
+    expect(sc.broker_email.subject.startsWith("172105 ")).toBe(true);
+    expect(sc.broker_email.subject).toContain(": information request following our call");
+    expect(sc.call_prep_questions).toEqual(expect.arrayContaining([POSTCALL_FIELDS.find((d) => d.key === "sale_reason")!.question]));
+    expect(sc.broker_email.body).not.toContain(POSTCALL_FIELDS.find((d) => d.key === "hapi_last_job_wrong")!.question);
+    expect(sc.broker_email.body.split("\n").filter((l) => /^\d+\. /.test(l)).length).toBeLessThanOrEqual(12);
   });
 
   it("every fallback question except the earn-out ask is safe to send pre-sanction", () => {

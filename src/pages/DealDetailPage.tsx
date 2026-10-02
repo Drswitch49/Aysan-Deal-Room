@@ -17,6 +17,8 @@ import { DealChat } from "../components/deals/DealChat";
 import { ManualNotesTab } from "../components/deals/ManualNotesTab";
 import { KillReasonCard } from "../components/deals/KillReasonCard";
 import { PostCallScorecardTab } from "../components/deals/PostCallScorecardTab";
+import { IntelligenceTab } from "../components/deals/IntelligenceTab";
+import { laneBadge, type Lane, type WbsSubsector } from "../lib/acp/wbsSpec";
 import { DealPortalTab } from "../components/deals/DealPortalTab";
 import { useAuth } from "../context/AuthContext";
 import { canAccessInvestors } from "../lib/rbac";
@@ -33,7 +35,7 @@ import { ACP_SCENARIOS } from "../lib/acp/scenarios";
 import { 
   fetchAdminLenders, createLender, assignDealToLender,
   fetchPrecallBriefs, generatePrecallBrief, askPrecallBriefQuestion,
-  fetchPostcallRuns,
+  fetchPostcallRuns, fetchPostcallControls,
   transitionDealStage, transitionDealLifecycle, triggerOsintEnrichment, triggerFinancialAnalysis,
   sendLoiWebhook, sendEmailWebhook, updateAdminDeal,
   deleteDeal, fetchTeamMemberRecords, getJobStatus, enqueueAiJob, watchJob
@@ -45,7 +47,7 @@ import { HeaderMetrics } from "../components/ui/HeaderMetrics";
 import { usePipeline } from "../context/PipelineContext";
 import { STAGE_LABELS, type DealStage } from "../lib/stages";
 
-type TabId = "overview" | "brief" | "post-meeting" | "financials" | "loi" | "documents" | "im-attachments" | "chat" | "investor-portal" | "notes";
+type TabId = "overview" | "brief" | "post-meeting" | "intelligence" | "financials" | "loi" | "documents" | "im-attachments" | "chat" | "investor-portal" | "notes";
 
 const formatGBP = (val: number) => {
   if (val === 0 || !val) return "TBC";
@@ -58,6 +60,7 @@ const tabs: Array<{ id: TabId; label: string; icon: ComponentType<{ className?: 
   { id: "overview", label: "Overview", icon: Eye },
   { id: "brief", label: "Pre-call brief", icon: FileText },
   { id: "post-meeting", label: "Post-call", icon: History },
+  { id: "intelligence", label: "Intelligence", icon: BrainCircuit },
   { id: "financials", label: "Financials", icon: TrendingUp },
   { id: "loi", label: "LOI & structure", icon: ShieldCheck },
   { id: "investor-portal", label: "Investor Portal", icon: Landmark },
@@ -135,6 +138,10 @@ export function DealDetailPage() {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   // The header shows the latest post-call run's verdict (Kill / Price / …).
   const [latestPostcallVerdict, setLatestPostcallVerdict] = useState<string>("Pending");
+  // POST-CALL and INTELLIGENCE share one run selector (Optimisation Brief 1.1, s4).
+  const [postcallRunId, setPostcallRunId] = useState<string | null>(null);
+  // Lane badge for the header: LANE 2 · WBS · <sub-sector>.
+  const [dealLane, setDealLane] = useState<{ lane: Lane; subsector: WbsSubsector | null } | null>(null);
 
   const dealState = useDeal(decodedRef, refreshTrigger);
 
@@ -676,7 +683,16 @@ export function DealDetailPage() {
     };
   }, [dealState.data, inboxRecords]);
 
-
+  // The deal's lane drives the header badge; refreshed when the post-call tab changes it.
+  const joinedDealId = joinedDeal?.id;
+  useEffect(() => {
+    if (!joinedDealId) return;
+    let active = true;
+    fetchPostcallControls(joinedDealId)
+      .then((c) => active && setDealLane({ lane: c.lane, subsector: c.wbs_subsector }))
+      .catch(() => undefined);
+    return () => { active = false; };
+  }, [joinedDealId, activeTab]);
 
   const isLoading = dealState.isLoading || documentState.isLoading || isLoadingInbox;
   const error = dealState.error ?? documentState.error;
@@ -722,6 +738,12 @@ export function DealDetailPage() {
                   <>
                     <span className="text-slate-700 font-bold">·</span>
                     <span>KBS: {String(joinedDeal.rawFields["REF No."])}</span>
+                  </>
+                )}
+                {dealLane?.lane === "lane_2_wbs" && (
+                  <>
+                    <span className="text-slate-700 font-bold">·</span>
+                    <span className="text-acp-bronze">{laneBadge(dealLane.lane, dealLane.subsector)}</span>
                   </>
                 )}
                 <span className="text-slate-700 font-bold">·</span>
@@ -818,7 +840,21 @@ export function DealDetailPage() {
         )}
         
         {activeTab === "post-meeting" && (
-          <PostCallScorecardTab deal={joinedDeal} onVerdictChange={setLatestPostcallVerdict} openComposer={openComposer} />
+          <PostCallScorecardTab
+            deal={joinedDeal}
+            onVerdictChange={setLatestPostcallVerdict}
+            openComposer={openComposer}
+            selectedRunId={postcallRunId}
+            onSelectRun={setPostcallRunId}
+          />
+        )}
+
+        {activeTab === "intelligence" && (
+          <IntelligenceTab
+            deal={{ id: joinedDeal.id, rawFields: joinedDeal.rawFields, dealRef: joinedDeal.dealRef, companyName: joinedDeal.companyName || joinedDeal.dealRef }}
+            selectedRunId={postcallRunId}
+            onSelectRun={setPostcallRunId}
+          />
         )}
 
         {activeTab === "financials" && (

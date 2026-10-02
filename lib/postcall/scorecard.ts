@@ -116,6 +116,8 @@ export interface EngineInput {
   inputText: string;
   precallBriefId: string | null;
   dscrSanctioned: boolean;
+  /** Broker's reference (KBS number) for the subject line. */
+  brokerRef?: string | null;
 }
 
 export function buildScorecard(input: EngineInput): Scorecard {
@@ -233,17 +235,25 @@ export function buildScorecard(input: EngineInput): Scorecard {
     .filter((d) => fields[d.key].status === "unknown")
     .map((d) => ({ field: d.key, question: fields[d.key].next_action ?? d.question }));
 
-  // 5. LOI flag — false until the DSCR sanction; debtors missing also blocks.
+  // 5. LOI flag — false until the DSCR sanction. The missing-ledger blocker
+  //    follows the cash model (Optimisation Brief v1.1, 3c): a mainly
+  //    consumer-paid business has no debtor book, so it is deferred income
+  //    that is missing, not debtors.
   const loiBlockers: Scorecard["loi_blockers"] = [];
   if (!input.dscrSanctioned) loiBlockers.push("dscr_sanction_missing");
   if (verdict === "Kill") loiBlockers.push("verdict_kill");
-  if (!known(fields.debtors_aged)) loiBlockers.push("debtors_missing");
+  const b2bShare = knownNum(fields, "b2b_share");
+  const consumerPaid = b2bShare != null && b2bShare < 50;
+  if (consumerPaid) loiBlockers.push("deferred_income_missing");
+  else if (!known(fields.debtors_aged)) loiBlockers.push("debtors_missing");
 
-  // 6. Broker email — the info request, minus anything carrying figures or
-  //    structure until the DSCR is sanctioned.
+  // 6. Broker email — ranked asks from the lane question bank, at most 12.
+  //    Behavioural and seller-only questions go to call prep, never to the
+  //    broker, and nothing carries figures or structure before the sanction.
   const figuresAllowed = input.dscrSanctioned;
-  const emailQuestions = infoRequest.map((q) => q.question).filter((q) => figuresAllowed || !containsFiguresOrStructure(q));
-  const withheld = infoRequest.length - emailQuestions.length;
+  const brokerAsks = rankBrokerAsks(infoRequest);
+  const emailQuestions = brokerAsks.map((q) => q.question).filter((q) => figuresAllowed || !containsFiguresOrStructure(q));
+  const withheld = brokerAsks.length - emailQuestions.length;
 
   return {
     spec: "acp-postcall-v1",
@@ -263,17 +273,45 @@ export function buildScorecard(input: EngineInput): Scorecard {
     loi_blockers: loiBlockers,
     earnout_flag: known(fields.earnout_ask) && fields.earnout_ask.value === true,
     broker_email: {
-      ...brokerEmail(input.companyName, input.recipientName, emailQuestions, figuresAllowed),
+      ...brokerEmail(input.brokerRef ?? null, input.companyName, input.recipientName, emailQuestions, figuresAllowed),
       figures_allowed: figuresAllowed,
       withheld,
     },
+    call_prep_questions: infoRequest.filter((q) => CALL_PREP_FIELDS.has(q.field)).map((q) => q.question),
     field_adjustments: fieldAdjustments,
   };
 }
 
-function brokerEmail(company: string, recipient: string | null | undefined, questions: string[], figuresAllowed: boolean) {
-  const subject = `${company}: follow-up questions from our call`;
-  const greeting = `Dear ${recipient?.trim() || "all"},`;
+/** Behavioural and seller-only fields: second-call agenda, never the broker. */
+const CALL_PREP_FIELDS = new Set([
+  "hapi_last_job_wrong", "hapi_top_customer_retender", "hapi_unique_knowledge",
+  "seller_stay_months", "sale_reason", "sale_timing", "other_buyers", "transition_wish", "structure_asks", "earnout_ask",
+]);
+
+const MAX_BROKER_ASKS = 12;
+
+/**
+ * Rank Lane 1 asks for the broker: hard-gate inputs first (in gate order),
+ * then the LOI ledger, then the rest; behavioural fields excluded; ≤ 12.
+ */
+export function rankBrokerAsks(infoRequest: Array<{ field: string; question: string }>) {
+  const gateInputs = GATES.flatMap((g) => g.inputs);
+  const rank = (field: string) => {
+    const gi = gateInputs.indexOf(field);
+    if (gi >= 0) return gi;
+    if (field === "debtors_aged") return gateInputs.length;
+    return gateInputs.length + 1 + POSTCALL_FIELDS.findIndex((f) => f.key === field);
+  };
+  return infoRequest
+    .filter((q) => !CALL_PREP_FIELDS.has(q.field))
+    .sort((a, b) => rank(a.field) - rank(b.field))
+    .slice(0, MAX_BROKER_ASKS);
+}
+
+function brokerEmail(brokerRef: string | null, company: string, recipient: string | null | undefined, questions: string[], figuresAllowed: boolean) {
+  // Subject formula: <broker ref> <deal>: <purpose>.
+  const subject = `${brokerRef?.trim() ? `${brokerRef.trim()} ` : ""}${company}: information request following our call`;
+  const greeting = `Dear ${recipient?.trim().split(/\s+/)[0] || "all"},`;
   const list = questions.length
     ? questions.map((q, i) => `${i + 1}. ${q}`).join("\n")
     : "We have what we need for now and will be in touch shortly with next steps.";

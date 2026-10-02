@@ -2,6 +2,11 @@
 import { api, type Paginated } from "../http";
 import { type Row, resolveDealId } from "./_shared";
 import type { PlaybookConfig, Scorecard } from "../../lib/acp/postcallSpec";
+import {
+  WBS_VERDICT_LABEL,
+  type Lane, type RunType, type WbsBand, type WbsScorecard, type WbsSubsector, type WbsThresholds, type WbsVerdict, type WbsWeights,
+} from "../../lib/acp/wbsSpec";
+import type { IntelligenceRun, SectionKey } from "../../lib/acp/intelligence";
 
 /**
  * Start the queued job now instead of waiting for the cron tick.
@@ -137,7 +142,15 @@ export interface PostcallRun {
   playbook_version: number | null;
   input_kind: "transcript" | "notes" | null;
   input_text: string | null;
+  /** Lane stamp: the deal's lane when the run was scored (older runs: Lane 1). */
+  lane: Lane;
+  run_type: RunType | null;
+  /** Lane 1 scorecard. */
   scorecard: Scorecard | null;
+  /** Lane 2 · WBS scorecard. */
+  wbs: WbsScorecard | null;
+  /** Verdict word for selectors and the header, either lane. */
+  verdict: string | null;
   /** Legacy (pre-spec) brief content, shown read-only. */
   legacy: { summary?: string; followUpEmail?: string } | null;
 }
@@ -148,6 +161,7 @@ export async function fetchPostcallRuns(dealId: string): Promise<PostcallRun[]> 
   return page.rows.map((r) => {
     const data = r.brief_data && typeof r.brief_data === "object" ? r.brief_data : {};
     const isSpec = data.spec === "acp-postcall-v1";
+    const isWbs = data.spec === "acp-postcall-wbs-v1";
     return {
       id: r.id,
       name: r.name ?? "",
@@ -155,8 +169,14 @@ export async function fetchPostcallRuns(dealId: string): Promise<PostcallRun[]> 
       playbook_version: r.playbook_version ?? null,
       input_kind: r.input_kind ?? null,
       input_text: r.input_text ?? null,
+      lane: (r.lane ?? (isWbs ? "lane_2_wbs" : "lane_1_cfs")) as Lane,
+      run_type: (r.run_type ?? (isWbs ? data.run_type : null)) as RunType | null,
       scorecard: isSpec ? (data as Scorecard) : null,
-      legacy: isSpec ? null : { summary: data.summary, followUpEmail: data.followUpEmail },
+      wbs: isWbs ? (data as WbsScorecard) : null,
+      verdict: isWbs
+        ? (data.verdict === "PROVISIONAL" && data.band ? `Provisional · ${WBS_VERDICT_LABEL[data.band as WbsBand]}` : WBS_VERDICT_LABEL[data.verdict as WbsVerdict])
+        : isSpec ? data.verdict : null,
+      legacy: isSpec || isWbs ? null : { summary: data.summary, followUpEmail: data.followUpEmail },
     };
   });
 }
@@ -167,23 +187,33 @@ export async function runPostcallScorecard(data: {
   inputText: string;
   inputKind: "transcript" | "notes";
   precallBriefId?: string | null;
+  runType?: RunType;
 }): Promise<{ jobId: string }> {
   const id = await resolveDealId(data.dealId);
   const job = await enqueueAiJob("postcall-brief", {
     deal_id: id,
     input_text: data.inputText,
     input_kind: data.inputKind,
+    run_type: data.runType ?? "post_call",
     ...(data.precallBriefId ? { precall_brief_id: data.precallBriefId } : {}),
   });
   return { jobId: job.job_id };
 }
 
-export function fetchPlaybookVersions(): Promise<PlaybookConfig[]> {
-  return api.get<PlaybookConfig[]>("/api/playbook-config");
+export function fetchPlaybookVersions(lane?: Lane): Promise<PlaybookConfig[]> {
+  return api.get<PlaybookConfig[]>(`/api/playbook-config${lane ? `?lane=${lane}` : ""}`);
 }
 
 export function createPlaybookVersion(values: Omit<PlaybookConfig, "version" | "created_by" | "created_at">): Promise<PlaybookConfig> {
   return api.post<PlaybookConfig>("/api/playbook-config", values);
+}
+
+export function createWbsConfigVersion(values: { thresholds: WbsThresholds; weights: WbsWeights; notes?: string | null; sign?: boolean }): Promise<PlaybookConfig> {
+  return api.post<PlaybookConfig>("/api/playbook-config", { lane: "lane_2_wbs", ...values });
+}
+
+export function signPlaybookVersion(version: number): Promise<PlaybookConfig> {
+  return api.post<PlaybookConfig>("/api/playbook-config", { action: "sign", version });
 }
 
 export interface PostcallControls {
@@ -192,6 +222,9 @@ export interface PostcallControls {
   dscr_sanctioned_at: string | null;
   dscr_sanctioned_by: string | null;
   dscr_sanction_note: string | null;
+  lane: Lane;
+  wbs_subsector: WbsSubsector | null;
+  distance_rm11_miles: number | null;
 }
 
 export async function fetchPostcallControls(dealId: string): Promise<PostcallControls> {
@@ -201,10 +234,52 @@ export async function fetchPostcallControls(dealId: string): Promise<PostcallCon
 
 export async function updatePostcallControls(
   dealId: string,
-  patch: { institutional_band_pct?: number | null; dscr_sanctioned?: boolean; dscr_sanction_note?: string | null },
+  patch: {
+    institutional_band_pct?: number | null;
+    dscr_sanctioned?: boolean;
+    dscr_sanction_note?: string | null;
+    lane?: Lane;
+    wbs_subsector?: WbsSubsector | null;
+    distance_rm11_miles?: number | null;
+  },
 ): Promise<PostcallControls> {
   const id = await resolveDealId(dealId);
   return api.patch<PostcallControls>("/api/postcall-controls", { deal_id: id, ...patch });
+}
+
+// ─── Deal Intelligence tab ─────────────────────────────────────────────────
+export type IntelligenceView = IntelligenceRun & { visible_sections: SectionKey[]; latest_document_at: string | null };
+
+export async function fetchIntelligence(dealId: string, runId: string): Promise<{ run: IntelligenceView | null; visible_sections?: SectionKey[] }> {
+  const id = await resolveDealId(dealId).catch(() => dealId);
+  return api.get(`/api/intelligence?deal_id=${encodeURIComponent(id)}&run_id=${encodeURIComponent(runId)}`, { noCache: true });
+}
+
+export interface CounterpartyOpts { inbound?: string | null; counterparty_role?: "broker" | "seller" | "lender" | "adviser"; recipient_name?: string | null }
+
+export async function generateIntelligence(dealId: string, runId: string, opts: CounterpartyOpts = {}): Promise<{ job_id: string }> {
+  const id = await resolveDealId(dealId);
+  const r = await api.post<{ job_id: string }>("/api/intelligence", { action: "generate", deal_id: id, run_id: runId, ...opts });
+  kickWorker();
+  return r;
+}
+
+export async function regenerateSections(intelId: string, sections: SectionKey[], opts: CounterpartyOpts = {}): Promise<{ job_id: string }> {
+  const r = await api.post<{ job_id: string }>("/api/intelligence", { action: "regenerate", id: intelId, sections, ...opts });
+  kickWorker();
+  return r;
+}
+
+export function lockSection(intelId: string, section: SectionKey, locked: boolean): Promise<{ locked_sections: SectionKey[] }> {
+  return api.post("/api/intelligence", { action: "lock", id: intelId, section, locked });
+}
+
+export function commentSection(intelId: string, section: SectionKey, text: string): Promise<{ comments: IntelligenceRun["comments"] }> {
+  return api.post("/api/intelligence", { action: "comment", id: intelId, section, text });
+}
+
+export function writeNegotiationLogRow(intelId: string): Promise<{ notion: { synced: boolean; reason?: string } }> {
+  return api.post("/api/intelligence", { action: "log", id: intelId });
 }
 
 export async function triggerOsintEnrichment(dealId: string): Promise<{ success: boolean; message: string }> {

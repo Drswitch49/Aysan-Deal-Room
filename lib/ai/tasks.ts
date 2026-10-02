@@ -8,6 +8,8 @@ import { z } from "zod";
 import { askClaude, askClaudeJson } from "./client.js";
 import { GATES, POSTCALL_FIELDS, type PlaybookConfig } from "../../src/lib/acp/postcallSpec.js";
 import { claudeScorecardSchema, numberLines, type ClaudeScorecard } from "../postcall/scorecard.js";
+import { claudeWbsSchema, type ClaudeWbs } from "../postcall/wbs.js";
+import { RUN_TYPE_LABELS, WBS_FIELDS, type RunType } from "../../src/lib/acp/wbsSpec.js";
 import { ACP_PERSONAS } from "../../src/lib/acp/personas.js";
 import { ACP_SCENARIOS } from "../../src/lib/acp/scenarios.js";
 
@@ -567,6 +569,100 @@ Return the scorecard JSON.`;
     maxTokens: 12_000,
     effort: "high",
     messages: [{ role: "user", content: userContent }],
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  Post-call scorecard · Lane 2 WBS (Optimisation Brief v1.1)
+// ═══════════════════════════════════════════════════════════════════════════
+function wbsSystemPrompt(runType: RunType, h3Conditions: string[]): string {
+  const fieldList = WBS_FIELDS.map((f) => `  "${f.key}": ${f.label}. value: ${f.shape}`).join("\n");
+  const conditions = h3Conditions.length
+    ? h3Conditions.map((c, i) => `  ${i + 1}. ${c}`).join("\n")
+    : "  (none supplied yet: return patient_facing_conditions as unknown)";
+
+  return `You are the post-call field extractor for Aysan Capital Partners (ACP), Lane 2 · Wellbeing Services (WBS): physio, MSK and chiropractic, diagnostics and longevity, medical aesthetics, occupational health, corporate wellbeing, recovery and performance clinics.
+You read one call transcript or set of notes and return the WBS field set as strict JSON. You do NOT decide gates, scores or verdicts: the backend does that from the fields and evidence tags you return.
+
+THE INPUT
+Every line of the call input is prefixed "L<n>:". A pre-call brief may follow; it is context, not evidence of what was said on the call.
+
+FIELD OBJECT — exactly these four attributes:
+  "value": the answer in the shape given below, or null
+  "status": the evidence tag, one of:
+     "filed"      from filed statutory accounts or a public register (Companies House, CQC, HCPC)
+     "verified"   checked against a document seen on or after the call
+     "mgmt"       from management accounts or reports the seller produced
+     "vendor"     the seller or broker said it
+     "estimated"  your derivation from stated facts (say so; never dress it up as fact)
+     "assumption" a working assumption with no evidence
+     "unknown"    not established
+  "source": where it comes from: a note line ("L12", "L12-L14", "L12, L30"), a transcript timestamp exactly as written ("00:14:32"), or "brief:<section>". Comma-separate several.
+  "next_action": the single plain-English question that would firm the field up
+
+RULES
+- No source means no value: return value null, status "unknown". Never fill from general knowledge.
+- Tag honestly. A figure the seller quoted is "vendor" even if it sounds right. A number you worked out is "estimated". ESTIMATED and ASSUMPTION evidence can never fail a gate, so do not inflate tags to make a gate decisive.
+- This is a ${RUN_TYPE_LABELS[runType]} run.
+- Percent fields are numbers 0-100. Money is plain GBP with no symbol or commas.
+- cash_model: how patients or payers pay. A monthly direct-debit membership is "direct_debit_membership"; pay-per-session is "point_of_sale"; prepaid courses or care plans are "prepaid_plan".
+- ip_owned_by_company: "rolling_licence" when the clinic's systems, brand or protocols are licensed month to month from the sellers or a company they own.
+- maintainable_ebitda_cases: only when the call or brief gives enough to build a bridge (anchor, director replacement, licence cost); tag "estimated".
+- next_action questions go to a broker. No £ or currency, no percentages, no money numbers, nothing about price, valuation, structure, earn-outs, loan notes or deferred consideration.
+- principals: the sellers or owners named on the call, by first name as used (e.g. ["Alexandra", "Nicolas"]). Empty if none named.
+- No keys, commentary or prose beyond the schema.
+
+PATIENT-FACING CONDITIONS (H3) — for patient_facing_conditions, return one {condition, met} per condition below, met true/false only with a source, else null:
+${conditions}
+
+FIELDS (return every key under "fields"):
+${fieldList}
+
+OUTPUT — pure JSON, no fences:
+{ "fields": { "<key>": { "value": ..., "status": "...", "source": "..." | null, "next_action": "..." | null }, ... }, "principals": ["..."] }`;
+}
+
+export interface WbsRunInput {
+  deal: { id: string; companyName: string; subsector?: string | null; location?: string | null };
+  runType: RunType;
+  inputKind: "transcript" | "notes";
+  inputText: string;
+  precallBrief: Record<string, unknown> | null;
+  h3Conditions: string[];
+}
+
+/** Claude's WBS field read; lib/postcall/wbs.ts decides everything else. */
+export function extractWbsFields(run: WbsRunInput): Promise<ClaudeWbs> {
+  const { numbered } = numberLines(run.inputText);
+  let briefBlock = "No pre-call brief was supplied.";
+  if (run.precallBrief) {
+    const b = run.precallBrief;
+    const pick = {
+      executiveDealSnapshot: b.executiveDealSnapshot,
+      financialIntelligence: b.financialIntelligence,
+      sellerIntelligence: b.sellerIntelligence,
+      osintIntelligence: b.osintIntelligence,
+      criticalUnknowns: b.criticalUnknowns,
+      dealKillers: b.dealKillers,
+    };
+    briefBlock = `PRE-CALL BRIEF (cite as brief:<section>):\n${JSON.stringify(pick, null, 2).slice(0, 12_000)}`;
+  }
+  return askClaudeJson(claudeWbsSchema, {
+    system: wbsSystemPrompt(run.runType, run.h3Conditions),
+    maxTokens: 12_000,
+    effort: "high",
+    messages: [{
+      role: "user",
+      content: `Deal ID: ${run.deal.id}
+Company: ${run.deal.companyName}${run.deal.subsector ? ` | WBS sub-sector: ${run.deal.subsector}` : ""}${run.deal.location ? ` | Location: ${run.deal.location}` : ""}
+
+CALL ${run.inputKind === "transcript" ? "TRANSCRIPT" : "MANUAL NOTES"}:
+${numbered}
+
+${briefBlock}
+
+Return the WBS field JSON.`,
+    }],
   });
 }
 

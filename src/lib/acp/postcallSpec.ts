@@ -205,6 +205,12 @@ export interface PlaybookConfig {
   notes?: string | null;
   created_by?: string | null;
   created_at?: string;
+  /** Migration 0025: config is stored per lane and signed. */
+  lane?: "lane_1_cfs" | "lane_2_wbs";
+  thresholds?: Record<string, unknown> | null;
+  weights?: Record<string, number> | null;
+  signed_by?: string | null;
+  signed_at?: string | null;
 }
 
 export const PLAYBOOK_KEYS = [
@@ -252,9 +258,11 @@ export interface Scorecard {
   completeness: { known: number; required: number; pct: number };
   info_request: Array<{ field: string; question: string }>;
   loi_ready: boolean;
-  loi_blockers: Array<"dscr_sanction_missing" | "verdict_kill" | "debtors_missing">;
+  loi_blockers: Array<"dscr_sanction_missing" | "verdict_kill" | "debtors_missing" | "deferred_income_missing">;
   earnout_flag: boolean;
   broker_email: { subject: string; body: string; figures_allowed: boolean; withheld: number };
+  /** Behavioural / seller-only questions routed to call prep (absent on older runs). */
+  call_prep_questions?: string[];
   /** Field-level rule applications, e.g. {field, code: "source_missing"}. */
   field_adjustments: Array<{ field: string; code: string }>;
 }
