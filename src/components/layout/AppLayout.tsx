@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import type { ReactNode } from "react";
 import {
-  Building2, LogOut, Menu, X,
+  Building2, LogOut,
   LayoutDashboard, Kanban, Users, Settings, KeyRound, Activity,
   ChevronLeft, ChevronRight, Inbox, MessageSquare, MessageCircle, Landmark
 } from "lucide-react";
@@ -18,33 +18,76 @@ import { ThemeToggle } from "../ui/ThemeToggle";
 import { Modal } from "../ui/Modal";
 import { FormField, inputClass } from "../ui/FormField";
 import { useAuth } from "../../context/AuthContext";
+import { PHONE_QUERY, useRouteTransition } from "../../hooks/useRouteTransition";
+import { MobileTabBar, MobileTopBar, MoreSheet, RouteLoaderOverlay, type ShellNavItem } from "./MobileShell";
 
 // ─── Navigation items data ──────────────────────────────────────────────────
-const NAV_SECTIONS = [
+const NAV_SECTIONS: { group: string; items: ShellNavItem[] }[] = [
   {
     group: "Operations",
     items: [
-      { to: "/", icon: <LayoutDashboard className="h-4 w-4" />, label: "Dashboard", end: true },
-      { to: "/admin/messages", icon: <MessageCircle className="h-4 w-4" />, label: "Messages" },
-      { to: "/admin/inbox", icon: <Inbox className="h-4 w-4" />, label: "Deal Inbox" },
-      { to: "/deals", icon: <Kanban className="h-4 w-4" />, label: "Active Deals", end: true },
-      { to: "/admin/portco", icon: <Activity className="h-4 w-4" />, label: "Portfolio Monitor" },
+      { to: "/", icon: LayoutDashboard, label: "Dashboard", tabLabel: "Home", end: true },
+      { to: "/admin/messages", icon: MessageCircle, label: "Messages" },
+      { to: "/admin/inbox", icon: Inbox, label: "Deal Inbox", tabLabel: "Inbox" },
+      { to: "/deals", icon: Kanban, label: "Active Deals", tabLabel: "Deals", end: true },
+      { to: "/admin/portco", icon: Activity, label: "Portfolio Monitor" },
     ],
   },
   {
     group: "Relations & Intelligence",
     items: [
-      { to: "/admin/lenders", icon: <Building2 className="h-4 w-4" />, label: "Lender Intel" },
-      { to: "/admin/investors", icon: <Landmark className="h-4 w-4" />, label: "Investors" },
-      { to: "/admin/hr", icon: <Users className="h-4 w-4" />, label: "HR" },
-      { to: "/admin/settings", icon: <Settings className="h-4 w-4" />, label: "Settings" },
+      { to: "/admin/lenders", icon: Building2, label: "Lender Intel" },
+      { to: "/admin/investors", icon: Landmark, label: "Investors" },
+      { to: "/admin/hr", icon: Users, label: "HR" },
+      { to: "/admin/settings", icon: Settings, label: "Settings" },
     ],
   },
 ];
 
+/** The nav a role may see. Shared by the desktop sidebar and the phone tabs. */
+function visibleNav(role: string) {
+  const canSeeInvestors = canAccessInvestors(role);
+  return NAV_SECTIONS.map(section => {
+    // Investors (capital partners, stakeholders, shareholders) is for admins,
+    // partners and the CFO only; the API refuses everyone else.
+    let items = section.items.filter(item => item.to !== "/admin/investors" || canSeeInvestors);
+
+    if (role === "hr") {
+      items = items.filter(item => item.to === "/admin/hr");
+    } else if (role === "stakeholder") {
+      items = items.filter(item => item.to === "/" || item.to === "/deals");
+    } else if (role === "analyst") {
+      items = items.filter(item => item.to !== "/admin/settings" && item.to !== "/admin/hr");
+    }
+
+    return { ...section, items };
+  }).filter(section => section.items.length > 0);
+}
+
+/** Phone tab order: the four day-to-day screens, then whatever else the role has. */
+const TAB_PRIORITY = ["/", "/deals", "/admin/inbox", "/admin/messages"];
+const MAX_TABS = 4;
+
+function splitPhoneNav(role: string) {
+  const all = visibleNav(role).flatMap(section => section.items);
+  const ranked = [
+    ...TAB_PRIORITY.map(to => all.find(item => item.to === to)).filter((item): item is ShellNavItem => Boolean(item)),
+    ...all.filter(item => !TAB_PRIORITY.includes(item.to)),
+  ];
+  const tabs = ranked.slice(0, MAX_TABS);
+  return {
+    // "Active Deals" is `end` in the sidebar (Deal Detail has its own crumb),
+    // but on the phone the Deals tab should stay lit inside a deal.
+    tabs: tabs.map(item => (item.to === "/deals" ? { ...item, end: false } : item)),
+    more: all.filter(item => !tabs.includes(item)),
+  };
+}
+
 export function AppLayout() {
   const { user } = useAuth();
   const location = useLocation();
+  const { phase: loaderPhase, revealKey } = useRouteTransition();
+  const pageRef = useRef<HTMLDivElement>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
   const [unreadMessages, setUnreadMessages] = useState<number>(0);
@@ -63,6 +106,17 @@ export function AppLayout() {
       return next;
     });
   }, []);
+
+  // Phone only: as the page-switch loader lifts, replay the page's entrance.
+  // Restarting the CSS animation rather than re-keying the outlet, which would
+  // remount the page and fetch its data a second time.
+  useEffect(() => {
+    const el = pageRef.current;
+    if (!el || !window.matchMedia(PHONE_QUERY).matches) return;
+    el.classList.remove("animate-page-in");
+    void el.offsetWidth; // force a reflow so the animation starts over
+    el.classList.add("animate-page-in");
+  }, [revealKey]);
 
   // Close mobile menu on route change
   useEffect(() => {
@@ -135,6 +189,10 @@ export function AppLayout() {
     window.location.reload();
   }, []);
 
+  const phoneNav = splitPhoneNav((user?.role || "").toLowerCase());
+  const displayName = displayNameOf(user);
+  const initials = initialsOf(displayName);
+
   return (
     <div className="min-h-screen text-slate-100 lg:grid lg:grid-cols-[auto_minmax(0,1fr)] bg-acp-ink">
       {/* ── Desktop Sidebar ───────────────────────────────────────────── */}
@@ -187,62 +245,31 @@ export function AppLayout() {
         </div>
       </aside>
 
-      {/* ── Mobile Drawer ─────────────────────────────────────────────── */}
-      {isMobileMenuOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden flex" role="dialog" aria-modal="true" aria-label="Navigation menu">
-          {/* Backdrop */}
-          <div
-            className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm animate-fade-in"
-            onClick={() => setIsMobileMenuOpen(false)}
-            aria-hidden="true"
-          />
-
-          {/* Drawer */}
-          <aside className="relative flex w-[260px] max-w-[88vw] flex-col border-r border-white/[0.03] bg-gradient-to-b from-acp-navy via-acp-deep to-acp-deep text-white h-full px-5 py-7 shadow-2xl animate-slide-in-left overflow-hidden">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(198,166,107,0.05),transparent_45%)] pointer-events-none" />
-            <div className="flex flex-col h-full z-10 relative">
-              <div className="flex items-center justify-between mb-6">
-                <BrandBlock />
-                <button
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/[0.08] bg-white/[0.04] text-slate-400 hover:text-white transition cursor-pointer"
-                  aria-label="Close menu"
-                  type="button"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-
-              <NavContent
-                user={user}
-                unreadMessages={unreadMessages}
-                className="flex-1 min-h-0 overflow-y-auto"
-                onNavigate={() => setIsMobileMenuOpen(false)}
-              />
-              <UserFooter user={user} onLogout={handleLogout} onChangePassword={() => setIsChangePasswordOpen(true)} />
-            </div>
-          </aside>
-        </div>
-      )}
+      {/* ── Phone: "More" sheet (sections + account) ──────────────────── */}
+      <MoreSheet
+        isOpen={isMobileMenuOpen}
+        onClose={() => setIsMobileMenuOpen(false)}
+        items={phoneNav.more}
+        name={displayName}
+        role={user?.role || "member"}
+        initials={initials}
+        onChangePassword={() => setIsChangePasswordOpen(true)}
+        onLogout={handleLogout}
+      />
 
       {/* ── Main Content Area ─────────────────────────────────────────── */}
       <div className="min-w-0 flex flex-col min-h-screen relative z-10">
-        {/* Top Header */}
-        <header className="sticky top-0 z-20 border-b border-white/[0.02] bg-acp-ink/60 backdrop-blur-xl">
-          <div className="flex items-center justify-between gap-4 px-5 py-3.5 sm:px-8">
-            {/* Mobile: Hamburger + Brand */}
-            <div className="lg:hidden flex shrink-0 items-center gap-3 min-w-0">
-              <button
-                onClick={() => setIsMobileMenuOpen(true)}
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/[0.06] border border-white/[0.1] text-white hover:bg-white/[0.1] transition cursor-pointer"
-                aria-label="Open navigation menu"
-                type="button"
-              >
-                <Menu className="h-4 w-4" />
-              </button>
-              <BrandBlock compact />
-            </div>
+        {/* Phone: app bar */}
+        <MobileTopBar
+          title={phoneTitle(location.pathname)}
+          subtitle={phoneSubtitle(location.pathname)}
+          initials={initials}
+          onOpenAccount={() => setIsMobileMenuOpen(true)}
+        />
 
+        {/* Top Header (desktop) */}
+        <header className="hidden lg:block sticky top-0 z-20 border-b border-white/[0.02] bg-acp-ink/60 backdrop-blur-xl">
+          <div className="flex items-center justify-between gap-4 px-5 py-3.5 sm:px-8">
             {/* Desktop: Breadcrumb / Context */}
             <div className="hidden lg:flex items-center gap-2 min-w-0">
               <span className="text-[10px] font-extrabold uppercase tracking-[0.15em] text-slate-500">
@@ -259,11 +286,21 @@ export function AppLayout() {
           </div>
         </header>
 
-        <main className="flex-1 px-4 py-6 sm:px-8 sm:py-8">
-          <div className="mx-auto max-w-[1320px]">
+        {/* Phone: the bottom padding keeps the last row clear of the tab bar. */}
+        <main className="flex-1 px-4 py-6 sm:px-8 sm:py-8 max-lg:!pt-4 max-lg:!pb-[calc(env(safe-area-inset-bottom)+5.5rem)]">
+          <div ref={pageRef} className="mx-auto max-w-[1320px]">
             <Outlet />
           </div>
         </main>
+
+        <RouteLoaderOverlay phase={loaderPhase} />
+        <MobileTabBar
+          tabs={phoneNav.tabs}
+          moreItems={phoneNav.more}
+          unreadMessages={unreadMessages}
+          isMoreOpen={isMobileMenuOpen}
+          onOpenMore={() => setIsMobileMenuOpen(true)}
+        />
 
         <ChangePasswordModal
           isOpen={isChangePasswordOpen}
@@ -288,6 +325,22 @@ function getBreadcrumb(pathname: string): string {
   if (pathname === "/admin/messages") return "Messages";
   if (pathname === "/admin/portco") return "Portfolio Monitor";
   return "Dashboard";
+}
+
+/** The phone app bar's title: the breadcrumb, named for the deal sub-pages. */
+function phoneTitle(pathname: string): string {
+  if (pathname === "/deals/create") return "New Deal";
+  if (/^\/deals\/[^/]+\/edit$/.test(pathname)) return "Edit Deal";
+  return getBreadcrumb(pathname);
+}
+
+/** The phone app bar's second line: the deal ref inside a deal, else the product. */
+function phoneSubtitle(pathname: string): string {
+  const edit = pathname.match(/^\/deals\/([^/]+)\/edit$/);
+  if (edit) return `Editing ${decodeURIComponent(edit[1])}`;
+  const deal = pathname.match(/^\/deals\/([^/]+)$/);
+  if (deal && deal[1] !== "create" && deal[1] !== "current") return decodeURIComponent(deal[1]);
+  return "ACP Deal OS";
 }
 
 // ─── Brand Block ─────────────────────────────────────────────────────────────
@@ -334,23 +387,7 @@ function NavContent({
   isCollapsed?: boolean;
 }) {
   const role = (user?.role || "").toLowerCase();
-  const canSeeInvestors = canAccessInvestors(role);
-
-  const filteredNav = NAV_SECTIONS.map(section => {
-    // Investors (capital partners, stakeholders, shareholders) is for admins,
-    // partners and the CFO only; the API refuses everyone else.
-    let items = section.items.filter(item => item.to !== "/admin/investors" || canSeeInvestors);
-
-    if (role === "hr") {
-      items = items.filter(item => item.to === "/admin/hr");
-    } else if (role === "stakeholder") {
-      items = items.filter(item => item.to === "/" || item.to === "/deals");
-    } else if (role === "analyst") {
-      items = items.filter(item => item.to !== "/admin/settings" && item.to !== "/admin/hr");
-    }
-
-    return { ...section, items };
-  }).filter(section => section.items.length > 0);
+  const filteredNav = visibleNav(role);
 
   return (
     <nav className={cx("space-y-6 pr-1 select-none", className)}>
@@ -381,9 +418,9 @@ function NavContent({
               <SideNavItem
                 key={item.to}
                 to={item.to}
-                icon={item.icon}
+                icon={<item.icon className="h-4 w-4" />}
                 label={item.label}
-                end={"end" in item ? (item as any).end : false}
+                end={item.end ?? false}
                 onClick={onNavigate}
                 badge={badge}
                 isCollapsed={isCollapsed}
@@ -481,6 +518,15 @@ function displayNameOf(user: { name?: string; email?: string } | null | undefine
   return words.join(" ") || "User";
 }
 
+function initialsOf(name: string): string {
+  return name
+    .split(" ")
+    .map((n: string) => n[0])
+    .join("")
+    .substring(0, 2)
+    .toUpperCase();
+}
+
 function UserFooter({
   user,
   onLogout,
@@ -496,12 +542,7 @@ function UserFooter({
   // name from the registry, but an email is possible from a stale cached
   // session, so fall back to a formatted local-part rather than rendering it.
   const name = displayNameOf(user);
-  const initials = name
-    .split(" ")
-    .map((n: string) => n[0])
-    .join("")
-    .substring(0, 2)
-    .toUpperCase();
+  const initials = initialsOf(name);
 
   if (isCollapsed) {
     return (

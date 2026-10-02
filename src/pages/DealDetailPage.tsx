@@ -700,17 +700,17 @@ export function DealDetailPage() {
       <div>
         {/* Simplified Premium Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/5 pb-4">
-          <div className="flex items-center gap-3.5 min-w-0">
+          <div className="flex items-center gap-3.5 min-w-0 max-lg:flex-wrap">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr from-acp-bronze/20 to-acp-bronze-light/10 border border-acp-bronze/30 text-white shadow-inner">
               <Building2 className="h-5 w-5 text-acp-bronze" aria-hidden="true" />
             </div>
             <div className="min-w-0">
-              <div className="flex items-center gap-2 select-none text-[9px] font-extrabold uppercase tracking-widest text-slate-500">
+              <div className="max-lg:hidden flex items-center gap-2 select-none text-[9px] font-extrabold uppercase tracking-widest text-slate-500">
                 <span>Deals</span>
                 <span className="text-slate-700 text-[10px] font-bold">/</span>
                 <span className="text-acp-bronze font-mono">{joinedDeal.dealRef}</span>
               </div>
-              <h1 className="text-xl font-black text-white tracking-tight mt-1 truncate leading-tight">
+              <h1 className="text-xl font-black text-white tracking-tight mt-1 truncate leading-tight max-lg:mt-0 max-lg:whitespace-normal max-lg:overflow-visible max-lg:text-[22px]">
                 {joinedDeal.companyName || joinedDeal.dealRef}
               </h1>
               <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 mt-1.5 text-[9px] font-bold text-slate-450 select-none uppercase tracking-wider">
@@ -732,15 +732,15 @@ export function DealDetailPage() {
                 <span>Asking EV: <span className="text-acp-bronze font-extrabold">{joinedDeal.evAsk ? formatGBP(Number(joinedDeal.evAsk)) : "TBC"}</span></span>
               </div>
             </div>
-            <div className="flex items-center gap-2 shrink-0 ml-1">
+            <div className="flex items-center gap-2 shrink-0 ml-1 max-lg:ml-0 max-lg:w-full">
               <HeaderMetrics />
             </div>
           </div>
           
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2 shrink-0 max-lg:w-full">
             <button
               onClick={openEditDeal}
-              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-white/[0.02] bg-white/[0.015] px-3.5 text-[10px] font-extrabold uppercase tracking-wider text-slate-300 shadow-sm transition hover:border-white/20 hover:text-white hover:bg-white/[0.02] cursor-pointer"
+              className="max-lg:flex-1 max-lg:justify-center max-lg:h-10 inline-flex h-8 items-center gap-1.5 rounded-lg border border-white/[0.02] bg-white/[0.015] px-3.5 text-[10px] font-extrabold uppercase tracking-wider text-slate-300 shadow-sm transition hover:border-white/20 hover:text-white hover:bg-white/[0.02] cursor-pointer"
               type="button"
             >
               Edit Deal
@@ -748,7 +748,7 @@ export function DealDetailPage() {
             <button
               onClick={handleDeleteDeal}
               disabled={isDeleting}
-              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-red-500/20 bg-red-500/5 px-3.5 text-[10px] font-extrabold uppercase tracking-wider text-red-400 shadow-sm transition hover:bg-red-500/20 hover:text-red-300 cursor-pointer disabled:opacity-40 disabled:pointer-events-none"
+              className="max-lg:flex-1 max-lg:justify-center max-lg:h-10 inline-flex h-8 items-center gap-1.5 rounded-lg border border-red-500/20 bg-red-500/5 px-3.5 text-[10px] font-extrabold uppercase tracking-wider text-red-400 shadow-sm transition hover:bg-red-500/20 hover:text-red-300 cursor-pointer disabled:opacity-40 disabled:pointer-events-none"
               type="button"
             >
               {isDeleting ? "Deleting..." : "Delete Deal"}
@@ -758,7 +758,7 @@ export function DealDetailPage() {
       </div>
 
       {/* Tabs navigation with scroll support */}
-      <div className="border-b border-white/[0.02] w-full flex items-center mb-6">
+      <div className="border-b border-white/[0.02] w-full flex items-center mb-6 max-lg:sticky max-lg:top-[calc(env(safe-area-inset-top)+3.5rem)] max-lg:z-10 max-lg:-mx-4 max-lg:px-4 max-lg:pt-2 max-lg:bg-acp-ink/95 max-lg:backdrop-blur-xl">
         <div className="flex gap-8 overflow-x-auto flex-1 -mb-[1px]">
           {visibleTabs.map((tab) => (
             <button

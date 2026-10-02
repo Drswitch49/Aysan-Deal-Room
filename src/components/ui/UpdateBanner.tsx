@@ -90,7 +90,7 @@ export function UpdateBanner() {
   if (!stale) return null;
 
   return (
-    <div className="fixed bottom-4 left-1/2 z-[100] flex w-[calc(100%-2rem)] max-w-md -translate-x-1/2 items-center justify-between gap-3 rounded-lg border border-acp-bronze/40 bg-acp-card px-4 py-3 shadow-2xl">
+    <div className="fixed bottom-4 max-lg:bottom-[calc(env(safe-area-inset-bottom)+5rem)] left-1/2 z-[100] flex w-[calc(100%-2rem)] max-w-md -translate-x-1/2 items-center justify-between gap-3 rounded-lg border border-acp-bronze/40 bg-acp-card px-4 py-3 shadow-2xl">
       <p className="text-xs text-slate-300">A new version of the Deal Room is available.</p>
       <button
         type="button"

@@ -134,7 +134,7 @@ export function ChatNotificationWatcher({ mode, portalSlug, deals: lenderDeals }
           animation: toastSlideIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
       `}</style>
-      <div className="fixed top-6 right-6 z-[9999] flex flex-col gap-3.5 max-w-sm w-full pointer-events-none">
+      <div className="fixed top-6 right-6 z-[9999] flex flex-col gap-3.5 max-w-sm w-full pointer-events-none max-lg:inset-x-3 max-lg:top-[calc(env(safe-area-inset-top)+0.75rem)] max-lg:w-auto max-lg:max-w-none">
         {toasts.map(toast => (
           <div
             key={toast.id}

@@ -92,8 +92,10 @@ export function Modal({
   );
 
   return createPortal(
+    // On phones the dialog is a bottom sheet, the native pattern there; from
+    // sm up it is the centred card it has always been.
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 max-sm:items-end max-sm:p-0"
       role="dialog"
       aria-modal="true"
       aria-labelledby={titleId}
@@ -107,8 +109,11 @@ export function Modal({
 
       {/* Modal Panel */}
       <div
-        className={`relative z-10 w-full ${maxWidth} flex flex-col rounded-2xl border border-white/[0.1] bg-acp-card shadow-2xl animate-scale-in max-h-[85vh] overflow-hidden`}
+        className={`relative z-10 w-full ${maxWidth} flex flex-col rounded-2xl border border-white/[0.1] bg-acp-card shadow-2xl animate-scale-in max-h-[85vh] overflow-hidden max-sm:max-w-none max-sm:rounded-b-none max-sm:rounded-t-[28px] max-sm:border-x-0 max-sm:border-b-0 max-sm:max-h-[92dvh] max-sm:animate-sheet-up max-sm:pb-safe`}
       >
+        <div className="sm:hidden flex justify-center pt-3 -mb-3 shrink-0" aria-hidden="true">
+          <span className="h-1.5 w-10 rounded-full bg-white/[0.15]" />
+        </div>
         {onSubmit ? (
           <form onSubmit={onSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
             {modalContent}

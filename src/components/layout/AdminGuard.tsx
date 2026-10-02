@@ -4,6 +4,7 @@ import { useAuth } from "../../context/AuthContext";
 import { clearApiCache } from "../../api/http";
 import { BrandLogo } from "../ui/BrandLogo";
 import { ThemeToggle } from "../ui/ThemeToggle";
+import { LogoLoader } from "../ui/LogoLoader";
 
 type AdminGuardProps = {
   children: React.ReactNode;
@@ -154,7 +155,12 @@ export function AdminGuard({ children }: AdminGuardProps) {
       <div className="min-h-screen bg-acp-ink flex items-center justify-center relative overflow-hidden">
         <div className="absolute -left-20 -top-20 h-80 w-80 rounded-full bg-acp-bronze/5 blur-[100px] pointer-events-none" />
         <div className="absolute -right-20 -bottom-20 h-80 w-80 rounded-full bg-acp-bronze/5 blur-[100px] pointer-events-none" />
-        <div className="flex flex-col items-center gap-4 text-slate-400">
+        {/* Phone: the app's launch splash. */}
+        <div className="lg:hidden flex flex-col items-center gap-10">
+          <LogoLoader size={96} />
+          <BrandLogo className="h-4 text-slate-400" />
+        </div>
+        <div className="hidden lg:flex flex-col items-center gap-4 text-slate-400">
           <Loader2 className="h-8 w-8 animate-spin text-acp-bronze" />
           <p className="text-[10px] font-extrabold uppercase tracking-widest text-slate-500">Checking credentials...</p>
         </div>

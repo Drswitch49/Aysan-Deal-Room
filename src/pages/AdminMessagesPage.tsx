@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { MessageSquare, Search, ChevronDown, ChevronRight, FolderDot } from "lucide-react";
+import { MessageSquare, Search, ChevronDown, ChevronLeft, ChevronRight, FolderDot } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import { PageHeader } from "../components/ui/PageHeader";
 import { LoadingState } from "../components/ui/LoadingState";
@@ -188,6 +188,9 @@ export function AdminMessagesPage() {
     return conversations.find((c) => c.lender.id === activeLenderId) || null;
   }, [conversations, activeLenderId]);
 
+  /** Phone only: a deal thread is open, so it gets the screen instead of the list. */
+  const phoneThreadOpen = Boolean(selectedConversation && activeDealId);
+
   const handleSelectLender = (conv: Conversation) => {
     if (activeLenderId === conv.lender.id) {
       // If clicking the already active lender, collapse it (clear selection params)
@@ -216,16 +219,29 @@ export function AdminMessagesPage() {
 
   return (
     <div className="space-y-6 animate-fade-in-up">
-      <PageHeader title="Lender Communications" eyebrow="Unified Inbox" />
+      {/* Phone: a thread is a full screen of its own, so the page header steps aside. */}
+      <div className={cx(phoneThreadOpen && "max-lg:hidden")}>
+        <PageHeader title="Lender Communications" eyebrow="Unified Inbox" />
+      </div>
 
       {isLoading ? <LoadingState /> : null}
       {error ? <EmptyState title="Communication Error" message={error} /> : null}
 
       {!isLoading && !error && (
-        <div className="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-6 h-[calc(100vh-210px)] min-h-[550px] items-stretch">
-          
+        <div className={cx(
+          "grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-6 h-[calc(100vh-210px)] min-h-[550px] items-stretch",
+          // Phone: list and thread take turns at full height (list → thread → back),
+          // the chat sized to the space between the app bar and the tab bar.
+          phoneThreadOpen
+            ? "max-lg:min-h-0 max-lg:h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-10rem)]"
+            : "max-lg:min-h-0 max-lg:h-auto",
+        )}>
+
           {/* Left Pane: Conversations List */}
-          <div className="rounded-2xl border border-white/[0.02] bg-acp-card p-4 flex flex-col h-full overflow-hidden shadow-premium-card card-sheen">
+          <div className={cx(
+            "rounded-2xl border border-white/[0.02] bg-acp-card p-4 flex flex-col h-full overflow-hidden shadow-premium-card card-sheen",
+            phoneThreadOpen && "max-lg:hidden",
+          )}>
             
             {/* Search conversations */}
             <div className="relative mb-4 shrink-0">
@@ -349,9 +365,20 @@ export function AdminMessagesPage() {
           </div>
 
           {/* Right Pane: Split-pane Chat Frame */}
-          <div className="rounded-2xl border border-white/[0.02] bg-acp-card overflow-hidden flex flex-col h-full shadow-premium-card card-sheen">
+          <div className={cx(
+            "rounded-2xl border border-white/[0.02] bg-acp-card overflow-hidden flex flex-col h-full shadow-premium-card card-sheen",
+            !phoneThreadOpen && "max-lg:hidden",
+          )}>
             {selectedConversation && activeDealId ? (
               <div className="flex-1 h-full flex flex-col min-h-0">
+                <button
+                  type="button"
+                  onClick={() => setSearchParams({ lenderId: selectedConversation.lender.id })}
+                  className="lg:hidden flex h-11 shrink-0 items-center gap-1.5 border-b border-white/[0.04] px-3 text-sm font-semibold text-acp-bronze active:bg-white/[0.04]"
+                >
+                  <ChevronLeft className="h-5 w-5" />
+                  Conversations
+                </button>
                 <DealChat
                   key={`${activeDealId}-${activeLenderId}`}
                   mode="admin"

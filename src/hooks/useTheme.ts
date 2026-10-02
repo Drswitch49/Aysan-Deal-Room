@@ -22,6 +22,8 @@ function applyTheme(theme: Theme) {
   root.classList.toggle("light", theme === "light");
   root.classList.toggle("dark", theme === "dark");
   root.style.colorScheme = theme;
+  // The phone status bar / browser chrome colour (see index.html).
+  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", theme === "light" ? "#F4F2ED" : "#0F1115");
   try {
     localStorage.setItem(STORAGE_KEY, theme);
   } catch {

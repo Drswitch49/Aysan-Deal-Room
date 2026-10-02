@@ -137,6 +137,13 @@ export default {
         "fade-in": "fadeIn 0.4s ease forwards",
         "scale-in": "scaleIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards",
         "slide-up-fade": "slideUpFade 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards",
+        // Phone app shell. Each ends on `transform: none` rather than a zero
+        // translate, so nothing is left holding a containing block for
+        // position:fixed descendants once it finishes (see ModalPortal).
+        "page-in": "pageIn 0.38s cubic-bezier(0.16, 1, 0.3, 1) both",
+        "sheet-up": "sheetUp 0.34s cubic-bezier(0.16, 1, 0.3, 1) both",
+        "loader-out": "loaderOut 0.22s ease forwards",
+        "tab-pop": "tabPop 0.28s cubic-bezier(0.34, 1.56, 0.64, 1) both",
       },
       keyframes: {
         pulseGlow: {
@@ -162,6 +169,21 @@ export default {
         slideUpFade: {
           "0%": { opacity: "0", transform: "translateY(6px)" },
           "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+        pageIn: {
+          "0%": { opacity: "0", transform: "translateY(12px)" },
+          "100%": { opacity: "1", transform: "none" },
+        },
+        sheetUp: {
+          "0%": { transform: "translateY(100%)" },
+          "100%": { transform: "none" },
+        },
+        loaderOut: {
+          "100%": { opacity: "0", visibility: "hidden" },
+        },
+        tabPop: {
+          "0%": { opacity: "0", transform: "scale(0.6)" },
+          "100%": { opacity: "1", transform: "none" },
         },
       },
     },

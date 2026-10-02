@@ -5,6 +5,7 @@ import { AppLayout } from "./components/layout/AppLayout";
 import { AdminGuard } from "./components/layout/AdminGuard";
 import { getDeals } from "./api/airtable";
 import { PipelineProvider } from "./context/PipelineContext";
+import { LogoLoader } from "./components/ui/LogoLoader";
 import "./styles.css";
 
 // Lazy-loaded route components
@@ -24,9 +25,11 @@ const EditDealPage = lazy(() => import("./pages/EditDealPage").then(m => ({ defa
 
 const NotFoundPage = lazy(() => import("./pages/NotFoundPage").then(m => ({ default: m.NotFoundPage })));
 
+// Phones get the animated logo; the desktop keeps its text line.
 const PageLoading = () => (
   <div className="flex min-h-[60vh] flex-col items-center justify-center bg-acp-ink/50 text-slate-400">
-    <div className="animate-pulse text-xs font-bold uppercase tracking-widest text-acp-bronze">
+    <LogoLoader size={84} className="lg:hidden" />
+    <div className="hidden lg:block animate-pulse text-xs font-bold uppercase tracking-widest text-acp-bronze">
       Loading page...
     </div>
   </div>
@@ -65,7 +68,8 @@ function CurrentDealRedirect() {
   if (!redirectPath) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-acp-ink text-slate-400">
-        <div className="animate-pulse text-xs font-bold uppercase tracking-widest text-acp-bronze">
+        <LogoLoader size={84} label="Opening deal" className="lg:hidden" />
+        <div className="hidden lg:block animate-pulse text-xs font-bold uppercase tracking-widest text-acp-bronze">
           Loading Active Deal...
         </div>
       </div>

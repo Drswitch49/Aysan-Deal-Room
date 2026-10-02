@@ -17,6 +17,24 @@ import { DealKanban } from "../components/deals/DealKanban";
 import { SearchableDropdown } from "../components/ui/SearchableDropdown";
 import { hasPermission } from "../lib/rbac";
 
+/** Stage pill colours, shared by the desktop table and the phone cards. */
+function stageBadgeClass(status: string | undefined): string {
+  const s = (status || "").toLowerCase();
+  if (s === "intro" || s === "inbound" || s === "information requested") {
+    return "bg-blue-500/5 text-blue-400 border-blue-500/10";
+  }
+  if (s === "seller call") {
+    return "bg-pink-500/5 text-pink-400 border-pink-500/10";
+  }
+  if (s === "im review") {
+    return "bg-amber-500/5 text-amber-400 border-amber-500/10";
+  }
+  if (s === "killed") {
+    return "bg-rose-500/5 text-rose-500 border-rose-500/10";
+  }
+  return "bg-acp-bronze/5 text-acp-bronze border-acp-bronze/10";
+}
+
 export function DealListPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -660,7 +678,74 @@ export function DealListPage() {
           {viewMode === "list" ? (
             /* Structured Deal Table Container */
             <div className="rounded-2xl premium-card overflow-hidden">
-              <div className="overflow-x-auto">
+              {/* Phone: one tappable card per deal instead of a 1080px table. */}
+              <ul className="lg:hidden divide-y divide-white/[0.04]">
+                {paginatedDeals.map((deal: any) => {
+                  const companyName = cleanCompanyName(deal.companyName);
+                  const ownerName = deal.ownerName && deal.ownerName !== "Unassigned" ? deal.ownerName : "";
+                  return (
+                    <li key={deal.id}>
+                      <Link
+                        to={`/deals/${encodeURIComponent(deal.dealRef)}`}
+                        className="flex gap-3 px-4 py-4 active:bg-white/[0.04] transition-colors"
+                      >
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-acp-bronze/10 border border-acp-bronze/20 text-xs font-bold uppercase text-acp-bronze">
+                          {companyName.slice(0, 2)}
+                        </div>
+                        <div className="min-w-0 flex-1 space-y-2">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="font-semibold text-[15px] leading-snug text-white break-words">{companyName}</p>
+                              <p className="mt-0.5 text-[11px] text-slate-500 truncate">
+                                {deal.location || "Location unknown"} · {formatRefDisplay(deal.dealRef)}
+                              </p>
+                            </div>
+                            <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-slate-600" />
+                          </div>
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className={cx("inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-semibold border", stageBadgeClass(deal.status))}>
+                              {deal.status}
+                            </span>
+                            <span className="inline-flex items-center rounded-full bg-blue-500/5 border border-blue-500/10 px-2.5 py-0.5 text-[10px] font-semibold text-blue-400">
+                              {deal.sector || "General"}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 rounded-xl bg-white/[0.02] border border-white/[0.03] px-3 py-2">
+                            <div>
+                              <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-slate-500">Revenue</p>
+                              <p className="text-[13px] font-semibold text-white tabular-nums">{formatFinancial(deal.revenue)}</p>
+                            </div>
+                            <div>
+                              <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-slate-500">EBITDA</p>
+                              <p className="text-[13px] font-semibold text-white tabular-nums">{formatFinancial(deal.ebitda)}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="flex min-w-0 items-center gap-2">
+                              <span className={cx(
+                                "h-1.5 w-1.5 shrink-0 rounded-full",
+                                deal.nextActionColor === "red" ? "bg-rose-500" :
+                                deal.nextActionColor === "yellow" ? "bg-amber-500" : "bg-blue-400"
+                              )} />
+                              <p className="truncate text-[12px] font-medium text-slate-300">
+                                {truncateText(deal.nextActionTitle, NEXT_ACTION_MAX_CHARS) || "No action set"}
+                              </p>
+                            </div>
+                            <span className="shrink-0 text-[11px] font-medium text-slate-500">{ownerName || "Unassigned"}</span>
+                          </div>
+                        </div>
+                      </Link>
+                    </li>
+                  );
+                })}
+                {filteredDeals.length === 0 && (
+                  <li className="px-5 py-12 text-center text-xs font-bold text-slate-500">
+                    No deals found matching your filters.
+                  </li>
+                )}
+              </ul>
+
+              <div className="hidden lg:block overflow-x-auto">
                 <table className="w-full text-left border-collapse table-fixed min-w-[1080px]">
                   <thead>
                     <tr className="border-b border-white/[0.05] bg-white/[0.02] select-none text-slate-400">
@@ -726,22 +811,7 @@ export function DealListPage() {
                           <td className="px-4 py-4 select-none align-middle">
                             <span className={cx(
                               "inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-semibold tracking-normal border",
-                              (() => {
-                                const s = (deal.status || "").toLowerCase();
-                                if (s === "intro" || s === "inbound" || s === "information requested") {
-                                    return "bg-blue-500/5 text-blue-400 border-blue-500/10";
-                                }
-                                if (s === "seller call") {
-                                    return "bg-pink-500/5 text-pink-400 border-pink-500/10";
-                                }
-                                if (s === "im review") {
-                                    return "bg-amber-500/5 text-amber-400 border-amber-500/10";
-                                }
-                                if (s === "killed") {
-                                    return "bg-rose-500/5 text-rose-500 border-rose-500/10";
-                                }
-                                return "bg-acp-bronze/5 text-acp-bronze border-acp-bronze/10";
-                              })()
+                              stageBadgeClass(deal.status)
                             )}>
                               {deal.status}
                             </span>

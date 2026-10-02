@@ -334,3 +334,99 @@ textarea {
 }
 
 
+
+/* ─── Logo loader (see components/ui/LogoLoader.tsx) ──────────────── */
+.logo-loader-trace {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: logoTrace 1.8s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+}
+.logo-loader-fill {
+  opacity: 0;
+  animation: logoFill 1.8s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+}
+.logo-loader-orbit {
+  animation: logoOrbit 1.1s linear infinite;
+}
+.logo-loader-halo {
+  animation: logoHalo 1.8s ease-in-out infinite;
+}
+.logo-loader-label {
+  animation: logoLabel 1.8s ease-in-out infinite;
+}
+
+@keyframes logoTrace {
+  0% { stroke-dashoffset: 1; opacity: 1; }
+  50% { stroke-dashoffset: 0; opacity: 1; }
+  80% { stroke-dashoffset: 0; opacity: 0; }
+  100% { stroke-dashoffset: 0; opacity: 0; }
+}
+@keyframes logoFill {
+  0%, 30% { opacity: 0; transform: scale(0.96); }
+  55%, 82% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.02); }
+}
+@keyframes logoOrbit {
+  to { transform: rotate(360deg); }
+}
+@keyframes logoHalo {
+  0%, 100% { opacity: 0.25; transform: scale(0.85); }
+  55% { opacity: 0.7; transform: scale(1.05); }
+}
+@keyframes logoLabel {
+  0%, 100% { opacity: 0.5; }
+  55% { opacity: 1; }
+}
+.logo-loader-fill,
+.logo-loader-halo {
+  transform-origin: center;
+  transform-box: fill-box;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .logo-loader-trace { display: none; }
+  .logo-loader-orbit { animation: none; }
+  .logo-loader-fill { opacity: 1; animation: logoLabel 1.8s ease-in-out infinite; }
+}
+
+/* ─── Phone app shell (below lg; the desktop layout never sees these) ── */
+@media (max-width: 1023.98px) {
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+  /* App chrome shouldn't select like a document on long-press. */
+  .app-chrome {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+}
+
+/* Safe-area helpers for notched phones / home-screen installs. In a layer so
+   Tailwind variants (max-sm:pb-safe) work on them. The phone-shell animations
+   (animate-page-in, -sheet-up, -loader-out, -tab-pop) are in tailwind.config. */
+@layer utilities {
+  .pt-safe { padding-top: env(safe-area-inset-top); }
+  .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-page-in,
+  .animate-sheet-up,
+  .animate-tab-pop {
+    animation-duration: 0.01ms;
+  }
+}
+
+/* iOS zooms the whole page into any field under 16px when it takes focus —
+   and most fields here are 12px. -webkit-touch-callout is only supported by
+   iOS Safari, so this leaves Android and the desktop exactly as they were. */
+@supports (-webkit-touch-callout: none) {
+  @media (max-width: 1023.98px) {
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+    select,
+    textarea {
+      font-size: 16px !important;
+    }
+  }
+}
