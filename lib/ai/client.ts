@@ -5,7 +5,7 @@
  * OSINT synthesis, transcript and document analysis). Centralizes transport,
  * the output budget, refusal handling, and JSON validation.
  *
- * Model: Claude Opus 5 with adaptive thinking. Two consequences worth knowing
+ * Model: Claude Sonnet 5.5 with adaptive thinking. Two consequences worth knowing
  * before changing anything here:
  *   - Thinking is ON by default and shares `max_tokens` with the response text,
  *     so the caller's text budget alone would truncate answers mid-sentence.
@@ -20,7 +20,7 @@ import { getServerEnv } from "../core/env.js";
 import { logger } from "../core/logger.js";
 
 /** Model used by every AI task in the app. */
-export const AI_MODEL = "claude-opus-5";
+export const AI_MODEL = "claude-sonnet-5-5";
 
 /** Reasoning depth. `high` is the API default; raise per-call for hard analysis. */
 export type AiEffort = "low" | "medium" | "high" | "xhigh" | "max";

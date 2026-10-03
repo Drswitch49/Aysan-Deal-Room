@@ -2668,7 +2668,7 @@ function PreCallBriefTab({ deal, openComposer }: { deal: any; openComposer: (opt
     "Reading ACP SOPs from Notion...",
     "Loading the deal record, documents and notes...",
     "Reading the deal's IM and attachments...",
-    "Querying Claude Opus 5...",
+    "Querying Claude Sonnet 5.5...",
     "Formatting intelligence brief..."
   ];
 
