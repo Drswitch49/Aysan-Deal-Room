@@ -21,7 +21,7 @@
  * them up front rather than deciding them.
  */
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, Eye, EyeOff, Loader2, Plus, Search, X } from "lucide-react";
+import { CheckCircle2, Circle, Eye, EyeOff, Loader2, Plus, Search, X } from "lucide-react";
 import {
   completeCommitment,
   createCommitment,
@@ -372,6 +372,166 @@ export function NewCommitmentForm({
 
 type Mode = null | "complete" | "transaction";
 
+// ─── Payment status ────────────────────────────────────────────────────────
+
+type PaymentState = "paid" | "overdue" | "awaiting" | "part_paid" | "not_called";
+
+const PAYMENT_STATE: Record<PaymentState, { label: string; tone: string }> = {
+  paid: { label: "Paid in full", tone: "border-emerald-500/30 bg-emerald-500/10 text-emerald-300" },
+  overdue: { label: "Payment overdue", tone: "border-rose-500/30 bg-rose-500/10 text-rose-300" },
+  awaiting: { label: "Payment pending", tone: "border-amber-500/30 bg-amber-500/10 text-amber-200" },
+  part_paid: { label: "Part paid", tone: "border-sky-500/30 bg-sky-500/10 text-sky-300" },
+  not_called: { label: "Not yet called", tone: "border-white/10 bg-white/5 text-slate-400" },
+};
+
+const sumPence = (rows: Array<Record<string, any>>) => rows.reduce((n, t) => n + Number(t.amount_pence ?? 0), 0);
+
+/**
+ * Where the money stands on one subscription, from its capital transactions.
+ * Only a settled call counts as paid; a call that is recorded but not settled
+ * is pending, and overdue once its due date has passed.
+ */
+function paymentSummary(c: Record<string, any>) {
+  const txns: Array<Record<string, any>> = c.capital_transactions ?? [];
+  const calls = txns.filter((t) => t.type === "call");
+  const dists = txns.filter((t) => t.type === "distribution");
+  const subscribed = Number(c.committed_pence ?? 0);
+  const called = sumPence(calls);
+  const paid = sumPence(calls.filter((t) => t.settled));
+  const pending = called - paid;
+  const now = today();
+  const overdueCalls = calls.filter((t) => !t.settled && t.due_date && String(t.due_date) < now);
+  const pendingCalls = calls.filter((t) => !t.settled);
+  const settledAt = calls
+    .filter((t) => t.settled)
+    .map((t) => String(t.settled_at ?? t.txn_date))
+    .sort();
+  const state: PaymentState =
+    subscribed > 0 && paid >= subscribed
+      ? "paid"
+      : overdueCalls.length
+        ? "overdue"
+        : pending > 0
+          ? "awaiting"
+          : paid > 0
+            ? "part_paid"
+            : "not_called";
+  return {
+    state,
+    subscribed,
+    called,
+    paid,
+    pending,
+    outstanding: Math.max(0, subscribed - paid),
+    notCalled: Math.max(0, subscribed - called),
+    overdueCalls,
+    pendingCalls,
+    firstCallDate: calls.map((t) => String(t.txn_date)).sort()[0] ?? null,
+    lastPaidAt: settledAt[settledAt.length - 1] ?? null,
+    returned: sumPence(dists.filter((t) => t.settled)),
+    distPending: sumPence(dists.filter((t) => !t.settled)),
+  };
+}
+
+function PaymentPill({ state }: { state: PaymentState }) {
+  const s = PAYMENT_STATE[state];
+  return <span className={cx("rounded-full border px-2 py-[3px] text-[10px] font-semibold", s.tone)}>{s.label}</span>;
+}
+
+/** The Status tab: what has been subscribed, called, paid and is still owed, and each milestone. */
+function StatusPanel({ c }: { c: Record<string, any> }) {
+  const s = paymentSummary(c);
+  const pctPaid = s.subscribed ? Math.min(100, Math.round((s.paid / s.subscribed) * 100)) : 0;
+  const steps: Array<{ label: string; done: boolean; detail: string }> = [
+    { label: "Subscription recorded", done: true, detail: `${gbp(s.subscribed)} · ${formatDate(c.created_at)}` },
+    {
+      label: "Capital called",
+      done: s.called > 0,
+      detail: s.called > 0 ? `${gbp(s.called)} · first call ${formatDate(s.firstCallDate)}` : "No call recorded yet",
+    },
+    {
+      label: "Payment received",
+      done: s.state === "paid",
+      detail:
+        s.paid > 0
+          ? `${gbp(s.paid)} of ${gbp(s.subscribed)}${s.lastPaidAt ? ` · last settled ${formatDate(s.lastPaidAt)}` : ""}`
+          : "Nothing settled yet",
+    },
+    {
+      label: "Completed and in the partner's portal",
+      done: IN_PORTAL.has(c.status),
+      detail: c.completed_at ? formatDate(c.completed_at) : "Not yet completed",
+    },
+  ];
+  if (c.status === "converted") steps.push({ label: "Converted to holdco shares", done: true, detail: formatDate(c.converted_at) });
+  if (c.status === "bought_back") steps.push({ label: "Bought back", done: true, detail: formatDate(c.bought_back_at) });
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <PaymentPill state={s.state} />
+        <span className="text-[11px] text-slate-400">
+          {gbp(s.paid)} of {gbp(s.subscribed)} paid ({pctPaid}%)
+        </span>
+      </div>
+      <div className="h-1.5 overflow-hidden rounded-full bg-white/5">
+        <div className="h-full rounded-full bg-emerald-500/70" style={{ width: `${pctPaid}%` }} />
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <Stat k="Subscribed" v={gbp(s.subscribed)} />
+        <Stat k="Paid (settled)" v={s.paid ? gbp(s.paid) : "—"} />
+        <Stat k="Pending (called)" v={s.pending ? gbp(s.pending) : "—"} />
+        <Stat k="Still owed" v={s.outstanding ? gbp(s.outstanding) : "—"} />
+        <Stat k="Not yet called" v={s.notCalled ? gbp(s.notCalled) : "—"} />
+        <Stat k="Returned" v={s.returned ? gbp(s.returned) : "—"} />
+        <Stat k="Distribution pending" v={s.distPending ? gbp(s.distPending) : "—"} />
+      </div>
+
+      {s.pendingCalls.length ? (
+        <div className="rounded border border-amber-500/20 bg-amber-500/[0.05] px-3 py-2">
+          <p className="text-[11px] font-semibold text-amber-200">Awaiting payment</p>
+          <ul className="mt-1 space-y-0.5 text-[11px] text-slate-300">
+            {s.pendingCalls.map((t) => {
+              const overdue = t.due_date && String(t.due_date) < today();
+              return (
+                <li key={t.id}>
+                  {gbp(t.amount_pence)} called {formatDate(t.txn_date)}
+                  {t.due_date ? (
+                    <span className={overdue ? "font-semibold text-rose-300" : "text-slate-400"}>
+                      {" "}
+                      · {overdue ? "overdue since" : "due"} {formatDate(t.due_date)}
+                    </span>
+                  ) : (
+                    <span className="text-slate-500"> · no due date</span>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+          <p className="mt-1 text-[10px] text-slate-500">Settle a call with its bank evidence once the money arrives.</p>
+        </div>
+      ) : null}
+
+      <ol className="space-y-1.5">
+        {steps.map((step) => (
+          <li key={step.label} className="flex items-start gap-2 text-[11px]">
+            {step.done ? (
+              <CheckCircle2 className="mt-px h-3.5 w-3.5 shrink-0 text-emerald-400" />
+            ) : (
+              <Circle className="mt-px h-3.5 w-3.5 shrink-0 text-slate-600" />
+            )}
+            <span>
+              <span className={step.done ? "text-slate-200" : "text-slate-400"}>{step.label}</span>
+              <span className="text-slate-500"> · {step.detail}</span>
+            </span>
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
 export function CommitmentCard({
   c,
   heading,
@@ -407,6 +567,7 @@ export function CommitmentCard({
               Test holding
             </span>
           ) : null}
+          <PaymentPill state={paymentSummary(c).state} />
           <span className="rounded-full border border-white/10 bg-white/5 px-2 py-[3px] text-[10px] font-semibold text-slate-300">
             {STATUS_LABEL[c.status] ?? c.status}
           </span>
@@ -439,11 +600,9 @@ export function CommitmentCard({
               <CheckCircle2 className="mr-1 inline h-3.5 w-3.5" /> Mark completed
             </button>
           ) : null}
-          {live && c.status !== "bought_back" ? (
-            <button type="button" className={ghostBtn} onClick={() => setMode("transaction")}>
-              <Plus className="mr-1 inline h-3.5 w-3.5" /> Capital call or distribution
-            </button>
-          ) : null}
+          <button type="button" className={ghostBtn} onClick={() => setMode("transaction")}>
+            <Plus className="mr-1 inline h-3.5 w-3.5" /> Status, calls and distributions
+          </button>
           <TestToggle id={c.id} isTest={Boolean(c.is_test)} onChanged={onChanged} />
         </div>
       ) : null}
@@ -460,7 +619,8 @@ export function CommitmentCard({
       ) : null}
       {mode === "transaction" ? (
         <TransactionForm
-          commitmentId={c.id}
+          commitment={c}
+          canTransact={live && c.status !== "bought_back"}
           onCancel={() => setMode(null)}
           onDone={async () => {
             setMode(null);
@@ -571,16 +731,25 @@ function CompleteForm({ id, onDone, onCancel }: { id: string; onDone: () => Prom
   );
 }
 
+/**
+ * Status first, then the two kinds of money movement. Calls and distributions
+ * stay closed until the subscription is completed (and after a buyback); the
+ * status is readable at every stage.
+ */
 function TransactionForm({
-  commitmentId,
+  commitment,
+  canTransact,
   onDone,
   onCancel,
 }: {
-  commitmentId: string;
+  commitment: Record<string, any>;
+  canTransact: boolean;
   onDone: () => Promise<void>;
   onCancel: () => void;
 }) {
-  const [type, setType] = useState<"call" | "distribution">("call");
+  const commitmentId: string = commitment.id;
+  const [tab, setTab] = useState<"status" | "call" | "distribution">("status");
+  const type: "call" | "distribution" = tab === "distribution" ? "distribution" : "call";
   const [amount, setAmount] = useState("");
   const [txnDate, setTxnDate] = useState(today());
   const [dueDate, setDueDate] = useState("");
@@ -598,21 +767,43 @@ function TransactionForm({
 
   return (
     <div className="mt-3 space-y-2.5 rounded border border-white/10 bg-white/[0.02] p-3">
-      <div className="flex gap-1">
-        {(["call", "distribution"] as const).map((t) => (
-          <button
-            key={t}
-            type="button"
-            onClick={() => setType(t)}
-            className={cx(
-              "rounded px-3 py-1.5 text-[11px] font-semibold transition",
-              type === t ? "bg-acp-bronze/15 text-acp-bronze" : "text-slate-400 hover:bg-white/5",
-            )}
-          >
-            {t === "call" ? "Capital call" : "Distribution"}
-          </button>
-        ))}
+      <div className="flex flex-wrap gap-1">
+        {(["status", "call", "distribution"] as const).map((t) => {
+          const locked = t !== "status" && !canTransact;
+          return (
+            <button
+              key={t}
+              type="button"
+              disabled={locked}
+              title={locked ? "Available once the subscription is completed" : undefined}
+              onClick={() => setTab(t)}
+              className={cx(
+                "rounded px-3 py-1.5 text-[11px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-40",
+                tab === t ? "bg-acp-bronze/15 text-acp-bronze" : "text-slate-400 hover:bg-white/5",
+              )}
+            >
+              {t === "status" ? "Status" : t === "call" ? "Capital call" : "Distribution"}
+            </button>
+          );
+        })}
       </div>
+
+      {tab === "status" ? (
+        <>
+          <StatusPanel c={commitment} />
+          {!canTransact && commitment.status === "pending" ? (
+            <p className="text-[10px] leading-relaxed text-slate-500">
+              Capital calls and distributions open once the subscription is marked completed.
+            </p>
+          ) : null}
+          <div className="flex justify-end">
+            <button type="button" className={ghostBtn} onClick={onCancel}>
+              Close
+            </button>
+          </div>
+        </>
+      ) : (
+        <>
       <p className="text-[10px] leading-relaxed text-slate-500">
         {type === "call"
           ? "Money the partner pays in. It counts towards Paid on their dashboard once settled."
@@ -692,6 +883,8 @@ function TransactionForm({
           Record {type === "call" ? "call" : "distribution"}
         </button>
       </div>
+        </>
+      )}
     </div>
   );
 }
