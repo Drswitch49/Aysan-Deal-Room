@@ -22,6 +22,8 @@ import type { UserContext } from "./authz.js";
 import { ALL_STAFF } from "./authz.js";
 import { ForbiddenError, UnauthorizedError } from "../../lib/core/errors.js";
 import { adminClient } from "../../lib/data/supabase/client.js";
+import { agreementRequired } from "../../lib/core/investor-agreement.js";
+import { hasSignedCurrent } from "./agreements.js";
 
 export interface InvestorScope {
   investorId: string;
@@ -91,6 +93,11 @@ export async function resolveInvestorScope(
   if (!viewedByStaff) {
     if (DEAD_STATUSES.has(String(data.status))) throw new ForbiddenError("Portal access has ended");
     if (!ACTIVE_LOGIN_MODES.has(loginMode)) throw new ForbiddenError("Portal access is not active");
+    // Onboarding is enforced here, not only on screen: nothing a partner holds
+    // is returned until they have accepted the portal terms and, where it is
+    // required of them, signed the Investors Agreement in force. A bought-back
+    // partner keeps read-only access to their record without re-signing.
+    if (loginMode !== "read_only") await assertOnboarded(data.id, Boolean((data as any).is_test), map?.terms_version);
   }
 
   return {
@@ -140,6 +147,17 @@ export async function scopeForAnnouncement(investorId: string): Promise<Investor
     viewedByStaff: false,
     isTest: Boolean(data.is_test),
   };
+}
+
+async function assertOnboarded(investorId: string, isTest: boolean, termsVersion: unknown): Promise<void> {
+  const db = adminClient();
+  const [settings, signed] = await Promise.all([
+    db.from("portal_settings").select("terms_version").eq("id", true).maybeSingle(),
+    agreementRequired(isTest) ? hasSignedCurrent(investorId) : Promise.resolve(true),
+  ]);
+  const current = Number(settings.data?.terms_version ?? 1);
+  if (Number(termsVersion ?? 0) < current) throw new ForbiddenError("Accept the portal terms to continue");
+  if (!signed) throw new ForbiddenError("Sign the Investors Agreement to open your portal");
 }
 
 /**

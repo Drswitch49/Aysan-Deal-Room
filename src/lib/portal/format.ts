@@ -134,6 +134,14 @@ export function activityLine(eventType: string, payload: Record<string, any> = {
       return "Portal access restored";
     case "access_revoked":
       return "Portal access withdrawn";
+    case "agreement_signed":
+      return `Investors Agreement signed${payload.version ? ` · version ${payload.version}` : ""}`;
+    case "memorandum_received":
+      return `Deal Memorandum received · ${payload.title ?? "Memorandum"}`;
+    case "rofr_exercised":
+      return `Right of first refusal exercised · ${payload.title ?? "Memorandum"}`;
+    case "rofr_waived":
+      return `Right of first refusal waived · ${payload.title ?? "Memorandum"}`;
     default:
       return null;
   }

@@ -137,8 +137,25 @@ export async function partnerVisibleDocuments(scope: InvestorScope, dealKey?: st
     if (sup && row.available) supersededIds.add(sup);
   }
 
+  // 4. A Deal Memorandum carries the partner's receipt and ROFR election.
+  const memoIds = visible.filter((r) => r.doc_type === "diligence_pack").map((r) => r.id);
+  const receipts = new Map<string, Record<string, unknown>>();
+  if (memoIds.length) {
+    const { data: rec, error: recErr } = await db
+      .from("memorandum_receipts")
+      .select("document_id, received_at, respond_by, election, elected_at")
+      .eq("investor_id", scope.investorId)
+      .in("document_id", memoIds);
+    if (recErr) throw new InternalError(`memorandum_receipts: ${recErr.message}`);
+    for (const r of rec ?? []) receipts.set(r.document_id as string, r);
+  }
+
   return {
-    rows: visible.map((row) => ({ ...row, superseded: supersededIds.has(row.id) })),
+    rows: visible.map((row) => ({
+      ...row,
+      superseded: supersededIds.has(row.id),
+      ...(row.doc_type === "diligence_pack" ? { receipt: receipts.get(row.id) ?? null } : {}),
+    })),
     unlocked,
   };
 }

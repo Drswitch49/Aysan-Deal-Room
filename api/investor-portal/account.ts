@@ -8,7 +8,12 @@
  * POST handles the two things a partner may do to their own account:
  *   set_password — replaces the temporary password issued with their invite,
  *                  clears the must-change flag and moves login_mode to full;
- *   accept_terms — records the terms version and when they accepted it.
+ *   accept_terms — records the terms version and when they accepted it;
+ *   sign_agreement — signs the Investors Agreement (lib/core/investor-
+ *                  agreement.ts). Refused until the partner has chosen their
+ *                  own password, so the signature comes from a credential only
+ *                  they know, never the one we emailed. Signing also accepts
+ *                  the portal terms.
  *
  * Both re-read the session rather than trusting anything in the body, and
  * set_password verifies the current password by signing in with it, so a
@@ -20,6 +25,14 @@ import { BadRequestError, InternalError, UnauthorizedError } from "../../lib/cor
 import { adminClient, userClient } from "../../lib/data/supabase/client.js";
 import { isCertifiedNow, logAccess } from "../_lib/investor-context.js";
 import { logActivity } from "../_lib/investor-access.js";
+import { requestOrigin, sha256, signaturesFor } from "../_lib/agreements.js";
+import {
+  INVESTORS_AGREEMENT,
+  agreementRequired,
+  agreementText,
+  cleanSignature,
+  investorsAgreement,
+} from "../../lib/core/investor-agreement.js";
 import { getTokens, invalidateAccessToken, setSessionCookies } from "../_lib/session.js";
 
 /**
@@ -70,6 +83,19 @@ const bodySchema = z.discriminatedUnion("action", [
   // /api/auth/callback when the emailed link was redeemed.
   z.object({ action: z.literal("reset_password"), new_password: newPassword }),
   z.object({ action: z.literal("accept_terms"), terms_version: z.number().int().positive() }),
+  z.object({
+    action: z.literal("sign_agreement"),
+    version: z.number().int().positive(),
+    /** The day the agreement is dated, as the partner's screen showed it. */
+    agreement_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    entity: z.string().trim().max(200).nullable(),
+    address: z.string().trim().min(5, "Enter your address").max(500),
+    pledge_pence: z.number().int().positive("Enter your pledge amount").max(10_000_000_000),
+    signed_name: z.string().trim().min(2, "Type your full name to sign").max(200),
+    /** SHA-256 of the text the partner was shown. */
+    text_sha256: z.string().regex(/^[0-9a-f]{64}$/),
+    accept_risk: z.literal(true),
+  }),
 ]);
 
 export default createHandler({
@@ -92,7 +118,7 @@ export default createHandler({
       const { data: rowData, error } = await db
         .from("investors")
         .select(
-          "id, name, email, status, certification_status, certification_date, " +
+          "id, name, email, entity, address, pledge_pence, is_test, status, certification_status, certification_date, " +
             "investor_auth_map!inner(login_mode, read_only_until, terms_version, terms_accepted_at, auth_uid)",
         )
         .eq("investor_auth_map.auth_uid", user.id)
@@ -104,6 +130,10 @@ export default createHandler({
         id: string;
         name: string;
         email: string;
+        entity: string | null;
+        address: string | null;
+        pledge_pence: number | null;
+        is_test: boolean;
         status: string;
         certification_status: string;
         certification_date: string | null;
@@ -123,11 +153,11 @@ export default createHandler({
       const appMeta = authUser?.data?.user?.app_metadata ?? {};
       const recoveryPending = withinRecoveryWindow(appMeta.password_recovery_at);
 
-      const { data: settings } = await db
-        .from("portal_settings")
-        .select("terms_version")
-        .eq("id", true)
-        .maybeSingle();
+      const [{ data: settings }, signatures] = await Promise.all([
+        db.from("portal_settings").select("terms_version").eq("id", true).maybeSingle(),
+        signaturesFor(row.id),
+      ]);
+      const signedCurrent = signatures.find((s) => s.version === INVESTORS_AGREEMENT.version);
 
       return {
         name: row.name,
@@ -143,6 +173,24 @@ export default createHandler({
         terms_version: map?.terms_version ?? null,
         terms_accepted_at: map?.terms_accepted_at ?? null,
         current_terms_version: settings?.terms_version ?? 1,
+        agreement: {
+          title: INVESTORS_AGREEMENT.title,
+          version: INVESTORS_AGREEMENT.version,
+          draft: INVESTORS_AGREEMENT.status === "draft",
+          // A bought-back partner keeps read-only access without re-signing.
+          required: agreementRequired(Boolean(row.is_test)) && loginMode !== "read_only",
+          signed_at: signedCurrent?.signed_at ?? null,
+          countersigned_at: signedCurrent?.countersigned_at ?? null,
+          /** Every version they have signed, for the signed copies on the Account page. */
+          signed_versions: signatures.map((s) => ({ version: s.version, signed_at: s.signed_at, draft: s.draft })),
+          // What the agreement is made out to; the partner confirms these.
+          details: {
+            name: row.name,
+            entity: row.entity ?? null,
+            address: row.address ?? null,
+            pledge_pence: row.pledge_pence !== null && row.pledge_pence !== undefined ? Number(row.pledge_pence) : null,
+          },
+        },
       };
     }
 
@@ -231,6 +279,10 @@ export default createHandler({
       return { ok: true, login_mode: patch.login_mode ?? map.login_mode };
     }
 
+    if (input.action === "sign_agreement") {
+      return signAgreement(req, user.id, map.investor_id, input);
+    }
+
     // accept_terms
     const { error } = await db
       .from("investor_auth_map")
@@ -248,4 +300,88 @@ function withinRecoveryWindow(stamp: unknown): boolean {
   const at = new Date(stamp).getTime();
   if (Number.isNaN(at)) return false;
   return Date.now() - at < RECOVERY_WINDOW_MS;
+}
+
+type SignInput = Extract<z.infer<typeof bodySchema>, { action: "sign_agreement" }>;
+
+/**
+ * Record a signature of the Investors Agreement in force.
+ *
+ * The text is rebuilt here from the submitted details and must hash to what the
+ * partner's screen showed. A mismatch means the agreement or the details moved
+ * under them, and they are asked to reload rather than sign something else.
+ */
+async function signAgreement(req: any, authUid: string, investorId: string, input: SignInput) {
+  const db = adminClient();
+  if (input.version !== INVESTORS_AGREEMENT.version) {
+    throw new BadRequestError("The agreement has been updated since this page loaded. Reload to read the current version.");
+  }
+
+  // A signature must come from a password only the partner knows.
+  const authUser = await db.auth.admin.getUserById(authUid);
+  const appMeta = authUser?.data?.user?.app_metadata ?? {};
+  if (appMeta.must_change_password || withinRecoveryWindow(appMeta.password_recovery_at)) {
+    throw new BadRequestError("Choose your own password before signing.");
+  }
+
+  // The agreement is dated the day it is signed. Allow for a partner signing
+  // around midnight in another time zone.
+  const day = new Date(`${input.agreement_date}T12:00:00Z`).getTime();
+  if (Number.isNaN(day) || Math.abs(day - Date.now()) > 36 * 3600 * 1000) {
+    throw new BadRequestError("The agreement date is out of date. Reload the page and sign again.");
+  }
+
+  const { data: inv, error: invErr } = await db
+    .from("investors")
+    .select("id, name")
+    .eq("id", investorId)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (invErr) throw new InternalError(`investors: ${invErr.message}`);
+  if (!inv) throw new UnauthorizedError();
+
+  const entity = input.entity && input.entity.trim() ? input.entity.trim() : null;
+  const address = input.address.trim();
+  const body = agreementText(
+    investorsAgreement({ name: inv.name, entity, address, pledgePence: input.pledge_pence, date: input.agreement_date }),
+  );
+  const hash = sha256(body);
+  if (hash !== input.text_sha256) {
+    throw new BadRequestError("The agreement text changed while you were reading it. Reload the page and sign again.");
+  }
+
+  const { ip, userAgent } = requestOrigin(req);
+  const { error } = await db.from("investor_agreement_signatures").insert({
+    investor_id: investorId,
+    agreement_key: INVESTORS_AGREEMENT.key,
+    version: INVESTORS_AGREEMENT.version,
+    draft: INVESTORS_AGREEMENT.status === "draft",
+    agreement_date: input.agreement_date,
+    body,
+    text_sha256: hash,
+    signed_name: cleanSignature(input.signed_name),
+    signer_entity: entity,
+    signer_address: address,
+    pledge_pence: input.pledge_pence,
+    ip,
+    user_agent: userAgent,
+  });
+  // Signed already (a double click, or a second tab): that is success.
+  if (error && !/duplicate key/i.test(error.message)) {
+    throw new InternalError(`Could not record the signature: ${error.message}`);
+  }
+
+  // The record follows what the partner confirmed, so the next version is
+  // made out correctly without asking staff.
+  await db.from("investors").update({ entity, address, pledge_pence: input.pledge_pence }).eq("id", investorId);
+
+  // Signing carries the risk statement the separate terms step used to.
+  const { data: settings } = await db.from("portal_settings").select("terms_version").eq("id", true).maybeSingle();
+  await db
+    .from("investor_auth_map")
+    .update({ terms_version: settings?.terms_version ?? 1, terms_accepted_at: new Date().toISOString() })
+    .eq("investor_id", investorId);
+
+  if (!error) await logActivity(investorId, null, "agreement_signed", { version: INVESTORS_AGREEMENT.version });
+  return { ok: true, version: INVESTORS_AGREEMENT.version };
 }

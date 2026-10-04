@@ -53,7 +53,27 @@ export interface PartnerRecord {
     source: string | null;
     pass_reason: string | null;
     pass_category: string | null;
+    /** What the Investors Agreement is made out to; the partner confirms both when signing. */
+    address: string | null;
+    pledge_pence: number | null;
   };
+  agreement: {
+    version: number;
+    draft: boolean;
+    /** Must this partner sign before their portal opens? */
+    required: boolean;
+    signatures: AgreementSignatureRow[];
+  };
+  memorandum_receipts: Array<{
+    id: string;
+    doc_title: string;
+    doc_version: number;
+    received_at: string;
+    respond_by: string;
+    election: "exercise" | "waive" | null;
+    elected_at: string | null;
+    deals: { acp_ref_no: string | null; acquisition_no: number | null } | null;
+  }>;
   access: {
     login_mode: LoginMode;
     auth_bound: boolean;
@@ -77,6 +97,22 @@ export interface PartnerRecord {
     occurred_at: string;
   }>;
   access_log: Array<{ id: number; event: string; created_at: string; ip: string | null }>;
+}
+
+export interface AgreementSignatureRow {
+  id: string;
+  version: number;
+  draft: boolean;
+  agreement_date: string;
+  text_sha256: string;
+  signed_name: string;
+  signer_entity: string | null;
+  signer_address: string;
+  pledge_pence: number;
+  signed_at: string;
+  ip: string | null;
+  countersigned_name: string | null;
+  countersigned_at: string | null;
 }
 
 export interface AccessGrant {
@@ -117,6 +153,14 @@ export const createPartner = (body: {
 
 export const updatePartner = (id: string, patch: Record<string, unknown>) =>
   api.patch<PartnerRecord>(`/api/investors/${encodeURIComponent(id)}`, patch);
+
+/** Add the sponsor's countersignature to a signed Investors Agreement, once. */
+export const countersignAgreement = (id: string, version: number) =>
+  api.post<PartnerRecord>(`/api/investors/${encodeURIComponent(id)}`, { action: "countersign", version });
+
+/** A partner's signed copy, for staff (a plain link: the browser downloads it). */
+export const partnerAgreementPdfUrl = (investorId: string, version: number) =>
+  `/api/investor-portal/agreement-pdf?investor_id=${encodeURIComponent(investorId)}&version=${version}`;
 
 /** Issue, revoke, restore or reset. `issue` returns the password once. */
 export const partnerAccess = (body: {
@@ -277,6 +321,14 @@ export interface PartnerDocument extends Record<string, any> {
   partner_blockers: string[];
   copies_issued: number;
   investors: { id: string; name: string; email: string } | null;
+  /** Deal Memoranda only: each partner's receipt and ROFR election. */
+  receipts?: Array<{
+    received_at: string;
+    respond_by: string;
+    election: "exercise" | "waive" | null;
+    elected_at: string | null;
+    investors: { id: string; name: string } | null;
+  }>;
 }
 
 /** Release a draft. Refused with "NOT READY: …" and the blockers if a gate is not met. */

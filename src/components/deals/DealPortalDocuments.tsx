@@ -452,6 +452,27 @@ function DocumentVersion({
         </div>
       </div>
 
+      {/* Right of first refusal: who has received this memorandum, and what they chose. */}
+      {d.receipts?.length ? (
+        <div className="rounded-lg border border-white/5 bg-white/[0.02] px-3 py-2">
+          <p className="text-[11px] font-bold text-slate-300">Right of first refusal</p>
+          <ul className="mt-1 space-y-0.5 text-[11px] text-slate-400">
+            {d.receipts.map((r, i) => (
+              <li key={`${r.investors?.id ?? i}`}>
+                {r.investors?.name ?? "A partner"}: received {formatDate(r.received_at)} ·{" "}
+                {r.election === "exercise" ? (
+                  <span className="text-emerald-300">participating ({formatDate(r.elected_at)})</span>
+                ) : r.election === "waive" ? (
+                  <span>waived ({formatDate(r.elected_at)})</span>
+                ) : (
+                  <span className="text-amber-200">no response yet, due {formatDate(r.respond_by)}</span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
       {/* Gate */}
       {!revoked ? (
         <div

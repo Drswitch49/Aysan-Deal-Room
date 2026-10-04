@@ -21,6 +21,8 @@ import {
   AlertTriangle,
   BadgeCheck,
   Copy,
+  Download,
+  FileSignature,
   KeyRound,
   Loader2,
   Plus,
@@ -29,6 +31,8 @@ import {
   X,
 } from "lucide-react";
 import {
+  countersignAgreement,
+  partnerAgreementPdfUrl,
   createPartner,
   erasePartner,
   getPartner,
@@ -497,6 +501,8 @@ function PartnerDrawer({
             <Field k="Documents opened (30d)" v={String(record.access.documents_opened_30d)} />
           </div>
 
+          <AgreementPanel record={record} canManage={canManage} busy={busy} run={run} />
+
           {grant ? <GrantPanel grant={grant} onDismiss={() => setGrant(null)} /> : null}
 
           <div className="rounded border border-white/5 bg-white/[0.02] p-4">
@@ -681,6 +687,123 @@ function PartnerDrawer({
   );
 }
 
+/**
+ * The Investors Agreement on the partner record: whether it is required of
+ * them, what they signed and when, the signed copy, and the sponsor's
+ * countersignature. Then every Deal Memorandum they have received, with their
+ * right of first refusal election.
+ */
+function AgreementPanel({
+  record,
+  canManage,
+  busy,
+  run,
+}: {
+  record: PartnerRecord;
+  canManage: boolean;
+  busy: boolean;
+  run: (fn: () => Promise<unknown>) => Promise<void>;
+}) {
+  const ag = record.agreement;
+  const p = record.investor;
+  const current = ag.signatures.find((s) => s.version === ag.version);
+
+  return (
+    <div className="rounded border border-white/5 bg-white/[0.02] p-4">
+      <div className="mb-1 flex flex-wrap items-center gap-2">
+        <FileSignature className="h-3.5 w-3.5 text-acp-bronze" />
+        <p className="text-xs font-semibold text-slate-200">Investors Agreement · v{ag.version}</p>
+        {ag.draft ? <Pill tone="warn">Draft text</Pill> : null}
+        {current ? (
+          current.countersigned_at ? (
+            <Pill tone="ok">Signed and countersigned</Pill>
+          ) : (
+            <Pill tone="warn">Awaiting countersignature</Pill>
+          )
+        ) : (
+          <Pill tone={ag.required ? "bad" : "mute"}>Not signed</Pill>
+        )}
+      </div>
+      <p className="mb-3 text-[11px] leading-relaxed text-slate-500">
+        {ag.draft
+          ? "The agreement text is still the draft template, so only test accounts are asked to sign it. Real partners will be asked once the final text is in."
+          : "The partner signs this after choosing their password, before their portal opens."}{" "}
+        It is made out to the address and pledge on the Details tab, which the partner confirms when signing.
+      </p>
+
+      {ag.signatures.length ? (
+        <div className="space-y-2">
+          {ag.signatures.map((s) => (
+            <div key={s.id} className="rounded border border-white/5 px-3 py-2 text-xs">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <span className="font-semibold text-slate-200">
+                  v{s.version}
+                  {s.draft ? " (draft)" : ""}
+                </span>
+                <span className="text-slate-400">
+                  Signed “{s.signed_name}” on {formatDate(s.signed_at)}
+                </span>
+                <span className="text-slate-500">{gbp(s.pledge_pence)} pledge</span>
+              </div>
+              <p className="mt-1 text-[11px] text-slate-500">
+                {s.signer_entity ? `${s.signer_entity} · ` : ""}
+                {s.signer_address}
+                {s.ip ? ` · from ${s.ip}` : ""}
+              </p>
+              <p className="mt-1 text-[11px] text-slate-500">
+                {s.countersigned_at
+                  ? `Countersigned by ${s.countersigned_name} on ${formatDate(s.countersigned_at)}`
+                  : "Not yet countersigned"}
+              </p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <a href={partnerAgreementPdfUrl(p.id, s.version)} className={ghostBtn}>
+                  <Download className="mr-1 inline h-3.5 w-3.5" /> Signed copy
+                </a>
+                {!s.countersigned_at ? (
+                  <button
+                    type="button"
+                    disabled={!canManage || busy}
+                    className={primaryBtn}
+                    onClick={() => {
+                      if (!window.confirm(`Countersign ${p.name}'s Investors Agreement v${s.version} in your name, on behalf of the Sponsor?`)) return;
+                      void run(() => countersignAgreement(p.id, s.version));
+                    }}
+                  >
+                    Countersign
+                  </button>
+                ) : null}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : null}
+
+      {record.memorandum_receipts.length ? (
+        <div className="mt-4">
+          <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">
+            Deal memoranda and right of first refusal
+          </p>
+          <div className="rounded border border-white/5">
+            {record.memorandum_receipts.map((r) => (
+              <div key={r.id} className="border-b border-white/5 px-3 py-2 text-xs last:border-b-0">
+                <p className="text-slate-300">{r.doc_title}</p>
+                <p className="mt-0.5 text-[11px] text-slate-500">
+                  Received {formatDate(r.received_at)} · respond by {formatDate(r.respond_by)} ·{" "}
+                  {r.election === "exercise"
+                    ? `exercised ${formatDate(r.elected_at)}`
+                    : r.election === "waive"
+                      ? `waived ${formatDate(r.elected_at)}`
+                      : "no response yet"}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function DetailsTab({
   record,
   canManage,
@@ -703,7 +826,11 @@ function DetailsTab({
     is_test: Boolean(p.is_test),
     last_touch: p.last_touch ?? "",
     notes: p.notes ?? "",
+    address: p.address ?? "",
+    pledge: p.pledge_pence ? String(p.pledge_pence / 100) : "",
   });
+  const pledgePence = form.pledge.trim() ? Math.round(Number(form.pledge.replace(/[£,\s]/g, "")) * 100) : null;
+  const pledgeInvalid = pledgePence !== null && !(pledgePence > 0);
 
   return (
     <div className="space-y-3">
@@ -752,6 +879,25 @@ function DetailsTab({
             onChange={(e) => setForm({ ...form, last_touch: e.target.value })}
           />
         </div>
+        <div className="sm:col-span-2">
+          <label className={label}>Address (for the Investors Agreement)</label>
+          <textarea
+            className={cx(input, "min-h-[56px]")}
+            value={form.address}
+            onChange={(e) => setForm({ ...form, address: e.target.value })}
+          />
+        </div>
+        <div>
+          <label className={label}>Indicative pledge (£)</label>
+          <input
+            className={input}
+            inputMode="decimal"
+            placeholder="100000"
+            value={form.pledge}
+            onChange={(e) => setForm({ ...form, pledge: e.target.value })}
+          />
+          {pledgeInvalid ? <p className="mt-1 text-[10px] text-rose-300">Enter an amount in pounds.</p> : null}
+        </div>
       </div>
 
       <label className="flex items-center gap-2 text-xs text-slate-300">
@@ -788,12 +934,14 @@ function DetailsTab({
       <div className="flex justify-end">
         <button
           type="button"
-          disabled={!canManage || busy}
+          disabled={!canManage || busy || pledgeInvalid}
           className={primaryBtn}
           onClick={() =>
             run(() =>
               updatePartner(p.id, {
-                ...form,
+                ...(({ pledge: _pledge, ...rest }) => rest)(form),
+                address: form.address.trim() || null,
+                pledge_pence: pledgePence,
                 last_touch: form.last_touch || null,
                 entity: form.entity || null,
                 phone: form.phone || null,
@@ -957,6 +1105,10 @@ function EraseDialog({
   const erased: Array<[string, string]> = [
     ["Partner record and details", "name, email, phone, entity, notes, certification"],
     ["Portal access", `login, ${record.invites.length} invite(s), terms acceptance`],
+    [
+      "Agreements",
+      `${record.agreement.signatures.length} signed Investors Agreement(s), ${record.memorandum_receipts.length} memorandum receipt(s)`,
+    ],
     ["Commitments", String(record.commitments.length)],
     ["Capital transactions", `${txns} (calls, distributions, buybacks)`],
     ["HoldCo shareholdings", "all"],

@@ -138,6 +138,22 @@ export default createHandler({
 
       const deals = await loadGateDeals(rows.map((r) => r.deal_id).filter(Boolean));
       const copies = await copyCounts(rows.map((r) => r.id));
+      // Each Deal Memorandum's receipts and ROFR elections, per partner.
+      const memoIds = rows.filter((r) => r.doc_type === "diligence_pack").map((r) => r.id);
+      const receipts = new Map<string, any[]>();
+      if (memoIds.length) {
+        const { data: rec, error: recErr } = await db
+          .from("memorandum_receipts")
+          .select("document_id, received_at, respond_by, election, elected_at, investors(id, name)")
+          .in("document_id", memoIds)
+          .order("received_at", { ascending: true });
+        if (recErr) throw new InternalError(`memorandum_receipts: ${recErr.message}`);
+        for (const r of rec ?? []) {
+          const key = (r as any).document_id as string;
+          if (!receipts.has(key)) receipts.set(key, []);
+          receipts.get(key)!.push(r);
+        }
+      }
       const supersededBy = new Map<string, string>();
       for (const r of rows) if (r.supersedes_id && !r.revoked_at) supersededBy.set(r.supersedes_id, r.id);
 
@@ -159,6 +175,7 @@ export default createHandler({
             partner_blockers: partnerBlockers,
             superseded_by: supersededBy.get(r.id) ?? null,
             copies_issued: copies.get(r.id) ?? 0,
+            ...(r.doc_type === "diligence_pack" ? { receipts: receipts.get(r.id) ?? [] } : {}),
           };
         }),
         total: rows.length,

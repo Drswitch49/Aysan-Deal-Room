@@ -12,13 +12,18 @@
  *   · passing a partner — needs both a reason and a category, and revokes the
  *     login the same day.
  *
+ * POST { action: "countersign", version } adds the sponsor's countersignature
+ * to a signed Investors Agreement, once, in the name of the staff member doing
+ * it. Partner managers only.
+ *
  * DELETE permanently erases the partner and everything about them (see
  * erasePartner). It needs ?confirm=<the partner's email>, typed by the admin,
  * so a stray request or a mis-click on the wrong record cannot do it.
  */
 import { z } from "zod";
 import { createHandler } from "../_lib/handler.js";
-import { INVESTOR_ROLES, PARTNER_ERASERS, PARTNER_MANAGERS } from "../_lib/authz.js";
+import { INVESTOR_ROLES, PARTNER_ERASERS, PARTNER_MANAGERS, displayName } from "../_lib/authz.js";
+import { INVESTORS_AGREEMENT, agreementRequired } from "../../lib/core/investor-agreement.js";
 import { ForbiddenError, NotFoundError, BadRequestError, InternalError } from "../../lib/core/errors.js";
 import { adminClient } from "../../lib/data/supabase/client.js";
 import { isCertifiedNow } from "../_lib/investor-context.js";
@@ -30,6 +35,9 @@ const patchSchema = z
   .object({
     name: z.string().min(1).optional(),
     entity: z.string().nullable().optional(),
+    /** What the Investors Agreement is made out to; the partner confirms both when signing. */
+    address: z.string().nullable().optional(),
+    pledge_pence: z.number().int().positive().nullable().optional(),
     email: z.string().email().optional(),
     phone: z.string().nullable().optional(),
     type: z.enum(["holdco_equity", "deal_equity", "prospective"]).optional(),
@@ -52,6 +60,8 @@ const patchSchema = z
   })
   .strict();
 
+const countersignSchema = z.object({ action: z.literal("countersign"), version: z.number().int().positive() });
+
 /** Fields only admin/cfo may touch — the regulated half of the record. */
 const RESTRICTED = new Set([
   "certification_status",
@@ -66,7 +76,7 @@ const RESTRICTED = new Set([
 ]);
 
 export default createHandler({
-  methods: ["GET", "PATCH", "DELETE"],
+  methods: ["GET", "PATCH", "POST", "DELETE"],
   requireAuth: true,
   roles: INVESTOR_ROLES,
   handle: async ({ req, body, query, user }) => {
@@ -74,6 +84,42 @@ export default createHandler({
     const db = adminClient();
 
     if (req.method === "GET") return loadRecord(id);
+
+    // ── POST: countersign the Investors Agreement ──
+    if (req.method === "POST") {
+      const input = countersignSchema.parse(body ?? {});
+      if (!user || !PARTNER_MANAGERS.includes(user.role)) {
+        throw new ForbiddenError("Your role cannot countersign agreements.");
+      }
+      const { data: sig, error: sigErr } = await db
+        .from("investor_agreement_signatures")
+        .select("id, countersigned_at")
+        .eq("investor_id", id)
+        .eq("version", input.version)
+        .maybeSingle();
+      if (sigErr) throw new InternalError(`investor_agreement_signatures: ${sigErr.message}`);
+      if (!sig) throw new NotFoundError("This partner has not signed that version.");
+      if (sig.countersigned_at) throw new BadRequestError("This agreement has already been countersigned.");
+
+      const name = displayName(user);
+      const { error } = await db
+        .from("investor_agreement_signatures")
+        .update({
+          countersigned_name: name,
+          countersigned_by_email: user.email,
+          countersigned_at: new Date().toISOString(),
+        })
+        .eq("id", sig.id)
+        .is("countersigned_at", null);
+      if (error) throw new InternalError(`Could not countersign: ${error.message}`);
+      await recordAudit({
+        action: "COUNTERSIGN_AGREEMENT",
+        entityId: id,
+        actor: user,
+        details: `Countersigned the Investors Agreement v${input.version} as ${name}`,
+      });
+      return loadRecord(id);
+    }
 
     // ── DELETE: permanent erasure ──
     if (req.method === "DELETE") {
@@ -166,7 +212,7 @@ async function loadRecord(id: string) {
   const { investor_auth_map: rawMap, ...investorFields } = investor as any;
   const authMap = Array.isArray(rawMap) ? rawMap[0] : rawMap;
 
-  const [commitments, invites, documents, audit, access] = await Promise.all([
+  const [commitments, invites, documents, audit, access, signatures, receipts] = await Promise.all([
     db
       .from("commitments")
       .select(
@@ -190,6 +236,20 @@ async function loadRecord(id: string) {
       .eq("investor_id", id)
       .order("created_at", { ascending: false })
       .limit(25),
+    // The text itself is left out; the signed copy carries it.
+    db
+      .from("investor_agreement_signatures")
+      .select(
+        "id, version, draft, agreement_date, text_sha256, signed_name, signer_entity, signer_address, pledge_pence, " +
+          "signed_at, ip, countersigned_name, countersigned_at",
+      )
+      .eq("investor_id", id)
+      .order("version", { ascending: false }),
+    db
+      .from("memorandum_receipts")
+      .select("id, doc_title, doc_version, received_at, respond_by, election, elected_at, deals(acp_ref_no, acquisition_no)")
+      .eq("investor_id", id)
+      .order("received_at", { ascending: false }),
   ]);
 
   const docsOpened30d = (access.data ?? []).filter(
@@ -211,6 +271,13 @@ async function loadRecord(id: string) {
       read_only_until: authMap?.read_only_until ?? null,
       documents_opened_30d: docsOpened30d,
     },
+    agreement: {
+      version: INVESTORS_AGREEMENT.version,
+      draft: INVESTORS_AGREEMENT.status === "draft",
+      required: agreementRequired(Boolean((investor as any).is_test)),
+      signatures: signatures.data ?? [],
+    },
+    memorandum_receipts: receipts.data ?? [],
     invites: invites.data ?? [],
     commitments: commitments.data ?? [],
     documents: documents.data ?? [],

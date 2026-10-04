@@ -100,6 +100,8 @@ export interface PortalDocument {
   event_date: string | null;
   acquisition_no: number | null;
   lane: 1 | 2 | null;
+  /** Deal Memoranda only: the partner's receipt, or null before they confirm it. */
+  receipt?: MemorandumReceipt | null;
 }
 
 export interface PortalReport {
@@ -145,6 +147,30 @@ export interface PortalAccount {
   terms_version: number | null;
   terms_accepted_at: string | null;
   current_terms_version: number;
+  agreement: PortalAgreementStatus;
+}
+
+export interface PortalAgreementStatus {
+  title: string;
+  version: number;
+  /** The text is still the template; only test partners are asked to sign it. */
+  draft: boolean;
+  /** Must be signed before the portal opens. */
+  required: boolean;
+  /** When the version in force was signed; null if it has not been. */
+  signed_at: string | null;
+  countersigned_at: string | null;
+  signed_versions: Array<{ version: number; signed_at: string; draft: boolean }>;
+  details: { name: string; entity: string | null; address: string | null; pledge_pence: number | null };
+}
+
+/** A partner's receipt of a Deal Memorandum and their ROFR election. */
+export interface MemorandumReceipt {
+  received_at: string;
+  /** Last business day to exercise or waive (clause 3.3). */
+  respond_by: string;
+  election: "exercise" | "waive" | null;
+  elected_at: string | null;
 }
 
 export const getDashboard = (opts?: { noCache?: boolean }) =>
@@ -201,3 +227,26 @@ export const acceptTerms = (terms_version: number) =>
     action: "accept_terms",
     terms_version,
   });
+
+export const signAgreement = (input: {
+  version: number;
+  agreement_date: string;
+  entity: string | null;
+  address: string;
+  pledge_pence: number;
+  signed_name: string;
+  text_sha256: string;
+}) =>
+  api.post<{ ok: true; version: number }>("/api/investor-portal/account", {
+    action: "sign_agreement",
+    accept_risk: true,
+    ...input,
+  });
+
+/** The signed copy, built on request (a plain link: the browser downloads it). */
+export const agreementPdfUrl = (version?: number) =>
+  `/api/investor-portal/agreement-pdf${version ? `?version=${version}` : ""}`;
+
+/** Confirm receipt of a Deal Memorandum, or exercise / waive the right of first refusal. */
+export const respondToMemorandum = (document_id: string, action: "receive" | "exercise" | "waive") =>
+  api.post<{ receipt: MemorandumReceipt }>("/api/investor-portal/memorandum", { document_id, action });

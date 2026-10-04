@@ -8,7 +8,12 @@
  */
 import { ReactNode, useState } from "react";
 import { Download, Eye, FolderOpen, Loader2 } from "lucide-react";
-import { openDocument, type PortalDocument } from "../../api/investorPortal";
+import {
+  openDocument,
+  respondToMemorandum,
+  type MemorandumReceipt,
+  type PortalDocument,
+} from "../../api/investorPortal";
 import {
   CATEGORY_INFO,
   DOC_CATEGORIES,
@@ -165,6 +170,7 @@ export function DocRow({
   version = 1,
   superseded = false,
   eventDate = null,
+  receipt,
 }: {
   id: string;
   title: string;
@@ -179,6 +185,8 @@ export function DocRow({
   /** A newer version corrects this one. It stays visible, marked. */
   superseded?: boolean;
   eventDate?: string | null;
+  /** Deal Memoranda only (undefined otherwise): the partner's receipt, null before it. */
+  receipt?: MemorandumReceipt | null;
 }) {
   const typeLabel = [
     isDocType(docType) ? DOC_TYPE_INFO[docType].code : null,
@@ -273,6 +281,107 @@ export function DocRow({
           </span>
         )}
       </div>
+      {receipt !== undefined && available && hasFile && !superseded ? (
+        <MemorandumResponse documentId={id} initial={receipt} />
+      ) : null}
+    </div>
+  );
+}
+
+const endOfDay = (isoDay: string) => new Date(`${isoDay}T23:59:59+01:00`).getTime();
+
+/**
+ * The partner's side of clause 3 of the Investors Agreement for one Deal
+ * Memorandum: confirm receipt (which starts the 10-business-day window), then
+ * exercise or waive the right of first refusal, once.
+ */
+function MemorandumResponse({ documentId, initial }: { documentId: string; initial: MemorandumReceipt | null }) {
+  const [receipt, setReceipt] = useState(initial);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  const respond = async (action: "receive" | "exercise" | "waive") => {
+    if (action === "exercise" && !window.confirm("Confirm you wish to participate in this acquisition. ACP will send you the subscription agreement to sign.")) return;
+    if (action === "waive" && !window.confirm("Confirm you are declining this acquisition. ACP may then offer the allocation to other partners.")) return;
+    setBusy(true);
+    setError("");
+    try {
+      setReceipt((await respondToMemorandum(documentId, action)).receipt);
+    } catch (err: any) {
+      setError(err?.message || "That did not go through. Please try again.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const btn =
+    "rounded border px-3 py-1.5 text-[11px] font-semibold transition disabled:opacity-50";
+  let body: ReactNode;
+  if (!receipt) {
+    body = (
+      <>
+        <p className="text-[11px] leading-relaxed text-slate-400">
+          Under your Investors Agreement you have 10 business days from receiving this memorandum to say whether you
+          wish to take part. Open and read it, then confirm you have received it to start that window.
+        </p>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => void respond("receive")}
+          className={cx(btn, "mt-2 border-acp-portal-gold/40 text-acp-portal-gold hover:bg-acp-portal-gold/10")}
+        >
+          I have received and read this memorandum
+        </button>
+      </>
+    );
+  } else if (receipt.election) {
+    body = (
+      <p className="text-[11px] leading-relaxed text-slate-300">
+        {receipt.election === "exercise"
+          ? `You chose to participate on ${formatDate(receipt.elected_at)}. ACP will send you the subscription agreement.`
+          : `You declined this acquisition on ${formatDate(receipt.elected_at)}.`}
+      </p>
+    );
+  } else if (Date.now() > endOfDay(receipt.respond_by)) {
+    body = (
+      <p className="text-[11px] leading-relaxed text-slate-400">
+        Received {formatDate(receipt.received_at)}. The response window closed on {formatDate(receipt.respond_by)}.
+      </p>
+    );
+  } else {
+    body = (
+      <>
+        <p className="text-[11px] leading-relaxed text-slate-300">
+          Received {formatDate(receipt.received_at)}. Please respond by{" "}
+          <span className="font-semibold text-acp-portal-gold">{formatDate(receipt.respond_by)}</span>.
+        </p>
+        <div className="mt-2 flex flex-wrap gap-2">
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void respond("exercise")}
+            className={cx(btn, "border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/10")}
+          >
+            I wish to participate
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void respond("waive")}
+            className={cx(btn, "border-white/15 text-slate-300 hover:bg-white/5")}
+          >
+            I decline this one
+          </button>
+        </div>
+      </>
+    );
+  }
+
+  return (
+    <div className="basis-full rounded border border-white/5 bg-white/[0.02] px-3 py-2.5">
+      <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">Right of first refusal</p>
+      {body}
+      {error ? <p className="mt-1.5 text-[11px] text-rose-300">{error}</p> : null}
     </div>
   );
 }
@@ -428,6 +537,7 @@ export function DocumentFolders({ docs }: { docs: PortalDocument[] }) {
                 version={d.version}
                 superseded={d.superseded}
                 eventDate={d.event_date}
+                receipt={d.receipt}
               />
             ))}
           </div>

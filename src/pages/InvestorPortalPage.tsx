@@ -15,10 +15,11 @@
  * password we emailed must choose their own, then accept the terms, before any
  * holding is visible.
  */
-import { FormEvent, InputHTMLAttributes, useCallback, useEffect, useState } from "react";
+import { FormEvent, InputHTMLAttributes, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity as ActivityIcon,
   Building2,
+  Download,
   Eye,
   EyeOff,
   FileText,
@@ -30,6 +31,8 @@ import { BrandLogo } from "../components/ui/BrandLogo";
 import { ThemeToggle } from "../components/ui/ThemeToggle";
 import {
   acceptTerms,
+  agreementPdfUrl,
+  signAgreement,
   getAccount,
   getAcquisition,
   getActivity,
@@ -46,6 +49,11 @@ import {
   type PortalDocument,
 } from "../api/investorPortal";
 import { clearApiCache } from "../api/http";
+import {
+  agreementText,
+  investorsAgreement,
+  type AgreementParty,
+} from "../../lib/core/investor-agreement";
 import { COPY, AMORT_LABEL, activityLine, formatDate, gbp, pct } from "../lib/portal/format";
 import {
   ActivityItem,
@@ -93,6 +101,9 @@ export function InvestorPortalPage() {
   const [account, setAccount] = useState<PortalAccount | null>(null);
   const [view, setView] = useState<View>("dashboard");
   const [openDeal, setOpenDeal] = useState<string | null>(null);
+  // Set once a first-time partner has chosen their password, so the agreement
+  // screens carry on the "Step n of 3" count rather than restarting it.
+  const [firstRun, setFirstRun] = useState(false);
 
   // Resume an existing session. Only an investor account belongs here; a staff
   // or lender cookie is ignored rather than half-loading a portal they cannot
@@ -146,17 +157,31 @@ export function InvestorPortalPage() {
     );
   }
 
-  // Onboarding gates, in order. Neither can be skipped: both are re-read from
-  // the server after each step rather than assumed from local state.
+  // Onboarding gates, in order. None can be skipped: each is re-read from the
+  // server after every step rather than assumed from local state, and the
+  // server refuses every holding until they are all cleared.
+  //   1. their own password — so what follows is done under a credential only
+  //      they know, never the one we emailed;
+  //   2. the Investors Agreement, where it is required of them (signing it
+  //      also accepts the portal terms);
+  //   3. the portal terms, for a partner not yet asked to sign.
+  const agreementDue = account.agreement.required && !account.agreement.signed_at;
   if (account.must_change_password) {
     return (
       <SetPasswordScreen
         name={account.name}
         email={account.email}
         recovery={account.recovery_pending}
-        onDone={loadAccount}
+        steps={agreementDue ? 3 : 2}
+        onDone={async () => {
+          if (!account.recovery_pending) setFirstRun(true);
+          await loadAccount();
+        }}
       />
     );
+  }
+  if (agreementDue) {
+    return <AgreementScreen account={account} stepOffset={firstRun ? 1 : 0} onDone={loadAccount} />;
   }
   if ((account.terms_version ?? 0) < account.current_terms_version) {
     return <TermsScreen version={account.current_terms_version} onDone={loadAccount} />;
@@ -199,11 +224,27 @@ export function InvestorPortalPage() {
 //  Auth and onboarding
 // ==========================================================================
 
-const AuthCard = ({ title, step, children }: { title: string; step?: string; children: React.ReactNode }) => (
+const AuthCard = ({
+  title,
+  step,
+  wide = false,
+  children,
+}: {
+  title: string;
+  step?: string;
+  /** Room for a document to be read, not just a form. */
+  wide?: boolean;
+  children: React.ReactNode;
+}) => (
   <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-acp-portal-bg p-4 text-slate-100">
     <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,#c9a25715_0%,transparent_55%)]" />
     <ThemeToggle className="absolute right-4 top-4 z-20" />
-    <div className="relative w-full max-w-md rounded-2xl border border-white/5 bg-acp-portal-card/95 p-8 shadow-2xl">
+    <div
+      className={cx(
+        "relative w-full rounded-2xl border border-white/5 bg-acp-portal-card/95 p-5 shadow-2xl sm:p-8",
+        wide ? "mt-12 max-w-2xl sm:mt-0" : "max-w-md",
+      )}
+    >
       <div className="mb-7 flex flex-col items-center text-center">
         <BrandLogo className="h-8 text-white" />
         <p className="mt-3 text-[10px] font-bold uppercase tracking-[0.18em] text-acp-portal-gold">Partner Portal</p>
@@ -411,6 +452,7 @@ function SetPasswordScreen({
   name,
   email,
   recovery,
+  steps,
   onDone,
 }: {
   name: string;
@@ -418,6 +460,8 @@ function SetPasswordScreen({
   /** Arrived on a reset link: they do not know the current password, and the
    *  server accepts a change without it inside a short window. */
   recovery: boolean;
+  /** How many onboarding steps there are in all, this one included. */
+  steps: number;
   onDone: () => Promise<void>;
 }) {
   const [current, setCurrent] = useState("");
@@ -449,7 +493,7 @@ function SetPasswordScreen({
   return (
     <AuthCard
       title={recovery ? "Choose a new password" : `Welcome, ${name || "partner"}`}
-      step={recovery ? undefined : "Step 1 of 2"}
+      step={recovery ? undefined : `Step 1 of ${steps}`}
     >
       <form onSubmit={submit} className="space-y-4">
         {error ? <div className={errorClass}>{error}</div> : null}
@@ -512,6 +556,322 @@ function SetPasswordScreen({
           {busy ? "Saving…" : "Continue"}
         </button>
       </form>
+    </AuthCard>
+  );
+}
+
+/** Today in the partner's own time zone, as YYYY-MM-DD: the day the agreement is made. */
+function localDay(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+async function sha256Hex(text: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+/** "£100,000", "100000", "100k" → pence; null if it is not a positive amount. */
+function parsePledge(raw: string): number | null {
+  const s = raw.replace(/[£,\s]/g, "").toLowerCase();
+  const m = /^(\d+(?:\.\d{1,2})?)(k|m)?$/.exec(s);
+  if (!m) return null;
+  const pounds = Number(m[1]) * (m[2] === "k" ? 1_000 : m[2] === "m" ? 1_000_000 : 1);
+  const pence = Math.round(pounds * 100);
+  return pence > 0 ? pence : null;
+}
+
+/**
+ * The Investors Agreement, in two screens: confirm the details it is made out
+ * to, then read and sign it. The text comes from the same module the server
+ * uses, and its SHA-256 goes up with the signature, so the server can refuse a
+ * signature over anything other than what was on this screen.
+ *
+ * The agreement is shown as text rather than an embedded PDF: an embedded PDF
+ * barely scrolls on an iPhone. The signed copy is a PDF, on the Account page.
+ */
+function AgreementScreen({
+  account,
+  stepOffset,
+  onDone,
+}: {
+  account: PortalAccount;
+  /** 1 when the password step came first in this visit (Steps 2 and 3 of 3). */
+  stepOffset: number;
+  onDone: () => Promise<void>;
+}) {
+  const a = account.agreement;
+  const total = 2 + stepOffset;
+  const [stage, setStage] = useState<"details" | "read">("details");
+  const [entity, setEntity] = useState(a.details.entity ?? "");
+  const [address, setAddress] = useState(a.details.address ?? "");
+  const [pledge, setPledge] = useState(
+    a.details.pledge_pence ? gbp(a.details.pledge_pence).replace(/\.00$/, "") : "",
+  );
+  const [error, setError] = useState("");
+  const date = useMemo(localDay, []);
+
+  const pledgePence = parsePledge(pledge);
+  const party = useMemo<AgreementParty>(
+    () => ({
+      name: a.details.name,
+      entity: entity.trim() || null,
+      address: address.trim(),
+      pledgePence: pledgePence ?? 0,
+      date,
+    }),
+    [a.details.name, entity, address, pledgePence, date],
+  );
+
+  if (stage === "details") {
+    return (
+      <AuthCard title="Your details" step={`Step ${1 + stepOffset} of ${total}`}>
+        <form
+          className="space-y-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (address.trim().length < 5) return setError("Enter your address.");
+            if (!pledgePence) return setError("Enter your indicative pledge as an amount in pounds, for example 100,000.");
+            setError("");
+            setStage("read");
+          }}
+        >
+          {error ? <div className={errorClass}>{error}</div> : null}
+          <p className="text-xs leading-relaxed text-slate-400">
+            Before your portal opens you sign the {a.title}. Check the details it will be made out to.
+          </p>
+          <div>
+            <p className={labelClass}>Name</p>
+            <p className="text-sm text-white">{a.details.name}</p>
+            <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
+              Not your full legal name? Email{" "}
+              <a href={`mailto:${COPY.contact}`} className="text-acp-portal-gold hover:underline">
+                {COPY.contact}
+              </a>{" "}
+              before signing.
+            </p>
+          </div>
+          <div>
+            <label className={labelClass} htmlFor="ag-entity">
+              Investing through (optional)
+            </label>
+            <input
+              id="ag-entity"
+              value={entity}
+              onChange={(e) => setEntity(e.target.value)}
+              placeholder="Family office or company"
+              className={fieldClass}
+            />
+          </div>
+          <div>
+            <label className={labelClass} htmlFor="ag-address">
+              Address
+            </label>
+            <textarea
+              id="ag-address"
+              required
+              rows={3}
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              placeholder="Your residential address, or the entity's principal place of business"
+              className={cx(fieldClass, "resize-none")}
+            />
+          </div>
+          <div>
+            <label className={labelClass} htmlFor="ag-pledge">
+              Indicative pledge
+            </label>
+            <input
+              id="ag-pledge"
+              inputMode="decimal"
+              required
+              value={pledge}
+              onChange={(e) => setPledge(e.target.value)}
+              placeholder="£100,000"
+              className={fieldClass}
+            />
+            <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
+              A soft commitment, not an obligation to fund. No money moves until a specific acquisition is presented to
+              you.
+            </p>
+          </div>
+          <button type="submit" className={buttonClass}>
+            Continue to the agreement
+          </button>
+        </form>
+      </AuthCard>
+    );
+  }
+
+  return (
+    <AgreementReader
+      account={account}
+      party={party}
+      step={`Step ${2 + stepOffset} of ${total}`}
+      onBack={() => setStage("details")}
+      onDone={onDone}
+    />
+  );
+}
+
+function AgreementReader({
+  account,
+  party,
+  step,
+  onBack,
+  onDone,
+}: {
+  account: PortalAccount;
+  party: AgreementParty;
+  step: string;
+  onBack: () => void;
+  onDone: () => Promise<void>;
+}) {
+  const a = account.agreement;
+  const doc = useMemo(() => investorsAgreement(party), [party]);
+  const boxRef = useRef<HTMLDivElement>(null);
+  const [readToEnd, setReadToEnd] = useState(false);
+  const [agreed, setAgreed] = useState(false);
+  const [risk, setRisk] = useState(false);
+  const [signature, setSignature] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  const checkEnd = useCallback(() => {
+    const el = boxRef.current;
+    if (el && el.scrollTop + el.clientHeight >= el.scrollHeight - 24) setReadToEnd(true);
+  }, []);
+  // A tall screen may show the whole agreement without any scrolling.
+  useEffect(() => {
+    checkEnd();
+    window.addEventListener("resize", checkEnd);
+    return () => window.removeEventListener("resize", checkEnd);
+  }, [checkEnd]);
+
+  const canSign = readToEnd && agreed && risk && signature.trim().length >= 2 && !busy;
+
+  async function sign() {
+    if (!canSign) return;
+    setBusy(true);
+    setError("");
+    try {
+      await signAgreement({
+        version: a.version,
+        agreement_date: party.date,
+        entity: party.entity,
+        address: party.address,
+        pledge_pence: party.pledgePence,
+        signed_name: signature.trim(),
+        text_sha256: await sha256Hex(agreementText(doc)),
+      });
+      await onDone();
+    } catch (err: any) {
+      setError(err?.message || "The signature could not be recorded. Please try again.");
+      setBusy(false);
+    }
+  }
+
+  return (
+    <AuthCard title={a.title} step={step} wide>
+      <div className="space-y-4">
+        {error ? <div className={errorClass}>{error}</div> : null}
+        {a.draft ? (
+          <div className="rounded border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-[11px] leading-relaxed text-amber-200">
+            Draft template, shown to test accounts only. It is not yet a binding agreement.
+          </div>
+        ) : null}
+
+        <div
+          ref={boxRef}
+          onScroll={checkEnd}
+          tabIndex={0}
+          aria-label={`${a.title} text`}
+          className="max-h-[52vh] overflow-y-auto rounded border border-white/10 bg-acp-portal-sunken px-4 py-4 text-[13px] leading-relaxed text-slate-300 sm:px-5"
+        >
+          <div className="space-y-2">
+            {doc.preamble.map((p, i) => (
+              <p key={i} className={cx(i === 1 && "font-semibold text-white")}>
+                {p}
+              </p>
+            ))}
+          </div>
+          {doc.sections.map((s) => (
+            <section key={s.heading} className="mt-5">
+              <h2 className="mb-2 text-xs font-bold uppercase tracking-[0.1em] text-white">{s.heading}</h2>
+              <div className="space-y-2">
+                {s.clauses.map((c, i) => (
+                  // Clause numbers start a clause; lettered limbs and fee lines sit under it.
+                  <p key={i} className={cx(!/^\d+\.\d+\s/.test(c) && "pl-4")}>
+                    {c}
+                  </p>
+                ))}
+              </div>
+            </section>
+          ))}
+          <p className="mt-5 text-slate-400">{doc.closing}</p>
+        </div>
+        {!readToEnd ? (
+          <p className="text-center text-[11px] text-slate-500">Scroll to the end of the agreement to sign it.</p>
+        ) : null}
+
+        <fieldset disabled={!readToEnd} className="space-y-3 disabled:opacity-50">
+          <label className="flex cursor-pointer items-start gap-3 rounded border border-white/10 bg-acp-portal-sunken p-3">
+            <input
+              type="checkbox"
+              checked={agreed}
+              onChange={(e) => setAgreed(e.target.checked)}
+              className="mt-0.5 h-4 w-4 shrink-0 accent-acp-portal-gold"
+            />
+            <span className="text-xs leading-relaxed text-slate-300">
+              I have read the {a.title} and agree to be bound by it, including the confidentiality obligations in clause
+              5.
+            </span>
+          </label>
+          <label className="flex cursor-pointer items-start gap-3 rounded border border-white/10 bg-acp-portal-sunken p-3">
+            <input
+              type="checkbox"
+              checked={risk}
+              onChange={(e) => setRisk(e.target.checked)}
+              className="mt-0.5 h-4 w-4 shrink-0 accent-acp-portal-gold"
+            />
+            <span className="text-xs leading-relaxed text-slate-300">
+              I understand this portal shows actuals only, and that investment in unlisted companies places my capital at
+              risk and is illiquid. I accept the portal terms and privacy notice.
+            </span>
+          </label>
+          <div>
+            <label className={labelClass} htmlFor="ag-sign">
+              Type your full name to sign
+            </label>
+            <input
+              id="ag-sign"
+              autoComplete="name"
+              value={signature}
+              onChange={(e) => setSignature(e.target.value)}
+              placeholder={party.name}
+              className={cx(fieldClass, "font-display text-base italic")}
+            />
+            <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
+              Your typed name is your electronic signature. We record it with the date, time and device, and a signed
+              PDF copy will be in your Account page.
+            </p>
+          </div>
+        </fieldset>
+
+        <div className="flex flex-col-reverse gap-2 sm:flex-row">
+          <button
+            type="button"
+            onClick={onBack}
+            disabled={busy}
+            className="rounded border border-white/10 px-4 py-2.5 text-sm text-slate-300 transition hover:border-white/20 disabled:opacity-50"
+          >
+            Back
+          </button>
+          <button type="button" onClick={() => void sign()} disabled={!canSign} className={buttonClass}>
+            {busy ? "Signing…" : "Sign and enter the portal"}
+          </button>
+        </div>
+      </div>
     </AuthCard>
   );
 }
@@ -1396,6 +1756,41 @@ function AccountView({
           />
           <p className="mt-4 text-[11px] text-slate-500">{COPY.accountUpdate}</p>
         </Panel>
+
+        {account.agreement.signed_versions.length ? (
+          <Panel title="Your agreements">
+            {account.agreement.signed_versions.map((s) => {
+              const current = s.version === account.agreement.version;
+              return (
+                <div
+                  key={s.version}
+                  className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-white/5 py-3 last:border-b-0"
+                >
+                  <div className="min-w-[min(100%,12rem)] flex-1">
+                    <p className="text-sm text-slate-200">
+                      {account.agreement.title} · v{s.version}
+                      {s.draft ? <span className="ml-2 text-[10px] font-semibold text-amber-300">Draft</span> : null}
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-slate-500">
+                      Signed {formatDate(s.signed_at)}
+                      {current
+                        ? account.agreement.countersigned_at
+                          ? ` · countersigned ${formatDate(account.agreement.countersigned_at)}`
+                          : " · awaiting ACP's countersignature"
+                        : " · superseded"}
+                    </p>
+                  </div>
+                  <a
+                    href={agreementPdfUrl(s.version)}
+                    className="ml-auto inline-flex items-center gap-1 rounded border border-white/10 px-2.5 py-1 text-[11px] font-semibold text-slate-200 transition hover:border-acp-bronze/50 hover:text-acp-bronze"
+                  >
+                    <Download className="h-3 w-3" /> Signed copy
+                  </a>
+                </div>
+              );
+            })}
+          </Panel>
+        ) : null}
 
         <Panel title="Security">
           {message ? (
