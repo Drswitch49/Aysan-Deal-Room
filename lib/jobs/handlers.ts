@@ -8,6 +8,7 @@
  * and the job fails visibly rather than hanging silently.
  */
 import { enqueue, registerHandler } from "./queue.js";
+import { classifyFailure } from "./failure.js";
 import { generateBrief, generateP089 } from "../intelligence/generate.js";
 import { BRIEF_KEYS, P089_KEYS, SUMMARY_KEYS, type SectionKey } from "../../src/lib/acp/intelligence.js";
 import { adminClient } from "../data/supabase/client.js";
@@ -288,7 +289,7 @@ registerHandler("intelligence-run", async (payload: any) => {
     }
     return { intelligence_run_id: id, stage: "brief", next: needsB ? "negotiation-run" : null };
   } catch (err) {
-    await db().from("intelligence_runs").update({ status: "failed", error: err instanceof Error ? err.message : String(err) }).eq("id", id);
+    await db().from("intelligence_runs").update({ status: "failed", error: classifyFailure(err).message }).eq("id", id);
     throw err;
   }
 });
@@ -302,7 +303,7 @@ registerHandler("negotiation-run", async (payload: any) => {
     await generateP089(id, payload.p089 ?? {});
     return { intelligence_run_id: id, stage: "p089" };
   } catch (err) {
-    await db().from("intelligence_runs").update({ status: "failed", error: err instanceof Error ? err.message : String(err) }).eq("id", id);
+    await db().from("intelligence_runs").update({ status: "failed", error: classifyFailure(err).message }).eq("id", id);
     throw err;
   }
 });

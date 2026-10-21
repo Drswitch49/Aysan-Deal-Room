@@ -81,7 +81,11 @@ export async function runDueJobs(opts: { batch?: number; timeBudgetMs?: number }
   failed: number;
 }> {
   const db = adminClient();
-  const deadline = Date.now() + (opts.timeBudgetMs ?? 250_000); // stay under maxDuration 300s
+  // A job claimed late in the budget still runs to completion, and an AI job
+  // takes up to ~200s, so the deadline is for *claiming*, not for finishing.
+  // Claiming the P-089 job at 200s (after an intelligence brief) got it killed
+  // by maxDuration 300s mid-call; the next tick or in-app kick picks it up.
+  const deadline = Date.now() + (opts.timeBudgetMs ?? 90_000);
   let ran = 0, failed = 0;
 
   while (Date.now() < deadline) {

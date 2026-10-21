@@ -22,7 +22,7 @@ import { cx } from "../../utils/cx";
 import { useAuth } from "../../context/AuthContext";
 import {
   commentSection, fetchIntelligence, fetchPostcallControls, fetchPostcallRuns, generateIntelligence,
-  lockSection, regenerateSections, writeNegotiationLogRow,
+  kickWorker, lockSection, regenerateSections, writeNegotiationLogRow,
   type CounterpartyOpts, type IntelligenceView, type PostcallControls, type PostcallRun,
 } from "../../api/admin";
 import {
@@ -101,12 +101,16 @@ export function IntelligenceTab({
     if (run) loadIntel().catch((e) => setErr(errText(e, "Failed to load intelligence.")));
   }, [run, loadIntel]);
 
-  // Poll while a generation is in flight.
+  // Poll while a generation is in flight, and keep the worker going: the cron
+  // tick is not reliable, and the P-089 stage is a second job queued after the
+  // first finishes, so without a kick it (or a job whose worker died) waits.
   const inFlight = intel?.status === "queued" || intel?.status === "running";
   useEffect(() => {
     if (!inFlight) return;
+    kickWorker();
     const t = setInterval(() => { loadIntel().catch(() => undefined); }, 3000);
-    return () => clearInterval(t);
+    const k = setInterval(kickWorker, 45_000);
+    return () => { clearInterval(t); clearInterval(k); };
   }, [inFlight, loadIntel]);
 
   const act = async (label: string, fn: () => Promise<unknown>) => {

@@ -15,6 +15,7 @@
  *     without changing the call shape for callers.
  */
 import Anthropic from "@anthropic-ai/sdk";
+import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import type { ZodType } from "zod";
 import { getServerEnv } from "../core/env.js";
 import { logger } from "../core/logger.js";
@@ -67,8 +68,16 @@ export interface AskOptions {
   effort?: AiEffort;
 }
 
+type OutputFormat = ReturnType<typeof zodOutputFormat>;
+
 /** Plain-text completion. */
-export async function askClaude(opts: AskOptions): Promise<string> {
+export function askClaude(opts: AskOptions): Promise<string> {
+  return complete(opts);
+}
+
+/** `json` marks a JSON answer; its `format` constrains it to a schema (structured outputs). */
+async function complete(opts: AskOptions, json?: { format?: OutputFormat }): Promise<string> {
+  const format = json?.format;
   const maxTokens = Math.min((opts.maxTokens ?? 4000) + THINKING_HEADROOM, MAX_OUTPUT_TOKENS);
 
   const response = await getClient().messages
@@ -76,7 +85,7 @@ export async function askClaude(opts: AskOptions): Promise<string> {
       model: opts.model ?? AI_MODEL,
       max_tokens: maxTokens,
       thinking: { type: "adaptive" },
-      output_config: { effort: opts.effort ?? "high" },
+      output_config: { effort: opts.effort ?? "high", ...(format ? { format } : {}) },
       system: opts.system,
       messages: opts.messages,
     })
@@ -101,6 +110,11 @@ export async function askClaude(opts: AskOptions): Promise<string> {
         : "No content returned from Claude.",
     );
   }
+  // A JSON answer cut off mid-way can't be repaired: the repair round has the
+  // same budget and is cut off again. Fail with the cause instead.
+  if (json && response.stop_reason === "max_tokens") {
+    throw new Error("Claude hit the output limit mid-answer — raise maxTokens for this task.");
+  }
   return text.trim();
 }
 
@@ -117,10 +131,17 @@ function stripFences(raw: string): string {
  * JSON completion validated against a zod schema, with ONE repair retry:
  * if parsing/validation fails, the raw output + error is sent back to the model
  * asking for corrected pure JSON.
+ *
+ * `structured: true` also sends the schema as the response format, so the
+ * model is held to its exact keys and types. Without it the model only sees
+ * field names in prose and guesses (`acp` for `acps`, a string for an array),
+ * which is how the P-089 stage kept failing validation. Opt-in, because
+ * structured outputs reject some schema shapes (records, many optionals).
  */
-export async function askClaudeJson<T>(schema: ZodType<T>, opts: AskOptions): Promise<T> {
+export async function askClaudeJson<T>(schema: ZodType<T>, opts: AskOptions & { structured?: boolean }): Promise<T> {
+  const format = opts.structured ? zodOutputFormat(schema as never) : undefined;
   const attempt = async (messages: AskOptions["messages"]): Promise<{ ok: true; value: T } | { ok: false; raw: string; error: string }> => {
-    const raw = await askClaude({ ...opts, messages });
+    const raw = await complete({ ...opts, messages }, { format });
     try {
       const parsed = JSON.parse(stripFences(raw));
       const result = schema.safeParse(parsed);

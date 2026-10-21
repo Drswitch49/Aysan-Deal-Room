@@ -78,6 +78,32 @@ function present(row: IntelRow, role: string, latestDoc: string | null) {
   };
 }
 
+/**
+ * A run marked queued/running with no live job behind it is dead: its job
+ * failed, or the worker was killed past its last retry. Left alone the tab
+ * polls it forever with Generate disabled, so record it as failed.
+ */
+async function reconcile(row: IntelRow & { id: string; status?: string }) {
+  if (row.status !== "queued" && row.status !== "running") return row;
+  // Give a fresh enqueue time to land its job row.
+  const touched = String(row.updated_at ?? row.created_at ?? "");
+  if (touched && Date.now() - Date.parse(touched) < 60_000) return row;
+  const { data: live } = await db().from("jobs").select("id")
+    .in("type", ["intelligence-run", "negotiation-run"])
+    .in("status", ["queued", "running"])
+    .eq("payload->>intelligence_run_id", row.id)
+    .limit(1);
+  if (live?.length) return row;
+  const { data: last } = await db().from("jobs").select("error")
+    .in("type", ["intelligence-run", "negotiation-run"])
+    .eq("payload->>intelligence_run_id", row.id)
+    .order("updated_at", { ascending: false })
+    .limit(1);
+  const error = last?.[0]?.error || "Generation stopped before it finished. Generate again.";
+  await db().from("intelligence_runs").update({ status: "failed", error }).eq("id", row.id).in("status", ["queued", "running"]);
+  return { ...row, status: "failed", error };
+}
+
 async function loadRun(id: string) {
   const { data, error } = await db().from("intelligence_runs").select("*").eq("id", id).maybeSingle();
   if (error) throw new Error(`intelligence_runs: ${error.message}`);
@@ -96,7 +122,7 @@ export default createHandler({
       const { data } = await db().from("intelligence_runs").select("*").eq("deal_id", q.deal_id).eq("run_id", q.run_id).order("created_at", { ascending: false }).limit(1);
       const row = data?.[0];
       if (!row) return { run: null, visible_sections: visibleSections(user.role) };
-      return { run: present(row, user.role, await latestDocumentAt(q.deal_id)) };
+      return { run: present(await reconcile(row), user.role, await latestDocumentAt(q.deal_id)) };
     }
 
     const input = bodySchema.parse(body ?? {});
@@ -113,7 +139,7 @@ export default createHandler({
       const locked = new Set<string>(row.locked_sections ?? []);
       const only = input.sections.filter((k) => !locked.has(k));
       if (!only.length) throw new BadRequestError("Every requested section is locked. Unlock it to regenerate.");
-      await db().from("intelligence_runs").update({ status: "queued" }).eq("id", row.id);
+      await db().from("intelligence_runs").update({ status: "queued", error: null, updated_at: new Date().toISOString() }).eq("id", row.id);
       const jobId = await enqueue("intelligence-run", { intelligence_run_id: row.id, only, p089 }, { createdBy: actor });
       return { job_id: jobId, sections: only };
     }

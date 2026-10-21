@@ -12,11 +12,12 @@
  *      Without this fallback a deployment with no CRON_SECRET rejects its own
  *      cron with a 401 and every queued job sits queued forever — which is
  *      exactly what happened here.
- *   3. An admin session (the in-app kick, and manual drains).
+ *   3. A writer session (the in-app kick, and manual drains). It only runs
+ *      jobs already queued, so any role that can enqueue one may start it.
  */
 import { runDueJobs } from "../../lib/jobs/queue.js";
 import "../../lib/jobs/handlers.js"; // registers all handlers
-import { getUserContext, ALL_ADMINS } from "../_lib/authz.js";
+import { getUserContext, WRITERS } from "../_lib/authz.js";
 import { drainEmailQueue } from "../../lib/email/send.js";
 import { logger } from "../../lib/core/logger.js";
 
@@ -29,8 +30,8 @@ export default async function handler(req: any, res: any) {
 
   if (!isCron) {
     const user = await getUserContext(req);
-    if (!user || !ALL_ADMINS.includes(user.role)) {
-      return res.status(401).json({ error: { code: "unauthorized", message: "Worker requires cron secret or admin session" } });
+    if (!user || !WRITERS.includes(user.role)) {
+      return res.status(401).json({ error: { code: "unauthorized", message: "Worker requires cron secret or a writer session" } });
     }
   }
 

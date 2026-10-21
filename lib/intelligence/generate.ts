@@ -50,7 +50,7 @@ const contentSchema = z.object({
   evidence: z.array(z.object({ tag: z.enum(TAGS), source: z.string() })).optional(),
 });
 
-const briefSchema = z.object(Object.fromEntries(BRIEF_KEYS.map((k) => [k, contentSchema]))) as z.ZodType<Record<string, SectionContent>>;
+const sectionsSchema = (keys: SectionKey[]) => z.object(Object.fromEntries(keys.map((k) => [k, contentSchema]))) as z.ZodType<Record<string, SectionContent>>;
 const summarySchema = z.object({ "1": contentSchema, "11": contentSchema }) as z.ZodType<Record<string, SectionContent>>;
 
 const diagnosisSchema = z.object({
@@ -182,46 +182,53 @@ const STYLE = `STYLE RULES (checked in code; a breach blocks the tab):
 const CONTENT_SHAPE = `Each section is an object: { "bullets"?: [{ "text": string, "tags"?: [TAG] }], "table"?: { "columns": [string], "rows": [[string]] }, "note"?: string, "open_items"?: [string], "evidence"?: [{ "tag": TAG, "source": string }] }. Use a table where the section names columns; otherwise bullets.`;
 
 // ─── Stage A: Intelligence Brief ───────────────────────────────────────────
+const BRIEF_SPEC: Partial<Record<SectionKey, string>> = {
+  "2": `"2" What the documents say: bullets, one fact each, tagged, with the document and page or call line as evidence.`,
+  "3": `"3" Findings, impact, red flags: table [Finding, Impact, Red flag (Yes/No), Tag].`,
+  "4": `"4" Contradictions: table [Claim, Conflicting evidence, Why it matters]. Name each conflict between the IM, the filed accounts and the call.`,
+  "5": `"5" Value creation, confidence: table [Lever, What it is worth, Confidence, Tag].`,
+  "6": `"6" Order of work: table [#, Gate, Result, Tag, Category]: the hard gates and priced dimensions that decide the next step, in the order to resolve them (Result is PASS, OPEN, CONDITION or PRICE).`,
+  "7": `"7" Maintainable EBITDA bridge (£k): table [Line, Conservative, Base, Upside]: anchor (adjusted, as stated), each deduction in brackets, ending with a "Maintainable" row. Tag the anchor's source in the note.`,
+  "8": `"8" Structure, DSCR, EV (partners only, never exported): bullets on the debt the maintainable EBITDA supports at the DSCR floor, the supportable EV range, and the structure. Internal only.`,
+  "9": `"9" Kill / Price / Condition: table [Item, Box, Reason, Tag].`,
+  "10": `"10" Power map: table [Person, Role, Influence, What they want, Approach].`,
+};
+/** Document read (P-061) and the gates / bridge / structure half, generated in parallel. */
+const BRIEF_GROUPS: SectionKey[][] = [["2", "3", "4", "5", "10"], ["6", "7", "8", "9"]];
+
 export async function generateBrief(intelligenceRunId: string, only?: SectionKey[]) {
   const ctx = await loadCtx(intelligenceRunId);
   const { name, acpRef, brokerRef } = dealLabel(ctx.deal);
   const want = (keys: SectionKey[]) => keys.filter((k) => !only || only.includes(k));
 
-  if (want(BRIEF_KEYS).length) {
-    const brief = await askClaudeJson(briefSchema, {
-      system: `You write the Intelligence Brief for Aysan Capital Partners (ACP), sections 2 to 10 of the Deal Intelligence tab, for ${name} (${acpRef}${brokerRef ? ` · broker ref ${brokerRef}` : ""}).
-Run P-061 (document read: what the documents say, findings, contradictions), then P-024 (Kill / Price / Condition boxes), then the maintainable EBITDA bridge and the structure / DSCR solve.
-
-SECTIONS (return every key):
-"2" What the documents say: bullets, one fact each, tagged, with the document and page or call line as evidence.
-"3" Findings, impact, red flags: table [Finding, Impact, Red flag (Yes/No), Tag].
-"4" Contradictions: table [Claim, Conflicting evidence, Why it matters]. Name each conflict between the IM, the filed accounts and the call.
-"5" Value creation, confidence: table [Lever, What it is worth, Confidence, Tag].
-"6" Order of work: table [#, Gate, Result, Tag, Category]: the hard gates and priced dimensions that decide the next step, in the order to resolve them (Result is PASS, OPEN, CONDITION or PRICE).
-"7" Maintainable EBITDA bridge (£k): table [Line, Conservative, Base, Upside]: anchor (adjusted, as stated), each deduction in brackets, ending with a "Maintainable" row. Tag the anchor's source in the note.
-"8" Structure, DSCR, EV (partners only, never exported): bullets on the debt the maintainable EBITDA supports at the DSCR floor, the supportable EV range, and the structure. Internal only.
-"9" Kill / Price / Condition: table [Item, Box, Reason, Tag].
-"10" Power map: table [Person, Role, Influence, What they want, Approach].
-
-${CONTENT_SHAPE}
-
-${STYLE}`,
-      maxTokens: 14_000,
-      effort: "high",
-      messages: [{
-        role: "user",
-        content: `${scorecardDigest(ctx)}
+  // Sections 2-10 as two calls run side by side. One call writing all nine
+  // took over three minutes and was regularly killed by the worker's 300s
+  // limit, leaving the run stuck on "running" with nothing written.
+  const groups = BRIEF_GROUPS.map((g) => want(g)).filter((g) => g.length);
+  if (groups.length) {
+    const input = `${scorecardDigest(ctx)}
 
 CALL INPUT (${ctx.run.input_kind ?? "notes"}):
 ${String(ctx.run.input_text ?? "").slice(0, 30_000)}
 
-${ctx.imText || "No IM or attachment text available."}
+${ctx.imText || "No IM or attachment text available."}`;
+    const results = await Promise.all(groups.map((keys) => askClaudeJson(sectionsSchema(keys), {
+      system: `You write part of the Intelligence Brief for Aysan Capital Partners (ACP), the Deal Intelligence tab, for ${name} (${acpRef}${brokerRef ? ` · broker ref ${brokerRef}` : ""}).
+Run P-061 (document read: what the documents say, findings, contradictions), then P-024 (Kill / Price / Condition boxes), then the maintainable EBITDA bridge and the structure / DSCR solve. Write only the sections listed.
 
-Return JSON with keys "2" to "10".`,
-      }],
-    });
+SECTIONS (return every key listed):
+${keys.map((k) => BRIEF_SPEC[k]).join("\n")}
+
+${CONTENT_SHAPE}
+
+${STYLE}`,
+      maxTokens: 16_000, // adaptive thinking at "high" shares this budget; 8k truncated the JSON
+      effort: "high",
+      messages: [{ role: "user", content: `${input}\n\nReturn JSON with keys ${keys.map((k) => `"${k}"`).join(", ")}.` }],
+    })));
     const now = new Date().toISOString();
-    await saveSections(intelligenceRunId, Object.fromEntries(want(BRIEF_KEYS).map((k) => [k, { content: brief[k], generated_at: now }])));
+    const brief = Object.assign({}, ...results) as Record<string, SectionContent>;
+    await saveSections(intelligenceRunId, Object.fromEntries(groups.flat().map((k) => [k, { content: brief[k], generated_at: now }])));
   }
 
   if (want(SUMMARY_KEYS).length) {
@@ -266,10 +273,11 @@ export async function generateP089(intelligenceRunId: string, opts: P089Options 
     system: `You run step 1 of ACP's P-089 negotiation engine: classify the counterparty's position for ${name}.
 Move types (pick a primary and an optional secondary): ${MOVE_TYPES.map((m) => `"${m}" (${MOVE_TYPE_LABELS[m]})`).join(", ")}.
 If no counterparty message is supplied, set move_primary "pre_negotiation".
-temperature: low / medium / high. concessions: what they have already given or disclosed (each specific). anchors: figures they lean on, each with its tag and source. contradictions: conflicts between their documents, filings and what was said. decision_unit: who decides, by name and role. batna_theirs vs batna_acp_internal (internal only, never written to them). milestone_available: true when a verifiable milestone exists that value could be tied to (a licence signed, a lease granted). interests_map: rows of theirs / ACP's / shared / tradeable.
+temperature: low / medium / high. concessions: what they have already given or disclosed (each specific). anchors: figures they lean on, each with its tag and source. contradictions: conflicts between their documents, filings and what was said. decision_unit: who decides, by name and role. batna_theirs vs batna_acp_internal (internal only, never written to them). milestone_available: true when a verifiable milestone exists that value could be tied to (a licence signed, a lease granted). interests_map: rows of { theirs, acps (ACP's interest), shared, tradeable }.
 Use only the evidence supplied. ${STYLE}`,
     maxTokens: 4_000,
     effort: "medium",
+    structured: true,
     messages: [{ role: "user", content: `${scorecardDigest(ctx)}\n\nCOUNTERPARTY: ${role}${opts.recipientName ? ` (${opts.recipientName})` : ""}\nCOUNTERPARTY MESSAGE: ${inbound ?? "none: pre-negotiation run"}\nACP LAST POSITION: ${lastOutbound ? `${lastOutbound.move_type ?? ""} · next move ${lastOutbound.next_move ?? ""}` : "none"}\n\nCALL INPUT:\n${String(ctx.run.input_text ?? "").slice(0, 20_000)}\n\n${ctx.imText.slice(0, 20_000)}` }],
   })) as Diagnosis;
 
@@ -321,6 +329,7 @@ log_next_move: the next move for the Negotiation Log, no figures.
 ${STYLE}`,
     maxTokens: 8_000,
     effort: "high",
+    structured: true,
     messages: [{ role: "user", content: `${scorecardDigest(ctx)}\n\nDIAGNOSIS:\n${JSON.stringify(diag, null, 1)}\n\nCOUNTERPARTY MESSAGE: ${inbound ?? "none: pre-negotiation run"}\n\nSCHEDULE A (attach verbatim, in order): ${schedule.join(" · ")}` }],
   });
 
